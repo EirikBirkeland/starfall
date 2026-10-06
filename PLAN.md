@@ -262,9 +262,9 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 ## 7. Milestones
 
 ### Milestone 0: take stock
-- [ ] Read the existing `index.html` end to end. Write a summary of what works and what is broken in `NOTES.md`.
-- [ ] Fix any syntax error or crash you can find by reading.
-- [ ] Create `CHANGELOG.md` and `NOTES.md`. Release `0.0.1` as the starting point.
+- [x] Read the existing `index.html` end to end. Write a summary of what works and what is broken in `NOTES.md`.
+- [x] Fix any syntax error or crash you can find by reading.
+- [x] Create `CHANGELOG.md` and `NOTES.md`. Release `0.0.1` as the starting point.
 
 ### Milestone 1: foundations
 - [ ] Split the single file into the module layout from section 2, with no change in behaviour.

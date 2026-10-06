@@ -1131,7 +1131,7 @@
     if (c === 'Space' || c === 'Enter' || c === 'NumpadEnter') {
       if (state !== STATE.PLAY) pressAction();
     }
-    if (c === 'KeyM') { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.22; }
+    if (c === 'KeyM' && !e.repeat) { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.22; }
   });
   window.addEventListener('keyup', function (e) { keys[e.code || e.key] = false; });
   window.addEventListener('blur', function () { for (var k2 in keys) keys[k2] = false; mouse.down = false; });
@@ -1156,6 +1156,7 @@
   /* ============================================================
      Boot
      ============================================================ */
+  window.addEventListener('resize', resize);
   resize();
   mouse.x = W / 2; mouse.y = H / 2 - 100;
   resetGame();
