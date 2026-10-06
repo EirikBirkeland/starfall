@@ -57,3 +57,11 @@ harness (see "How to verify" below), not just by reading.
 3. Fixed-step simulation + accumulator, clamp 100 ms.
 4. `tools/simulate.js` (port the smoke harness bot). Then balance.js consolidation.
    Order note: balance.js may come early in the split since modules need somewhere to put numbers.
+### Outcome of this session
+- Milestone 0 fully done. Released **v0.0.1** (`releases/v0.0.1/`, tagged, listed in releases.json).
+- Commits: "Take stock: fix window resize handling and M-key auto-repeat, add changelog and notes",
+  then the release commit.
+- Next session: start Milestone 1 with the module split. Suggested order: create `src/core/rng.js`,
+  `src/core/pool.js`, `src/core/grid.js` first (self-contained, testable now), then carve `game/balance.js`
+  out of the inline numbers, then move logic in stages, keeping index.html playable after every step.
+  The behaviour must not change — the smoke-harness bot's trajectory is the reference.
