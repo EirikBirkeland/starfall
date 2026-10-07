@@ -7,6 +7,7 @@ import { world } from '../game/world.js';
 import { view } from './canvas.js';
 import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
+import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
 import { drawBullets, drawEnemies, drawPlayer, drawShards } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
@@ -43,6 +44,10 @@ export function renderFrame(tick, input) {
   ctx.save();
   ctx.translate(offset.x, offset.y);
 
+  // The sky: the clouds are the furthest thing on the screen, then the three
+  // parallax star layers in front of them. Both are screen space, both shake with
+  // the frame like everything else behind the arena.
+  drawNebula(ctx);
   drawStars(ctx);
 
   // From here the canvas is in arena coordinates: one translate, and every draw

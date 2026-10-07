@@ -39,7 +39,10 @@ function makeContextStub(counters, drawLog) {
     stroke: () => { counters.strokes++; },
     fillText: () => { counters.texts++; },
     strokeText: () => { counters.texts++; },
-    drawImage: () => { counters.images++; },
+    drawImage: (image, x, y, w, h) => {
+      counters.images++;
+      drawLog.images.push({ x: x, y: y, w: w, h: h });
+    },
     translate: (x, y) => {
       counters.translates++;
       drawLog.translates.push({ x: x, y: y });
@@ -109,9 +112,11 @@ export async function bootGame(options) {
   // nothing" is a thing a test can say (render/glow.js).
   const bakes = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, canvases: 0 };
   const audioLog = { voices: 0 };
-  // Where the last frame moved the canvas. The renderer paints entities by
-  // translating to them, so this is how a test can see what was drawn where.
-  const drawLog = { translates: [] };
+  // Everything the last frame asked to be put on the canvas. The renderer paints
+  // entities by translating to them, so this is how a test can see what was drawn
+  // where - and the same trick works for the stamps, which is how the sky's
+  // coverage can be checked (render/nebula.js).
+  const drawLog = { translates: [], images: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -160,7 +165,7 @@ export async function bootGame(options) {
     /** The offscreen canvases the glow sprites are baked on. */
     createElement(tag) {
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, { translates: [] });
+      const spriteCtx = makeContextStub(bakes, { translates: [], images: [] });
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -180,6 +185,7 @@ export async function bootGame(options) {
     step(ms) {
       clock += ms === undefined ? 16.7 : ms;
       drawLog.translates.length = 0;
+      drawLog.images.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -217,6 +223,8 @@ export async function bootGame(options) {
     bakeCalls() { return Object.assign({}, bakes); },
     /** Every translate the last frame made, in the order the frame drew them. */
     translates() { return drawLog.translates.slice(); },
+    /** Every sprite the last frame stamped, and where: { x, y, w, h }. */
+    stamps() { return drawLog.images.slice(); },
     /** Where an arena point lands on the screen, now the arena is not the window. */
     screenOf: (x, y) => game.screenOf(x, y),
     stats() { return game.stats(); },

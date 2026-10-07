@@ -287,7 +287,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Hit flash, hit-stop, trauma-based screen shake.
 - [x] Particle system on a pool: sparks, debris, shockwave rings, thruster trail.
 - [x] Knockback on enemies when hit.
-- [ ] Parallax starfield in three layers and the nebula backdrop.
+- [x] Parallax starfield in three layers and the nebula backdrop.
 - [ ] Release.
 
 ### Milestone 3: enemies and waves

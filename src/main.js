@@ -12,6 +12,7 @@ import { loadBest } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
+import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
@@ -88,7 +89,10 @@ function frame(now) {
   // coordinates, so the aim goes through the camera on its way in.
   resolveAim(input);
 
+  // The sky drifts on the frame's clock, not the simulation's: the star layers and
+  // the clouds behind them belong to the eye, so neither can move a run.
   updateStars(tick.dt);
+  updateNebula(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.
   let heard = false;

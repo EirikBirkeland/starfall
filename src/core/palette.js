@@ -12,6 +12,11 @@ export const PALETTE = {
   bgMiddle: '#050c1e',
   bgBottom: '#02040d',
   vignette: 'rgba(0,0,0,0.55)',
+  // The nebula behind the stars (render/nebula.js). Deep, cold, and never bright
+  // enough to be mistaken for a thing in the arena - and blue, because warm means
+  // harm and a cloud is not out to get you.
+  nebulaDeep: '#1f3f9c',
+  nebulaTeal: '#1a6f8f',
 
   player: '#5ef7ff',
   playerLine: '#a9fdff',
