@@ -1278,3 +1278,147 @@ with a thin telegraph drawn before it - which wants the first per-enemy *state m
 first telegraph in the game. After that, `Spitter` (PLAN 3.3's shooter) is the one that wants item 3
 (enemy bullets on their own pool, in warm colours). Renumbering the existing kinds to PLAN's names is
 worth doing when there are four of them and not before.
+
+---
+
+## Session 16 (2026-10-07) — Milestone 3: the kind names, and the darter
+
+Two commits and a release (**v0.3.0**). The first is a rename that changed nothing; the
+second is the first enemy with a plan.
+
+### Commit 1: the kinds are PLAN 3.3's names now
+`chaser` → **`drifter`** (PLAN's Drifter: walks straight at you) and the old `darter` →
+**`weaver`** (it was always PLAN's Weaver: a sine-wave weaver wearing the wrong name). That
+frees `darter` for the thing that actually lunges. Everything moved with it: `kinds.darter.*`
+in balance.js, `weaverChance(Ramp)`, `split.type`, the ambient lists, the renderer's art
+branch, and every test that named a kind. **Proved behaviour-free**: the reference run
+(`--seed 20261006 --trace`) came out byte for byte the session-13/14/15 one, every hash equal.
+Renaming is free with respect to the run because a kind's *name* never reaches the stream.
+
+### Commit 2: the darter, and the game's first telegraph
+PLAN 3.3's row: pause, aim, lunge in a line, telegraph with a thin warning line.
+
+**The beats.** `makeEnemy` now gives every enemy `stage`, `timer`, `dirX`, `dirY` ("the small
+state machine a kind may keep for itself"; most kinds never touch them). The darter's walk is a
+`switch` on `stage`: `''` hunts (creeps at the ship at `speed`), `aim` (stands dead still, turns
+its nose onto the line it locked, counts down `aim.time`), `lunge` (the locked line at
+`speed × mul`), `rest` (a crawl, nose coming back around), then `''` again with `timer = beat`.
+Committing needs both `timer <= 0` **and** the ship inside `hunt.commit`, so a darter that
+missed gets another *look*, not another lunge. Being shot cannot make it change its mind: the
+aim applies impulse (`glide(enemy, step, 0, 0, 0)` still carries `ix/iy`) but never re-reads the
+ship. A lunge into the arena wall is ended by the wall (`heldByTheWall` clamps by its own radius
+and returns whether it had to).
+
+**Why the telegraph cannot lie.** The renderer asks `kinds.js` four things - `isAiming`,
+`isLunging`, `aimProgress(enemy)` (0..1 out of `timer`), `lungeReach(enemy)` (=
+`speed × mul × time`) - and draws the line along the same `dirX/dirY` the lunge travels by, for
+exactly `lungeReach` px. `test/darter.test.mjs` then moves the ship to the far corner *after* the
+aim locks and measures the actual lunge against `lungeReach`: same length (± one step), same
+line (dot product > 0.999 of length). A stage string never leaks into drawing code.
+
+**`advance` split in two.** `glide(enemy, step, dx, dy, pace)` does the arithmetic a walk always
+does (own pace along a unit vector + the leftover impulse, then decay it), and `advance` is now
+"point at the ship, maybe swerved, then glide" with an optional `pace`. The old kinds' arithmetic
+is byte-identical (the trace says so); the new one needed to move along a *locked* direction and
+to stand still with a shove still in it, which the ship-direction-only version could not say.
+
+**The numbers**, in `BALANCE.kinds.darter.hunt`: `commit 430`, `beat 0.4`, `turn 9` rad/s,
+`aim.time 0.62`, `lunge.mul 5.2` / `lunge.time 0.45` (≈ 541 px/s at the start of a run, so
+~1.7x the ship's top speed, for a reach of 243 px), `rest.time 0.55` at `crawl 0.3`. Cycle ≈ 2.02 s,
+i.e. a dart every two seconds. `mul` is a *multiple of its own speed* on purpose: `enemy.speed` is
+where the run's speed scaling lands, so the lunge scales with the run without a second knob.
+Hull 2 (PLAN's darter/drifter ratio is 0.6, and the drifter here is 3 shots). Note again that
+PLAN's absolute hull numbers assume Pulse does 10 damage; here a bullet does 1, so hulls are
+counted in shots and only the *ratios* carry across.
+
+**It is warm.** New palette entries `red #ff4d6d`, `redFill`, `telegraph #ff9fb0`,
+`telegraphHead #ffd9df` - PLAN section 4's "harmful is warm" half, which the comment in the
+palette had been promising since milestone 2. The line is two strokes (a wide soft `red` under a
+thin `telegraph`) plus a glow at its head and a small charge of light at the dart's nose, so
+**2 strokes + 2 stamps per aiming dart, no blur, no gradient** (`test/telegraph.test.mjs` pins
+exactly that, and pins that a darter off the window costs nothing at all). A lunging dart stamps
+one caller-owned `makeStreak` blur and adds no strokes.
+
+**Death**: `shattersAlongItsAxis`, one `spray` out of the nose and one out of the tail (8 each).
+It spends `fx`, not `logic`, so it cannot move a run. The kinds.js header now says that queuing a
+sound cue from a behaviour is allowed too - a cue is a note to the audio layer, not a number the
+simulation keeps - because the aim and the lunge each queue one (a rising tick 0.6 s before it
+comes, a short one as it goes).
+
+**The spawn mix became data.** `BALANCE.enemies.mix` is a list of
+`{ type, from, chance, ramp }` plus `mixFallback`, and `rollKind` walks it. Same numbers and the
+same order as the hand-written if-chain it replaced, so the run is unchanged up to the moment the
+darter unlocks - and it spends exactly **one** `logic.next()` per spawn however many kinds exist,
+which is the property the wave director will need. It is the seed of that director, not a
+down payment on it: "meant to be replaced by it, not grown into it" says the comment. The darter
+unlocks at 60 s (PLAN's 1:00) at `0.10 + 0.10 × difficulty`, taking its share from the drifter
+only, so nothing that existed before got rarer.
+
+### Measurements
+- 128 bot seeds before the darter: **1m29s, score 1200, level 3.3, 87 kills**. After: **1m28s,
+  score 1216, level 3.3, 86 kills**. Noise, as expected for an enemy that unlocks at a minute in
+  a run the naive bot survives 89 s of. (Measured against a `git worktree add /tmp/base HEAD`,
+  which is the way to do this here; `git worktree remove` it afterwards.)
+- The **reference run is byte-identical** - `seed 20261006` dies at 1m07s and no darter ever
+  appears in it. That is a nice control and a bad demo: **use `seed 20261007` to look at the new
+  enemy** (dies 1m14s, 810 darter-frames, 231 of them aiming, 162 lunging). `seed 5` is the
+  darter-rich one: 1m58s, 8114 darter-frames.
+- Over 40 bot runs, 39 met at least one darter; a darter is 5.8% of all enemy-frames (drifter
+  46%, tank 37%, weaver 11%). The reference run just got unlucky.
+- Throwaway tally scripts live in /tmp (`kindcount.mjs`, `findseed.mjs`); they boot the harness
+  **once** per process and call `playOneRun` per seed with an `onFrame` hook - a second
+  `bootGame` in one process cannot work (one game per process) and `playRuns` has no hook.
+  `tools/balance-report.js` will do this properly when it is built.
+
+### Tests: 197, all passing (was 179)
+`test/darter.test.mjs` (13, the scripted world, everything measured in seconds with a bounded
+`whileBeat` helper so a wedged hunt fails instead of hanging): it does not lunge from across the
+arena; it commits the moment you are inside `commit`; the aim is exactly `aim.time`; the countdown
+only runs forward and reaches 1; it does not move while aiming (asserted `x === x` - pace 0 and no
+impulse is *exactly* still) but its nose comes onto the line; the lunge is the line and exactly
+`lungeReach` long even after the ship runs away; a lunge into the wall ends at the wall; the four
+beats come in order with the data's durations and exactly 3 lunges in 6 s; the rest turns the nose
+back to the ship; a hit shoves it but does not reset it or re-aim it; its death throws exactly
+`2 × jet.count` more particles than its own burst and chunks account for; and the mix withholds
+it until its minute and then sends everything.
+`test/telegraph.test.mjs` (5, the real renderer through the canvas stub): an aiming dart is
++2 strokes and +2 stamps, no gradient and no blur; a lunging one is +1 blur and +0 strokes; the
+hunt and the rest draw nothing extra; a dart 1500 px off the window costs nothing at all.
+`test/kinds.test.mjs`'s "walking the crowd spends no randomness" now builds its crowd from
+`Object.keys(KINDS)` and steps 2 s, so **a new kind cannot slip a `logic` draw into its walk**
+without that test saying so.
+
+13 mutations tried; **two survived the first round** and both were real. (1) Dropping the nose
+turn in `resting` changed nothing any test could see - hence the "the rest brings its nose back
+around" test. (2) My *mutation* for the telegraph cull was wrong (I neutered the `isAiming` line
+and left the real `onScreen` guard in place), and after fixing that the cull is caught; removing
+the `isAiming` guard itself is caught too. Everything else - never lunge, chase the ship instead
+of the locked line, no wall check, no rest timer, commit from anywhere, a wrong `lungeReach`, an
+inverted `aimProgress`, one jet missing, no clamp, no thin pass, no blur - failed a test on its own.
+
+### Decisions, so nobody relitigates them
+- **PLAN's absolute hull/speed numbers stay unusable**; the ratios are what get copied, because
+  damage here is 1 a shot. Written at the top of `BALANCE.kinds` so the next enemy starts from it.
+- The **`hunt` table lives in balance.js** and `kinds.js` only points at it (`stats.hunt`), as
+  always. Four beats, three named stages and `''` for the walk between them; the fourth name
+  would have been a string nothing ever compares against.
+- The dart is drawn by its own `dartPath` (all nose, swept wings), so its row's `sides: 3` is
+  only the fallback - said in a comment where it is written.
+- The title-screen crowd got two darters (`ambient.target` 7 → 8) so the silhouette is visible
+  before it ever shoots at you. Menu enemies drift; they never hunt.
+- No retune of the drifter/tank/weaver numbers this session. They are still not PLAN's, and now
+  is not the session to move three kinds and a reference run on top of a new one.
+
+### Next (milestone 3)
+1. **Enemy bullets on their own pool, in warm colours** (PLAN's item under 3.3) - the Spitter is
+   the first user, and a `player ↔ enemy-bullet` hit test wants the grid's other direction. Do
+   this before the Spitter, not inside it.
+2. Then **the Spitter** (keeps its distance, fires slow aimed shots): it will be the second kind
+   with a beat structure, so it will show whether `stage`/`timer` generalises or wants a small
+   shared vocabulary.
+3. Or, if a no-new-systems session is wanted instead: the **Bomber** - telegraphed circle on death,
+   hurts other enemies too, which also wants `killEnemy` to run `onDeath` for non-player kills
+   (session 15's note about where that call sits).
+4. Then the **wave director** consuming `mix` (a spawn budget, off-screen `arrivalSpot` as the
+   spawn primitive), elites, off-screen indicators, and the bot learning to dodge - with
+   `tools/balance-report.js` beside it and the 128-seed rule from session 13 in mind.
