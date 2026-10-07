@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.2.5",
+    "date": "2026-10-07",
+    "summary": "Wreckage and a wake: three particle shapes on the pool"
+  },
+  {
     "version": "0.2.4",
     "date": "2026-10-07",
     "summary": "The arena is a world: 3000x3000, a camera that follows and leans, energy walls at its edge"
