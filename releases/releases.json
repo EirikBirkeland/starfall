@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.2.2",
+    "date": "2026-10-07",
+    "summary": "Pre-rendered glow sprites: no blurs, no per-frame gradients"
+  },
+  {
     "version": "0.2.1",
     "date": "2026-10-07",
     "summary": "The dash: 220 px on rails, a 2.5 s wait, invulnerable through it"
