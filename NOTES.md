@@ -532,7 +532,7 @@ half-tested attempt at it. Almost all of this session was finishing and verifyin
   (`invuln > 0 || dashLeft > 0`) and `enemies.js` asks that instead of reading `invuln`. Ships (M5)
   will want to add to the same answer.
 - **`dashShoulder()`**: while the dash lasts, every enemy within `drawR + r + 26` gets its impulse
-  *set* (not added - it is shouldered for ~15 steps and a growing impulse would fling it) to 320 px/s
+  *set* (not added - it is shouldered for ~15 steps and a growing impulse would fling it) to 300 px/s
   outwards. Not just feel: the moment the dash is over the crowd can hurt again, so a dash that ends
   inside a mob has to end somewhere there is room to stand.
 - **The input layer grew one-shot requests** (`keyTaps`/`mouseTaps`, `consumeInput()`). Held state is
