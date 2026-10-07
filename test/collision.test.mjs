@@ -3,59 +3,16 @@
 // two rules a snapshot brings - the exact test still decides, and a corpse that
 // is still filed in the grid cannot be shot again.
 //
-// These drive game/world.js directly instead of booting the browser stub,
-// because a scripted world can be put in exactly the awkward positions.
+// These drive the scripted world (tools/headless/scripted.js) instead of booting
+// the browser stub, because a scripted world can be put in exactly the awkward
+// positions.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { world, stepWorld } from '../src/game/world.js';
-import { STATE } from '../src/game/state.js';
 import { BALANCE } from '../src/game/balance.js';
-import { resetRun } from '../src/game/run.js';
-import { makeEnemy } from '../src/game/enemies.js';
-import { setSeed } from '../src/core/rng.js';
-
-const STEP = 1 / 60;
-
-/** A world sitting mid-run, with nothing in it but what the test puts there. */
-function scriptedRun(seed) {
-  setSeed(seed);
-  resetRun(world);
-  world.state = STATE.PLAY;
-  // The ship is not what these tests are about: it cannot be hurt, and no crowd
-  // arrives unless the test calls for one.
-  world.player.invuln = Infinity;
-  world.spawnTimer = Infinity;
-  return world;
-}
-
-/** Put an enemy of `type` at (x, y), standing still. */
-function enemyAt(type, x, y, hp) {
-  const enemy = makeEnemy(world, type, x, y, hp === undefined ? null : { hp: hp });
-  enemy.speed = 0;
-  enemy.spin = 0;
-  world.enemies.push(enemy);
-  return enemy;
-}
-
-/** A shot that is already in flight, written field by field like any spawner must. */
-function bulletFlyingToward(x, y, vx, vy) {
-  const bullet = world.bullets.spawn();
-  bullet.x = x;
-  bullet.y = y;
-  bullet.vx = vx;
-  bullet.vy = vy;
-  bullet.life = BALANCE.bullets.life;
-  bullet.dmg = BALANCE.bullets.damage;
-  return bullet;
-}
-
-function step() {
-  stepWorld(STEP, {
-    moveX: 0, moveY: 0, moving: false,
-    aimX: world.player.x, aimY: world.player.y - 100, firing: false,
-  });
-}
+import {
+  scriptedRun, enemyAt, bulletFlyingToward, stepTheWorld as step,
+} from '../tools/headless/scripted.js';
 
 /** How close a bullet and an enemy have to be for it to count. */
 function contactOf(type) {
@@ -144,7 +101,7 @@ test('a spent shot goes back to the pool, not to the garbage collector', () => {
   assert.equal(field.bullets.count, 6);
   const built = field.bullets.stats().made;
 
-  for (let i = 0; i < 60; i++) step();
+  for (let i = 0; i < 120; i++) step();     // one second of fixed steps
 
   assert.equal(field.bullets.count, 0, 'every one of them flew out of the arena');
   assert.equal(field.bullets.stats().free, built, 'and every one came back to the drawer');
@@ -155,7 +112,7 @@ test('a spent shot goes back to the pool, not to the garbage collector', () => {
 
 test('a bullet past the edge of the arena is despawned', () => {
   const field = scriptedRun(9);
-  const nearEdge = field.arena.w + BALANCE.bullets.despawnMargin - 5;
+  const nearEdge = field.arena.w + BALANCE.bullets.despawnMargin - 2;
   bulletFlyingToward(nearEdge, 300, 600, 0);
 
   step();

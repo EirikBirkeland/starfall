@@ -9,6 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeEnemy } from '../src/game/enemies.js';
+import { BALANCE } from '../src/game/balance.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 3 });
@@ -26,11 +28,9 @@ function killTheShip(score) {
   ship.invuln = 0;
   ship.fireTimer = 5;          // no shot, or it would kill the planted enemy first
   game.world.score = score || 0;
-  game.enemies.push({
-    type: 'chaser', x: ship.x, y: ship.y, r: 15, hp: 1, maxhp: 1,
-    speed: 0, ix: 0, iy: 0, rot: 0, phase: 0, flash: 0, drop: 0, score: 0,
-    ambient: false, vx: 0, vy: 0,
-  });
+  game.enemies.push(makeEnemy(game.world, 'chaser', ship.x, ship.y, {
+    hp: 1, speed: 0, drop: 0, score: 0,
+  }));
   game.step();
 }
 
@@ -103,7 +103,10 @@ test('losing focus drops the controls, and a long gap is not simulated', () => {
 
   game.fire('blur', {});
   game.step(5000);                                 // five seconds in another tab
-  assert.ok(game.stats().t - before < 0.1, 'a background tab must not fast-forward the run');
+  const gap = game.stats().t - before;
+  assert.ok(gap > 0, 'the run carried on while the tab was away');
+  assert.ok(gap <= BALANCE.sim.maxFrameDt + BALANCE.sim.step,
+    'a background tab must not fast-forward the run: it advanced ' + gap + 's');
 
   for (let i = 0; i < 30; i++) game.step();
   assert.ok(game.player.vx < pushing * 0.5, 'the ship coasts to a stop once focus is gone');

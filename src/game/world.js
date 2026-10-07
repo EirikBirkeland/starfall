@@ -21,6 +21,7 @@ function createWorld() {
     seed: 0,          // the seed this run is a function of; see core/rng.js
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
+    steps: 0,         // how many fixed steps this run has been simulated
     difficulty: 0,    // 0..1, driven by elapsed
     overTimer: 0,     // time since the run ended
     spawnTimer: BALANCE.runStart.spawnDelay,
@@ -39,6 +40,10 @@ function createWorld() {
 
     player: {
       x: 0, y: 0, vx: 0, vy: 0,
+      // Where the ship stood when the current step started. Every moving thing in
+      // the world keeps a px/py of its own: the renderer paints between the two,
+      // which is what makes a 120 Hz simulation look smooth on any display.
+      px: 0, py: 0,
       r: spec.radius,
       speed: spec.speed,
       angle: -Math.PI / 2,
@@ -71,10 +76,15 @@ function createWorld() {
 export const world = createWorld();
 
 /**
- * Advance the simulation by `dt` seconds. `input` is the descriptor from
+ * Advance the simulation by `dt` seconds - always `BALANCE.sim.step`, in the
+ * browser; the tests are allowed to dial it. `input` is the descriptor from
  * input/index.js. Star layers are updated by the renderer, not here.
+ *
+ * Every system below writes px/py before it moves something, which is the whole
+ * interpolation contract: a position may only change inside a step.
  */
 export function stepWorld(dt, input) {
+  world.steps++;
   world.time += dt;
   updateEffects(world, dt);
 

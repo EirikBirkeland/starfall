@@ -12,6 +12,14 @@ import { hitPlayer } from './player.js';
 import { cueBeep } from './cues.js';
 
 /**
+ * One value from `opts`. Giving no value leaves the kind's default standing -
+ * and giving zero means zero, which `opts.r || default` would have eaten.
+ */
+function chosen(opts, key, fallback) {
+  return opts && opts[key] !== undefined ? opts[key] : fallback;
+}
+
+/**
  * Build one enemy. `opts` overrides the kind's defaults: the split children of
  * a tank arrive smaller, tougher, and already flying apart.
  */
@@ -25,18 +33,20 @@ export function makeEnemy(world, type, x, y, opts) {
     type: type,
     x: x,
     y: y,
-    r: (opts && opts.r) || kind.radius,
-    hp: (opts && opts.hp) || Math.ceil(kind.hull * hpScale),
+    px: x,        // where it stood when the current step began; see render/interp.js
+    py: y,
+    r: chosen(opts, 'r', kind.radius),
+    hp: chosen(opts, 'hp', Math.ceil(kind.hull * hpScale)),
     maxhp: 0,
-    speed: ((opts && opts.speed) || kind.speed * speedScale) * ((opts && opts.speedMul) || 1),
-    drop: (opts && opts.drop) || kind.drop,
-    score: kind.score,
+    speed: chosen(opts, 'speed', kind.speed * speedScale) * chosen(opts, 'speedMul', 1),
+    drop: chosen(opts, 'drop', kind.drop),
+    score: chosen(opts, 'score', kind.score),
     rot: logic.range(0, TAU),
     spin: logic.range(-e.spinRange, e.spinRange),
     flash: 0,
     phase: logic.range(0, TAU),   // this enemy's place in the wobble and spin cycles
-    ix: (opts && opts.ix) || 0,
-    iy: (opts && opts.iy) || 0,
+    ix: chosen(opts, 'ix', 0),
+    iy: chosen(opts, 'iy', 0),
     ambient: false,
     vx: 0,   // only the slow title-screen crowd uses these
     vy: 0,
@@ -109,11 +119,11 @@ function splitTank(world, parent) {
         r: spec.radius,
         hp: kidHp,
         drop: spec.drop,
+        score: spec.score,
         speedMul: spec.speedMul,
         ix: Math.cos(angle) * spec.impulse,
         iy: Math.sin(angle) * spec.impulse,
       });
-    kid.score = spec.score;
     // The crowd grew after this step's grid was rebuilt, so a hatchling can be
     // shot from the next step. It is thrown clear as it appears; nobody notices.
     world.enemies.push(kid);
@@ -180,6 +190,13 @@ export function killEnemy(world, enemy, byPlayer) {
 export function updateEnemies(world, dt) {
   const impulseDrag = Math.pow(BALANCE.enemies.separationDrag, dt);
   const ship = world.player;
+
+  // Everyone starts the step where they stand, before anything is moved or shoved,
+  // so that the renderer can put them between here and wherever this step ends up.
+  for (const starting of world.enemies) {
+    starting.px = starting.x;
+    starting.py = starting.y;
+  }
 
   for (let i = world.enemies.length - 1; i >= 0; i--) {
     const enemy = world.enemies[i];

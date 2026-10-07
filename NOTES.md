@@ -325,3 +325,101 @@ that collision order never matters — read it as "it does not matter in this ru
    plan where `px, py` live (the pools' factories are the place).
 2. Then release `0.1.0` (last item of M1): CHANGELOG entry + `tools/release.sh 0.1.0 "..."`. The script
    already copies `src/`, runs the tests and the simulation, and refuses a dirty tree.
+
+## Session 7 (2026-10-07) — Milestone 1: the fixed step, and interpolated rendering
+
+### What landed
+Milestone 1's last technical item. The simulation now advances in **fixed 1/120 s steps**
+(`BALANCE.sim.step`) and the frame is **drawn between two of them**.
+
+- **`src/core/clock.js`** — `createClock(step, maxFrameDt)`. `frame(now)` returns
+  `{ dt, steps, alpha, fps }`: the whole steps this frame owes, and the fraction of the next one
+  the frame is drawn at. Long gaps are counted as `maxFrameDt` (**0.1 s now, PLAN's number** — it
+  was 0.05; the clamp is also the catch-up limit, 12 steps a frame). `reset()` forgets the past.
+  `BALANCE.maxFrameDt` moved into `BALANCE.sim` with the step; the fps readout moved out of
+  `main.js` into the clock.
+- **`src/render/interp.js`** — `paintX`/`paintY`: `lerp(px, x, alpha)`. `renderFrame(fps, alpha)`
+  hands alpha to every draw that moves (ship, bullets, shards, enemies, sparks). Rings and score
+  labels are deliberately *not* interpolated: a step of them is a pixel at most.
+- **Every mover keeps a `px`/`py`** — the ship, bullets, enemies, shards, sparks. The rule
+  (`stepWorld`'s comment says it): a position may only change inside a step, and the system that
+  moves something writes `px/py` first. `updateEnemies` snapshots the whole crowd **before** the
+  separation pass, or a shoved neighbour would be remembered from after its push. The menu crowd's
+  edge wrap snaps `px` with `x`, or a wrapping enemy slides across the arena for a frame. Every
+  spawner writes `px/py` too — that is the pool's "write every field" contract, now with teeth.
+- `world.steps` counts this run's steps (reset with the run); `STARFALL.stats()` reports
+  `steps`, `alpha`, `fps`. Ready for the F3 overlay in M10.
+- **`STARFALL.resetClock()`**, and `tools/headless/harness.js` calls it in `resetToTitle`. See the
+  surprise below; this is what keeps "the same seed replays the same run" true.
+- A real bug found while doing this: **`fire` never wrote `px/py`**, so a bullet's first frame drew
+  its trail from (0,0). The contract test caught it before anything saw it. Same for
+  `makeEnemy`'s `opts`: `opts.r || default` silently ate a requested **zero** (zero speed, zero
+  drop, zero hp). Now a little `chosen(opts, key, fallback)`, and the hatchling's score override
+  went through `opts` like every other override.
+- `tools/headless/scripted.js`: the scripted world (park a run, plant an enemy, plant a shot, take
+  one fixed step), shared by `collision.test.mjs` and the new interp tests instead of duplicated.
+- `tools/release.sh` now syntax-checks `.mjs` too (it only ever looked at `.js`, so every test file
+  was slipping past the check).
+
+### Tests: 71, all passing (was 54)
+- `test/clock.test.mjs` (7): the same wall clock is the same number of steps at 30/60/144/240 Hz; a
+  1000 Hz display still gets one second per second; a background tab is the clamp, not the gap;
+  alpha stays a fraction and really does cover the range; **steps + carry = wall clock** (nothing
+  invented, nothing lost); `reset()` reproduces a fresh page frame for frame; the fps readout counts
+  frames, not steps.
+- `test/interp.test.mjs` (5): the px/py contract on the world — fresh run, every kind of mover,
+  a spark born by a hit, the pile-of-three separation case, the wrapping menu enemy.
+- `test/framerate.test.mjs` (5): a booted game. Same simulation for the same seconds at 60 and 240
+  fps; a 5 s stutter caught up in at most the clamp; every frame paints the ship between the steps
+  (read off the canvas translates the harness now records); a juddering frame rate; frames that run
+  no step at all still paint it. `tools/headless/harness.js` gained `translates()` — the frame's
+  `translate` calls, which is how a test can see *where* something was drawn.
+- `session.test.mjs`: the 5 s tab-away now asserts the 0.1 s clamp (+ one step of slack), and the
+  planted killer enemy is built by `makeEnemy` so it is a real enemy.
+- `collision.test.mjs` runs at the game's own step now (`BALANCE.sim.step`), not its own 1/60.
+
+### The surprise that taught the most
+`test/seed.test.mjs` failed first: the same seed, played twice in one process, diverged. Not a bug
+in the step — a **phase** thing. With 16.7 ms frames and an 8.333 ms step the accumulator picks up an
+extra step every ~250 frames, and *where a run starts in that cycle* decides which frame's bot input
+lands on which step. One step of difference in the bot's aim is a different run. A real browser never
+does this: every play session is a page that has never run a frame. So the fake browser now says the
+same thing (`resetClock()` in `resetToTitle`) and the promise is testable again. Cross-process
+determinism (`tools/simulate.js --seed N` twice) held all along.
+
+Note what that means for 60 Hz: 16.67 ms is exactly two steps, so `alpha` sits near 0 and a 60 Hz
+display is effectively drawing one step behind, uniformly. The interpolation earns its keep on
+144 Hz displays and during a stutter — which is why the tests that look for it drive 3-4 ms frames.
+
+### Reference run, rebaselined on purpose
+`node tools/simulate.js --seed 20261006 --trace` → **dies 1m19s, score 1257, level 5, 82 kills,
+78 shards**. Bot over seeds 1-4: **1m05s average** (score 865, level 3.3, 62 kills) — the same
+ballpark as the old 1m06s, so the fixed step moved the difficulty, not the balance. The old numbers
+(1m03s / 783) are in the session 4 and 6 notes.
+
+### Perf, measured (`/tmp/stepbench.mjs`, throwaway)
+At PLAN's extreme load (600 enemies, 1500 bullets, 900 sparks): one step costs ~0.6 ms, and a 60 fps
+frame now runs two of them → **~1.2-1.35 ms of simulation per frame, vs ~0.55 before**. That is the
+price of the fixed step: 2x the simulation, ~8% of a 60 fps budget, and the game currently caps the
+crowd at 100 enemies. If M10's performance pass needs it back, the two halves are the enemy
+separation pass and the per-step grid rebuild.
+
+### Released **v0.1.0** — Milestone 1 is done.
+
+### Next (Milestone 2: feel)
+Pick one per session. Suggested order and notes:
+1. **Player movement to PLAN 3.1** (accel 2400, friction stopping in 0.10 s, hit radius 6 vs a
+   16 px ship). Today `updatePlayer` smooths velocity toward the input (`steerSmoothing`), which is
+   close but not the numbers; the fixed step makes an honest acceleration trivial. Keep the aim code
+   reading `input.aimX/aimY`.
+2. **Pre-rendered glow sprites** and no `shadowBlur` per draw (PLAN section 4). Bullets already build
+   a gradient per bullet per frame; that is the biggest rendering win, and M2's "600 enemies" target
+   needs it before the crowd grows.
+3. **Arena 3000×3000 + camera + energy walls.** The camera must read the *interpolated* position
+   (`paintX/paintY`), not `x`, or the view will jitter one step out of phase with what it draws. The
+   arena stops being the viewport: `world.arena` is already the only thing the sim reads for its
+   bounds, and the renderer will need a transform, which the draw calls currently bake into the canvas.
+4. **Hit-stop** (freeze 40 ms on big kills, 90 ms on a player hit). With a fixed step: skip the
+   `stepWorld` loop while a freeze timer runs, but *drain the accumulator* while frozen or the clock
+   will hand back a burst of catch-up steps the moment it unfreezes. Put the timer on the world and
+   step it in real time, not in step time.

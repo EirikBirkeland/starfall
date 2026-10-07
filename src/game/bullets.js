@@ -15,7 +15,7 @@ import { cueBeep } from './cues.js';
 
 /** The shape of a bullet. `fire` writes every field, so nothing leaks between shots. */
 export function makeBullet() {
-  return { x: 0, y: 0, vx: 0, vy: 0, life: 0, dmg: 0 };
+  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, dmg: 0 };
 }
 
 /** The scratch list the grid fills, shared by every bullet in the step. */
@@ -41,6 +41,8 @@ export function updateBullets(world, dt) {
   // and that one has already been stepped.
   for (let i = bullets.count - 1; i >= 0; i--) {
     const bullet = bullets.items[i];
+    bullet.px = bullet.x;
+    bullet.py = bullet.y;
     bullet.x += bullet.vx * dt;
     bullet.y += bullet.vy * dt;
     bullet.life -= dt;

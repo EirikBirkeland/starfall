@@ -14,7 +14,7 @@ import { TAU } from '../core/math.js';
 
 /** The shapes of the three effect lists, one factory each. */
 export function makeParticle() {
-  return { x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, size: 0, color: '' };
+  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, max: 1, size: 0, color: '' };
 }
 
 export function makeRing() {
@@ -38,6 +38,8 @@ export function burst(world, x, y, color, count, speed, life) {
     const p = world.particles.spawn();
     p.x = x;
     p.y = y;
+    p.px = x;
+    p.py = y;
     p.vx = Math.cos(angle) * pSpeed;
     p.vy = Math.sin(angle) * pSpeed;
     p.life = logic.range(fx.particleLifeFloor, life);
@@ -86,6 +88,8 @@ export function updateEffects(world, dt) {
       particles.killAt(i);
       continue;
     }
+    p.px = p.x;
+    p.py = p.y;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.vx *= drag;

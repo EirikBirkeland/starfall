@@ -43,7 +43,7 @@ fi
 echo "Checking syntax..."
 for folder in src tools test; do
   [ -d "$folder" ] || continue
-  for file in $(find "$folder" -name '*.js'); do
+  for file in $(find "$folder" \( -name '*.js' -o -name '*.mjs' \) -not -name '.*'); do
     node --check "$file"
   done
 done

@@ -15,7 +15,12 @@ function shakeOffset(amount) {
   return { x: visual.range(-amount, amount), y: visual.range(-amount, amount) };
 }
 
-export function renderFrame(fps) {
+/**
+ * Paint one frame. `alpha` is how far between the last simulation step and the
+ * next one this frame sits (core/clock.js); moving things are drawn between where
+ * they were and where they are, see render/interp.js.
+ */
+export function renderFrame(fps, alpha) {
   const ctx = view.ctx;
   const W = view.W;
   const H = view.H;
@@ -34,15 +39,15 @@ export function renderFrame(fps) {
   ctx.globalCompositeOperation = 'lighter';
 
   if (world.state === STATE.START) {
-    drawEnemies(ctx, world.ambient, true);
-    drawShards(ctx);
+    drawEnemies(ctx, world.ambient, true, alpha);
+    drawShards(ctx, alpha);
   } else {
-    drawShards(ctx);
+    drawShards(ctx, alpha);
     drawRings(ctx);
-    drawBullets(ctx);
-    drawEnemies(ctx, world.enemies, false);
-    if (world.state === STATE.PLAY) drawPlayer(ctx);
-    drawParticles(ctx);
+    drawBullets(ctx, alpha);
+    drawEnemies(ctx, world.enemies, false, alpha);
+    if (world.state === STATE.PLAY) drawPlayer(ctx, alpha);
+    drawParticles(ctx, alpha);
     drawTexts(ctx);
   }
 

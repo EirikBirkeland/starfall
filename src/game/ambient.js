@@ -31,14 +31,18 @@ export function updateAmbient(world, dt) {
 
   for (let i = 0; i < world.ambient.length; i++) {
     const enemy = world.ambient[i];
+    enemy.px = enemy.x;
+    enemy.py = enemy.y;
     enemy.x += enemy.vx * dt;
     enemy.y += enemy.vy * dt;
     enemy.rot += enemy.spin * dt * spec.spinFactor;
 
+    // Wrapping is a jump, not a move: the previous position comes with it, or the
+    // renderer would paint the enemy sliding across the whole screen.
     const margin = enemy.r + spec.margin;
-    if (enemy.x < -margin) enemy.x = world.arena.w + margin;
-    else if (enemy.x > world.arena.w + margin) enemy.x = -margin;
-    if (enemy.y < -margin) enemy.y = world.arena.h + margin;
-    else if (enemy.y > world.arena.h + margin) enemy.y = -margin;
+    if (enemy.x < -margin) { enemy.x = world.arena.w + margin; enemy.px = enemy.x; }
+    else if (enemy.x > world.arena.w + margin) { enemy.x = -margin; enemy.px = enemy.x; }
+    if (enemy.y < -margin) { enemy.y = world.arena.h + margin; enemy.py = enemy.y; }
+    else if (enemy.y > world.arena.h + margin) { enemy.y = -margin; enemy.py = enemy.y; }
   }
 }

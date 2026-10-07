@@ -6,7 +6,7 @@ import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
-import { clamp } from './core/math.js';
+import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { loadBest } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
@@ -17,8 +17,11 @@ import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
 import { initScreens, hideScreens, showGameOver } from './ui/screens.js';
 
-let lastFrame = 0;
-let fpsAvg = 60;
+const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
+// The readouts the debug hook reports: how fast the frames are arriving, and
+// where between the last step and the next one the frame just drawn sat.
+let lastFps = 60;
+let lastAlpha = 0;
 
 /** The seed the address bar asked for, or null when nobody asked. */
 function addressSeed() {
@@ -67,19 +70,20 @@ function describeRun() {
 }
 
 function frame(now) {
-  if (!lastFrame) lastFrame = now;
-  let dt = (now - lastFrame) / 1000;
-  lastFrame = now;
-  if (dt > BALANCE.maxFrameDt) dt = BALANCE.maxFrameDt;   // a background tab, not a hard frame
-  if (dt < 0) dt = 0;
-  if (dt > 0) fpsAvg += (1 / dt - fpsAvg) * clamp(dt * 2, 0, 1);
-
+  // The simulation is stepped in whole fixed steps; whatever the clock still
+  // owes is the moment in between them this frame is drawn at.
+  const tick = clock.frame(now);
+  lastFps = tick.fps;
+  lastAlpha = tick.alpha;
   const stateBefore = world.state;
-  updateStars(dt);
-  stepWorld(dt, readInput());
+  const input = readInput();
+
+  updateStars(tick.dt);
+  for (let i = 0; i < tick.steps; i++) stepWorld(BALANCE.sim.step, input);
+
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
   consumeCues(world.state);
-  renderFrame(fpsAvg);
+  renderFrame(tick.fps, tick.alpha);
 
   requestAnimationFrame(frame);
 }
@@ -121,6 +125,13 @@ window.STARFALL = {
   world: world,
   player: world.player,
   enemies: world.enemies,
+  /**
+   * Stand a fresh page load's clock up again. Every real play session arrives on
+   * a page that has never run a frame, and a headless tool that plays a second
+   * run on the same boot has to say the same thing, or the run starts somewhere
+   * else in the step cycle and the seed no longer replays it.
+   */
+  resetClock: function () { clock.reset(); },
   stats: function () {
     return {
       state: world.state,
@@ -137,7 +148,9 @@ window.STARFALL = {
       parts: world.particles.count,
       collected: world.shardsCollected,
       fireRate: world.player.fireRate,
-      fps: fpsAvg,
+      fps: lastFps,
+      alpha: lastAlpha,
+      steps: world.steps,
       xp: world.xp,
       xpNeed: world.xpNeed,
     };

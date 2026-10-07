@@ -1,9 +1,10 @@
 // The flying feedback: sparks, shockwave rings, and floating labels.
 
 import { clamp } from '../core/math.js';
+import { paintX, paintY } from './interp.js';
 import { world } from '../game/world.js';
 
-export function drawParticles(ctx) {
+export function drawParticles(ctx, alpha) {
   ctx.shadowBlur = 0;
   const particles = world.particles;
   for (let i = 0; i < particles.count; i++) {
@@ -12,7 +13,7 @@ export function drawParticles(ctx) {
     ctx.globalAlpha = t;
     ctx.fillStyle = p.color;
     const size = p.size * (0.35 + t * 0.65);
-    ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+    ctx.fillRect(paintX(p, alpha) - size / 2, paintY(p, alpha) - size / 2, size, size);
   }
   ctx.globalAlpha = 1;
 }

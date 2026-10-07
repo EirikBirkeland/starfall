@@ -18,7 +18,7 @@ function makeGradient() {
   return { addColorStop() {} };
 }
 
-function makeContextStub(counters) {
+function makeContextStub(counters, drawLog) {
   const noop = () => {};
   const target = {
     createLinearGradient: () => { counters.gradients++; return makeGradient(); },
@@ -38,8 +38,12 @@ function makeContextStub(counters) {
     fill: () => { counters.fills++; },
     stroke: () => { counters.strokes++; },
     fillText: () => { counters.texts++; },
+    translate: (x, y) => {
+      counters.translates++;
+      drawLog.translates.push({ x: x, y: y });
+    },
     beginPath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop,
-    closePath: noop, save: noop, restore: noop, translate: noop, rotate: noop,
+    closePath: noop, save: noop, restore: noop, rotate: noop,
     scale: noop, setTransform: noop,
   };
   return new Proxy(target, {
@@ -95,9 +99,12 @@ export async function bootGame(options) {
   let width = opts.width || 1280;
   let height = opts.height || 720;
 
-  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0 };
+  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0 };
   const audioLog = { voices: 0 };
-  const ctx = makeContextStub(counters);
+  // Where the last frame moved the canvas. The renderer paints entities by
+  // translating to them, so this is how a test can see what was drawn where.
+  const drawLog = { translates: [] };
+  const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
     elements[id] = {
@@ -156,6 +163,7 @@ export async function bootGame(options) {
     /** Run one animation frame, `ms` after the previous one. */
     step(ms) {
       clock += ms === undefined ? 16.7 : ms;
+      drawLog.translates.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -186,6 +194,8 @@ export async function bootGame(options) {
     },
     /** Draw counters, so a test can tell that something was actually painted. */
     drawCalls() { return Object.assign({}, counters); },
+    /** Every translate the last frame made, in the order the frame drew them. */
+    translates() { return drawLog.translates.slice(); },
     stats() { return game.stats(); },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
@@ -214,6 +224,10 @@ export async function bootGame(options) {
       ]);
       controller.fire('blur', {});   // the game forgets every held key
       held = Object.create(null);
+      // A second run is played on a page that already ran thousands of frames,
+      // which a real player never does: the simulation's step clock would start
+      // mid-cycle and the same seed would land a step or two out. Reload the clock.
+      game.resetClock();
       resetRun(world);
       resetAmbient(world);
       world.state = STATE.START;

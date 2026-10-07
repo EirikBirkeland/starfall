@@ -10,7 +10,7 @@ import { levelUp } from './progress.js';
 
 /** The shape of a shard. `dropShards` writes every field. */
 export function makeShard() {
-  return { x: 0, y: 0, vx: 0, vy: 0, life: 0, spin: 0, rot: 0 };
+  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, spin: 0, rot: 0 };
 }
 
 /** A dead enemy scatters `count` shards around itself. */
@@ -22,6 +22,8 @@ export function dropShards(world, x, y, count) {
     const shard = world.shards.spawn();
     shard.x = x + logic.range(-spec.jitter, spec.jitter);
     shard.y = y + logic.range(-spec.jitter, spec.jitter);
+    shard.px = shard.x;
+    shard.py = shard.y;
     shard.vx = Math.cos(angle) * speed;
     shard.vy = Math.sin(angle) * speed;
     shard.life = BALANCE.shards.life;
@@ -60,6 +62,8 @@ export function updateShards(world, dt) {
     }
     shard.vx *= drag;
     shard.vy *= drag;
+    shard.px = shard.x;
+    shard.py = shard.y;
     shard.x += shard.vx * dt;
     shard.y += shard.vy * dt;
 

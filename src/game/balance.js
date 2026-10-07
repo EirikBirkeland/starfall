@@ -7,8 +7,14 @@
 import { PALETTE } from '../core/palette.js';
 
 export const BALANCE = {
-  /** A frame gap longer than this is treated as this (background tab). */
-  maxFrameDt: 0.05,
+  sim: {
+    // The simulation always advances by exactly this much, however the display
+    // ticks (PLAN section 2). A frame gap longer than maxFrameDt is counted as
+    // that much - a background tab, not a hard frame - so the most steps one
+    // frame may catch up is maxFrameDt / step.
+    step: 1 / 120,
+    maxFrameDt: 0.1,
+  },
 
   arena: {
     // Until milestone 2 the arena is the window, so these are only the values

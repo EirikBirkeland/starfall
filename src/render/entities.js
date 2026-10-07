@@ -5,17 +5,18 @@ import { PALETTE } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { polygon, shipPath } from './shapes.js';
+import { paintX, paintY } from './interp.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
 
-function drawEnemy(ctx, enemy, dim) {
+function drawEnemy(ctx, enemy, dim, alpha) {
   const look = BALANCE.kinds[enemy.type];
   const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
 
   ctx.save();
   if (dim) ctx.globalAlpha = 0.45;
-  ctx.translate(enemy.x, enemy.y);
+  ctx.translate(paintX(enemy, alpha), paintY(enemy, alpha));
   ctx.rotate(enemy.rot);
   ctx.shadowBlur = look.glow + flash * 26;
   ctx.shadowColor = look.color;
@@ -47,16 +48,16 @@ function drawEnemy(ctx, enemy, dim) {
   ctx.restore();
 }
 
-export function drawEnemies(ctx, list, dim) {
-  for (let i = 0; i < list.length; i++) drawEnemy(ctx, list[i], dim);
+export function drawEnemies(ctx, list, dim, alpha) {
+  for (let i = 0; i < list.length; i++) drawEnemy(ctx, list[i], dim, alpha);
 }
 
-export function drawPlayer(ctx) {
+export function drawPlayer(ctx, alpha) {
   const ship = world.player;
   const blinking = ship.invuln > 0 && (Math.floor(world.time * 14) % 2 === 0);
 
   ctx.save();
-  ctx.translate(ship.x, ship.y);
+  ctx.translate(paintX(ship, alpha), paintY(ship, alpha));
   ctx.globalAlpha = blinking ? 0.32 : 1;
 
   if (ship.thrust > 0.02) {
@@ -110,14 +111,16 @@ export function drawPlayer(ctx) {
   ctx.restore();
 }
 
-export function drawBullets(ctx) {
+export function drawBullets(ctx, alpha) {
   const bullets = world.bullets.items;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
     const tail = 0.035;
-    const tx = b.x - b.vx * tail;
-    const ty = b.y - b.vy * tail;
-    const grad = ctx.createLinearGradient(tx, ty, b.x, b.y);
+    const x = paintX(b, alpha);
+    const y = paintY(b, alpha);
+    const tx = x - b.vx * tail;
+    const ty = y - b.vy * tail;
+    const grad = ctx.createLinearGradient(tx, ty, x, y);
     grad.addColorStop(0, 'rgba(94,247,255,0)');
     grad.addColorStop(1, PALETTE.bulletTrail);
     ctx.strokeStyle = grad;
@@ -126,7 +129,7 @@ export function drawBullets(ctx) {
     ctx.shadowColor = PALETTE.bullet;
     ctx.beginPath();
     ctx.moveTo(tx, ty);
-    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(x, y);
     ctx.stroke();
   }
 
@@ -135,12 +138,12 @@ export function drawBullets(ctx) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 2.4, 0, TAU);
+    ctx.arc(paintX(b, alpha), paintY(b, alpha), 2.4, 0, TAU);
     ctx.fill();
   }
 }
 
-export function drawShards(ctx) {
+export function drawShards(ctx, alpha) {
   const shards = world.shards.items;
   for (let i = 0; i < shards.length; i++) {
     const shard = shards[i];
@@ -148,7 +151,7 @@ export function drawShards(ctx) {
     const pulse = 0.75 + 0.25 * Math.sin(world.time * 6 + shard.rot);
     ctx.save();
     ctx.globalAlpha = fade;
-    ctx.translate(shard.x, shard.y);
+    ctx.translate(paintX(shard, alpha), paintY(shard, alpha));
     ctx.rotate(shard.rot);
     ctx.shadowBlur = 16 * pulse;
     ctx.shadowColor = PALETTE.shard;

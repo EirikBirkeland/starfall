@@ -16,6 +16,8 @@ export function resetRun(world) {
 
   ship.x = world.arena.w / 2;
   ship.y = world.arena.h / 2;
+  ship.px = ship.x;
+  ship.py = ship.y;
   ship.vx = 0;
   ship.vy = 0;
   ship.hull = spec.hull;
@@ -35,6 +37,7 @@ export function resetRun(world) {
   world.texts.clear();
 
   world.elapsed = 0;
+  world.steps = 0;
   world.difficulty = 0;
   world.score = 0;
   world.xp = 0;

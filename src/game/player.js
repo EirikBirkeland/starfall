@@ -26,6 +26,8 @@ export function fire(world) {
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
+  bullet.px = nx;
+  bullet.py = ny;
   bullet.vx = Math.cos(angle) * gun.speed;
   bullet.vy = Math.sin(angle) * gun.speed;
   bullet.life = gun.life;
@@ -47,6 +49,8 @@ export function updatePlayer(world, dt, input) {
   const steer = clamp(dt * spec.steerSmoothing, 0, 1);
   ship.vx += (input.moveX * ship.speed - ship.vx) * steer;
   ship.vy += (input.moveY * ship.speed - ship.vy) * steer;
+  ship.px = ship.x;
+  ship.py = ship.y;
   ship.x = clamp(ship.x + ship.vx * dt, ship.r, world.arena.w - ship.r);
   ship.y = clamp(ship.y + ship.vy * dt, ship.r, world.arena.h - ship.r);
   ship.angle = Math.atan2(input.aimY - ship.y, input.aimX - ship.x);

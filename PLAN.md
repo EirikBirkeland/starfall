@@ -272,7 +272,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] `core/pool.js`: object pool, with tests.
 - [x] `core/grid.js`: spatial grid with insert, clear, and query by circle, with tests.
 - [x] Move every tuning number into `game/balance.js`.
-- [ ] Fixed-step simulation with interpolated rendering.
+- [x] Fixed-step simulation with interpolated rendering.
 - [x] Separate logic from rendering completely: `game/` must import nothing from `render/`, `audio/`, or `ui/`.
 - [x] `tools/simulate.js`: runs a whole run headless with a simple bot (move away from the nearest enemy,
       shoot the nearest enemy) and prints time survived, kills, and level. Must not throw.
