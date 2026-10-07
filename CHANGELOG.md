@@ -1,5 +1,29 @@
 # Starfall — changelog
 
+## 0.4.3 — 2026-10-07
+Ricochet: the sixth card, and your shots stop flying away from the crowd.
+- **RICOCHET** is a sixth upgrade line. Every rank lets one more body be *bounced* on to:
+  a shot that hits something and has nothing left ahead of it turns onto the nearest body
+  it has not already been through - up to 220 px away - and goes again (PLAN 3.5).
+- A turn is a change of direction and nothing else: same speed, same place, less weight.
+  Every body turned on to takes **65%** of what the body before it took, so a rank buys
+  *coverage* across the crowd instead of multiplying the gun - the same family of trade
+  split and pierce make, each one paying for the geometry it needs: split wants a crowd
+  wide, pierce wants a column deep, ricochet wants one body anywhere nearby.
+- Pierce and ricochet divide the work rather than cancelling each other out. A shot goes
+  straight on while a body stands ahead of it, and turns the moment none does. Measured
+  over a maxed run, **13%** of its hits end in a turn; the obvious rule - pierce first,
+  always - managed 2%, which is a card that never fires.
+- Six cards now have six colours and six shapes: ricochet's is teal, and shows a shot
+  kinking from one body to the next, thinner and dimmer for the trip.
+- The card pool is thirty ranks deep now, five more choices on the way up.
+- Measured over the same 24 runs as the last three releases: median survival is still the
+  whole **fifteen-minute measuring window**, with **21 of the 24 still flying** when it
+  shuts, median kills **6539** and median score **117015**. Firepower stopped being what
+  sets this bot's survival at the last release and that is still true - this card buys
+  what it looks like, not more time. Nothing about the crowd moved: its hull, speeds,
+  budget and ramp are exactly as they were.
+
 ## 0.4.2 — 2026-10-07
 Pierce: the second card that changes what the gun does, and your shots stop stopping.
 - **PIERCE** is a fifth upgrade line. Every rank lets one more body lie in your shot's
