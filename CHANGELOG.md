@@ -1,5 +1,16 @@
 # Starfall — changelog
 
+## 0.2.0 — 2026-10-07
+The ship answers like you expect now.
+- New flight model, on the design numbers: top speed 320, full speed about 0.13 s after you lean, a
+  standstill about 0.10 s after you let go. Turning around is a slide, not a pivot, and the ship stops
+  dead instead of coasting to a crawl.
+- The ship's hitbox is now 6 px instead of the 16 px you can see: brush the crowd's shoulder and live.
+  Hit invulnerability is 1.5 s to match.
+- Fixed: a run could depend on how long the browser tab had been open. A frame is now measured to the
+  microsecond and no finer, so a shared seed plays the same run in a fresh tab and an old one.
+- Test suite is up to 79, including a suite that measures the ship's acceleration, braking and hitbox.
+
 ## 0.1.0 — 2026-10-07
 The foundations release: the game is now modules, and its clock belongs to the game, not the display.
 - Fixed 120 Hz simulation with interpolated rendering: a run plays out identically on a 30 Hz netbook
