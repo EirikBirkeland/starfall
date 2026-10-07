@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.3",
+    "date": "2026-10-07",
+    "summary": "Ricochet: a shot that would die turns on to the next body, one more per rank"
+  },
+  {
     "version": "0.4.2",
     "date": "2026-10-07",
     "summary": "Pierce: one pull of the trigger goes through one more body per rank"
