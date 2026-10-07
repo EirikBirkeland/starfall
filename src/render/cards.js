@@ -36,6 +36,7 @@ const TINT = {
   bulletSpeed: PALETTE.shard,
   split: PALETTE.violet,
   pierce: PALETTE.wall,
+  ricochet: PALETTE.teal,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -253,9 +254,10 @@ function drawKeyHint(ctx, number, x, y) {
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
  * cycle, a shot with its own wake for velocity, three of them for split shot, one going
- * through two bodies for pierce. Small, drawn from paths, and legible at a card's worth
- * of pixels. Each line names one of these in game/upgrades.js, and an icon with no shape
- * is a bug that says so rather than drawing the wrong thing.
+ * through two bodies for pierce, one turning from one body to the next for ricochet.
+ * Small, drawn from paths, and legible at a card's worth of pixels. Each line names one
+ * of these in game/upgrades.js, and an icon with no shape is a bug that says so rather
+ * than drawing the wrong thing.
  */
 const ICONS = {
   damage: iconDamage,
@@ -263,6 +265,7 @@ const ICONS = {
   bulletSpeed: iconBulletSpeed,
   split: iconSplit,
   pierce: iconPierce,
+  ricochet: iconRicochet,
 };
 
 /** The three lengths of the pierce icon's shot, brightest where it started. */
@@ -270,6 +273,20 @@ const PIERCE_SHOT = [
   { from: 0.86, to: 0.14, wide: 0.17, thin: 0.13, at: 0.95 },
   { from: -0.12, to: -0.46, wide: 0.12, thin: 0.09, at: 0.55 },
   { from: -0.56, to: -0.86, wide: 0.08, thin: 0.03, at: 0.3 },
+];
+
+/**
+ * The ricochet icon's two bodies, and the three legs of shot that run between them: in
+ * from below, from one body to the next, and out again. Each leg is thinner and dimmer
+ * than the one before it - the shot spends itself as it goes - and the last one is the
+ * shot still flying after the body it found.
+ */
+const RICOCHET_BODY_A = [-0.06, 0.2];
+const RICOCHET_BODY_B = [0.62, -0.3];
+const RICOCHET_PATH = [
+  { from: [-0.8, 0.84], to: RICOCHET_BODY_A, wide: 0.19, at: 0.95 },
+  { from: RICOCHET_BODY_A, to: RICOCHET_BODY_B, wide: 0.14, at: 0.62 },
+  { from: RICOCHET_BODY_B, to: [0.88, -0.66], wide: 0.09, at: 0.32 },
 ];
 
 function drawIcon(ctx, kind, cx, cy, size, tint) {
@@ -283,6 +300,32 @@ function drawIcon(ctx, kind, cx, cy, size, tint) {
   ctx.globalCompositeOperation = 'source-over';
   shape(ctx, size, tint);
   ctx.restore();
+}
+
+/**
+ * A shot that came in low, turned on a body, and is on its way to the next one. The kink
+ * is the whole card: the shot that hit something does not stop, it goes somewhere you did
+ * not point it - and the leg after the turn is thinner, because it is lighter for it.
+ */
+function iconRicochet(ctx, size, tint) {
+  ctx.lineCap = 'round';
+  for (const leg of RICOCHET_PATH) {
+    ctx.beginPath();
+    ctx.moveTo(leg.from[0] * size, leg.from[1] * size);
+    ctx.lineTo(leg.to[0] * size, leg.to[1] * size);
+    ctx.lineWidth = leg.wide * size;
+    ctx.strokeStyle = withAlpha(tint, leg.at);
+    ctx.stroke();
+  }
+
+  // The two bodies it found, quiet, so the path reads as going from one to the other
+  // rather than as a bend in nothing.
+  for (const spot of [RICOCHET_BODY_A, RICOCHET_BODY_B]) {
+    polygon(ctx, spot[0] * size, spot[1] * size, size * 0.24, 4, Math.PI / 4);
+    ctx.strokeStyle = withAlpha(tint, 0.5);
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
 }
 
 /** A hit: a solid diamond with what came off it flying off in four directions. */

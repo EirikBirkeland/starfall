@@ -189,7 +189,9 @@ test('the bot picks a card when the run stops for one, and still dies in the end
   assert.ok(taken > 0, 'the bot took upgrades on the way: ' + JSON.stringify(world.upgrades));
   assert.ok(taken <= ALL_RANKS, 'and never more than the lines have to give: ' + taken);
   assert.ok(game.stats().level > 3, 'and levelled up enough to have taken them');
-  assert.match(game.screen.build, /DAMAGE|FIRE RATE|SHOT SPEED|SPLIT SHOT|PIERCE|NO UPGRADES/,
+  // The names come from the line table rather than being written out here, so a line
+  // added to the game cannot slip past this test.
+  assert.match(game.screen.build, new RegExp(LINES.map((line) => line.name).join('|') + '|NO UPGRADES'),
     'and the game-over card says what it was built from');
   game.stop();
 });

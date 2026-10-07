@@ -150,7 +150,11 @@ Critical chance, XP gain.
 
 Behaviour upgrades:
 
-- **Ricochet**: shots bounce to another enemy, 1 extra bounce per rank.
+- **Ricochet**: shots bounce to another enemy, 1 extra bounce per rank. Each bounce
+  carries a share of the weight the body it just hit took, and a bounce is only spent
+  where the shot would otherwise have died *and* there is nothing left ahead of it to go
+  through - so this line buys the crowd beside you while pierce keeps buying the column in
+  front of you, and taking both is a shot that ploughs until the plough runs out.
 - **Pierce**: shots pass through 1 extra enemy per rank. Each body past the first takes
   a share of the weight the one before it took, so the line buys depth into a column
   rather than multiplying the gun.
@@ -295,7 +299,14 @@ One item per session, as always:
       `BALANCE.upgrades.pierce` and NOTES session 29 - so the line buys depth into a
       column instead of multiplying the gun, and a rank is worth nothing to a run that
       is fighting one body at a time.)
-- [ ] Ricochet (3.5): shots bounce to another enemy, one extra bounce per rank. Release.
+- [x] Ricochet (3.5): shots bounce to another enemy, one extra bounce per rank. Release.
+      (Done, released 0.4.3. A shot that would have died turns on to the nearest body it
+      has not been through, within 220 px, and carries `share` of what the body it just
+      hit took - see `BALANCE.upgrades.ricochet` and NOTES session 30. A turn is only
+      spent where the shot would otherwise have ended *and* there is nothing ahead of it
+      to pierce: the two lines divide the work - straight down the line you aimed while it
+      lasts, sideways into the crowd the moment it does not - instead of one cancelling
+      the other out.)
 - [ ] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.
 - [ ] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line. Release.
 - [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,

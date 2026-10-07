@@ -47,6 +47,12 @@ export const PALETTE = {
   wall: '#57b8ff',
   wallTick: '#9fdcff',
 
+  // The sixth card tint (render/cards.js). The five already taken are white, the
+  // player's cyan, the shard's mint, the drifter's violet and the wall's sky blue, and
+  // the one cool hue nobody was wearing is a teal - so six cards can be told apart at a
+  // glance by colour and not only by the shape on them.
+  teal: '#25e6c0',
+
   white: '#ffffff',
   uiText: '#eafcff',
   uiDim: '#78b9dd',

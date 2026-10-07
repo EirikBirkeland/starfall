@@ -548,8 +548,8 @@ export const BALANCE = {
   // card text prints it rather than paraphrasing it, so a card can never lie about its
   // number. For a line that sells a share of something (damage, fire rate, shot speed)
   // `step` is that share and the line is worth `1 + step * rank`. For a line that hands
-  // out whole things - `unit: 'each'`: split shot and pierce - `step` is how many whole
-  // things one rank adds, and there is no multiplier to ask it for.
+  // out whole things - `unit: 'each'`, which is what the behaviour lines are - `step` is
+  // how many whole things one rank adds, and there is no multiplier to ask it for.
   //
   // Five ranks each (PLAN 3.5 starts here), and every one of them is firepower: the
   // point of the build is that the run's shots get heavier, faster and more numerous,
@@ -588,6 +588,50 @@ export const BALANCE = {
       // the only tell a passing shot has, so it is a slightly bigger burst than an
       // impact that stopped the shot.
       pass: { count: 5, speed: 190, life: 0.26, spread: 0.55 },
+    },
+    ricochet: {
+      ranks: 5,
+      step: 1,          // one more body a spent shot may be turned onto, per rank (PLAN 3.5)
+      // A shot with a bounce left does not die on the body it hit when there is nothing
+      // ahead of it to go through: it turns onto the nearest body it has not already been
+      // through, within `reach`, and goes again at the same speed carrying `share` of the
+      // weight it had. So the line buys coverage the player did not aim at, paid for in
+      // weight - and see `ahead` below for when a turn wins over a pierce pass.
+      //
+      // Measured on a knot of bodies that cannot die, three seconds of trigger, average of
+      // six seeds - a plain pull is 1.00x, and the firepower lines are damage 2.50x, split
+      // 2.57x, pierce 3.33x, ricochet at this number 2.50x. That ladder is the whole
+      // decision: `share` sits under pierce's 0.8 because a pierce pass needs a column
+      // standing exactly where you aimed and a bounce needs one body anywhere nearby, so at
+      // the same number this would be the easy version of that card and the two would stop
+      // being a choice. At 0.8 it measured 3.44x - over pierce, for less geometry - and at
+      // 0.5 it measured 1.88x, less than the plain damage card, which would make this a
+      // trap. 0.65 buys a full chain worth 2.64 shots: the cheapest of the three lines that
+      // buy a second body, and the second body still takes two thirds of a shot rather than
+      // a chip of one.
+      share: 0.65,
+      // How far a shot looks for its next body, in px. It wants to be what a knot of
+      // arrivals is: further than a body, far short of the window, so a bounce reads as
+      // a glance into the crowd the shot was already in rather than as a missile that
+      // found something across the arena. It is also the radius of the grid query a
+      // bounce costs, which is why it is not enormous.
+      reach: 220,
+      // The cosine of the half-angle in which a body counts as being *ahead* of a shot:
+      // 0.5 is 60 degrees either side. Only a shot that bought both lines is asked, and
+      // only to decide whether going straight is worth a pass: inside the cone there is
+      // something to go through, outside it everything is beside the shot and a pass into
+      // empty sky is a pass - and a turn - thrown away. Measured over a maxed fifteen-minute
+      // run, this is how often a hit ends in a turn: at 0.2, 9%; at 0.35, 11%; here, 13%;
+      // at 0.6, 16%. Kills do not move between them (the arrival rate is the ceiling, not
+      // the gun - NOTES session 29), so this number is about how often the player sees a
+      // shot kink, and 60 degrees is the honest angle at which a line still reaches.
+      ahead: 0.5,
+      // The sparks thrown as a shot turns, along the new heading. It is the only tell a
+      // bounce has, so it is aimed: your eye can follow where the shot went.
+      turn: { count: 4, speed: 170, life: 0.22, spread: 0.5 },
+      // One short tick per turn. Quiet, because a busy pull can turn half a dozen times
+      // and the mix has no voice limiting yet (milestone 7).
+      sound: { freq: 920, dur: 0.035, wave: 'triangle', vol: 0.015, slide: 380 },
     },
   },
 

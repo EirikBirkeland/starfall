@@ -105,8 +105,13 @@ export const DEFAULT_POLICY = 'aware';
  * line that buys coverage rather than weight, and it is the crowd that kills this bot;
  * pierce third, for the same reason in the other direction - it buys depth down the
  * column of bodies chasing the ship, which is exactly what this bot is aiming at.
+ * Ricochet goes with the coverage lines, and just above pierce: a turn needs one body
+ * anywhere nearby, where a pass needs the crowd arranged along the line being aimed, and
+ * this bot is always in the middle of a knot rather than behind a column. It is a judgement
+ * rather than a measurement - the bot maxes all six lines in a healthy run, so the order
+ * only decides the shape of the way up, not what is standing at the top.
  */
-const APPETITE = ['damage', 'split', 'pierce', 'fireRate', 'bulletSpeed'];
+const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSpeed'];
 
 function preferredCard(game, offer) {
   const ranks = game.world.upgrades;

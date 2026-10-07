@@ -12,7 +12,7 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
-import { gainOf, volleyOf, pierceOf } from './upgrades.js';
+import { gainOf, volleyOf, pierceOf, bounceOf } from './upgrades.js';
 
 /**
  * How often the gun cycles: the ship's own rate, times whatever the fire rate line is
@@ -54,7 +54,7 @@ function shotFan(aim, count, gap) {
 }
 
 /** One projectile, written field by field like every spawner must. */
-function shoot(world, nx, ny, angle, speed, dmg, pierce) {
+function shoot(world, nx, ny, angle, speed, dmg, passes, turns) {
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
@@ -64,9 +64,11 @@ function shoot(world, nx, ny, angle, speed, dmg, pierce) {
   bullet.vy = Math.sin(angle) * speed;
   bullet.life = BALANCE.bullets.life;
   bullet.dmg = dmg;
-  // The shot carries the gun's pierce with it, the same way it carries its damage: what
-  // the run had earned when the trigger moved is what this shot does.
-  bullet.pierce = pierce;
+  // The shot carries what the gun had earned when the trigger moved, and carries it for
+  // its whole flight: a card taken after this one leaves does not rewrite a shot already
+  // in the air (game/bullets.js is where both are spent).
+  bullet.pierce = passes;
+  bullet.bounce = turns;
   bullet.hits.length = 0;
   return bullet;
 }
@@ -79,9 +81,9 @@ function shoot(world, nx, ny, angle, speed, dmg, pierce) {
  * volley is more than one projectile: they all leave from the same point in a fan
  * around the nose, the aimed one at full weight and each extra carrying a share of it
  * (BALANCE.upgrades.split), so a rank never takes anything away and always buys
- * coverage instead - more of the crowd touched per pull. Each projectile also leaves
- * with the pierce line's number, so a shot can go on through the body it was aimed at
- * and look for the one standing behind it (game/bullets.js).
+ * coverage instead - more of the crowd touched per pull. Each projectile also leaves with
+ * what the gun had of the pierce and ricochet lines, so a shot can go on through the body
+ * it was aimed at, or turn on to one standing beside it (game/bullets.js).
  */
 export function fire(world) {
   const ship = world.player;
@@ -97,11 +99,12 @@ export function fire(world) {
 
   const fan = shotFan(ship.angle, volleyOf(world), split.fan);
   const pierce = pierceOf(world);
+  const turns = bounceOf(world);
   for (let i = 0; i < fan.length; i++) {
     // Every projectile gets its own small aim error, so a fan is a fan of shots and not
     // a grid of them - but the aimed one is the one that keeps its full weight.
     const angle = fan[i] + logic.range(-spec.spread, spec.spread);
-    shoot(world, nx, ny, angle, speed, i === 0 ? weight : weight * split.share, pierce);
+    shoot(world, nx, ny, angle, speed, i === 0 ? weight : weight * split.share, pierce, turns);
   }
 
   ship.vx -= Math.cos(ship.angle) * spec.recoil;

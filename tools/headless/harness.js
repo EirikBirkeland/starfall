@@ -54,6 +54,10 @@ function makeContextStub(counters, drawLog) {
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 1,
+    // Part of the drawing state, like the dash pattern below. The ricochet card's icon
+    // draws its shot as round-ended legs (render/cards.js) and the stub has to agree to
+    // be told one.
+    lineCap: 'butt',
     font: '',
     textAlign: 'left',
     textBaseline: 'alphabetic',

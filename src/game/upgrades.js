@@ -9,9 +9,10 @@
 //
 // There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
-// already has: `gainOf`. Two lines - split shot and pierce - hand out whole things
-// instead, and a caller counts them: `countOf`, which `volleyOf` and `pierceOf` are the
-// two readings of. A card prints either, which is why the printing lives here.
+// already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet - hand out
+// whole things instead, and a caller counts them: `countOf`, of which `volleyOf`,
+// `pierceOf` and `bounceOf` are the three readings. A card prints either, which is why
+// the printing lives here.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -78,12 +79,22 @@ export const LINES = [
     flavour: 'A shot goes through one more body, and on to the next.',
     icon: 'pierce',
   },
+  {
+    id: 'ricochet',
+    name: 'RICOCHET',
+    unit: WHOLE_UNIT,
+    what: 'body turned onto',
+    flavour: 'A shot that would die turns on the next body and goes again.',
+    icon: 'ricochet',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the one you aimed. */
 const SPLIT_LINE = 'split';
 /** The line that hands out extra bodies each projectile may go through. */
 const PIERCE_LINE = 'pierce';
+/** The line that hands out extra bodies each projectile may be turned onto. */
+const RICOCHET_LINE = 'ricochet';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -169,6 +180,16 @@ export function volleyOf(world) {
  */
 export function pierceOf(world) {
   return countOf(world, PIERCE_LINE);
+}
+
+/**
+ * How many times one shot may be turned onto a body it was not aimed at (PLAN 3.5). A
+ * shot is handed this when it leaves and spends one of it per turn, and a turn is taken
+ * only when there is nothing left ahead of the shot for a pass to go through - so pierce
+ * buys the body *behind* the one you aimed at and this buys the ones standing beside it.
+ */
+export function bounceOf(world) {
+  return countOf(world, RICOCHET_LINE);
 }
 
 /** Lines with a rank still to give. */
