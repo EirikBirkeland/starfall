@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.0",
+    "date": "2026-10-07",
+    "summary": "The level-up choice: three cards, three upgrade lines, and a run that grows as it goes"
+  },
+  {
     "version": "0.3.8",
     "date": "2026-10-07",
     "summary": "The swarm: up to twenty small fast bodies that arrive as one wave member and fly as one thing"
