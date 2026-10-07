@@ -627,3 +627,103 @@ and the `logic` one did not).
    per session 7's note, or the clock will bite.
 4. Then M3: enemies as data, and the dodging bot - session 8's note has the naive baseline
    (1m00s over seeds 1-4) that a dashing bot should beat.
+
+## Session 10 (2026-10-07) — Milestone 2: every glow is a baked sprite
+### What landed
+PLAN section 4's "glows are pre-rendered sprites; `shadowBlur` every frame is too slow". **`src/render/glow.js`**
+is the whole idea: a sprite is baked once into a small offscreen canvas and stamped with `drawImage`.
+`src/` now contains no `shadowBlur` at all, and no gradient built during a frame.
+
+- Two sprite kinds. `glowFor(color, radius)` is a round pool of light, **memoised on its arguments**
+  (colour → radius → holder) because those come from a handful of kinds, so a draw loop may ask for
+  one every frame and get the same pixels. `makeStreak(tip, tail, length, thickness)` is a tapering
+  trail with a bright head, pointing +x with its head at the origin: **the caller owns it** and keeps it
+  in a module variable (a weapon's trail, the ship's flame, the dash's blur). It is *not* memoised -
+  calling it in a frame would build a canvas per frame. That is the one rule to remember.
+- A streak is baked as a row of soft blobs along its axis, growing and brightening toward the head, so
+  it has no hard edges and needs no `destination-in` tricks. Colours are mixed per blob at bake time.
+- **A sprite is always baked at full opacity; `strength` on the stamp dims it** (via `globalAlpha`,
+  multiplied into whatever the caller already had). One sprite per colour and size, any brightness.
+- **Baked at device resolution, stamped at CSS size**, so a HiDPI screen gets crisp glows.
+  `resizeCanvas` calls `setGlowResolution(dpr)`; when the ratio changes every holder is emptied and the
+  next stamp rebuilds it. `stats()` reports `{ holders, sprites, pixelRatio }` for the F3 overlay.
+- What changed on screen: enemy halos (and a **white bloom while an enemy flashes** - the old flash only
+  blurred in the enemy's own colour), the ship's halo and core, the thruster flame, shot trails, shard
+  halos, the dash blur, the hull pips. Rings and floating labels got their glow from a **second, wider,
+  fainter stroke** instead of a sprite (a ring's radius is continuous; a sprite per radius would be
+  silly). The dash's cooldown ring and the XP bar got the same treatment.
+- **`core/palette.js` grew the colour arithmetic the bakes need**: `parseColor` (`#abc`, `#aabbcc`,
+  `rgb()`, `rgba()`; anything else throws rather than silently becoming black), `withAlpha`,
+  `mixColors`. New palette entries for the flame (`flameTip`, `flameTail`) and the dash ring/streak -
+  the inline rgba strings that were in `render/entities.js` are gone. `star` was `'200,235,255'`, a
+  channel triple no colour function can read; it is `#c8ebff` now and `drawStars` uses `withAlpha`.
+  A test asserts every colour in the palette parses, so this cannot happen quietly again.
+- `kinds.*.glow` is now honestly documented in `balance.js`: the renderer's halo reach, not a sim number.
+
+### Numbers (throwaway benches, and a `git worktree add /tmp/old-head HEAD` to compare against the
+previous commit - that is a good way to measure a rendering change here)
+- **1500 shots in flight (PLAN section 2's target load), per frame: 1500 gradients and 1500 blurred
+  strokes before; 0 and 0 now, replaced by 1500 stamps of one cached image** (plus a `translate` +
+  `rotate` each, which are matrix maths, not a blur).
+- Over a 600-frame window 45-55 s into a run: old code built **1372** canvas gradients, new code **0**;
+  fills stayed the same, strokes went down, and 18 970 stamps appeared.
+- In a whole run the game hands out **13 glow holders** and bakes each once. `test/draw-cost.test.mjs`
+  pins that: a busy frame asks for no blur and no gradient, and a steady frame builds nothing at all.
+
+### Proof it moved nothing
+`node tools/simulate.js --seed 20261006 --trace` is **byte for byte** the session-8/9 reference run
+(1m14s, 1108, level 4, 74 kills, 64 shards, every trace hash equal); the bot over seeds 1-4 is still
+1m00s / 726. Rendering reads the `visual` stream and writes no `logic` draw, so it could not have
+moved - it is worth remembering that the *numbers* in `render/` are free to change and the sim cannot notice.
+
+### Tests: 119, all passing (was 102)
+- `test/glow.test.mjs` (9) - no game boot; the file hands the module a `document` that builds blank
+  canvases and a context that writes down every stamp. Baked once then handed out again; stamped
+  centred at CSS size and baked at `w*dpr`; the falloff runs to transparent at the edge; a resolution
+  change rebuilds each sprite exactly once and still stamps at the same CSS size; a streak's head lands
+  on the point it is given (and the row grows toward it); `stretch` lengthens along its own axis only;
+  `strength` dims without disturbing the caller's `globalAlpha`; a strength of 0 paints nothing.
+- `test/palette.test.mjs` (5) - the colour forms, the errors, `withAlpha`'s clamping, `mixColors`'
+  endpoints, and "every colour in the palette parses".
+- `test/draw-cost.test.mjs` (3) - the frame-cost promises above, measured on the real game 45 s into a
+  run with the simple bot flying.
+- `tools/headless/harness.js`: the canvas stub learned `drawImage` and `strokeText`, counts
+  `images` and (in the property setter) **every non-zero `shadowBlur` write**, grew `document.createElement`
+  for offscreen canvases with their own counters, and reports `bakeCalls()`. So "a frame blurred" and
+  "a frame baked a sprite" are both observable now.
+- Two counts in `test/controls.test.mjs` moved on purpose: the waiting cooldown ring is 2 extra strokes
+  now (base circle, wide faint arc, bright arc) and the dash is 3 extra `translate`s (the blur plus its
+  two ghosts). Both still assert an exact number; both say what the number is made of.
+
+### Decisions, so nobody relitigates them
+- **No blur anywhere, including the HUD.** Text halos are a wide faint `strokeText` under the fill.
+- **Lazy is fine**: a sprite is baked the first time its thing is drawn. The dash blur is never baked
+  in a run without a dash. That is why the cost tests measure two windows and assert the *second* one
+  builds nothing.
+- Sprites are shared and finite; nothing is thrown away at runtime. `makeStreak` allocating a holder per
+  call is a footgun, hence the ownership rule in the module header. If M5's ships want per-weapon
+  trails, each weapon definition builds its trail once when it is defined.
+- Alpha values (`HALO_LIGHT`, `SHIP_LIGHT`, `FLASH_LIGHT`, `SHARD_LIGHT`, `DASH_STREAK_LIGHT`,
+  `RING_SOFT`, the `FALLOFF` table) are eyeballed arithmetic - there is no browser here. They are named
+  and in one place each. If the screen reads washed out or dim, they are the knobs, in that order.
+
+### Watch out
+- Add every new canvas member to the harness stub, or the stub throws "the canvas stub has no member".
+- `test/draw-cost.test.mjs` makes the ship invulnerable: a dead ship paints nothing to measure, and a
+  measurement window must not end because the bot died.
+- The XP bar's gradient is cached by bar width and built the first time the bar has anything in it - for
+  the dumb bot that is ~30 s in, which is why the cost test warms up past it.
+
+### Next (Milestone 2)
+1. **Hit-stop** (freeze 40 ms on big kills, 90 ms on a player hit). Session 7's note: put the timer on
+   the world, step it in *real* time, and drain the accumulator while frozen or the clock hands back a
+   burst of catch-up steps the moment it thaws.
+2. **Arena 3000×3000 + camera + energy walls + cursor lean.** The camera must read the interpolated
+   position (`render/interp.js`); `dashDirection` and `mouse.js` need the camera's inverse; the draw
+   calls currently bake the transform in, so the camera wants a `setTransform` at the top of a frame.
+   The glow sprites do not care (they are stamped in the current transform).
+3. Nebula backdrop for the starfield item; the stars themselves could be stamped sprites too (they
+   still build one colour string each, per frame).
+4. M2's remaining checkboxes are partly done by earlier sessions: hit flash, trauma shake, pooled
+   particle system and enemy knockback all exist. What is genuinely missing is hit-stop, the arena and
+   the nebula. Put them right before releasing against that list.
