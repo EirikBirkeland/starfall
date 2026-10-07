@@ -46,6 +46,17 @@ export const BALANCE = {
     accel: 2400,            // px/s^2 - full speed about 0.13 s after you lean
     brake: 3200,            // px/s^2 - letting go stops it in about 0.10 s
     hull: 3,
+    // The most the ship can hold. Nothing raises it yet - an elite's heal is clamped
+    // to it (see `elite` below) - and the milestone 4 upgrades will.
+    maxHull: 3,
+    // What coming back a hull looks and sounds like. Mint, because cool colours mean
+    // help (PLAN section 4) and this is the only good news a run gives out by itself.
+    heal: {
+      sparks: { count: 20, speed: 220, life: 0.6 },
+      ring: { radius: 9, speed: 360, life: 0.45 },
+      labelOffset: 6,
+      sound: { notes: [520, 780, 1040], dur: 0.16, wave: 'sine', vol: 0.09 },
+    },
     fireRate: 4.4,          // shots per second, before levels
     fireRateMax: 15,
     startInvulnerability: 1.2,
@@ -328,6 +339,43 @@ export const BALANCE = {
     attempts: 8,
   },
 
+  // The elite variant of any kind (PLAN 3.3). An elite is not a kind: it is a flag on
+  // whichever body the wave director rolled, so every enemy in the game can arrive
+  // gold and a kind added later is elite for free.
+  //
+  //   from     seconds of run before one may arrive at all - PLAN's 8:00
+  //   chance   that a wave wants one. Per wave and at most one per wave, so an elite
+  //            reads as a wave with a leader rather than as a field of gold. A wave
+  //            that never grows to have as many members as the roll asked for carries
+  //            none, so the rate that arrives is under this: 15.1% of waves over 4000
+  //            of them at 0.2, which at the late-game beat of one wave every few
+  //            seconds is a gold body every half minute or so. The number is low on
+  //            purpose - an elite takes `costMul` of the crowd budget as well as being
+  //            four times as tough, and a crowd made mostly of them would not fit on
+  //            the screen. Nothing in the bot's 2m10s of survival measures it; it is
+  //            judgement, and it is the first number to revisit once a run can be
+  //            played that far (see NOTES).
+  //   hullMul / speedMul   PLAN's numbers, and the whole of what an elite *is*
+  //   costMul  what one takes out of the spawn budget - which is also what an arrow
+  //            at the window edge is worth (render/indicators.js). It sits under
+  //            hullMul deliberately: at 4 the dearest kind would cost 32, more than
+  //            one wave is allowed to spend (waves.waveMaxPoints), and a gold tank
+  //            would never arrive at all.
+  //   scoreMul / dropMul   what killing one pays. Above hullMul for the score: an
+  //            elite is an event and should be worth hunting.
+  //   heal     the chance it gives the ship back a hull, and how many. Only rolled
+  //            when the ship is actually hurt - an elite never wastes its gift.
+  elite: {
+    from: 480,
+    chance: 0.2,
+    hullMul: 4,
+    speedMul: 1.15,
+    costMul: 3,
+    scoreMul: 5,
+    dropMul: 2,
+    heal: { chance: 0.34, hull: 1 },
+  },
+
   shards: {
     life: 12,
     drop: { speedMin: 40, speedMax: 150, jitter: 6, spinMax: 4 },
@@ -339,6 +387,14 @@ export const BALANCE = {
     xp: 1,
     score: 2,
     pickupSpark: { count: 5, speed: 120, life: 0.3 },
+    // A large shard: PLAN 3.3's elite drop. Worth `worth` of the ordinary ones, and
+    // drawn bigger and with a ring for it (render/entities.js). `worth` is the only
+    // difference between the two, which is what keeps one shard, not two systems.
+    big: {
+      worth: 6,
+      spark: { count: 26, speed: 260, life: 0.45 },
+      ring: { radius: 7, speed: 320, life: 0.35 },
+    },
     sound: { base: 1050, jitter: 270, dur: 0.05, wave: 'sine', vol: 0.05, slide: 1900 },
   },
 

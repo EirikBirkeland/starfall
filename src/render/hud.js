@@ -2,7 +2,6 @@
 // Everything here reads the world; nothing here changes it.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
-import { BALANCE } from '../game/balance.js';
 import { clamp } from '../core/math.js';
 import { world } from '../game/world.js';
 import { roundRect } from './shapes.js';
@@ -47,11 +46,14 @@ function haloText(ctx, text, x, y, color, halo) {
 }
 
 function drawHullPips(ctx, x, y) {
-  // One pip per hull the ship can hold; upgrades raise the cap later.
+  // One pip per hull the ship can hold; upgrades raise the cap later, and an elite's
+  // heal (game/elite.js) fills one of them back in.
+  const ship = world.player;
+  const pips = Math.max(ship.maxHull, ship.hull);
   const halo = glowFor(PALETTE.player, PIP_HALO_RADIUS);
   ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < BALANCE.player.hull; i++) {
-    const alive = i < world.player.hull;
+  for (let i = 0; i < pips; i++) {
+    const alive = i < ship.hull;
     const cx = x - 14 - i * 30;
     ctx.save();
     ctx.translate(cx, y);

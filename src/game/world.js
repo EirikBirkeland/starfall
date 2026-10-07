@@ -64,6 +64,7 @@ function createWorld() {
       // ship like its velocity does.
       exhaustTimer: 0,
       hull: spec.hull,
+      maxHull: spec.maxHull,    // what the pips can hold; only an elite's heal fills it for now
       invuln: 0,
       // The dash: how far it has left to cover, how long until the next one is
       // allowed, and which way it is going. All three are 0 on a fresh ship.

@@ -11,9 +11,11 @@
 //                            arrow appears exactly when the body behind it stops
 //                            being drawn and not a moment sooner
 //   is it worth an arrow   - a body is worth what the wave director already says it
-//                            is worth, its spawn `cost` (a drifter 2, a tank 8),
-//                            faded out by how far away it stands. A far crowd is a
-//                            rumour; one at the edge of the glass is a shout.
+//                            is worth, its spawn cost (a drifter 2, a tank 8, and
+//                            three times either for an elite, which is the one thing
+//                            PLAN section 4 asks an arrow for), faded out by how far
+//                            away it stands. A far crowd is a rumour; one at the edge
+//                            of the glass is a shout.
 //
 // Then the bodies are grouped by the direction they are in and one arrow is drawn
 // per direction, so forty enemies off to the left are one bright arrow and not
@@ -40,8 +42,8 @@ const SLICE = TAU / SECTORS;
 
 // How much of a crowd makes an arrow shout, and how little makes it not worth
 // drawing at all. Both are counted in the wave director's units - points of enemy,
-// 2 for a drifter and 8 for a tank - because that is already the game's own opinion
-// of how much a body matters.
+// 2 for a drifter and 8 for a tank, and three times either for an elite - because
+// that is already the game's own opinion of how much a body matters.
 const ARROW_FULL = 16;
 const ARROW_FLOOR = 1.5;
 // How far off a body stops being worth an arrow, as a share of the window's own
@@ -155,7 +157,7 @@ export function collectIndicators(source, shipX, shipY, alpha) {
     const distance = Math.hypot(dx, dy);
     if (distance <= 1) continue;
 
-    const weight = enemy.kind.stats.cost * fade(distance, near, far);
+    const weight = enemy.cost * fade(distance, near, far);
     if (weight <= 0) continue;
 
     const slot = SLOTS[sectorOf(Math.atan2(dy, dx))];

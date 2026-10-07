@@ -26,6 +26,13 @@ const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 let lastFps = 60;
 let lastAlpha = 0;
 
+/** How many gold bodies are standing in the arena. For the F3 overlay (milestone 10). */
+function countElites(world) {
+  let gold = 0;
+  for (const enemy of world.enemies) if (enemy.elite) gold++;
+  return gold;
+}
+
 /** The seed the address bar asked for, or null when nobody asked. */
 function addressSeed() {
   const match = /[?&]seed=(\d+)/.exec(window.location.search);
@@ -178,12 +185,14 @@ window.STARFALL = {
       score: world.score,
       level: world.player.level,
       hull: world.player.hull,
+      maxHull: world.player.maxHull,
       dashCd: world.player.dashCd,
       dashLeft: world.player.dashLeft,
       kills: world.kills,
       t: world.elapsed,
       freeze: world.freeze,
       enemies: world.enemies.length,
+      elites: countElites(world),
       bullets: world.bullets.count,
       shots: world.enemyShots.count,
       wave: world.waveNumber,

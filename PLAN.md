@@ -296,7 +296,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Enemy bullets, in warm colours, with their own pool.
 - [x] The wave director: a spawn budget that grows with time and is spent on the enemy types unlocked so far.
       Spawns happen off-screen, never on top of the player.
-- [ ] Elite variants.
+- [x] Elite variants.
 - [x] Off-screen indicators.
 - [ ] Extend the simulation bot to dodge bullets. Add `tools/balance-report.js`.
 - [ ] Release.

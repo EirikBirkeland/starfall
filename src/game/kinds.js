@@ -125,12 +125,24 @@ function chosen(opts, key, fallback) {
 }
 
 /**
+ * What an elite is made of, as opposed to its plain kind: `BALANCE.elite`'s
+ * multipliers, and nothing else. An elite is a flag on whichever enemy the wave
+ * director rolled (game/waves.js), never a kind of its own, so the whole of it is
+ * here: every number below is the kind's own multiplied, which is what keeps "four
+ * of its kind" one fact instead of five that can drift apart.
+ */
+const PLAIN = { hullMul: 1, speedMul: 1, costMul: 1, scoreMul: 1, dropMul: 1 };
+
+/**
  * Build one enemy of `type` at (x, y). `opts` overrides the kind's defaults: a
- * tank's hatchlings arrive smaller, tougher, and already flying apart.
+ * tank's hatchlings arrive smaller, tougher, and already flying apart, and `elite`
+ * asks for the gold variant (PLAN 3.3) of whatever kind was rolled.
  */
 export function makeEnemy(world, type, x, y, opts) {
   const kind = kindOf(type);
   const stats = kind.stats;
+  const elite = chosen(opts, 'elite', false) === true;
+  const mul = elite ? BALANCE.elite : PLAIN;
   const e = BALANCE.enemies;
   const hpScale = 1 + clamp(world.elapsed / e.hpScaleWindow, 0, e.hpScaleMax);
   const speedScale = 1 + clamp(world.elapsed / e.speedScaleWindow, 0, 1) * e.speedScaleMax;
@@ -138,16 +150,20 @@ export function makeEnemy(world, type, x, y, opts) {
   const enemy = {
     type: type,
     kind: kind,   // the row it came from: game/kinds.js, so nothing has to look it up
+    elite: elite, // gold, and worth a big shard and maybe a hull when it dies
     x: x,
     y: y,
     px: x,        // where it stood when the current step began; see render/interp.js
     py: y,
     r: chosen(opts, 'r', stats.radius),
-    hp: chosen(opts, 'hp', Math.ceil(stats.hull * hpScale)),
+    hp: chosen(opts, 'hp', Math.ceil(stats.hull * mul.hullMul * hpScale)),
     maxhp: 0,
-    speed: chosen(opts, 'speed', stats.speed * speedScale) * chosen(opts, 'speedMul', 1),
-    drop: chosen(opts, 'drop', stats.drop),
-    score: chosen(opts, 'score', stats.score),
+    speed: chosen(opts, 'speed', stats.speed * speedScale) * chosen(opts, 'speedMul', 1) * mul.speedMul,
+    drop: chosen(opts, 'drop', stats.drop) * mul.dropMul,
+    score: chosen(opts, 'score', stats.score) * mul.scoreMul,
+    // What this body is worth out of the wave director's budget, and therefore what
+    // an arrow at the window edge is worth: an elite is `costMul` of its kind.
+    cost: stats.cost * mul.costMul,
     rot: logic.range(0, TAU),
     spin: logic.range(-e.spinRange, e.spinRange),
     flash: 0,

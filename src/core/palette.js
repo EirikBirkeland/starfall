@@ -73,6 +73,11 @@ export const PALETTE = {
   // drawn with a lit fuse (render/entities.js).
   ember: '#ff4a1e',
   emberFill: 'rgba(255,74,30,0.16)',
+  // An elite (PLAN 3.3): the gold that outlines one. Gold and not one of the enemies'
+  // reds on purpose - PLAN section 4 asks for it, and an elite has to read as "worth
+  // killing" rather than as more of the crowd. The shards stayed mint, so nothing else
+  // in the arena wears this.
+  elite: '#ffd76a',
   // A bomber's death zone: the ring it stands in while it lives, and the light of
   // the explosion itself. Both warm, and the flash nearly white so it reads as the
   // last frame of a thing rather than as a new one (PLAN section 4).

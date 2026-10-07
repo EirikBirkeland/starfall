@@ -8,8 +8,8 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp } from '../core/math.js';
-import { burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
-import { cueBeep } from './cues.js';
+import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
+import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 
 /** One shot: a bullet, a shove backwards, a muzzle flash, and a cue. */
@@ -156,6 +156,27 @@ function dashShoulder(world, ship) {
     other.ix = (dx / dist) * spec.impulse;
     other.iy = (dy / dist) * spec.impulse;
   }
+}
+
+/**
+ * One hull back, if there is a hull to give (an elite's gift, PLAN 3.3). Mint and
+ * loud, because this is the one piece of good news a run hands out by itself and the
+ * player has to know it happened without looking at the pips (PLAN section 4).
+ * Answers how much was actually healed, so a caller cannot claim one that was not.
+ */
+export function healPlayer(world, amount) {
+  const spec = BALANCE.player.heal;
+  const ship = world.player;
+  const healed = Math.min(amount, ship.maxHull - ship.hull);
+  if (healed <= 0) return 0;
+
+  ship.hull += healed;
+  addText(world, ship.x, ship.y - ship.drawR - BALANCE.death.labelOffset - spec.labelOffset,
+    '+' + healed + ' HULL', PALETTE.shardLine);
+  burst(world, ship.x, ship.y, PALETTE.shard, spec.sparks.count, spec.sparks.speed, spec.sparks.life);
+  ring(world, ship.x, ship.y, PALETTE.shard, spec.ring.radius, spec.ring.speed, spec.ring.life);
+  cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
+  return healed;
 }
 
 /**

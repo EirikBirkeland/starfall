@@ -21,10 +21,12 @@
 //
 // A wave spends exactly one roll of the `logic` stream per member, however many
 // kinds have unlocked, so adding a kind to the roster cannot move a run that never
-// meets it.
+// meets it. Once the run is eight minutes old a wave may want a gold body, which
+// costs two more rolls per wave and none at all before then - see game/elite.js.
 
 import { BALANCE } from './balance.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
+import { rollElite } from './elite.js';
 import { logic } from '../core/rng.js';
 import { dist2, TAU } from '../core/math.js';
 
@@ -52,6 +54,9 @@ const ROSTER = Object.keys(KINDS).map((name) => ({
  */
 const ELIGIBLE = [];
 
+/** The scratch slots `sendWave` buys its members into: { type, elite } for each. */
+const BUY = [];
+
 /** What the run may hold right now, in points of enemy. */
 export function crowdBudget(world) {
   const spec = BALANCE.waves;
@@ -62,11 +67,13 @@ export function crowdBudget(world) {
 /**
  * What is standing in the arena, in the same points. A hatchling counts as its
  * kind, not as its smaller body: the budget is about how much of a crowd the run
- * is fighting, and two hatchlings are a tank's worth of dying to do.
+ * is fighting, and two hatchlings are a tank's worth of dying to do. An elite
+ * counts as `costMul` of its kind (game/elite.js), because that is what one is
+ * worth to fight - and the same number is what an arrow at the window edge reads.
  */
 export function crowdCost(world) {
   let spent = 0;
-  for (let i = 0; i < world.enemies.length; i++) spent += world.enemies[i].kind.stats.cost;
+  for (let i = 0; i < world.enemies.length; i++) spent += world.enemies[i].cost;
   return spent;
 }
 
@@ -200,15 +207,16 @@ function arrivalSpot(world, radius, bearing) {
 
 /**
  * Stand one enemy of `type` (rolled from the roster when no type is given) on the
- * edge of what the player can see, optionally at a bearing from the ship. Answers
- * the enemy, or null when there was nowhere to put it or the crowd is full.
+ * edge of what the player can see, optionally at a bearing from the ship, optionally
+ * gold (game/elite.js). Answers the enemy, or null when there was nowhere to put it
+ * or the crowd is full.
  */
-export function spawnEnemy(world, type, bearing) {
+export function spawnEnemy(world, type, bearing, elite) {
   if (world.enemies.length >= BALANCE.waves.maxBodies) return null;
   const name = type || pickMember(world, Infinity);
   const spot = arrivalSpot(world, kindOf(name).stats.radius, bearing);
   if (spot === null) return null;
-  const enemy = makeEnemy(world, name, spot.x, spot.y);
+  const enemy = makeEnemy(world, name, spot.x, spot.y, elite ? ELITE : null);
   world.enemies.push(enemy);
   return enemy;
 }
@@ -220,6 +228,9 @@ function acrossFan(from, to, i, count) {
   return count === 1 ? from : from + (to - from) * i / (count - 1);
 }
 
+/** What `makeEnemy` is told when a member arrives gold. Hoisted: a wave is bought mid-step. */
+const ELITE = { elite: true };
+
 /**
  * Send one wave with `points` of room to spend, and report what arrived.
  *
@@ -228,27 +239,46 @@ function acrossFan(from, to, i, count) {
  * both a wave. Their bearings are spread evenly across the fan around the one the
  * wave picked, so a group reads as a group coming in.
  *
+ * One of them may be gold (game/elite.js). Two rolls decide it - whether this wave
+ * carries an elite, and which member of it - so a gold body arrives as a wave with a
+ * leader standing somewhere unpredictable in the fan, never as a screenful of gold.
+ * A wave that never grows to have that many members carries none, and a gold member
+ * the room cannot pay for arrives plain: the room is what limits how many bodies and
+ * how much of a crowd the run is fighting, gold or not.
+ *
  * Answers null when not one of them found somewhere to stand, which only happens
  * on a window that already shows the whole arena. The room is none the worse for
  * the attempt: nothing arrived, so nothing was spent.
  */
 function sendWave(world, points) {
   const spec = BALANCE.waves;
+  const goldPrice = BALANCE.elite.costMul;
   const bearing = logic.range(0, TAU);
+  const seat = rollElite(world) ? logic.int(0, spec.maxMembers - 1) : -1;
 
-  const types = [];
+  const types = BUY;
+  types.length = 0;
   let left = points;
   while (types.length < spec.maxMembers) {
-    const type = pickMember(world, left);
-    if (type === null) break;
-    types.push(type);
-    left -= kindOf(type).stats.cost;
+    // A gold member is bought out of the same room as everyone else, at its own
+    // price; when what is left of the room cannot pay that, this member arrives
+    // plain and the wave carries no elite.
+    let gold = types.length === seat;
+    let type = pickMember(world, gold ? left / goldPrice : left);
+    if (type === null) {
+      gold = false;
+      type = pickMember(world, left);
+      if (type === null) break;
+    }
+
+    types.push({ type: type, elite: gold });
+    left -= kindOf(type).stats.cost * (gold ? goldPrice : 1);
   }
 
   const members = [];
   for (let i = 0; i < types.length; i++) {
     const across = acrossFan(-spec.fan / 2, spec.fan / 2, i, types.length);
-    const enemy = spawnEnemy(world, types[i], bearing + across);
+    const enemy = spawnEnemy(world, types[i].type, bearing + across, types[i].elite);
     if (enemy !== null) members.push(enemy);
   }
   if (members.length === 0) return null;

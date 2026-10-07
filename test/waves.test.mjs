@@ -201,7 +201,7 @@ test('a wave spends the room it was given and never more', () => {
     'it left ' + leftOver + ' of ' + room + ' unspent');
 
   let cost = 0;
-  for (const enemy of wave.members) cost += BALANCE.kinds[enemy.type].cost;
+  for (const enemy of wave.members) cost += enemy.cost;
   assert.equal(cost, wave.points, 'the wave reports what its own members cost');
 });
 

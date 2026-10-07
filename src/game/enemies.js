@@ -5,9 +5,11 @@
 // which kind it is.
 
 import { BALANCE } from './balance.js';
+import { PALETTE } from '../core/palette.js';
 import { STATE } from './state.js';
 import { dist2 } from '../core/math.js';
 import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
+import { eliteSpoils } from './elite.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
@@ -69,12 +71,17 @@ export function killEnemy(world, enemy, byPlayer) {
   if (byPlayer) {
     world.score += enemy.score;
     world.kills++;
-    addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, stats.color);
+    // The number that floats up is worth gold when the body that carried it was.
+    addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
+      enemy.elite ? PALETTE.elite : stats.color);
     cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
     // A kill the kind calls big gets the run to hold its breath for a moment.
     if (stats.death.shake) shakeIt(world, stats.death.shake);
     if (stats.death.hitStop) hitStop(world, stats.death.hitStop);
     dropShards(world, enemy.x, enemy.y, enemy.drop);
+    // And a gold one is worth more than its score: a large shard, and a chance of a
+    // hull back (game/elite.js).
+    if (enemy.elite) eliteSpoils(world, enemy);
   }
 
   // And whatever a corpse goes on to make - a tank leaves two hatchlings, a bomber

@@ -21,6 +21,10 @@ export function resetRun(world) {
   ship.vx = 0;
   ship.vy = 0;
   ship.hull = spec.hull;
+  // What the hull can hold is part of the ship, not of the run, but a heal spent in
+  // the last run must not carry into this one - and a ship select (milestone 5) will
+  // want to write both numbers anyway.
+  ship.maxHull = spec.maxHull;
   ship.invuln = spec.startInvulnerability;
   ship.dashLeft = 0;
   ship.dashCd = 0;

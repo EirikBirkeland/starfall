@@ -23,12 +23,18 @@ const HALO_LIGHT = 0.45;   // how bright that halo lands
 const FLASH_LIGHT = 0.85;  // ...and how bright the white one is while it flashes
 const SHARD_HALO = 13;
 const SHARD_LIGHT = 0.6;   // a shard twinkles, but it must not outshine a shot
+const SHARD_BODY = 5.4;    // px across the mint diamond itself
+// A large shard (PLAN 3.3's elite drop) is the same thing with more worth in it, so
+// it is drawn as the same thing bigger - and the light around it is what you notice
+// from across the arena.
+const BIG_SHARD_HALO = 21;
+const BIG_SHARD_BODY = 9;
 
 // How far past the edge of the window each kind of thing is still drawn: its own
 // reach, plus room for the halo around it. The arena is a good deal bigger than
 // the window, so most of what the game holds is off screen and never asked about.
 const BULLET_REACH = 32;
-const SHARD_REACH = SHARD_HALO + 6;
+const SHARD_REACH = 6;         // px of slack on a shard's own halo, for its twinkle
 
 // The darter's own art: the warning line it draws before it commits, and the blur
 // it comes in on. Two passes for each glow - a wide soft one under a thin bright
@@ -44,6 +50,20 @@ const DART_BLUR_LIGHT = 0.55;
 const DART_CHARGE = 8;         // px of light building at the nose while it aims
 const SPIT_CHARGE = 9;         // px of light filling a spitter's mouth
 const ENEMY_SHOT_HALO = 8;     // px of light past a shot's own reach
+
+// An elite (PLAN 3.3): the same body with a gold outline, and gold twice over - the
+// wide soft pass under the thin bright one is how light is painted here (see
+// render/glow.js), and the outline is the whole of how a player is told "this one is
+// different", so it gets the first stroke. The ring that closes as its hull drains
+// is there for the same reason: four times the hull of a thing has to be seen going
+// down, or an elite reads as an enemy that cannot be hurt.
+const ELITE_GLOW_LIGHT = 0.3;  // how much of its own light the gold carries
+const ELITE_SOFT = 5;          // px, the wide pass under the outline
+const ELITE_SOFT_LIGHT = 0.35;
+const BODY_LINE = 2;           // px, the outline every body gets
+const ELITE_HULL = 2;          // px, the ring that drains
+const ELITE_HULL_GAP = 9;      // px, how far out it sits
+const ELITE_HULL_LIGHT = 0.75;
 
 // How a bomber's death zone is drawn (PLAN 3.3's "telegraphed circle"): a dashed
 // ring at exactly the reach of its blast, out of the same number the blast is done
@@ -235,16 +255,24 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   if (dim) ctx.globalAlpha = 0.45;
   ctx.translate(paintX(enemy, alpha), paintY(enemy, alpha));
   paintGlow(ctx, glowFor(look.color, halo), 0, 0, HALO_LIGHT);
+  if (enemy.elite) paintGlow(ctx, glowFor(PALETTE.elite, halo), 0, 0, ELITE_GLOW_LIGHT);
   if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, halo), 0, 0, flash * FLASH_LIGHT);
   ctx.rotate(enemy.rot);
   if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = flash > 0.4 ? PALETTE.white : look.color;
   ctx.fillStyle = look.fill;
   if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
   else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
+  if (enemy.elite) {
+    ctx.lineWidth = ELITE_SOFT;
+    ctx.strokeStyle = withAlpha(PALETTE.elite, ELITE_SOFT_LIGHT);
+    ctx.stroke();
+  }
+  // White while it flashes, gold while it is gold, its own colour the rest of the
+  // time - in that order, because the hit has to be the loudest thing about it.
+  ctx.lineWidth = BODY_LINE;
+  ctx.strokeStyle = flash > 0.4 ? PALETTE.white : (enemy.elite ? PALETTE.elite : look.color);
   ctx.stroke();
   if (isAiming(enemy)) {
     // Only a darter has an aim to hold, so this never asks which kind it is.
@@ -262,6 +290,19 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // faster and brighter it breathes. The ring on the floor says how far the blast
     // reaches; this says how close it is.
     paintGlow(ctx, glowFor(PALETTE.blastFlash, FUSE_LIGHT), 0, 0, fuseLight(enemy, world.time));
+  }
+
+  if (enemy.elite && enemy.hp < enemy.maxhp) {
+    // Back out of the body's own turn, so the ring starts at the top however the
+    // enemy is spinning, and fill in what is left of its hull.
+    ctx.rotate(-enemy.rot);
+    ctx.lineWidth = ELITE_HULL;
+    ctx.strokeStyle = withAlpha(PALETTE.elite, ELITE_HULL_LIGHT);
+    ctx.beginPath();
+    ctx.arc(0, 0, enemy.r + ELITE_HULL_GAP, -Math.PI / 2,
+      -Math.PI / 2 + TAU * clamp(enemy.hp / enemy.maxhp, 0, 1));
+    ctx.stroke();
+    ctx.rotate(enemy.rot);
   }
 
   if (enemy.type === 'tank') {
@@ -479,18 +520,20 @@ export function drawShards(ctx, alpha) {
   const shards = world.shards.items;
   for (let i = 0; i < shards.length; i++) {
     const shard = shards[i];
-    if (!onScreen(shard.x, shard.y, SHARD_REACH)) continue;
+    const big = shard.worth > 1;
+    const halo = big ? BIG_SHARD_HALO : SHARD_HALO;
+    if (!onScreen(shard.x, shard.y, halo + SHARD_REACH)) continue;
     const fade = shard.life < 2 ? clamp(shard.life / 2, 0, 1) : 1;
     const pulse = 0.75 + 0.25 * Math.sin(world.time * 6 + shard.rot);
     ctx.save();
     ctx.globalAlpha = fade;
     ctx.translate(paintX(shard, alpha), paintY(shard, alpha));
-    paintGlow(ctx, glowFor(PALETTE.shard, SHARD_HALO), 0, 0, pulse * SHARD_LIGHT);
+    paintGlow(ctx, glowFor(PALETTE.shard, halo), 0, 0, pulse * SHARD_LIGHT);
     ctx.rotate(shard.rot);
     ctx.strokeStyle = PALETTE.shardLine;
     ctx.fillStyle = PALETTE.shardFill;
-    ctx.lineWidth = 1.6;
-    polygon(ctx, 0, 0, 5.4, 4, 0);
+    ctx.lineWidth = big ? 2.2 : 1.6;
+    polygon(ctx, 0, 0, big ? BIG_SHARD_BODY : SHARD_BODY, 4, 0);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
