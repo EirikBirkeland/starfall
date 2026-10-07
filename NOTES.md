@@ -2494,3 +2494,159 @@ knowing that a test whose seed is random cannot assert that a run ends.
 2. Then splitter swarm (9:00, packs of 20 - which wants a look at `waves.maxMembers` and
    what one pack costs), then sniper (10:30, a telegraphed laser across the arena).
 3. Milestone 3's release, once the kinds are in.
+
+---
+
+## Session 25 (2026-10-07) — Milestone 3: the shielder. Released **v0.3.7**
+
+The first PLAN 3.3 kind whose behaviour is a *relationship* between two bodies
+instead of the way one of them walks. It came out of the session smaller and rarer
+than I started it, because the measurement said the first version was weather.
+
+### What landed
+
+**A shielder** (7:30, hull 8, speed 60, cost 8, weight 1) stands off behind its own
+crowd with its face to you and holds a **field** over the bodies near it. Every one of
+them gets a **shield**: 3 points that come off before its hull does, refilling at 1.2
+points a second but only after 2.5 s of being left alone. Kill the shielder - or walk
+out of its reach - and the shield goes with the field, so the hull already taken off a
+crowd stays off and everything behind it comes down at once. That is the whole kind: it
+is not a bigger enemy, it is a reason to pick a target.
+
+**`src/game/shields.js`** is the new system, and the decisions in it are the work:
+
+- **The relation is recomputed from scratch every step**, at the top of `stepRun`
+  before anything is shot at. A field is a fact about two positions and a crowd spends
+  its time moving them, so nothing is allowed to keep an answer: `enemy.guard` says who
+  covers a body, and it is `null` the moment the field stops reaching or the shielder
+  stops existing. It walks the crowd directly rather than through `world.grid`, which is
+  a snapshot taken before the bullets ran and would answer with bodies that have since
+  walked out of the field. Few shielders × one squared distance each is cheaper than the
+  honest ordering would be.
+- **A shield is a pool, not a damage reduction.** `damageEnemy` asks
+  `shieldSoak(enemy, amount)` and subtracts only what is left, so a body is never hurt
+  by a fraction and the tally's "hull lost" still means hull lost. Everything that hurts
+  a body comes through `damageEnemy`, so a bullet and a bomber's blast pay for a shield
+  the same way and there is no kind of damage that slips past by forgetting to ask.
+- **A field does not cover its own body**, and two fields do not stack: a body is
+  protected or it is not. A second shielder buys a wider crowd to shoot through, not one
+  more body to shoot at. The nearer field wins the link, so the line drawn is a short one
+  inside its own circle rather than a stray across the screen.
+- **Only a hit that reached the hull flashes the body white.** A shield eating a shot is
+  the shield's news and the shield is drawn with a light of its own.
+
+The spitter's band-holding walk came out of `kinds.js` into `holdTheBand()` and the
+shielder shares it, further out and with nothing to throw; it never melees (measured: the
+closest it ever came to the ship over 20 s alone was 149 px). Its death is
+`collapseField`, a ring closing *in* on the body that held the field; the bodies it used
+to cover each pop small on the next pass, which is a nice shower and came free.
+
+Drawn in three registers (`render/entities.js`), all of it out of the simulation's own
+numbers so it cannot lie: the crawling **fence** of the field on the arena floor (faint,
+it is the biggest thing down there), a crawling **link** from a field to each body under
+it (the whole answer to "which one do I shoot"), and a **bubble** over each covered body
+filled up with how much shield is left, breathing while it waits to refill. A shielder is
+drawn as a bulwark - flat face to the ship, since that is what it is standing between.
+`render/effects.js` now skips a ring with no radius left, because a contracting one is a
+new thing for it to be asked to draw and `arc` would throw in a browser.
+
+### The measurement that set the numbers
+
+The first version was `radius: 210, weight: 2`. Measured on the live bot it covered
+**93 bodies of 97** and cut the killing rate from 27 to 15 a minute - six or seven
+circles that reach 210 px tile a 1280x720 window, and late in a run the whole crowd
+ lives in one window. That is not a decision, it is weather, and one seed went past the
+15-minute cap. So: **radius 150, weight 1**, which covers about half a crowd with two or
+three of them and makes each arrival worth noticing. Written into `balance.js` because
+`radius` is the number to be careful with - it is an *area*.
+
+**The counter-intuitive finding, and it is about the ruler**: shields made the bot
+*survive longer*. Fewer kills means the spawn budget is not released, so fewer fresh
+bodies arrive; and an aware bot's life is about dodge room, not about its own DPS, so a
+slower crowd is a gentler crowd. After the retune the 8-run mean is 6m52s against 6m57s
+before, with two of the three runs that reach 7:30 slightly longer and one shorter, and
+the killing 377 kills against 387. Read: the tax is real and it is mostly invisible in
+survival for a player that dodges and never picks a target. The bot has run past a
+shielder 8 times and killed zero of them, exactly like the spitters - so the report's
+time-to-kill columns say nothing at all about this kind yet. Milestone 10's arguments
+need a bot with target priorities, or a human.
+
+### Tests: 395, all passing (was 364)
+
+`test/shielder.test.mjs` (22) on the scripted world: who is covered and who is not (the
+line is the line, a px outside is outside), a shielder is not covered by its own field,
+the nearer field wins the link, two fields do not thicken one body, the soak arithmetic
+through `damageEnemy` **and** through a real bullet in flight **and** through a bomber's
+blast, the tally being told what the hull cost and not what was aimed at it, the refill
+not starting one moment early, a body that leaves the field this step not being covered
+for a shot that lands this step (that one is what pins the order of the step), the field
+going out taking every shield with it, the collapse never asking the canvas for a circle
+with no radius, the walk holding its band and never meleing, its face always on the ship,
+the roster keeping it off the stage for 7:30, and an elite one holding the same field for
+four times the hull.
+
+`test/shield-art.test.mjs` (9) on the fake browser: a crowd with no shielder asks the
+canvas for not one dash more than an empty sky, a shielder costs a fence and no blur, a
+covered body costs five strokes and a second dash pattern, the fence is culled by its own
+reach and not by its body, and `bubbleLight`/`linkLight` are 0 for an uncovered body,
+steady for a whole shield, breathing for a waiting one, and never out of order as the
+shield under them grows.
+
+**A mutation battery of 20 deliberate mistakes - 20 of 20 caught.** It lives in
+`/tmp/shield-mutations.mjs` again (not in the repo); rewrite and run it after any real
+change to `shields.js`. The last one to fall was moving `updateShields` after
+`updateBullets`, which needed the "left the field this step" test to see it.
+
+### Things that cost me time, so they are written down
+
+- **A body planted after a `holdFor` has a bigger `maxhp` than `BALANCE.kinds.<x>.hull`**,
+  because the run's clock has moved and `makeEnemy` scales hull by it. Two of my tests
+  did arithmetic on the constant and were wrong by a point. Read the body's own `hp`
+  before the thing under test, and assert against that.
+- **`speed = 0` does not stop a band-walker**: `holdTheBand` shuffles it sideways on its
+  `drift` alone. A test that wants geometry has to pin the positions every step
+  (`holdFor(seconds, props)`), which is honest but not obvious.
+- One boot per process still: `shield-art.test.mjs` boots the game (it needs the frame),
+  `shielder.test.mjs` never boots and drives `stepWorld` directly.
+- The balance report needed **no change at all** for a new kind - the tables are built
+  out of the tally's rows - which is the first payoff from session 23.
+- `test/blast-art.test.mjs`'s "nothing else draws a dash" claim had to be narrowed in
+  words and in its list: the shielder draws dashes too now, and its own file is what
+  promises they are the fence.
+
+### Numbers for the next session to compare against
+
+Reference `--seed 20261006` aware: **3m17s / 2988 / level 5 / 209 kills / 78 shards**,
+trace hash `fce8142e5490c2760538fd4c1c6900f4` for the whole `--trace` file, unchanged
+before and after every edit today (it dies at 3m17s, so the shielder cannot exist in it).
+8 runs (seeds 1-8): mean 6m52s, 377 kills, 24 hulls lost, all ended in a wreck; the
+shielder row: 8 arrived, 0 killed, 0.1 mean on screen / 7 standing at the most, first
+seen 7m48s. Suite: 395 tests, 46 s.
+
+### Watch out
+
+- PLAN's 7:30 gate means a third of bot runs never meet the kind at all, and the 9:00 and
+  10:30 kinds waiting in 3.3 will be worse: the bot's mean is under 7 minutes. I kept
+  PLAN's numbers on purpose - they are the design, and the late kinds are for a player who
+  is better than the ruler and has upgrades by then (milestone 4). If the report is ever
+  the only witness, say so in the argument rather than implying the kind is untested.
+- Untouched, still true, still a wrinkle: `waves.maxBodies` is 100 while the late budget
+  is worth more in cheap bodies, and a tank's hatchlings get pushed into the crowd without
+  that check at all.
+- I did **not** add a "damage soaked by shields" column to the tally. The time-under-fire
+  column already carries the effect and the tally is a mirror with a bounded memory; if
+  milestone 10 wants the number, `noteHit` is the one place to add it.
+- I did **not** touch `tools/headless/threats.js`. A shielder is not a positional threat -
+  it is a tax on your shooting - and the bot has no target priorities to express it with.
+  When it gets them, that is the file.
+
+### Next
+
+1. **Splitter swarm** (PLAN 3.3, 9:00): 8 hull each, speed 180, arrives in packs of 20,
+  flocks. This one wants a look at `waves.maxMembers` (8) and `waves.maxBodies` (100) and
+  at what one pack costs out of the budget - a pack is a wave, which the director has never
+  been asked to buy before. Think about that before writing the flock.
+2. Then **sniper** (10:30): stationary, a long telegraphed laser across the whole arena -
+  which is a new kind of telegraph (the arena is 3000 px and the camera is not the arena),
+  and the first thing that will make the off-screen indicators (session 24) earn their keep.
+3. Then milestone 3's release, and milestone 4 (upgrades) after that.
