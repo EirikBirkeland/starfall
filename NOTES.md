@@ -254,3 +254,74 @@ ready for the F3 debug overlay (M10).
    (PLAN says 100 ms; `BALANCE.maxFrameDt` is 0.05 — decide and note it). Rebaseline again.
 3. Then release `0.1.0` (last item of M1). Still nothing released: pooling is invisible to
    the player and M1's release sits at its end.
+
+## Session 6 (2026-10-07) — Milestone 1: the collision grid, and bullets on a pool
+
+### What landed
+- **`src/core/grid.js`** — `Grid`, a uniform spatial grid: `insert(item)` files it in the one cell
+  holding its centre, `clear()` empties the grid while keeping every cell array, `queryCircle(x, y, r, out)`
+  appends every item in the cells overlapping the circle's bounding box into a scratch array the caller
+  owns. No dedup is needed (an item lives in exactly one cell) and rebuilding allocates nothing. Cells are
+  keyed by one integer (`cx * 1000003 + cy`) in a Map, so negative cells work — enemies spawn outside the
+  arena on purpose — and no string is built per lookup. Bad numbers throw (`insert({x: NaN})`, an infinite
+  query radius): a silent miss here would be a bullet walking through an enemy.
+  **Contract, and it is a broad phase**: the result is a superset — everything whose centre is inside the
+  circle, plus whatever shares a cell with that box — so the caller still makes the exact test, and the
+  radius must cover the item's own size (a bullet asks with the widest enemy + its hit radius).
+- **`updateBullets` runs on it.** `rebuildEnemyGrid(world)` files the crowd once per step, then each
+  bullet queries `widestEnemyRadius() + hitRadius` and makes the old exact test against the handful that
+  came back. The bullets are no longer compared to every enemy (PLAN section 2's rule).
+- **Bullets and shards are pooled** (`world.bullets`, `world.shards`, factories `makeBullet` / `makeShard`;
+  every spawner writes every field). That killed the last `splice` calls in the two hottest loops. The
+  **crowd stays a plain array**: the separation pass walks its pairs by index, which an unordered pool
+  cannot promise, and `killEnemy` wanted an index. Deferred, not forgotten.
+- **`killEnemy(world, enemy, byPlayer)` takes the enemy, not an index** — the grid hands back objects, and
+  `indexOf` beats threading indices through a snapshot. It throws if the enemy is not in the crowd: the old
+  `splice(-1, 1)` would have silently removed somebody else.
+- Two rules fall out of the grid being a **snapshot**, both now tested:
+  1. an enemy killed mid-step stays filed in it until the next rebuild, so a bullet skips anything with
+     `hp <= 0` — one enemy dies once, no double score or doubled shards;
+  2. tank hatchlings join the collision world on the next step (they are flung clear as they appear).
+- Tests: `test/grid.test.mjs` (9: cell validation, empty grid, found-where-it-stands, *never misses* a
+  thing inside the circle over 60 probes against brute force, negatives, a rebuild that allocates nothing,
+  `stats()` honesty, nonsense inputs, and a "600 enemies, one query looks at ≤ a handful" perf promise)
+  and `test/collision.test.mjs` (7 real-simulation tests that drive `stepWorld` on a scripted world:
+  the grid mirrors the crowd each step, a shot that lands, a shot that stops 4 px short, one-death-once,
+  the hatchling rule, shots returning to the pool, the despawn margin). `test/pool.test.mjs`'s real-run
+  test now watches bullets and shards too. **54 tests, all passing.**
+
+### Proof it changed nothing
+`node tools/simulate.js --seed 20261006 --trace` is **byte for byte the session-4 reference run** again
+(1m03s, 783, level 3, 56 kills, 33 shards, all 31 trace hashes equal). No rebaseline was needed after
+all: two bullets competing for one enemy in one step, and a bullet reaching two enemies in one step, turn
+out not to happen in this run. Bot average over seeds 1-4 is still 1m06s. Don't read that as a guarantee
+that collision order never matters — read it as "it does not matter in this run".
+
+### Numbers (throwaway benchmarks, `/tmp/bench-*.mjs`, not in the repo)
+- Target load, 600 enemies + 1500 bullets in 1600x900: broad phase **0.25 ms/frame with the grid,
+  1.66 ms/frame scanning every enemy from every bullet** (~6.6x). Distance tests per frame drop from
+  ~730 000 to ~7 200; the rest of the grid's time is Map lookups and filling the candidate list.
+- Where the step goes now at that load: `updateBullets` 0.41 ms, `updateEnemies` 0.38 ms — so the enemy
+  **separation pass is now the other half of the frame** and the next thing worth putting on the grid.
+- In a real bot run the bullet pool built **5 objects for 277 lives**, shards 25 for 102 (peak live, so
+  those pools are tiny and stay warm). `world.grid` allocated 261 cells for a 1280x720 view.
+
+### Notes for future sessions
+- `world.grid` is derived state: rebuilt at the top of `updateBullets`, cleared by `resetRun`, and stale on
+  the title and game-over screens. Nothing may read it between rebuilds, and nothing in the renderer should
+  need it. If a system needs it later (nova damage, blast radius, enemy separation), rebuild it where it is
+  needed or move the rebuild up into `stepRun` — but then say what reads it.
+- `BALANCE.grid.cellSize` (64) is a performance knob, not balance; it wants to be about twice the widest
+  hit test. It sits in `balance.js` only because that is where numbers live and `game/` may not hard-code one.
+- A flat typed-array-indexed grid (arena-sized, with clamped border cells) would beat the Map if the M10
+  performance pass ever needs it. Not today: 0.25 ms/frame is 1.5% of a 60 fps budget.
+- The grid can be shared with the separation pass later; that changes pair order and *will* need a
+  deliberate rebaseline. Do it in its own session, or with the fixed step, not as a side quest.
+
+### Next (finish Milestone 1)
+1. Fixed 120 Hz step + accumulator in `main.js`, interpolated rendering, clamp long frames (PLAN says
+   100 ms; `BALANCE.maxFrameDt` is 0.05 — decide and note it). This will move the reference run on purpose:
+   record the new one. Interpolation needs previous positions for the player, bullets, and enemies, so
+   plan where `px, py` live (the pools' factories are the place).
+2. Then release `0.1.0` (last item of M1): CHANGELOG entry + `tools/release.sh 0.1.0 "..."`. The script
+   already copies `src/`, runs the tests and the simulation, and refuses a dirty tree.
