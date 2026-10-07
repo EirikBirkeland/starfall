@@ -50,7 +50,7 @@ export function bulletFlyingToward(x, y, vx, vy) {
 export function stepTheWorld(input) {
   return stepWorld(BALANCE.sim.step, Object.assign({
     moveX: 0, moveY: 0, moving: false,
-    aimX: world.player.x, aimY: world.player.y - 100, firing: false,
+    aimX: world.player.x, aimY: world.player.y - 100, firing: false, dash: false,
   }, input));
 }
 
@@ -66,7 +66,10 @@ export function flyFor(seconds, input) {
     stepTheWorld(input);
     t += BALANCE.sim.step;
     const ship = world.player;
-    track.push({ t, vx: ship.vx, vy: ship.vy, x: ship.x, y: ship.y });
+    track.push({
+      t, vx: ship.vx, vy: ship.vy, x: ship.x, y: ship.y,
+      dashLeft: ship.dashLeft, dashCd: ship.dashCd,
+    });
   }
   return track;
 }

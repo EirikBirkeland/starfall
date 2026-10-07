@@ -8,7 +8,7 @@ import { logic } from '../core/rng.js';
 import { clamp, dist2, TAU } from '../core/math.js';
 import { addText, burst, ring, shakeIt } from './effects.js';
 import { dropShards } from './pickups.js';
-import { hitPlayer } from './player.js';
+import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
 
 /**
@@ -241,7 +241,7 @@ export function updateEnemies(world, dt) {
       }
     }
 
-    if (world.state === STATE.PLAY && ship.invuln <= 0) {
+    if (world.state === STATE.PLAY && !isInvulnerable(ship)) {
       // ship.r is the hit radius, deliberately far smaller than the ship you can
       // see (PLAN 3.1): flying close to the crowd is the game, not a mistake.
       const reach = enemy.r + ship.r;

@@ -22,6 +22,10 @@ export function resetRun(world) {
   ship.vy = 0;
   ship.hull = spec.hull;
   ship.invuln = spec.startInvulnerability;
+  ship.dashLeft = 0;
+  ship.dashCd = 0;
+  ship.dashDirX = 0;
+  ship.dashDirY = 0;
   ship.fireRate = spec.fireRate;
   ship.fireTimer = 0;
   ship.level = 1;

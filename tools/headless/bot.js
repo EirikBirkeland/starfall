@@ -64,11 +64,17 @@ function driftToMiddle(game) {
   };
 }
 
-/** Launch a run from the title screen: sit for a moment, then hold the fire button. */
+/**
+ * Launch a run from the title screen: sit for a moment, then press the fire
+ * button, which both starts the run and holds the trigger.
+ *
+ * It does not touch Space on purpose. Space launches a run *and* dashes, so a bot
+ * that held it over the launch would spend a dash it never asked for; the launch
+ * press itself is not a dash, whatever key it comes from (see main.js).
+ */
 export function startBotRun(game) {
   for (let i = 0; i < ATTRACT_FRAMES; i++) game.step(FRAME_MS);
   game.pressMouse(640, 240);
-  game.key('Space', true);
 }
 
 /** A cheap hash of everything that matters, to notice a change in behaviour. */

@@ -30,28 +30,53 @@ export function shakeIt(world, amount) {
   world.shake = Math.min(BALANCE.screen.shakeCap, world.shake + amount);
 }
 
-export function burst(world, x, y, color, count, speed, life) {
+/**
+ * One spark, already aimed. Draws two random numbers (its life and its size),
+ * which is what `burst` and `spray` below it rely on: both draw angle, speed,
+ * life and size per spark, in that order, so neither can be told apart by a run.
+ */
+function sparkAt(world, x, y, angle, speed, life, color) {
   const fx = BALANCE.effects;
-  for (let i = 0; i < count; i++) {
-    const angle = logic.range(0, TAU);
-    const pSpeed = logic.range(speed * fx.particleSpeedFloor, speed);
-    const p = world.particles.spawn();
-    p.x = x;
-    p.y = y;
-    p.px = x;
-    p.py = y;
-    p.vx = Math.cos(angle) * pSpeed;
-    p.vy = Math.sin(angle) * pSpeed;
-    p.life = logic.range(fx.particleLifeFloor, life);
-    p.max = life;
-    p.size = logic.range(fx.particleSizeMin, fx.particleSizeMax);
-    p.color = color;
-  }
+  const p = world.particles.spawn();
+  p.x = x;
+  p.y = y;
+  p.px = x;
+  p.py = y;
+  p.vx = Math.cos(angle) * speed;
+  p.vy = Math.sin(angle) * speed;
+  p.life = logic.range(fx.particleLifeFloor, life);
+  p.max = life;
+  p.size = logic.range(fx.particleSizeMin, fx.particleSizeMax);
+  p.color = color;
+
   // Over the cap, some sparks have to go. The pool is unordered, so this drops
   // an arbitrary handful rather than the oldest ones; at this crowd size no one
   // can tell, and no run may depend on it.
   const over = world.particles.count - fx.particleCap;
   if (over > 0) world.particles.trim(over);
+}
+
+export function burst(world, x, y, color, count, speed, life) {
+  const fx = BALANCE.effects;
+  for (let i = 0; i < count; i++) {
+    const angle = logic.range(0, TAU);
+    const pSpeed = logic.range(speed * fx.particleSpeedFloor, speed);
+    sparkAt(world, x, y, angle, pSpeed, life, color);
+  }
+}
+
+/**
+ * `count` sparks out of (x, y), pointed along `heading` and no more than
+ * `spread` radians off it. A dash sprays these backwards; a fleeing enemy will
+ * want them forwards.
+ */
+export function spray(world, x, y, color, count, speed, life, heading, spread) {
+  const fx = BALANCE.effects;
+  for (let i = 0; i < count; i++) {
+    const angle = heading + logic.range(-spread, spread);
+    const pSpeed = logic.range(speed * fx.particleSpeedFloor, speed);
+    sparkAt(world, x, y, angle, pSpeed, life, color);
+  }
 }
 
 export function ring(world, x, y, color, radius, speed, life) {

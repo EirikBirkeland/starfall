@@ -1,11 +1,17 @@
 // The input layer's single output: one small descriptor the simulation reads
 // once per step. Gamepad and touch will join it here later.
+//
+// Two kinds of thing come through. Held state (which way the ship is being
+// driven, whether the fire button is down) is read fresh every frame. One-shot
+// requests (a dash) are *requests*: they stay pending until a frame that ran any
+// simulation steps has handed them over, so a press that lands on a frame that
+// simulated nothing is not swallowed. consumeInput() is what retires them.
 
-import { keys, initKeyboard, clearKeys } from './keyboard.js';
-import { mouse, initMouse, releaseMouse } from './mouse.js';
+import { keys, keyTaps, initKeyboard, clearKeys } from './keyboard.js';
+import { mouse, mouseTaps, initMouse, releaseMouse } from './mouse.js';
 
 // Reused every frame; the simulation only reads it during the step.
-const input = { moveX: 0, moveY: 0, moving: false, aimX: 0, aimY: 0, firing: false };
+const input = { moveX: 0, moveY: 0, moving: false, aimX: 0, aimY: 0, firing: false, dash: false };
 
 export function initInput(canvas, handlers) {
   initKeyboard(handlers);
@@ -31,7 +37,14 @@ export function readInput() {
   input.aimX = mouse.x;
   input.aimY = mouse.y;
   input.firing = mouse.down;
+  input.dash = keyTaps.dash || mouseTaps.dash;
   return input;
+}
+
+/** The simulation has seen this frame's one-shot requests; forget them. */
+export function consumeInput() {
+  keyTaps.dash = false;
+  mouseTaps.dash = false;
 }
 
 export function clearInput() {

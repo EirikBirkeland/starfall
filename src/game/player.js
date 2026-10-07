@@ -1,14 +1,14 @@
-// The ship: flight, aim, firing, and what a hit costs.
+// The ship: flight, the dash, aim, firing, and what a hit costs.
 //
 // `input` is a plain descriptor built by the input layer each frame:
-// { moveX, moveY, moving, aimX, aimY, firing }. The simulation never reads the
-// keyboard or the mouse itself.
+// { moveX, moveY, moving, aimX, aimY, firing, dash }. The simulation never reads
+// the keyboard or the mouse itself.
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp } from '../core/math.js';
-import { burst, ring, shakeIt } from './effects.js';
+import { burst, ring, shakeIt, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { endRun } from './run.js';
 
@@ -77,10 +77,8 @@ function steer(ship, spec, input, dt) {
   ship.vy += (dvy / gap) * reach;
 }
 
-export function updatePlayer(world, dt, input) {
-  const spec = BALANCE.player;
-  const ship = world.player;
-
+/** Engines only: steer, remember where the step began, move, stay inside. */
+function fly(world, ship, spec, input, dt) {
   steer(ship, spec, input, dt);
   ship.px = ship.x;
   ship.py = ship.y;
@@ -88,7 +86,125 @@ export function updatePlayer(world, dt, input) {
   // nose would disappear into the wall.
   ship.x = clamp(ship.x + ship.vx * dt, ship.drawR, world.arena.w - ship.drawR);
   ship.y = clamp(ship.y + ship.vy * dt, ship.drawR, world.arena.h - ship.drawR);
+}
+
+/**
+ * Where a dash without a held direction goes: at the cursor, and straight ahead
+ * if the cursor is sitting on the ship. A lean always wins over the aim, because
+ * that is the direction the ship was already being driven.
+ */
+function dashDirection(ship, input) {
+  if (input.moveX !== 0 || input.moveY !== 0) {
+    const length = Math.hypot(input.moveX, input.moveY);
+    return { x: input.moveX / length, y: input.moveY / length };
+  }
+  const dx = input.aimX - ship.x;
+  const dy = input.aimY - ship.y;
+  const length = Math.hypot(dx, dy);
+  // Nothing held and the cursor sitting on the ship: go where it is pointing.
+  if (length === 0) return { x: Math.cos(ship.angle), y: Math.sin(ship.angle) };
+  return { x: dx / length, y: dy / length };
+}
+
+/**
+ * Start a dash, if the last one has worn off. `input.dash` is a request from the
+ * input layer, spent whether it was answered or not: one press, one dash.
+ */
+function beginDash(world, input) {
+  const spec = BALANCE.player.dash;
+  const ship = world.player;
+  if (ship.dashCd > 0) return false;
+
+  const dir = dashDirection(ship, input);
+  ship.dashDirX = dir.x;
+  ship.dashDirY = dir.y;
+  ship.dashLeft = spec.distance;
+  // The wait is measured from the start of the dash, so a dash that ends early
+  // against a wall still costs the full cooldown.
+  ship.dashCd = spec.cooldown;
+
+  const back = Math.atan2(-dir.y, -dir.x);
+  const start = spec.start;
+  ring(world, ship.x, ship.y, PALETTE.player, start.ring, start.ringSpeed, start.ringLife);
+  spray(world, ship.x, ship.y, PALETTE.spark, start.burst, start.speed, start.life, back, spec.streak.spread);
+  shakeIt(world, spec.shake);
+
+  const sound = spec.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+  return true;
+}
+
+/**
+ * The dash shoulders the crowd aside as it passes. Partly for the feel of pushing
+ * through something, mostly so that a dash which ends in the middle of a mob ends
+ * somewhere the ship can stand: the moment the dash is over, the crowd can hurt
+ * again.
+ */
+function dashShoulder(world, ship) {
+  const spec = BALANCE.player.dash.shove;
+  for (let i = 0; i < world.enemies.length; i++) {
+    const other = world.enemies[i];
+    const dx = other.x - ship.x;
+    const dy = other.y - ship.y;
+    // Measured by what you can see of both, which is also how the shove reads.
+    const reach = other.r + ship.drawR + spec.radius;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > reach * reach) continue;
+    const dist = Math.sqrt(d2) || 1;
+    // Set, not added: the dash keeps shouldering the same enemy for several steps
+    // and a growing impulse would fling it across the arena.
+    other.ix = (dx / dist) * spec.impulse;
+    other.iy = (dy / dist) * spec.impulse;
+  }
+}
+
+/**
+ * One step of a dash: the ship is on rails, covering its `distance` at a steady
+ * speed, which is what makes it read as a dash rather than as a faster walk. The
+ * engines do nothing until it is over, so the brake cannot strangle it halfway.
+ */
+function dashStep(world, ship, dt) {
+  const spec = BALANCE.player.dash;
+  const step = Math.min(ship.dashLeft, (spec.distance / spec.time) * dt);
+
+  ship.px = ship.x;
+  ship.py = ship.y;
+  ship.x = clamp(ship.x + ship.dashDirX * step, ship.drawR, world.arena.w - ship.drawR);
+  ship.y = clamp(ship.y + ship.dashDirY * step, ship.drawR, world.arena.h - ship.drawR);
+  ship.dashLeft -= step;
+  dashShoulder(world, ship);
+
+  spray(world, ship.x, ship.y, PALETTE.player, spec.streak.count, spec.streak.speed,
+    spec.streak.life, Math.atan2(-ship.dashDirY, -ship.dashDirX), spec.streak.spread);
+
+  if (ship.dashLeft <= 0) {
+    // The burst handed the ship back to the engines moving fast, so it keeps the
+    // dash's direction at its normal top speed and brakes from there.
+    ship.dashLeft = 0;
+    ship.vx = ship.dashDirX * ship.maxSpeed;
+    ship.vy = ship.dashDirY * ship.maxSpeed;
+  }
+}
+
+/** Nothing may touch the ship right now: the grace after a hit, or a dash. */
+export function isInvulnerable(ship) {
+  return ship.invuln > 0 || ship.dashLeft > 0;
+}
+
+export function updatePlayer(world, dt, input) {
+  const spec = BALANCE.player;
+  const ship = world.player;
+
+  // The wait never goes below zero, so "ready" is one honest value.
+  if (ship.dashCd > 0) ship.dashCd = Math.max(0, ship.dashCd - dt);
+  if (input.dash) beginDash(world, input);
+
+  if (ship.dashLeft > 0) dashStep(world, ship, dt);
+  else fly(world, ship, spec, input, dt);
+
   ship.angle = Math.atan2(input.aimY - ship.y, input.aimX - ship.x);
+  // The flame answers the engines, and nothing else: a dash coasts, and it is the
+  // streak that paints it (render/entities.js), not a thruster that is not firing.
   ship.thrust = clamp(ship.thrust + (input.moving ? dt * spec.thrustRamp : -dt * spec.thrustRamp), 0, 1);
   if (ship.invuln > 0) ship.invuln -= dt;
 

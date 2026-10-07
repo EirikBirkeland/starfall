@@ -51,6 +51,12 @@ function createWorld() {
       thrust: 0,
       hull: spec.hull,
       invuln: 0,
+      // The dash: how far it has left to cover, how long until the next one is
+      // allowed, and which way it is going. All three are 0 on a fresh ship.
+      dashLeft: 0,
+      dashCd: 0,
+      dashDirX: 0,
+      dashDirY: 0,
       fireRate: spec.fireRate,
       fireTimer: 0,
       level: 1,

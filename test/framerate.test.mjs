@@ -12,8 +12,9 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 23 });
 
 function launch() {
+  // The mouse launches the run. Space would too, but it is the dash key as well
+  // and this file is not about the dash - see test/controls.test.mjs.
   game.pressMouse(640, 240);
-  game.key('Space', true);
   game.step();
 }
 

@@ -12,8 +12,9 @@ test('shots, kills, and pickups all reach the synthesiser', () => {
   for (let i = 0; i < 20; i++) game.step();
   assert.equal(game.audio.voices, 0, 'the title screen stays quiet');
 
+  // The mouse launches the run. Space would too, but it is the dash key as well
+  // and this file is not about the dash - see test/controls.test.mjs.
   game.pressMouse(640, 240);
-  game.key('Space', true);
   game.moveMouse(900, 360);
   for (let i = 0; i < 240; i++) game.step();
 

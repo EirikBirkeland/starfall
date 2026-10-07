@@ -12,7 +12,7 @@ import { loadBest } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
 import { buildStars, updateStars } from './render/background.js';
 import { renderFrame } from './render/renderer.js';
-import { initInput, readInput, mouse } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
 import { initScreens, hideScreens, showGameOver } from './ui/screens.js';
@@ -39,6 +39,9 @@ let seedIsPinned = false;
 function pressAction() {
   if (!canStartRun(world)) return;
   initAudio();
+  // The press that launches a run is not also a dash. Space is both keys, and a
+  // run that began with a dash already spent would read as a broken cooldown.
+  consumeInput();
   if (!seedIsPinned) world.seed = randomSeed();
   startRun(world);
   hideScreens();
@@ -80,6 +83,10 @@ function frame(now) {
 
   updateStars(tick.dt);
   for (let i = 0; i < tick.steps; i++) stepWorld(BALANCE.sim.step, input);
+  // Only a frame that actually simulated anything has handed the dash request to
+  // the game. On a very quick display a frame can run no step at all, and a press
+  // that landed on one of those stays pending rather than being swallowed.
+  if (tick.steps > 0) consumeInput();
 
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
   consumeCues(world.state);
@@ -139,6 +146,8 @@ window.STARFALL = {
       score: world.score,
       level: world.player.level,
       hull: world.player.hull,
+      dashCd: world.player.dashCd,
+      dashLeft: world.player.dashLeft,
       kills: world.kills,
       t: world.elapsed,
       enemies: world.enemies.length,

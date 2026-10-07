@@ -49,6 +49,26 @@ export const BALANCE = {
     thrustRamp: 6,               // how fast the thruster graphic fades in and out
     recoil: 14,                  // firing pushes the ship back
     spread: 0.045,               // radians of random aim error
+
+    // PLAN 3.1's dash. One committed burst, then a wait. The whole distance is
+    // covered at a steady speed whatever the engines are doing - the ship is on
+    // rails for `time` seconds - which is why it is a distance and a duration
+    // rather than a shove of velocity the brakes would fight.
+    dash: {
+      distance: 220,          // px, all of them, unless the arena gets in the way
+      time: 0.12,             // s to cover them
+      cooldown: 2.5,          // s, from the start of one dash to the next
+      shake: 2.5,             // a flick of trauma, so it is felt as well as seen
+      // The crowd is shouldered out of the way as the dash goes through it, which
+      // is also what makes a dash that ends inside a mob end somewhere you can
+      // stand. Radius is measured from the ship's body plus the enemy's own.
+      shove: { radius: 26, impulse: 300 },
+      // Sparks left behind, one spray per step, thrown back along the dash.
+      streak: { count: 2, speed: 150, life: 0.26, spread: 0.4 },
+      // The burst and the ring that mark the moment it starts.
+      start: { burst: 14, speed: 250, life: 0.32, ring: 7, ringSpeed: 380, ringLife: 0.3 },
+      sound: { freq: 260, dur: 0.16, wave: 'triangle', vol: 0.06, slide: 880 },
+    },
   },
 
   bullets: {

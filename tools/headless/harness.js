@@ -181,11 +181,14 @@ export async function bootGame(options) {
     moveMouse(x, y) {
       controller.fire('mousemove', { clientX: x, clientY: y, preventDefault() {} });
     },
-    pressMouse(x, y) {
-      controller.fire('mousedown', { clientX: x, clientY: y, preventDefault() {} });
+    /** `button` is a DOM button number: 0 left (fire), 2 right (dash). */
+    pressMouse(x, y, button) {
+      controller.fire('mousedown', {
+        clientX: x, clientY: y, button: button === undefined ? 0 : button, preventDefault() {},
+      });
     },
-    releaseMouse() {
-      controller.fire('mouseup', {});
+    releaseMouse(button) {
+      controller.fire('mouseup', { button: button === undefined ? 0 : button });
     },
     setViewport(w, h) {
       width = w;
