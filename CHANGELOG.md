@@ -1,5 +1,17 @@
 # Starfall — changelog
 
+## 0.2.3 — 2026-10-07
+The game stops for the hits that matter: hit-stop is in.
+- Killing a big enemy holds the whole world still for 40 ms; taking a hit yourself holds it for 90 ms.
+  Sparks hang in the air, the crowd hangs mid-lunge, the screen keeps shaking - and then it all snaps
+  back. It is the difference between a number going down and something happening.
+- Dying gets the same 90 ms of stillness, with the game-over summary arriving over the top of it.
+- A dash pressed during that pause is not lost: the press waits for the world to wake up and is
+  answered on its very first step, so mashing while you are stunned gets you moving the moment you can.
+- The screen shake and the little guard on restarting still run during a freeze, so a freeze cannot
+  steal time from either - it only ever stops the run.
+- Test suite is up to 129: the freeze is measured in steps, and what a frozen frame is allowed to move.
+
 ## 0.2.2 — 2026-10-07
 Every light in the game is now a pre-rendered sprite, and nothing asks the canvas to blur a shape.
 - Halos around the ship, the enemies, the shards and the hull pips, the shots' trails, the thruster
