@@ -298,7 +298,10 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
       Spawns happen off-screen, never on top of the player.
 - [x] Elite variants.
 - [x] Off-screen indicators.
-- [ ] Extend the simulation bot to dodge bullets. Add `tools/balance-report.js`.
+- [x] Extend the simulation bot to dodge bullets - and the telegraphs, which turned out
+  to be the same item: `tools/headless/threats.js`, `--bot aware` by default, the plain
+  bot kept as `--bot naive`.
+- [ ] Add `tools/balance-report.js`.
 - [ ] Release.
 
 ### Milestone 4: upgrades

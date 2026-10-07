@@ -2139,3 +2139,88 @@ be able to look at what is drawn.
 3. Small thing to fold into one of those: the elite's gold is unseen by the tests, so if
    a future session touches the palette, a `PALETTE.elite !== any kind colour` assertion
    in `test/palette.test.mjs` is cheap and would catch a collision.
+
+---
+
+## Session 22 (2026-10-07) — Milestone 3: the simulation bot learns to read danger
+
+No release: nothing in `src/` changed, so the player's game is byte-for-byte v0.3.5.
+This was all in `tools/` and `test/`.
+
+`tools/headless/threats.js` is the bot's eyes, and `test/dodge.test.mjs` is the proof it
+says what it claims. Read those two files before touching either. The short version: a
+threat is a *push* (which way to get out of the way, and how loudly), the pushes are summed,
+and the sum is the direction the ship wants. Nothing else. It reads only what a player is
+shown - shots in the air, a darter holding a line, a spitter's mouth filling, the circle a
+bomber stands in, the crowd's proximity, the walls - never a number the HUD withholds.
+
+Two ideas did all the real work, and both came from measurement rather than thought:
+
+- **Urgency is time to arrival, not distance.** A shot three seconds out is not what hurts
+  you. With `lands = across / speed` feeding the weight, the bot went from flailing to
+  stepping aside at the last moment.
+- **Stepping off a line means getting clear of it.** Every line threat keeps pushing until
+  the ship is at `shotClear` (95px) off it, easing out from `shotRoom` (30px). A ship that
+  stops the instant it technically survives is standing on the same line when the next
+  volley is aimed. Without that rule it still died at 3m with everything else in place.
+
+What each step bought, four seeds, so the next session can tell whether a change helped:
+naive 2m29s -> dodge shots in the air 2m52s -> plus give ground to anything that can touch
+the ship 4m05s -> plus read the four telegraphs 5m21s -> plus `personalSpace` 130 instead
+of 90 -> ~6m. That last one is a measured sweep, not a hunch: 90px gets walked down by the
+crowd, 130px kites it, 170px never dies at all and so makes a useless ruler. `PLAN` M10
+wants the bot dying between 4:00 and 9:00 with no upgrade choices; ~6m is where it should
+sit. The cause-of-death table has **zero shot deaths** left - every death is a body
+touching the ship, mostly drifters, then tanks, weavers, darters - which is this item done.
+
+The naive bot stays in the file as `--bot naive`, and `test/simulate.test.mjs` asserts the
+aware one outlives it. That sentence is the whole reason the tool exists.
+
+What surprised me:
+
+- **I wrote a fence rule, measured it, and deleted it.** Two bodies closing from opposite
+  sides sum to nothing, and standing still in a pinch is the one answer that is always
+  wrong. The rule (commit to the loudest single ask when the sum falls far below it) was a
+  wash on 24 seeds *and* oscillated in a synthetic pinch - with no memory between frames
+  the loudest body flickers between two equals, and the ship twitched in place while
+  drifters ate it. Then I measured how often the raw sum actually cancels in real play:
+  **not once in 64 000 busy frames across six runs.** A paper limit. Gone, `pressure` is
+  just the size of the sum again, and the module comment records the whole episode so
+  nobody reinvents it.
+- **Three test windows had to grow from 240s to 900s** (`seed`, `restart`, `pool`). They
+  promise "a run ends", and they play the run with the bot - which now survives 240s on
+  most seeds. Right failure, right fix, but the suite went from 5s to 47s. Only those
+  three files need the long window; if the suite ever has to get quick again, that is the
+  lever, and `--bot naive` is the other one.
+- **`bootGame()` twice in one process throws** ("the game booted but did not expose
+  window.STARFALL"), and `scriptedRun()` hands back the *same* world every time. One
+  harness of one world per test file; a test that wants two situations measures one,
+  re-parks, then measures the other. My first bomber-versus-drifter test held both worlds
+  at once and quietly compared a thing with itself - and it still passed three mutations
+  that ought to have killed it.
+- **The mutation battery is the piece I trust most.** 24 deliberate mistakes in the model
+  (a line that reaches forever, no urgency ramp, no commitment, a reversed dodge, melee
+  read as a push *toward* the body, each telegraph unread, each constant zeroed), each
+  applied in turn and run against the new tests; the battery prints which test catches
+  which. It found the broken test above, several tests passing for the wrong reason, and
+  one mutation nothing caught - a wounded bomber pushing no harder than a whole one -
+  because two knobs encoded the same threshold, which is why `criticalBlastWeight` is now
+  gone and `blastPressure` carries that idea alone. Not in the repo (it lives in `/tmp`);
+  rewrite and run it after any real change to `threats.js`.
+- **`lungeReach()` is a balance constant, not a function of the enemy in front of you**,
+  so a parked darter with `speed = 0` appears to hold a 243px line it cannot run down, and
+  its arrival time is a division by zero. `telegraphed()` now requires `enemy.speed > 0`
+  and a test says a darter that cannot walk is not a threat at all.
+- On the reference seed alone, `aware` still sometimes dies *before* `naive` (2m25s vs
+  2m43s early on): a dodging ship walks further and finds more corners. The averages are
+  not close (6m vs 2m30s), but one seed is one seed, which is why the plan asks for 20.
+
+Numbers for the next session to compare against: reference `--seed 20261006` aware 3m17s /
+2988 / level 5 (naive: 2m43s / 2160). 24 seeds: mean 6.2-6.6 minutes, 4 capped at 10m,
+~360 kills, score ~5300, ~2 elite capacity spent per run. Suite: 334 tests, 47s.
+`tools/simulate.js` prints which policy played each run.
+
+Still to do here, next session: `tools/balance-report.js`, the other half of this PLAN
+line - per-kind time to first appearance, kills, damage dealt and taken over N runs. That
+is what M4's tuning will be argued from, and it is worth writing before the bosses arrive
+to change the shape of every run.
