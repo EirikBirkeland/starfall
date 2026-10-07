@@ -1,5 +1,25 @@
 # Starfall — changelog
 
+## 0.3.3 — 2026-10-07
+The bomber walks in at six minutes, and it is the first thing in the game that can
+hurt its own kind.
+- It walks straight at you carrying a blast. The circle it stands in is drawn on the
+  arena floor at exactly the blast's reach - a dashed ring that crawls round and
+  brightens as it takes damage - so what you are shown and what hurts you are the same
+  number. Your ship's middle outside the line and you are safe whoever else is inside
+  it.
+- Below 45% of its hull it stops being careful: it speeds up, its ring and its fuse
+  start to strobe, and it is trying to take you with it. So the question a bomber asks
+  is not whether to shoot it but where.
+- The blast hurts the crowd as much as you, for six damage in a circle: a wave that
+  arrives in a knot and walks into a dying bomber is a wave that dies. A chain pays
+  whoever lit it. One blast does not set off another bomber outright - it leaves it
+  wounded, and in a hurry, which is a better problem than a screen-clearing lottery.
+- Death effects now belong to dying rather than to being shot, so a tank that comes
+  apart in a blast still hatches.
+- You can meet it on the title screen's crowd, so its shape is learnable before it is
+  lethal.
+
 ## 0.3.2 — 2026-10-07
 Enemies arrive in waves now, and the run decides how many of them it can afford.
 - Instead of one enemy dribbling in on a timer, a wave arrives: a group of them off
