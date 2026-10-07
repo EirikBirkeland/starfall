@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.2.0",
+    "date": "2026-10-07",
+    "summary": "The ship flies like the plan says: acceleration, braking, a 6 px hitbox"
+  },
+  {
     "version": "0.1.0",
     "date": "2026-10-07",
     "summary": "Fixed-step simulation, seeded runs, collision grid and pools: the foundations release"
