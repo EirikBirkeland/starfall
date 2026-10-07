@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.1",
+    "date": "2026-10-07",
+    "summary": "Split shot: one pull of the trigger fires a fan of shots"
+  },
+  {
     "version": "0.4.0",
     "date": "2026-10-07",
     "summary": "The level-up choice: three cards, three upgrade lines, and a run that grows as it goes"
