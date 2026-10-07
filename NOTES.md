@@ -1857,3 +1857,150 @@ mouth).
    packs of 20, which will want a look at `waves.maxMembers`), sniper (10:30). The bomber
    was the last one whose death could be expressed as one blast; the shielder is the
    first that needs a relationship between enemies.
+
+---
+
+## Session 20 (2026-10-07) — Milestone 3: the arrows at the edge of the window. Released **v0.3.4**
+
+### What landed
+PLAN section 4's "an arrow at the screen edge", milestone 3's off-screen indicators.
+**New file: `src/render/indicators.js`**, called from `renderFrame` once per frame after the
+vignette. It is entirely the eye's: it reads no random stream and no game state beyond where
+the crowd stands, and the reference run came out byte for byte what it was.
+
+- **Two questions decide whether a body gets an arrow.** *Is it off the window* - the same
+  `onScreen` test every draw call uses, so an arrow appears exactly when the body behind it
+  stops being drawn and not a moment sooner. *Is it worth one* - a body is worth what the
+  wave director already says it is worth, its spawn `cost` (drifter 2, tank 8), faded out by
+  how far away it stands: full weight to half a window diagonal, nothing by 1.2 of them. So
+  the numbers that decide an arrow's loudness are already in `balance.js` under a different
+  job, and a far crowd is a rumour while one at the edge of the glass is a shout - and gets
+  louder as it walks in, which is the useful half.
+- **One arrow per direction, not per body.** Twelve slices of the compass; a slice's worth is
+  the sum of its bodies' weights and it points at their *weighted middle*, not at the slice's
+  own centre, so a cluster straddling two slices points at the cluster. Forty enemies off to
+  the left are one bright arrow and not forty of them. Over a real 6-minute bot run the count
+  never went above 4 and averaged ~1.1 per frame, which is the noise level this was aiming at.
+- **It arrives and leaves instead of blinking.** One eased 0..1 `level` per slice, about a
+  tenth of a second to a tenth of its way, drives both brightness and size; a body crossing
+  back over the cull line does not make the edge of the screen strobe.
+- **Pinned to the glass, not painted in the arena.** Drawn after the vignette and outside the
+  shake translate, so a shaking frame cannot slide an arrow off the edge it is warning you
+  about, and the vignette cannot dim the one warning that has to be visible in a corner. The
+  rim point is a ray from the ship's painted position to the window rect, inset 26 px, with
+  the ship itself pulled inside that inset first (against a wall of the world the ship can
+  stand closer to the edge of the window than an arrow wants to be, and the answer then is the
+  edge beside it rather than nowhere at all).
+- Two tones of the darter's warm red (wide soft pass under a thin bright one) plus one glow
+  sprite: **2 strokes + 1 stamp + 1 translate per arrow, no blur, no gradient**. Measured on
+  one identical 9211-frame run against a `git worktree` of HEAD: 43.36 → 45.60 strokes/frame,
+  44.82 → 45.94 stamps, fills/texts/gradients/blurs unchanged.
+- `STARFALL.stats().arrows` reports the count for the F3 overlay (milestone 10), and
+  `STARFALL.resetIndicators()` - which the harness calls in `resetToTitle` beside
+  `resetClock`/`resetCamera`, same reasoning: a new run is played by a window that has not
+  been pointing anywhere.
+
+### The harness learned to say where a draw call actually landed
+The promise "pinned to the glass, not painted out in the arena" was **not testable** before
+this: the canvas stub recorded the *arguments* of each `translate`, so an arrow drawn in arena
+coordinates looked exactly like one drawn in screen coordinates. I proved it by mutation - a
+mutant that moved the call inside the camera transform survived every test I had.
+
+So `tools/headless/harness.js` now carries a real 2×3 current transform in the stub:
+`translate`/`rotate`/`scale`/`setTransform` compose it and `save`/`restore` stack it, and every
+logged `translate` and `drawImage` carries `at` - where that point lands on the canvas, in
+device pixels. Existing tests read the raw `x`/`y` and did not move. That is how
+`test/indicators.test.mjs` can say "the arrow is 26 px in from the right edge, level with the
+ship" and "it did not move when the frame shook", and how a future test can ask the same of any
+draw call the camera is between it and the player. Worth keeping in mind for the boss telegraphs
+of milestone 6.
+
+### Two things that were wrong before they were right
+1. **A fading arrow had forgotten which way it pointed.** `collectIndicators` zeroes each
+   slice's accumulator every frame, so on the frame after the threat left there was nothing to
+   take a direction from and the arrow simply vanished - the fade was silently a no-op. Fixed
+   by keeping a settled, normalised `aimX/aimY` per slice alongside the accumulators: the
+   arrow is drawn from the direction, and the direction is kept while the arrow fades out.
+2. **The scratch slots bit the tests.** `indicatorSlots()` hands back the live list, so
+   `theDirection(sight(a)).threat` read *after* a second `collectIndicators` was the second
+   crowd's number and a "the pair is worth twice the lone one" test was comparing a number
+   with twice itself. Said out loud in the test file now: read the numbers out of the slots
+   before collecting again.
+
+`test/blast-art.test.mjs` moved honestly and for a good reason: a bomber parked off the window
+is precisely the body these arrows exist for, so its "nothing else was drawn" assertions now
+subtract the arrows (`lights(cost)`). One arrow's worth of stamps is what that costs.
+
+### Tests: 282, all passing (was 266)
+`test/indicators.test.mjs` (16) splits in half. The pure half calls `collectIndicators` with a
+hand-built crowd at arena points and measures seconds-free numbers: nothing lit for a crowd the
+window can see; one body off the right edge is one arrow pointing right and worth exactly its
+kind's `cost`; the same body 40 px further in earns nothing (the shared cull rule); a body on
+the far side of the world earns nothing and the same body gets strictly louder at 800/1000/1300/1600
+px, with the arrow floor pinned to lie between the first and the last of those; two bodies on
+one ring are one arrow worth exactly twice either; opposite sides get opposite arrows; a tank is
+`tank.cost / drifter.cost` times as much arrow as a drifter in the same spot. The drawn half
+counts what a frame asks the canvas for and where it put it: 2 strokes + 1 stamp + no fill,
+gradient or blur; the exact rim point right and up; unmoved by a shake of 14; a cornered ship
+still gets its arrow on the inset corner; nothing at all for a visible body or a far one; the
+fade lingers for a frame and cannot outlast a fifth of a second; a fresh run starts flat; and
+the edge says nothing on the title screen.
+**Mutation battery: 16 of 16 caught** (`/tmp/mutate-indicators.mjs`, throwaway, over
+`src/render/indicators.js` and its call site in `renderer.js`). The survivors were the tests'
+fault both times and one of them is the reason the harness can see transforms now; the other was
+a mutation whose text had drifted after I edited `rimPoint` - which the script now reports
+loudly instead of counting as a pass.
+
+### Proof and numbers
+- Reference run `node tools/simulate.js --seed 20261006 --trace`: **byte for byte identical**,
+  every hash equal, twice (before and after the harness change). 4 bot seeds average 2m08s, as
+  before. It is pure output, and it is worth having the trace prove it rather than arguing it.
+- A throwaway histogram over a full bot run: 0 arrows on 24% of frames, 1 on 53%, 2 on 17%,
+  3 on 3%, 4 on 1% - and the same late in a 6m17s run with 89 bodies in the world, because
+  bodies far away are faded and bodies near you are on screen.
+- **Do not mix `stats().arrows` into the bot's fingerprint.** It is a draw count; the trace is
+  supposed to be the simulation's fingerprint, and `fingerprint()` mixes named fields only -
+  keep it that way or a rendering change will look like a balance change.
+
+### Decisions, so nobody relitigates them
+- **`cost` is the arrow's currency.** It is the game's existing opinion of how much a body
+  matters, so the arrows cannot drift from the difficulty curve. The cost of that is a coupling
+  worth knowing: change a kind's spawn cost and its arrows change too. An elite is going to want
+  an arrow, and session 18's note already says an elite will be a multiplier on `cost`.
+- **12 slices.** Coarse enough that a wave is one arrow, fine enough that "behind you and to the
+  left" is distinguishable. Nothing depends on the number except the tests above.
+- **No arrow for an enemy's shot yet.** A spitter firing from off-glass is the worst case and a
+  shot is a moving thing with a life of its own; the honest version weighs the *incoming* ones
+  only (one dot product) and belongs with the spitter's follow-up, not smuggled in here.
+- **No arrows on the title or game-over screens.** The title has an ambient crowd of its own and
+  a run that is over needs no warnings; the state check is in `renderer.js`, one place.
+- `indicatorSlots()` and `EDGE_INSET` are exported for the tests and say so in their comments.
+  The stub's `at` is in device pixels, which is why the indicator test boots with `dpr: 1`.
+- Still knowingly blind: the *colour* and alpha of an arrow (the same blind spot as the darter's
+  line, the spitter's mouth and the bomber's ring), and whether an arrow is drawn *under* the
+  vignette - the stub cannot see compositing.
+
+### Watch out
+- `collectIndicators` is the only door; `drawIndicators` calls it and ignores its answer, which
+  is only the count of slices worth an arrow. The slots are scratch, every frame, all of them.
+- `arrowCount()` reports the last frame that drew arrows; outside a run it is whatever the last
+  one did. Nothing may depend on it but the F3 overlay.
+- If a future setting turns the arrows off, turn them off at the call site in `renderer.js`
+  (`if (world.state === STATE.PLAY)`) so `arrowCount` and the fade both stop together.
+- The new transform in the stub is the honest one: if a draw call's `at` is wrong, the code is
+  wrong, not the stub. Sprites stamped by `paintGlow` are logged at their top-left, not their
+  middle - `nebula.test.mjs` relies on that.
+
+### Next (milestone 3)
+1. **Elite variants** (×4 hull, gold outline, 8:00, drops a large shard and a chance of a
+   heal): the flag on the enemy, an elite multiplier on `cost` in `crowdCost`/`pickMember`
+   (session 18's note), the gold outline in `render/entities.js`, and they are exactly what
+   PLAN wants an arrow for - which is now a `cost` change and not a new system.
+2. **The bot learning to dodge shots**, and `tools/balance-report.js` (bodies on screen over
+   the run, the kind mix, time-to-kill by kind). Two sessions of notes have asked for it, and
+   the 128-seed rule from session 13 is the reason.
+3. The remaining enemies: shielder (7:30, "projects a shield onto nearby enemies" - the first
+   kind that needs a relationship between enemies), splitter swarm (9:00, packs of 20, which
+   will want a look at `waves.maxMembers`), sniper (10:30, a telegraphed laser across the whole
+   arena - which wants the harness transform this session grew, and probably an off-screen arrow
+   of its own).
