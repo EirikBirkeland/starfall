@@ -94,18 +94,19 @@ export function makeStreak(tip, tail, length, thickness) {
 
 /**
  * Stamp a round glow centred on x,y. `strength` dims it, on top of whatever
- * globalAlpha the caller already has.
+ * globalAlpha the caller already has; `scale` stamps it bigger or smaller than the
+ * sprite that was baked (one sprite makes every size a thing could want).
  */
-export function paintGlow(ctx, holder, x, y, strength = 1) {
+export function paintGlow(ctx, holder, x, y, strength = 1, scale = 1) {
   if (strength <= 0) return;
   const sprite = spriteOf(holder);
-  if (strength >= 1) {
+  if (strength >= 1 && scale === 1) {
     stamp(ctx, sprite, x, y);
     return;
   }
   ctx.save();
   ctx.globalAlpha = ctx.globalAlpha * strength;
-  stamp(ctx, sprite, x, y);
+  stamp(ctx, sprite, x, y, scale);
   ctx.restore();
 }
 
@@ -142,8 +143,10 @@ function spriteOf(holder) {
   return holder.sprite;
 }
 
-function stamp(ctx, sprite, x, y) {
-  ctx.drawImage(sprite.canvas, x - sprite.w / 2, y - sprite.h / 2, sprite.w, sprite.h);
+function stamp(ctx, sprite, x, y, scale = 1) {
+  const w = scale === 1 ? sprite.w : sprite.w * scale;
+  const h = scale === 1 ? sprite.h : sprite.h * scale;
+  ctx.drawImage(sprite.canvas, x - w / 2, y - h / 2, w, h);
 }
 
 function bakeSprite(w, h, draw) {

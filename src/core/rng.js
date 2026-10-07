@@ -1,10 +1,14 @@
 // All randomness in the game comes from here (PLAN section 2), so that a run can
 // be replayed exactly from its seed.
 //
-// There are two streams and they are deliberately separate:
+// There are three streams and they are deliberately separate:
 //
 //   logic   every number that can change the simulation. `startRun` reseeds it
 //           from `world.seed`, so a seed always plays the same run.
+//   fx      the numbers the *simulation's* cosmetics draw: how a spray of sparks
+//           scatters, which way a chip tumbles. Reseeded with every run like
+//           `logic`, so a replay sprays the same, but a burst with one more spark
+//           in it cannot move a shot that was already in flight.
 //   visual  star twinkle, thruster flicker, screen shake. The simulation never
 //           reads it, so changing the art cannot move a run.
 //
@@ -74,12 +78,16 @@ export const logic = new Rng(0x5d7f1a3b);
 /** The stream the renderer reads. Nothing in `game/` may use it. */
 export const visual = new Rng(0x2c9e6f07);
 
+/** The stream the simulation reads for anything nobody can win or lose on. */
+export const fx = new Rng(0x4b8c31e9);
+
 let currentSeed = null;
 
-/** Fix both streams to a seed, and return the seed that is now in play. */
+/** Fix every stream to a seed, and return the seed that is now in play. */
 export function setSeed(seed) {
   currentSeed = seed >>> 0;
   logic.reset(currentSeed);
+  fx.reset(currentSeed);
   visual.reset(currentSeed);
   return currentSeed;
 }

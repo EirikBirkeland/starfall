@@ -1,9 +1,10 @@
-// The seeded generator: repeatable, well spread out, and split into two streams
-// so that the way things are drawn can never move the simulation.
+// The seeded generator: repeatable, well spread out, and split into three streams
+// so that the way things are drawn - and how thickly the sparks are thrown - can
+// never move the simulation.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Rng, logic, visual, setSeed, getSeed, randomSeed } from '../src/core/rng.js';
+import { Rng, logic, fx, visual, setSeed, getSeed, randomSeed } from '../src/core/rng.js';
 
 const SAMPLES = 20000;
 
@@ -106,19 +107,34 @@ test('seeds that differ by one are not related streams', () => {
   assert.equal(openings.size, 64, 'two neighbouring seeds opened with the same numbers');
 });
 
-test('the two streams read different numbers from one seed', () => {
+test('the three streams read different numbers from one seed', () => {
   setSeed(4321);
   const game = take(logic, 100);
   setSeed(4321);
+  const spray = take(fx, 100);
+  setSeed(4321);
   const eye = take(visual, 100);
+  assert.notDeepEqual(game, spray);
   assert.notDeepEqual(game, eye);
+  assert.notDeepEqual(spray, eye);
+});
+
+test('reseeding starts the spray over, so a replay sprays the same', () => {
+  // The effects stream is replayable like the simulation's: same seed, same spray.
+  setSeed(90210);
+  const first = take(fx, 60);
+  setSeed(90210);
+  assert.deepEqual(take(fx, 60), first);
 });
 
 test('drawing cannot move the simulation', () => {
-  // The whole point of two streams: however much the renderer consumes, the
-  // game's numbers come out the same.
+  // The whole point of separate streams: however much the renderer and the sparks
+  // consume, the game's numbers come out the same.
   setSeed(777);
-  for (let i = 0; i < 500; i++) visual.next();
+  for (let i = 0; i < 500; i++) {
+    visual.next();
+    fx.next();
+  }
   const afterADraw = take(logic, 40);
 
   setSeed(777);

@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawWalls } from './walls.js';
 import { drawBullets, drawEnemies, drawPlayer, drawShards } from './entities.js';
-import { drawParticles, drawRings, drawTexts } from './effects.js';
+import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawHUD } from './hud.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
@@ -57,11 +57,12 @@ export function renderFrame(tick, input) {
   } else {
     drawWalls(ctx);
     drawShards(ctx, tick.alpha);
+    drawSmoke(ctx, tick.alpha);
     drawRings(ctx);
     drawBullets(ctx, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     if (world.state === STATE.PLAY) drawPlayer(ctx, tick.alpha);
-    drawParticles(ctx, tick.alpha);
+    drawSparks(ctx, tick.alpha);
     drawTexts(ctx);
   }
 

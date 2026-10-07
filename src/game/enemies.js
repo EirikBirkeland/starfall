@@ -6,7 +6,7 @@ import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
 import { clamp, dist2, TAU } from '../core/math.js';
-import { addText, burst, hitStop, ring, shakeIt } from './effects.js';
+import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
@@ -218,6 +218,14 @@ function removeEnemy(world, enemy) {
   world.enemies.splice(at, 1);
 }
 
+/**
+ * How many chunks a wreck throws: what its kind says, scaled by the body that
+ * actually came apart. A tank hatchling is a small tank, so it makes a small mess.
+ */
+function chipsOf(kind, enemy) {
+  return Math.max(1, Math.round(kind.death.debris * enemy.r / kind.radius));
+}
+
 /** Remove one enemy and pay out whatever it is worth. */
 export function killEnemy(world, enemy, byPlayer) {
   removeEnemy(world, enemy);
@@ -225,6 +233,7 @@ export function killEnemy(world, enemy, byPlayer) {
   const kind = BALANCE.kinds[enemy.type];
   const death = BALANCE.death;
   burst(world, enemy.x, enemy.y, kind.color, kind.death.particles, kind.death.speed, death.particleLife);
+  wreck(world, enemy.x, enemy.y, kind.color, chipsOf(kind, enemy), kind.death.debrisSpeed, death.debrisLife);
   ring(world, enemy.x, enemy.y, kind.color, enemy.r * death.ringScale,
     kind.death.ringSpeed || death.ringSpeed, death.ringLife);
 

@@ -187,16 +187,19 @@ test('the game recycles its sparks, shots, shards, and labels across a whole run
   const run = playOneRun(game, { maxSeconds: 240 });
   assert.equal(run.died, true, 'the run had to end for this to mean anything');
 
+  // Each bar says "this list saw a real run", and they are not all the same bar:
+  // sparks and shots are thrown by the second, while a label is one per kill, so
+  // its count is the run's luck rather than the pool's busy-ness.
   const fx = [
-    ['sparks', game.world.particles, BALANCE.effects.particleCap],
-    ['rings', game.world.rings, null],      // rings are few and short; nothing caps them
-    ['labels', game.world.texts, BALANCE.effects.textCap],
-    ['shots', game.world.bullets, null],    // bullets live about a second each
-    ['shards', game.world.shards, null],    // and are dropped by every kill
+    ['sparks', game.world.particles, BALANCE.effects.particleCap, 50],
+    ['rings', game.world.rings, null, 50],      // rings are few and short; nothing caps them
+    ['labels', game.world.texts, BALANCE.effects.textCap, 25],
+    ['shots', game.world.bullets, null, 50],    // bullets live about a second each
+    ['shards', game.world.shards, null, 50],    // and are dropped by every kill
   ];
-  for (const [name, pool, cap] of fx) {
+  for (const [name, pool, cap, bar] of fx) {
     const stats = pool.stats();
-    assert.ok(stats.spawned > 50, name + ' should have seen a busy run: ' + stats.spawned + ' lives');
+    assert.ok(stats.spawned > bar, name + ' should have seen a busy run: ' + stats.spawned + ' lives');
     if (cap !== null) {
       assert.ok(stats.made <= cap, name + ' built ' + stats.made + ' objects, the cap is ' + cap);
     }

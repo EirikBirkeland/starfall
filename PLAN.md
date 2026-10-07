@@ -285,8 +285,8 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Arena 3000 × 3000 with the following camera, cursor lean, and energy walls.
 - [x] Pre-rendered glow sprites; remove per-frame `shadowBlur`.
 - [x] Hit flash, hit-stop, trauma-based screen shake.
-- [ ] Particle system on a pool: sparks, debris, shockwave rings, thruster trail.
-- [ ] Knockback on enemies when hit.
+- [x] Particle system on a pool: sparks, debris, shockwave rings, thruster trail.
+- [x] Knockback on enemies when hit.
 - [ ] Parallax starfield in three layers and the nebula backdrop.
 - [ ] Release.
 

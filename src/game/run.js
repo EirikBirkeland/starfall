@@ -6,7 +6,7 @@ import { PALETTE } from '../core/palette.js';
 import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
-import { burst, ring, shakeIt } from './effects.js';
+import { burst, ring, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
 
 /** Put every piece of run state back to its starting value. */
@@ -30,6 +30,7 @@ export function resetRun(world) {
   ship.fireTimer = 0;
   ship.level = 1;
   ship.thrust = 0;
+  ship.exhaustTimer = 0;
   ship.angle = -Math.PI / 2;
 
   world.bullets.clear();
@@ -83,6 +84,9 @@ export function endRun(world) {
     spec.bigBurst.count, spec.bigBurst.speed, spec.bigBurst.life);
   burst(world, world.player.x, world.player.y, PALETTE.pink,
     spec.smallBurst.count, spec.smallBurst.speed, spec.smallBurst.life);
+  // The ship came apart too, so it leaves chunks like anything else that dies.
+  wreck(world, world.player.x, world.player.y, PALETTE.playerLine,
+    spec.debris.count, spec.debris.speed, BALANCE.death.debrisLife);
   ring(world, world.player.x, world.player.y, PALETTE.white, spec.ring.radius, spec.ring.speed, spec.ring.life);
   shakeIt(world, spec.shake);
   cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);

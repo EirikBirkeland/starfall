@@ -8,7 +8,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp } from '../core/math.js';
-import { burst, ring, shakeIt, hitStop, spray } from './effects.js';
+import { burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
 import { cueBeep } from './cues.js';
 import { endRun } from './run.js';
 
@@ -206,6 +206,7 @@ export function updatePlayer(world, dt, input) {
   // The flame answers the engines, and nothing else: a dash coasts, and it is the
   // streak that paints it (render/entities.js), not a thruster that is not firing.
   ship.thrust = clamp(ship.thrust + (input.moving ? dt * spec.thrustRamp : -dt * spec.thrustRamp), 0, 1);
+  engineTrail(world, ship, dt);
   if (ship.invuln > 0) ship.invuln -= dt;
 
   ship.fireTimer -= dt;

@@ -24,6 +24,9 @@ export const PALETTE = {
   // The thruster's flame, hottest at the nozzle.
   flameTip: '#fff0be',
   flameTail: '#ff5ec4',
+  // The wake the engines drop behind the ship. Cool, and faint: it is the ship's
+  // own trail, and it must never be mistaken for something that can hurt you.
+  exhaust: '#2e7fb8',
   // The dash cooldown ring around the ship.
   dashRingReady: 'rgba(94,247,255,0.16)',
   dashRingWait: 'rgba(94,247,255,0.10)',

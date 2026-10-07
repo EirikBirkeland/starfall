@@ -56,6 +56,17 @@ export const BALANCE = {
     recoil: 14,                  // firing pushes the ship back
     spread: 0.045,               // radians of random aim error
 
+    // The wake the engines drop (PLAN section 4): `rate` puffs a second out of the
+    // nozzles while the engines are lit, thrown backwards at `speed` and carrying
+    // `inherit` of the ship's own velocity, so the trail hangs behind the ship
+    // instead of flying off on its own. `at` is the thrust it needs before it shows
+    // at all, so a ship that is only being nudged does not trail anything.
+    exhaust: {
+      rate: 26, speed: 130, speedFloor: 0.4, spread: 0.3,
+      life: 0.34, nozzle: 7, inherit: 0.35, at: 0.25,
+      color: PALETTE.exhaust,
+    },
+
     // PLAN 3.1's dash. One committed burst, then a wait. The whole distance is
     // covered at a steady speed whatever the engines are doing - the ship is on
     // rails for `time` seconds - which is why it is a distance and a duration
@@ -102,7 +113,7 @@ export const BALANCE = {
     chaser: {
       radius: 15, speed: 76, hull: 3, score: 10, drop: 2,
       color: PALETTE.violet, fill: PALETTE.violetFill, sides: 3, glow: 16,
-      death: { particles: 16, speed: 240 },
+      death: { particles: 16, speed: 240, debris: 4, debrisSpeed: 120 },
       sound: { freq: 210, dur: 0.12 },
     },
     darter: {
@@ -110,7 +121,7 @@ export const BALANCE = {
       color: PALETTE.pink, fill: PALETTE.pinkFill, sides: 3, glow: 14,
       wobble: { amount: 0.42, rate: 5.5 },
       spin: { rate: 9, amount: 0.35 },
-      death: { particles: 12, speed: 240 },
+      death: { particles: 12, speed: 240, debris: 2, debrisSpeed: 165 },
       sound: { freq: 210, dur: 0.12 },
     },
     tank: {
@@ -121,13 +132,16 @@ export const BALANCE = {
       // `hitStop` marks a kill big enough to stop the run for: the seconds the
       // whole world holds still when this kind goes down (PLAN section 4). A
       // kind that does not ask for one is simply not a big enough event.
-      death: { particles: 30, speed: 340, ringSpeed: 420, shake: 6, hitStop: 0.04 },
+      death: { particles: 30, speed: 340, debris: 14, debrisSpeed: 200, ringSpeed: 420, shake: 6, hitStop: 0.04 },
       sound: { freq: 130, dur: 0.24 },
     },
   },
 
   death: {
     particleLife: 0.7,
+    // A wreck throws sparks *and* chunks of itself. The chunks are the part that
+    // says how big the thing was, so each kind says how many it leaves.
+    debrisLife: 0.9,
     ringLife: 0.4,
     ringSpeed: 260,
     ringScale: 0.6,
@@ -204,6 +218,7 @@ export const BALANCE = {
     restartGuard: 0.35,
     bigBurst: { count: 60, speed: 420, life: 1.1 },
     smallBurst: { count: 30, speed: 260, life: 0.9 },
+    debris: { count: 12, speed: 240 },
     ring: { radius: 6, speed: 520, life: 0.75 },
     shake: 24,
     sound: { notes: [520, 392, 262], dur: 0.32, wave: 'sawtooth', vol: 0.16 },
@@ -217,11 +232,22 @@ export const BALANCE = {
 
   effects: {
     particleCap: 900,
-    particleDrag: 0.045,    // fraction of speed left after one second
-    particleSpeedFloor: 0.25,   // a spark keeps at least this share of the burst speed
-    particleLifeFloor: 0.25,    // ...and lives at least this long
-    particleSizeMin: 1.3,
-    particleSizeMax: 3.4,
+    particleSpeedFloor: 0.25,   // a spray keeps at least this share of the burst speed
+    //
+    // The three shapes a particle can be (game/effects.js names them). `drag` is
+    // the share of its own speed it has left after one second, `lifeFloor` the
+    // shortest a spray may make it as a share of the life asked for, `sizeMin` and
+    // `sizeMax` are px across, and `spin` the fastest it tumbles in rad/s (0 for
+    // the shapes that are drawn square to the eye anyway).
+    shapes: {
+      // A spark: a hot dot that stops almost at once and shrinks away.
+      spark: { drag: 0.045, lifeFloor: 0.25, sizeMin: 1.3, sizeMax: 3.4, spin: 0 },
+      // A chip of a wreck. Heavier than a spark, so it coasts further, turns over
+      // as it goes, and outlives the sparks it died with.
+      debris: { drag: 0.12, lifeFloor: 0.5, sizeMin: 2.2, sizeMax: 6, spin: 11 },
+      // A puff off the engines: stops dead, blooms, and cools in a third of a second.
+      smoke: { drag: 0.004, lifeFloor: 0.65, sizeMin: 3.5, sizeMax: 7, spin: 0 },
+    },
     ringDrag: 0.15,
     textLife: 0.95,
     textRise: 34,

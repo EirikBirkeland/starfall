@@ -56,6 +56,10 @@ function createWorld() {
       maxSpeed: spec.maxSpeed,
       angle: -Math.PI / 2,
       thrust: 0,
+      // How close the engines are to dropping their next puff of exhaust. The
+      // wake is simulated (game/effects.js `engineTrail`), so it belongs to the
+      // ship like its velocity does.
+      exhaustTimer: 0,
       hull: spec.hull,
       invuln: 0,
       // The dash: how far it has left to cover, how long until the next one is

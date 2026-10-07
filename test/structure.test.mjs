@@ -101,8 +101,11 @@ test('only the seed chooser reaches for Math.random', () => {
 });
 
 test('the simulation reads the logic stream and the eye reads the visual one', () => {
-  // A change in the drawing must not be able to move a run, and a run must not
-  // be able to depend on the drawing. The two streams keep that promise.
+  // A change in the drawing must not be able to move a run, and a run must not be
+  // able to depend on the drawing. The streams keep that promise: `logic` for
+  // anything a run can be won or lost on, `fx` for the simulation's own cosmetics,
+  // `visual` for the frame. So the eye may read only the last of them, and the
+  // simulation may never read it.
   const offenders = [];
   for (const file of allJsIn('src/game')) {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -112,6 +115,7 @@ test('the simulation reads the logic stream and the eye reads the visual one', (
     for (const file of allJsIn(folder)) {
       const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
       if (/\blogic\./.test(source)) offenders.push(file + ' reads the logic stream');
+      if (/\bfx\./.test(source)) offenders.push(file + ' reads the effects stream');
     }
   }
   assert.deepEqual(offenders, []);
