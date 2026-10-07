@@ -242,17 +242,17 @@ const ELITE = { elite: true };
  * both a wave. Their bearings are spread evenly across the fan around the one the
  * wave picked, so a group reads as a group coming in.
  *
- * One of them may be gold (game/elite.js), and three rolls decide it: whether this
- * wave carries a leader at all, what kind it is, and where in the fan it stands. So
- * a gold body arrives as a wave with a leader, never as a screenful of gold.
+ * One of them may be gold (game/elite.js), and up to three rolls decide it: whether
+ * this wave carries a leader at all, what kind it is, and where in the fan it stands.
+ * So a gold body arrives as a wave with a leader, never as a screenful of gold.
  *
  * The leader is bought *first*, at a gold body's price, and the escort is bought with
  * whatever room is left over. That order is the point: an elite is a wave spending
  * itself on one bigger body rather than a wave with something extra on top, and the
  * room it costs is the same room that would otherwise have been two more bodies. It
- * also means the seat is always a place that exists: the roll is over the members the
- * wave actually bought, and since the leader is bought before any of them are, the
- * wave is dealt round its leader rather than having it wait at the front of the fan.
+ * also means the seat is always a place that exists, because it is rolled over the
+ * members the wave actually bought - and since the leader is bought before any of
+ * them, it is dealt into its seat afterwards rather than waiting at the front.
  *
  * The one way a wave wants a leader and does not get one is a room too small to pay
  * for a gold body of any kind that has unlocked; then the wave arrives plain and
