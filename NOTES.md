@@ -2650,3 +2650,138 @@ seen 7m48s. Suite: 395 tests, 46 s.
   which is a new kind of telegraph (the arena is 3000 px and the camera is not the arena),
   and the first thing that will make the off-screen indicators (session 24) earn their keep.
 3. Then milestone 3's release, and milestone 4 (upgrades) after that.
+
+---
+
+## Session 26 (2026-10-07) — Milestone 3: the swarm. Released **v0.3.8**
+
+PLAN 3.3's "splitter swarm - 8 each, 180, packs of 20, flocks". The second kind whose
+behaviour is a *relationship*, and the one that made me change what a member of a wave
+*is*. It came out at a fifth of the hull the row says, which is the interesting decision
+below.
+
+### What landed
+
+**`swarmling`** (9:00, hull 1, speed 190, radius 7, cost 1, weight 1, scarlet) is one body
+of a swarm, and the **pack** is the arrival: the director rolls the kind once, that member
+turns into up to `pack.into` (20) bodies standing in a `clump` (62 px) wide knot, and the
+knot takes **one place in the wave's fan**. A swarm comes in off one side of the window,
+together, rather than smeared along all of it, because the point of the kind is one thing
+coming in. Too few bodies fit and no swarm is sent at all.
+
+**`src/game/flock.js`** is the new system, and like `shields.js` it exists because a body
+cannot answer "where are we going" on its own. One pack object per swarm, referenced by
+every body that arrived in it, listed in `world.flocks`:
+
+- **`n`, `cx/cy`, `hx/hy` are rebuilt from the crowd every step**, before anything is shot
+  at, next to the shield pass. A middle and a heading are facts about twenty positions and
+  a crowd spends its life moving them, so nothing is kept: a body that died is not in this
+  step's middle, a body a blast shoved moves it. A pack whose last body died is spliced
+  out of the list, so the arena does not accumulate packs.
+- **The clock is the one thing that is not derived**, on purpose: `stage` goes gather →
+  brace → dive → gather, one clock per pack, and when the brace ends the pack locks *one*
+  line from its own middle to the ship and every body flies that line. Twenty small
+  opinions about where to dive would be a screenful; one lock is one thing to read. Same
+  promise the darter and the spitter make: what you were shown is what comes, decided
+  before it started.
+- **It spends no randomness.** Everything a walk adds is arithmetic on where the bodies are
+  standing and on each body's own `phase`, so a flock is still a function of the seed.
+
+Drawn as a long thin dart (`shipPath` with a 2.1 spike) in the one warm hue nobody else
+wears - at seven pixels across, shape and hue are the only way to tell twenty of them from
+a crowd. While its pack braces, each body lights its nose on the pack's own countdown, and
+a diving one drags one baked blur. That is all it costs: `test/swarm-art.test.mjs` counts
+the canvas calls and asserts a pack is twenty bodies plus twenty stamps, no gradient, no
+dash, no blur asked for.
+
+### The decisions that were the work
+
+**A pack is bought with the room, body by body.** `ROSTER` now carries a `price` next to
+`cost`: for a packed kind it is `cost × pack.min`, so `pickMember` only offers a swarm when
+the wave could pay for the *smallest one worth the name*. Then `sendWave` asks `packFits`
+for how many actually fit in the room and under the ceiling on bodies, spends `cost` per
+body, and stops buying if the answer is zero. Two locks fit: one swarm per wave (for the
+same reason a wave carries one leader), and a gold body is always one body - `pickMember`
+took a third argument, and the elite roll and everything after a swarm passes `NO_PACKS`.
+
+**Why the row's "8 each" became 1.** At the swarm's minute the hull scale is 2.6, so
+`hull: 8` would be 21 effective hull per body - seven times what a drifter is at the same
+minute - and there would be twenty of them for a quarter of the budget: a boss you are
+given twenty of. The row's number was written before the scaling existed. **1 hull** is
+three shots at 9:00, which is exactly what a drifter's 20 hull are worth at 2:00; the pack
+is where the 8 went, and the swarm's 20 points of cost buy 20 bodies instead of two and a
+half tanks. Speed went 180 → **190** because the flock's turn rate eats some of it.
+
+**The finding about flocking, and it is a trap worth remembering:** a boid whose members
+all have the same top speed **cannot close up by turning**, because angling towards the
+middle is slower than going straight at the ship, so a straggler falls further behind the
+further it tries. Measured, a `pull` of 0.9-2.6 left the pack ~300 px wide all the way in.
+What actually works is making the *insiders slower*: `flock.loiter` (0.3) is the share of
+its speed a body gives up when it is at the middle, so the front makes room for the back.
+That is what tightens a travelling pack (spread ~95 px by arrival), and it has a nice
+consequence for free - a milling pack moves at ~0.7× and you can outrun one, while a diving
+one is at 2.4× and you cannot. `pull: 1.8` on its own bought a shoal; `pull` *and* `loiter`
+bought a swarm.
+
+### The measurement
+
+`node tools/simulate.js --seed 20261006 --trace` is still `fce8142e5490c2760538fd4c1c6900f4`
+- the extra logic draws happen only when a pack is bought, and a pack needs 9:00. `diff` of
+the 24-run seed tables before/after shows **exactly the four runs that live past 9:00
+changed** (seeds 6, 11, 14, 15) and the other twenty byte-identical.
+
+After the retune: mean survival **6m28s → 6m32s** over 24 runs, swarmling **50 arrived, 31
+killed, peak 13 on screen**, **3 hulls lost = 4% of all hulls, and it ended 2 of the 4 runs
+that lived long enough to meet one**. First one landed at 10m11s, because being unlocked
+and being affordable are different days.
+
+Before the retune the answer was worse and more instructive: every one of 59 arrived
+swarmlings had been killed, none of them cost the ship anything, and the runs got *longer* -
+twenty bodies that cost one point each spend a fifth of a late wave's budget on the easiest
+dying in the game, and displace the tanks that actually kill you. Cheap and harmless was a
+gift. `loiter` (they stay on you instead of being shot out of the sky on the way in) is what
+turned that around.
+
+The probe (throwaway, `/tmp/probe/`) is worth keeping in mind for feel: a parked ship with
+one pack on it is touched **29.6 s of every 60**, a ship running at full speed keeps them
+150-375 px behind, the beat fires every 4.6 s, and one pack of 20 costs ~0.02 ms of a frame.
+
+### Watch out
+
+- **PLAN's "packs of 20" usually arrive as 8-13.** At 9:00 the crowd sits within ~10 bodies
+  of `waves.maxBodies: 100`, so `packFits` is cutting most packs down (peak on screen: 13).
+  Getting a whole 20 means raising `maxBodies`, and that is a late-game difficulty change
+  for its own session, not a knob to turn to make one kind's number come true. Same wrinkle
+  session 24 flagged; it is now load-bearing.
+- `test/` is all test files: `node --test` treats every file under it as one, so shared
+  tooling goes in `tools/headless/` (NOTES, session 2). `tools/headless/balance-tools.js`
+  is new and holds what four files each had their own copy of - the cheapest cost, the last
+  unlock, and `crowdUntilRoomIs` (fill with the dearest bodies, close the last point with
+  the cheapest). A pack moved all three at once and two of the copies started lying.
+- Two test idioms were wrong in a way the swarm exposed. `fillCrowd(field, maxBodies *
+  CHEAPEST)` was reaching for *points* to hit a ceiling on *bodies* (`fillBodies` now), and
+  `leftOver < CHEAPEST` was using the cheapest body in the table at a minute where that body
+  cannot be bought yet (`cheapestCostAt(120)`).
+- **Another flake of the same shape as session 25's**: `test/restart.test.mjs` asserted an
+  unpinned run had lasted 120 s before it was ended on purpose. One ended itself at 73 s and
+  the file failed for a reason that had nothing to do with restarts. Any test that asserts a
+  *random* seed survives a window is a lie; the window is a ceiling, not a promise. 25
+  clean repeats after taking the assertion out.
+- The swarm is deliberately **not** in `BALANCE.ambient.kinds`. A lone swarmling with no
+  pack is a dart that chases you and never commits, which is the kind with its point removed;
+  the title crowd would need a pack to show it properly.
+- Death sound volume now honours a per-kind `sound.vol` (`stats.sound.vol || default`)
+  because twenty deaths in one frame is a wall of noise and the mix has no voice limiting
+  until milestone 7. Swarmlings die at 0.045.
+- The bot still has no target priorities, so "the swarm displaces the tanks" is a thing the
+  report cannot see. Milestone 10's arguments still want a bot that picks, or a human.
+
+### Next
+
+1. **Sniper** (PLAN 3.3, 10:30): stationary, a long telegraphed laser across the whole
+   arena. A new kind of telegraph - the arena is 3000 px and the camera is not the arena -
+   and the first thing that will make the off-screen indicators earn their keep.
+2. Then **The Hive** (10:00 boss) is the remaining big one in 3.3/3.4, and it wants the
+   `maxBodies` question settled first, since it spawns swarms from its cells.
+3. Then milestone 3's release item, and milestone 4 (XP curve, the three-card choice) -
+   which is where a swarm's 10 score and 1 shard per body stops being a rounding error.
