@@ -1541,3 +1541,159 @@ the core at `r × 4`, is invisible here (same blind spot as the darter's line co
    Probably wants the camera/`render/` edge and an arrow per off-screen enemy, cheap and dim.
 4. Then elites, the bot learning to dodge shots (it does not: `tools/headless/bot.js` only avoids
    bodies), and `tools/balance-report.js` with the 128-seed rule from session 13 in mind.
+
+---
+
+## Session 18 (2026-10-07) — Milestone 3: the wave director. Released **v0.3.2**.
+
+### What landed
+PLAN milestone 3's "a spawn budget that grows with time, spent on the enemy types
+unlocked so far". **New file: `src/game/waves.js`**, which replaces the spawn clock that
+used to sit in `enemies.js` and now owns every arrival in the game.
+
+- **One budget, one rule.** `BALANCE.waves.crowdBase/crowdPerMinute/crowdMax` say how
+  many *points of enemy* the arena may hold right now (~4 bodies to begin with, ~19
+  after a minute, ~45 after three, ~90 from ~6:00). Every kind has a `cost` (drifter 2,
+  weaver 3, darter 4, spitter 6, tank 8) and a `weight` (6/5/3/2/3) in its
+  `BALANCE.kinds` row, next to its `from` - the three numbers that describe a kind *as
+  a spawn* rather than as a fighter. When the crowd is worth less than the budget by at
+  least `waveMinPoints`, the director buys a wave with the room: rolls unlocked,
+  affordable kinds until the room or `maxMembers` runs out, and stands them on the
+  border of the window along **one bearing**, spread evenly across `fan` radians. Then
+  it waits `gap` seconds and looks again; when there is nothing worth spending it looks
+  again in `retry`.
+- So the crowd sits at about the budget and there are exactly two ways to bring the next
+  wave sooner: wait (the budget grows) or kill (the room opens). Running away does
+  neither. That is what makes it a director rather than a timer, and it is self-limiting
+  in a way the old drip was not.
+- **`world.waveNumber`** counts the waves (reset with the run, reported by `stats()`, and
+  mixed into the bot's trace fingerprint). The HUD can show it when milestone 9 wants it.
+- **The arrival rules moved here** (`arrivalSpot`, `viewBox`, `arenaBox`, `arrivalFits`)
+  and gained an optional **bearing**: the point on the window's border along a ray out of
+  the ship, fanning further round either side when the arena is not there, then the old
+  random-edge loop, then the arena's own edge. `spawnEnemy(world, type, bearing)` now
+  answers **the enemy it placed, or null** - not `true`/`false` - which is what makes a
+  wave measurable from the outside. `BALANCE.enemies` shrank to how-the-crowd-behaves
+  numbers; `BALANCE.waves` holds the spawn numbers, arrival margins included.
+- **`world.difficulty` is gone.** The mix roll was its only reader; hp and speed scaling
+  have their own windows. Removed the field, the write, `difficultyRamp`, and the two
+  test lines that set it.
+
+### Two flaws I found by measuring, not by reading
+Both would have shipped quietly. Both are about the *shape* of the crowd, not its size.
+
+1. **A small wave can only buy cheap things.** A wave is bought with the room, and the
+   room usually opens a few points at a time - so when `waveMinPoints` was 6, nothing
+   costing 8 could ever be bought, and tanks (and later spitters) thinned out of the late
+   crowd to almost nothing: 11% of on-screen bodies against the old build's 31%. Fixed
+   by making `waveMinPoints` (now 12) at least the dearest kind's cost, which is a rule
+   worth saying out loud: **a wave is always big enough to afford the biggest thing that
+   could arrive in it.** There is a lockstep test for it (`every kind fits in the
+   smallest wave the director will send`) and a behavioural one (`a dribble of room is
+   not a wave`). After the change: 31% of on-screen bodies were tanks again.
+2. **The refill rate is a real ceiling.** `waveMaxPoints / gap` is how fast the director
+   can put bodies back; if it is below the player's kill rate the crowd simply thins out
+   and the game gets easier however big the budget is. Measured at 30 points per ~1.15 s
+   ≈ 6 bodies/s, against a bot that kills ~1.5/s and a player who can maybe manage 4.
+   That is why the gap is 0.9-1.4 s and a wave can be worth 30 points / 8 bodies: the
+   budget, not the refill, has to be the binding constraint.
+
+### Why the bot's survival moved: 1m26s → 2m12s
+Deliberate, and measured both ways with a `git worktree` of the old HEAD (`/tmp/density.mjs
+<root> <seconds> <seeds>` prints the mean bodies on screen at a moment of the run - keep
+it, it is the only way to see what a spawn change does):
+
+| | bodies @ 1:00 | bodies @ 1:40 | seeds reaching 2:30 |
+|---|---|---|---|
+| old (drip) | 18.4 | 52.5 | 0 of 12 |
+| new (waves) | 18.7 | 31.0 | 8 of 12 |
+
+The old spawn rate hit its floor at ~2.4 min and drove the crowd into the 95-body cap,
+which is why every old seed was dead inside 2.5 min. The budget curve takes about six
+minutes to reach its ceiling, so the crowd keeps growing instead of pinning - which is
+the shape PLAN's 15-minute arc needs (and milestone 10 wants the bot dying at 4-9 min,
+not 1.5). Density at one minute was held on purpose; everything after it is the change.
+Remember the inversion when tuning: **a bigger budget means the bot dies sooner.**
+Reference run (seed 20261006) is now **2m43s, score 2160, level 3, 157 kills, 35 shards**.
+
+### The flaky test this exposed, and the lesson about "builds nothing" windows
+`test/draw-cost.test.mjs` measured 45-60 s and asserted the last 5 s baked no new sprite.
+A glow sprite is baked when a kind is first *drawn*, and the darter unlocks at exactly
+1:00 - so as soon as the wave director brought a darter a second earlier than the old
+system had, its bake landed in the measured window and the test failed at random. Fixed
+by moving the windows to 100-115 s: after the darter's minute, before the spitter's
+three. **Any test that promises "nothing new was built" has to sit in a gap between kind
+unlocks, and moving an unlock moves that gap.** `test/audio.test.mjs` had the same class
+of problem for a different reason (a ship standing still can now die, and a dead ship
+makes no sound): it makes the ship invulnerable, like the other measurement tests.
+
+### Tests: 243, all passing (was 218)
+`test/waves.test.mjs` (25) drives the director directly, with the run's clock wound on by
+hand: the budget grows, never shrinks and levels off; the crowd tracks it and never
+overshoots; later runs get bigger crowds; killing opens the room and the next wave is no
+later than the gap; the body ceiling holds whatever the budget says; a wave spends the
+room down to less than the cheapest body and never more than `waveMaxPoints`; the dribble
+rule; the affordability rule; every kind fits in the smallest wave; the roll can bring
+anything unlocked and nothing locked, is weighted to within 4 points of its share over
+6000 rolls, and costs exactly **one** number out of `logic` per member whatever the roster
+holds; waves are counted and a fresh run forgets them; the members arrive across the whole
+fan, from many different bearings, off the window, inside the world and never on the ship
+(including a ship tucked in a corner, and an arena so small that nothing fits and the wave
+is not counted); and the same seed buys the same waves.
+**Mutation battery: 19 of 19 caught** (`/tmp/mutate-waves.mjs`, throwaway). Two mutants I
+wrote turned out to be *equivalent* - making the second eligibility pass ignore the clock
+or the cost changed nothing, because the second pass could disagree with the first only
+for a kind that sits earlier in the roster than an eligible one. So I deleted the
+duplicated predicate instead of testing it: `pickMember` now collects the eligible rows
+into one module-level scratch list (`ELIGIBLE`, refilled per call, no allocation) and
+walks that. Better outcome than a test: the bug became unexpressible.
+
+### Decisions, so nobody relitigates them
+- **`cost` and `weight` sit on the kind's row, not in a `waves` table**, because they
+  describe the kind as a spawn. `weight` is a share of the *arrivals* and nothing else
+  ("for every six drifters, five weavers, three darters, three tanks, two spitters");
+  `cost` is what makes an expensive kind rare. Making a kind commoner: raise its weight,
+  lower its cost - the comment above `BALANCE.kinds` says this.
+- **`world.spawnTimer` keeps its old name** as "how long until the director may spend
+  again", because `= Infinity` is the switch a dozen tests and `tools/headless/scripted.js`
+  use to park the director, and renaming it would have touched ten files for a word.
+- **A wave that brings nobody is not a wave**: `sendWave` answers null when no member
+  found somewhere to stand (only reachable on a window that already shows the whole
+  arena) and nothing is counted or spent.
+- **`crowdCost` charges a hatchling its kind's cost**, not a smaller one: two hatchlings
+  are a tank's worth of dying to do, and reading `enemy.kind.stats.cost` never needs a
+  second rule.
+- The fan is 0.9 rad and the retries step by `fanRetry` (0.45) either way before falling
+  back to the old random edge. A wave keeps its shape near a wall, which is where a
+  cornered player most needs it not to collapse into noise.
+
+### Watch out
+- `test/waves.test.mjs` shares one world across the file, and one test shrinks the arena
+  to 300 px; `runAged` puts `arena` and the ship back like new for exactly that reason.
+  A new test that mutates the world has to expect the next one to reset it.
+- Adding an enemy kind is now *five* numbers, not three: `from`, `cost`, `weight` next to
+  the stats, and the roster picks them up by itself (`ROSTER` is built once from `KINDS`).
+  `waves.test.mjs`'s distribution test will tell you if the weights are silly.
+- The crowd's *bodies* depend on the mix: ~4.5 points a body with the current weights, so
+  the ceiling of 400 points is ~90 bodies and `maxBodies: 100` stays the perf guard.
+  Change a cost and you change the density; that is the coupling.
+- The wave director spends from `logic` one roll per member, plus one for the bearing and
+  the arrival draws - so a wave's worth of arrivals moves the stream a lot. That is fine
+  (a spawn *is* gameplay), but it means every knob above moves the reference run. Re-record
+  it after any change: `node tools/simulate.js --seed 20261006 --trace`.
+
+### Next (milestone 3)
+1. **The Bomber** (PLAN 3.3: explodes on death in a telegraphed circle, hurts other
+   enemies too). It wants `killEnemy`'s `onDeath` moved above the `if (!byPlayer) return;`
+   line - a death effect belongs to dying, not to being shot - and it is the first chance
+   for enemies to damage each other, which the wave director makes sensible: a wave that
+   arrives next to a tank now matters.
+2. **Off-screen indicators.** More valuable now that a whole wave arrives off one side:
+   the bearing is already a thing the simulation knows (`world.waveNumber` and the fan),
+   so an arrow at the window edge has something honest to point along.
+3. **Elite variants** (×4 hull, gold outline, `from: 8:00`): the budget wants an elite
+   multiplier on `cost`, which is a one-line change in `crowdCost`/`pickMember` once the
+   elite flag exists on the enemy.
+4. Then the bot learning to dodge, and `tools/balance-report.js` - which should print
+   bodies-on-screen over the run and the kind mix, because that is what had to be measured
+   by hand this time (`/tmp/density.mjs` is a working sketch of it).
