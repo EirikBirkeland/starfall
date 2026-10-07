@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.2",
+    "date": "2026-10-07",
+    "summary": "Pierce: one pull of the trigger goes through one more body per rank"
+  },
+  {
     "version": "0.4.1",
     "date": "2026-10-07",
     "summary": "Split shot: one pull of the trigger fires a fan of shots"
