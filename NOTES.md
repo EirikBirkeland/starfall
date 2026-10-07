@@ -1697,3 +1697,163 @@ walks that. Better outcome than a test: the bug became unexpressible.
 4. Then the bot learning to dodge, and `tools/balance-report.js` - which should print
    bodies-on-screen over the run and the kind mix, because that is what had to be measured
    by hand this time (`/tmp/density.mjs` is a working sketch of it).
+
+---
+
+## Session 19 (2026-10-07) — Milestone 3: the bomber. Released **v0.3.3**.
+
+PLAN 3.3's sixth enemy: "explodes on death in a telegraphed circle; hurts other
+enemies too", 6:00. Two commits, because the first one is a refactor the second one
+needed and they are easy to tell apart.
+
+### Commit 1: a death effect belongs to dying, not to being shot
+- `killEnemy`'s `kind.onDeath(world, enemy, byPlayer)` moved out of the `byPlayer`
+  branch: a tank that comes apart in somebody else's blast still hatches. `byPlayer`
+  is passed on, because a chain reaction the player lit should pay the player. No
+  behaviour change today (nothing but bullets killed anything) and the reference run
+  and all 128 seeds were byte-identical afterwards.
+- **`damageEnemy(world, enemy, amount, byPlayer)`** is now the one place an enemy takes
+  damage and maybe dies (`bullets.js` had the only two lines of it; `blast.js` needed a
+  third). It answers whether the target died, which is how the caller knows to play the
+  death rather than the impact.
+- **`widestEnemyRadius()` moved from `enemies.js` to `kinds.js`, and `enemies.js` no
+  longer imports `kinds.js` at all.** Not tidiness - necessity: `kinds.js` was about to
+  need `blast.js`, `blast.js` needs `killEnemy`/`damageEnemy` from `enemies.js`, and
+  `enemies.js` ran `measureWidestEnemy()` at module scope, so the cycle would have had
+  it reading `KINDS` while `kinds.js` was still being evaluated (a TDZ crash depending on
+  which module the import graph reached first). The measure belongs with the table it
+  measures anyway. `test/kinds.test.mjs` imports it from its new home and now also
+  checks that a hatchling is thinner than the fattest body, which is the promise that
+  number makes.
+
+### Commit 2: the bomber, and `src/game/blast.js`
+Numbers, in the game's own units (`hull` is counted in player shots, at the ratio the
+drifter already sets): `radius 18, speed 96, hull 7, score 32, drop 4`, `from 360`,
+`cost 7, weight 3`, an octagon in a new `ember` with a lit `blastFlash` core.
+`blast: { radius 108, damage 6, arm 0.45, rush 1.4, shove 260, ring/flash/shake 9/
+hitStop 0.05, a low 84 Hz sawtooth }`.
+
+**`blast(world, x, y, spec, byPlayer)` is an event, not a system.** There is no list of
+blasts and nothing steps one: the effects are left behind, the damage is done inside the
+step that called it. The two things that make it safe to do that:
+- **the crowd is picked out first and hurt afterwards.** Hurting it can start another
+  blast - a bomber caught in one detonates - and that happens inside the call, so a
+  chain would splice `world.enemies` under a loop that was walking it. The victims list
+  is allocated per blast on purpose; a bomber dying is not a per-frame loop.
+- a victim already dead (`hp <= 0`) is skipped, which is what makes "everything dies
+  exactly once" true through a chain, and `killEnemy` still throws if it is handed
+  something that is not in the crowd.
+
+**The circle is the whole of the rule**: a *centre* inside the radius is hurt, and a
+centre outside is not, for the ship exactly as for the crowd - so the drawn ring is the
+honest edge rather than an approximation of it (I chose this over `radius + enemy.r`:
+one number, one line, learnable). Standing exactly on the line counts as inside, and a
+`>` → `>=` mutation is caught by a victim planted at precisely `radius`.
+
+**The walk is nothing; the death is everything.** `walksBomber` walks the straight line
+at `speed`, and below `arm` of its hull left it walks it at `rush` times that - the one
+about to go off is the one in a hurry. Both the walk and the renderer's warning read
+`blastPressure(enemy)` = the share of its hull it has lost out of the share it can lose
+before it turns, so the tell and the behaviour cannot disagree; the test asserts
+`pressure === 1` exactly when `isCritical`. `blastRadius(enemy)` is 0 for a kind with no
+blast, which is how the renderer draws a ring for a bomber without ever naming one.
+
+`damage` (6) sits **under** a bomber's own hull (7) on purpose: one blast cannot set off
+another bomber outright. It leaves it on 1 hull, which makes it critical, which sends it
+at you. A test says so explicitly - a knot of bombers is something to pick apart, not a
+screen-clearing lottery. Chains do happen through anything cheaper, and a chain carries
+`byPlayer`, so the player is paid for the whole of it.
+
+**Drawing** (`render/entities.js`): `drawBlastZones` is called in `renderer.js` first
+after the walls, because a death zone is paint on the arena floor and nothing standing
+on the floor should be drawn under it. Two strokes (a wide soft pass under a thin bright
+one, the house idiom) on a `setLineDash` circle whose `lineDashOffset` crawls round,
+pulsing at a rate that climbs with the pressure. Culled by `radius + 30`, not by the
+body - a test proves a ring whose circle touches the window is drawn while none of the
+body or the fuse is, which is the difference between a warning and a decoration.
+
+### The trick worth keeping: extract a look as a function of time, then test it
+The canvas stub counts draws; it cannot see alpha or colour, so "the ring breathes, and
+breathes faster as it dies" was untestable while it was inline. `zoneLight(enemy, at)`
+and `fuseLight(enemy, at)` are now exported pure functions of the enemy and the frame
+clock, the drawing calls them, and `test/blast-art.test.mjs` measures their **turning
+points in a second** (a steady light turns zero times, a dying one about seven) and their
+min and max over four seconds. Same for the fuse, which never goes out: both bottoms are
+the same `FUSE_CALM`, only the ceiling rises - which is what the test says.
+
+### Tests: 266, all passing (was 243)
+`test/bomber.test.mjs` (15, scripted world, seconds and px measured not guessed): the
+straight walk and the rush; the pressure ramp; `blastRadius` against the data and the
+0.5 s-of-full-speed rule that makes the circle dodgeable; the exact boundary in and out;
+the shove's direction in both axes; the ship's hull inside, outside, and dashing through;
+the hit-stop and the particle count (`death.particles + death.debris + flash.count`, so
+"the blast made light" is a number); credit both ways; a chain paying once and only once;
+a shot finishing a bomber **inside a live step** with a stale grid; the roster keeping it
+off before 360 s; and the cost/score locksteps with the director.
+`test/blast-art.test.mjs` (6, real booted game): the ring's cost in strokes/lights/dashes
+and that nothing else in the roster draws one; the cull; the pulse and the fuse above.
+**`test/waves.test.mjs` no longer hard-codes 300 s**: two of its tests needed "every kind
+unlocked" and now say `ALL_UNLOCKED = max(from) + 30`. Before the change the weighted-roll
+test would have "failed" on the new kind for the wrong reason, and after it the tests
+cannot silently measure a locked kind as noise again.
+
+**Mutation battery: 23 of 23 caught** (`/tmp/mutate-bomber.mjs` over a `git worktree`,
+throwaway). Three survived the first pass and all three were my tests' fault: (1) the
+shove mutant only zeroed `ix` and I only asserted `iy` - now both axes are checked with a
+victim beside the blast; (2) "no flash particles" survived because the death's own burst
+also makes particles - the count is now asserted exactly; (3) the pulse was invisible, as
+above, which is what the `zoneLight`/`fuseLight` extraction fixed. Still knowingly blind:
+the *colour* of a ring or a core (same blind spot as the darter's line and the spitter's
+mouth).
+
+### Proof of what did and did not move
+- Reference run (`--seed 20261006 --trace`): **byte-identical**, 2m43s / 2160. It dies
+  before 6:00, so the whole bomber is inert in it - which is exactly the claim a new
+  `from: 360` kind should be held to.
+- 128 seeds: **exactly one seed moved**, seed 45, the only one that lives past 6:00
+  (6m30 → 6m17, 337 kills against 340). Verified rather than assumed: the trace first
+  differs at frame 21840 = 364.7 s, i.e. after the unlock, and a bomber was standing in
+  the arena at the end of that run. **When a kind unlocks inside the survival range,
+  expect the long tail to move and check where the divergence starts before believing
+  it.** (The bot averages 2m09s over 128 seeds, so nothing about the bot measures this
+  enemy yet - same situation as the spitter.)
+- Soak (`/tmp/soak.mjs`, throwaway): 300 s of a live game with a bomber planted every 20
+  frames (898 of them), fake audio on - no throw, 867 frozen frames (the hit-stop), ~11
+  zones on screen at a time, 0 blurs, ~70 strokes and 60 stamps a frame.
+
+### Decisions, so nobody relitigates them
+- Centre-in-circle, not radius + body radius. Said out loud in `blast.js` and in
+  `BALANCE.kinds.bomber.blast`'s comment, because it is the rule the player is learning.
+- The rush instead of a fuse timer or an arming countdown: one more number that would
+  only be felt as a delay. `arm`/`rush` are the whole state and neither needs a `stage`.
+- The blast spends **no `logic` numbers at all** (only `fx`, for its sparks), so a bomber
+  changes a run only through the bodies it kills and the ring the director chose for it.
+- No sound on arming. The ring and the fuse are the tell; a second one would be a drone.
+- The menu crowd swapped its second tank for a bomber (`ambient.kinds` still has exactly
+  `target` entries - a ninth would mean the refiller never runs again, which is worth
+  knowing before adding to it).
+- A blast is not a world object. When milestone 4's nova wants an expanding area effect
+  that takes time, that one *will* need to be, and it should not reuse `blast()`.
+
+### Watch out
+- `widestEnemyRadius` is imported from `game/kinds.js` now, not `game/enemies.js`.
+- `onDeath` takes `(world, enemy, byPlayer)`; a kind that does not care says so in its
+  comment (the tank's `hatch` ignores it).
+- If a kind's unlock time ever moves past the bot's survival, the 128-seed baseline will
+  not notice. That is a measurement gap, not a stability problem - `tools/balance-report.js`
+  should print the kind mix so it stops being one.
+
+### Next (milestone 3)
+1. **Off-screen indicators.** More justified now: a wave arrives off one bearing and a
+   bomber's circle is useless if the bomber is not on screen. The director already knows
+   the bearing, so an arrow at the window edge has something honest to point along. PLAN
+   section 4 asks for arrows to bosses and elites; start with that rule and keep it small.
+2. **Elite variants** (×4 hull, ×1.15 speed, gold outline, 8:00, drops a large shard and
+   a chance of a heal). Session 18's note: an elite multiplier on `cost` in
+   `crowdCost`/`pickMember` is a one-liner once the flag exists on the enemy.
+3. Then **the bot learning to dodge shots** and `tools/balance-report.js` (bodies on
+   screen over the run, the kind mix, and time-to-kill by kind).
+4. The remaining enemies in order: shielder (7:30), splitter swarm (9:00 - arrives in
+   packs of 20, which will want a look at `waves.maxMembers`), sniper (10:30). The bomber
+   was the last one whose death could be expressed as one blast; the shielder is the
+   first that needs a relationship between enemies.
