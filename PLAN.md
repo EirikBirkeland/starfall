@@ -277,7 +277,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] `tools/simulate.js`: runs a whole run headless with a simple bot (move away from the nearest enemy,
       shoot the nearest enemy) and prints time survived, kills, and level. Must not throw.
 - [x] Set up `node --test` and make it pass.
-- [ ] Release `0.1.0`.
+- [x] Release `0.1.0`.
 
 ### Milestone 2: feel
 - [ ] Player movement to the numbers in 3.1: acceleration, friction, small hit radius.
