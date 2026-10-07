@@ -1178,3 +1178,103 @@ changing.
    the off-screen `arrivalSpot` rule from session 12 as the spawn primitive.
 4. Then elites, off-screen indicators, and the bot learning to dodge - with `tools/balance-report.js`
    beside it, and the 128-seed measurement rule from session 13 in mind.
+
+---
+
+## Session 15 (2026-10-07) — Milestone 3 begins: enemy kinds are a table now
+
+No release: nothing moved that a player could see. The reference run is byte for byte what it was, and
+this session is the floor the rest of milestone 3 is built on.
+
+### What landed
+PLAN milestone 3's first item: "enemy definitions as data in one table, with behaviours as small
+functions". **New file: `src/game/kinds.js`.**
+
+- `KINDS` is the one table every enemy is described by. A row is `{ stats, walk, onDeath? }`, where
+  `stats` **points at** the kind's entry in `BALANCE.kinds` - it is not a copy. The rule that every
+  tuning number lives in balance.js is a hard one, so the table holds behaviour and points at the
+  numbers instead of moving them; a test asserts `KINDS.x.stats === BALANCE.kinds.x`, so the two
+  halves cannot drift apart and nobody "helpfully" copies a number across.
+- `walk(enemy, step)` moves one enemy for one step **and turns it**: which way it faces follows from
+  how it moves, so splitting that in two would have cost a second `atan2` per enemy per step for
+  nothing. `onDeath(world, enemy)` is the optional second half: `hatch` is the tank's.
+- `updateEnemies` no longer asks which kind something is. It says `enemy.kind.walk(enemy, step)` and
+  that is the whole of it; the darter's wobble, the tank's slow turn and the tank's split are gone out
+  of the crowd loop. `killEnemy` ends with `if (kind.onDeath) kind.onDeath(...)` in exactly the place
+  the `if (enemy.type === 'tank')` used to be, so the split still happens after the shards drop.
+- `makeEnemy` moved to kinds.js (the module that knows what a kind is builds one) and now stamps
+  `enemy.kind` on the enemy - see the performance story. Its importers changed: `ambient.js`,
+  `tools/headless/scripted.js`, and two tests. It is no longer exported from enemies.js.
+- `hatch` is driven by data now: `BALANCE.kinds.tank.split` gained `type: 'chaser'`, so what a tank
+  comes apart into is a number-shaped fact and not a hard-coded enemy.
+- `widestEnemyRadius()` is measured once, at module load, instead of `Object.values`ing the kinds and
+  allocating an array every step (bullets.js asks for it every step). Same answer, no garbage.
+- `rollKind`, `arrivalSpot`, `updateSpawning` stayed: that is the wave director, which is the third
+  item of this milestone and should replace them rather than decorate them.
+
+### The `step` object
+A behaviour gets one small object per step, refilled and reused by `updateEnemies`
+(`{ world, ship, dt, drag }`), so stepping six hundred enemies allocates nothing. A behaviour reads
+it and never keeps it. `drag` is the `pow(separationDrag, dt)` that used to be a local in
+`updateEnemies`; a walk needs it to carry a shove, and a shove is how knockback already works.
+
+**A behaviour may not draw from `logic` unless its comment says it does.** There is a test for it, and
+`hatch` is the one exception (one draw per hatchling, for the direction it flies). This is the rule
+that keeps a seed meaning the same run no matter how many kinds exist.
+
+### It was 4% slower until an enemy carried its own row
+The first version did `kindOf(enemy.type).walk(...)` per enemy per step. Bench (`/tmp/bench.mjs`,
+throwaway: 236 enemies + 40 bullets, 6000 steps, min of 5 runs, against a `git worktree` of HEAD)
+put that at **0.0752 ms/step against HEAD's 0.0718** - the extra call and the throw-check per enemy.
+So `makeEnemy` now stamps the row on the enemy (`enemy.kind`, taken once when it is built) and the
+crowd asks the enemy instead of the table: **0.0720 ms/step, i.e. back to the baseline and inside the
+noise**, plus one array per step less. `kindOf` is still there for anything that only has a name
+(`spawnEnemy`, `makeEnemy`), and a name nobody defined throws instead of walking nowhere.
+
+### Proof nothing moved
+`node tools/simulate.js --seed 20261006 --trace` is **byte for byte** the session-13/14 reference run
+(1m07s, 825, level 3, 61 kills, 26 shards, every trace hash equal). That is the point of doing this
+before adding nine kinds: a refactor that changed the run at all would have shown up there.
+
+### Tests: 179, all passing (was 168)
+`test/kinds.test.mjs` (11): both halves of every kind and no third; `kindOf` throws on a made-up name;
+an enemy carries its row; the broad phase is wide enough for the fattest kind; a chaser walks the
+straight line exactly one `speed * step` and points along it; a darter swerves up to its `wobble`
+amount and to *both* sides of the line while a chaser swerves by less than 1e-9; a darter still closes
+200 px in two seconds of weaving; a tank turns `rotateRate * seconds` to the nanosecond; a 300 px/s
+shove is worth 76 px of drift and is down to a fiftieth of itself a second later; a tank's death
+leaves `split.into` hatchlings with the split's body, offset, impulse, score, drop and a share of the
+wound its parent had, where a chaser leaves only its wreck; and walking the crowd spends **no**
+draws from `logic` (asserted on `logic.state`).
+
+Mutation-checked eleven of them - stats as a copy, `kind` not carried, no rotation for the tank, the
+darter walking straight, `onDeath` skipped, the shove never decaying, the chaser's nose off, `kindOf`
+silent, hatchling hp, hatchling radius, and the walk never called - and each one fails a test on its
+own. **The one lesson worth keeping: back your new file up before mutating it.** `git checkout -- <file>`
+on a file that is not committed yet aborts the whole command ("pathspec ... did not match any file
+known to git") and restores *nothing*, so six mutations were quietly stacked on each other before the
+climbing failure counts gave it away. `cp` both files to /tmp first, as I ended up doing.
+
+### Decisions
+- **Numbers stay in balance.js.** The table points at them (`stats`), which is why an enemy kind is two
+  writes in two files and why there is a lockstep test. The alternative - moving the numbers into the
+  table - breaks the one-file-for-tuning rule for a tidier import list, and is not worth it.
+- **`enemy.kind` duplicates `enemy.type`.** `type` is what the renderer and the tests ask; `kind` is
+  what the simulation steps. Kept both because the benchmark says the lookup has to go and `type` is
+  used everywhere.
+- **The renderer keeps its per-kind art branches** (`render/entities.js`: the darter's arrow, the
+  tank's ring and wound arc). A kind's look is not its behaviour and a canvas cannot live in `game/`.
+  There is a comment there now: a new kind that is not a plain polygon gets a branch there too.
+- `killEnemy` still only runs `onDeath` on a **player** kill, because that is where the old
+  `if (enemy.type === 'tank')` sat. When the Bomber arrives and enemies can kill each other, move the
+  `onDeath` call above the `if (!byPlayer) return;` - a tank that dies to a bomb should still hatch.
+
+### Next (milestone 3, item 2: the enemies of PLAN 3.3, one per session)
+The three kinds that exist are PLAN's **Drifter** (called `chaser`), PLAN's **Tank** (hull and speed
+are nowhere near PLAN's 160/45 yet), and a sine-wave weaver that is really PLAN's **Weaver** wearing
+the name `darter`. So the first honest session is the real **Darter**: pause, aim, lunge in a line,
+with a thin telegraph drawn before it - which wants the first per-enemy *state machine* inside a walk
+(a `stage` and a `timer` on the enemy, written by its walk, drawn from it by the renderer) and the
+first telegraph in the game. After that, `Spitter` (PLAN 3.3's shooter) is the one that wants item 3
+(enemy bullets on their own pool, in warm colours). Renumbering the existing kinds to PLAN's names is
+worth doing when there are four of them and not before.

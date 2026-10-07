@@ -106,7 +106,7 @@ export const BALANCE = {
   },
 
   // How an enemy kind behaves. Behaviour itself is a small function in
-  // game/enemies.js; this is the data it reads. `glow` is the one exception: it
+  // game/kinds.js; this is the data it reads. `glow` is the one exception: it
   // is not read by the simulation at all, it is how far that kind's halo reaches
   // past its body, in pixels, and only the renderer looks at it.
   kinds: {
@@ -128,7 +128,9 @@ export const BALANCE = {
       radius: 26, speed: 48, hull: 9, score: 35, drop: 5,
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
       rotateRate: 0.55,
-      split: { into: 2, hpFactor: 0.5, radius: 12, drop: 1, speedMul: 1.25, impulse: 190, score: 8, offset: 8 },
+      // What it comes apart into: `into` of `type`, thrown outwards at `impulse`
+      // from `offset` out. Naming the kind here is what lets the split be data.
+      split: { into: 2, type: 'chaser', hpFactor: 0.5, radius: 12, drop: 1, speedMul: 1.25, impulse: 190, score: 8, offset: 8 },
       // `hitStop` marks a kill big enough to stop the run for: the seconds the
       // whole world holds still when this kind goes down (PLAN section 4). A
       // kind that does not ask for one is simply not a big enough event.

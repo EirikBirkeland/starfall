@@ -1,59 +1,18 @@
-// Everything about the enemy kinds: their data, where they come from, how they
-// walk, and what they leave behind. Behaviour lives in updateEnemies below;
-// the numbers that go with it are BALANCE.kinds.
+// The crowd: where enemies come from, how the lot of them is stepped, and what a
+// kill pays out. What a single kind *is* - its numbers, the way it walks, what its
+// corpse makes - lives in game/kinds.js. This file is the part that is about the
+// crowd rather than about one of them: it asks a kind to walk, it never asks which
+// kind it is.
 
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
-import { clamp, dist2, TAU } from '../core/math.js';
+import { dist2 } from '../core/math.js';
 import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
-
-/**
- * One value from `opts`. Giving no value leaves the kind's default standing -
- * and giving zero means zero, which `opts.r || default` would have eaten.
- */
-function chosen(opts, key, fallback) {
-  return opts && opts[key] !== undefined ? opts[key] : fallback;
-}
-
-/**
- * Build one enemy. `opts` overrides the kind's defaults: the split children of
- * a tank arrive smaller, tougher, and already flying apart.
- */
-export function makeEnemy(world, type, x, y, opts) {
-  const kind = BALANCE.kinds[type];
-  const e = BALANCE.enemies;
-  const hpScale = 1 + clamp(world.elapsed / e.hpScaleWindow, 0, e.hpScaleMax);
-  const speedScale = 1 + clamp(world.elapsed / e.speedScaleWindow, 0, 1) * e.speedScaleMax;
-
-  const enemy = {
-    type: type,
-    x: x,
-    y: y,
-    px: x,        // where it stood when the current step began; see render/interp.js
-    py: y,
-    r: chosen(opts, 'r', kind.radius),
-    hp: chosen(opts, 'hp', Math.ceil(kind.hull * hpScale)),
-    maxhp: 0,
-    speed: chosen(opts, 'speed', kind.speed * speedScale) * chosen(opts, 'speedMul', 1),
-    drop: chosen(opts, 'drop', kind.drop),
-    score: chosen(opts, 'score', kind.score),
-    rot: logic.range(0, TAU),
-    spin: logic.range(-e.spinRange, e.spinRange),
-    flash: 0,
-    phase: logic.range(0, TAU),   // this enemy's place in the wobble and spin cycles
-    ix: chosen(opts, 'ix', 0),
-    iy: chosen(opts, 'iy', 0),
-    ambient: false,
-    vx: 0,   // only the slow title-screen crowd uses these
-    vy: 0,
-  };
-  enemy.maxhp = enemy.hp;
-  return enemy;
-}
+import { KINDS, kindOf, makeEnemy } from './kinds.js';
 
 /** Pick a kind for the current moment of the run. */
 function rollKind(world) {
@@ -139,7 +98,7 @@ function arrivalSpot(world, radius) {
 export function spawnEnemy(world, type) {
   if (world.enemies.length > BALANCE.enemies.hardCap) return false;
   const kind = type || rollKind(world);
-  const spot = arrivalSpot(world, BALANCE.kinds[kind].radius);
+  const spot = arrivalSpot(world, kindOf(kind).stats.radius);
   if (spot === null) return false;
   world.enemies.push(makeEnemy(world, kind, spot.x, spot.y));
   return true;
@@ -163,41 +122,25 @@ export function updateSpawning(world, dt) {
   }
 }
 
-/** A tank breaks into two fast chasers, thrown outward from where it died. */
-function splitTank(world, parent) {
-  const spec = BALANCE.kinds.tank.split;
-  const kidHp = Math.max(1, Math.ceil(parent.hp * spec.hpFactor));
-  for (let i = 0; i < spec.into; i++) {
-    const angle = logic.range(0, TAU);
-    const kid = makeEnemy(world, 'chaser',
-      parent.x + Math.cos(angle) * spec.offset,
-      parent.y + Math.sin(angle) * spec.offset,
-      {
-        r: spec.radius,
-        hp: kidHp,
-        drop: spec.drop,
-        score: spec.score,
-        speedMul: spec.speedMul,
-        ix: Math.cos(angle) * spec.impulse,
-        iy: Math.sin(angle) * spec.impulse,
-      });
-    // The crowd grew after this step's grid was rebuilt, so a hatchling can be
-    // shot from the next step. It is thrown clear as it appears; nobody notices.
-    world.enemies.push(kid);
-  }
-}
-
 /**
  * The widest enemy the arena can hold, tank hatchlings included. The collision
- * broad phase queries with it, so no enemy is too fat to be found.
+ * broad phase queries with it, so no enemy is too fat to be found. The kinds never
+ * change while the game runs, so it is measured once rather than every step.
  */
-export function widestEnemyRadius() {
+function measureWidestEnemy() {
   let widest = 0;
-  for (const kind of Object.values(BALANCE.kinds)) {
-    if (kind.radius > widest) widest = kind.radius;
-    if (kind.split && kind.split.radius > widest) widest = kind.split.radius;
+  for (const name in KINDS) {
+    const stats = KINDS[name].stats;
+    if (stats.radius > widest) widest = stats.radius;
+    if (stats.split && stats.split.radius > widest) widest = stats.split.radius;
   }
   return widest;
+}
+
+const widestEnemy = measureWidestEnemy();
+
+export function widestEnemyRadius() {
+  return widestEnemy;
 }
 
 /**
@@ -222,33 +165,41 @@ function removeEnemy(world, enemy) {
  * How many chunks a wreck throws: what its kind says, scaled by the body that
  * actually came apart. A tank hatchling is a small tank, so it makes a small mess.
  */
-function chipsOf(kind, enemy) {
-  return Math.max(1, Math.round(kind.death.debris * enemy.r / kind.radius));
+function chipsOf(stats, enemy) {
+  return Math.max(1, Math.round(stats.death.debris * enemy.r / stats.radius));
 }
 
 /** Remove one enemy and pay out whatever it is worth. */
 export function killEnemy(world, enemy, byPlayer) {
   removeEnemy(world, enemy);
 
-  const kind = BALANCE.kinds[enemy.type];
+  const kind = enemy.kind;
+  const stats = kind.stats;
   const death = BALANCE.death;
-  burst(world, enemy.x, enemy.y, kind.color, kind.death.particles, kind.death.speed, death.particleLife);
-  wreck(world, enemy.x, enemy.y, kind.color, chipsOf(kind, enemy), kind.death.debrisSpeed, death.debrisLife);
-  ring(world, enemy.x, enemy.y, kind.color, enemy.r * death.ringScale,
-    kind.death.ringSpeed || death.ringSpeed, death.ringLife);
+  burst(world, enemy.x, enemy.y, stats.color, stats.death.particles, stats.death.speed, death.particleLife);
+  wreck(world, enemy.x, enemy.y, stats.color, chipsOf(stats, enemy), stats.death.debrisSpeed, death.debrisLife);
+  ring(world, enemy.x, enemy.y, stats.color, enemy.r * death.ringScale,
+    stats.death.ringSpeed || death.ringSpeed, death.ringLife);
 
   if (!byPlayer) return;
 
   world.score += enemy.score;
   world.kills++;
-  addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, kind.color);
-  cueBeep(kind.sound.freq, kind.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
-  if (kind.death.shake) shakeIt(world, kind.death.shake);
+  addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, stats.color);
+  cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
   // A kill the kind calls big gets the run to hold its breath for a moment.
-  if (kind.death.hitStop) hitStop(world, kind.death.hitStop);
+  if (stats.death.shake) shakeIt(world, stats.death.shake);
+  if (stats.death.hitStop) hitStop(world, stats.death.hitStop);
   dropShards(world, enemy.x, enemy.y, enemy.drop);
-  if (enemy.type === 'tank') splitTank(world, enemy);
+  // And whatever else this kind leaves behind - a tank leaves two hatchlings.
+  if (kind.onDeath) kind.onDeath(world, enemy);
 }
+
+/**
+ * The one `step` handed to every behaviour this step (see game/kinds.js). Refilled
+ * and reused, so stepping a crowd of six hundred allocates nothing.
+ */
+const step = { world: null, ship: null, dt: 0, drag: 1 };
 
 /**
  * Move the crowd, keep it from piling into one blob, and see if it touched the
@@ -256,8 +207,11 @@ export function killEnemy(world, enemy, byPlayer) {
  * stop the rest of the frame.
  */
 export function updateEnemies(world, dt) {
-  const impulseDrag = Math.pow(BALANCE.enemies.separationDrag, dt);
   const ship = world.player;
+  step.world = world;
+  step.ship = ship;
+  step.dt = dt;
+  step.drag = Math.pow(BALANCE.enemies.separationDrag, dt);
 
   // Everyone starts the step where they stand, before anything is moved or shoved,
   // so that the renderer can put them between here and wherever this step ends up.
@@ -270,25 +224,9 @@ export function updateEnemies(world, dt) {
     const enemy = world.enemies[i];
     if (enemy.flash > 0) enemy.flash -= dt;
 
-    const heading = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
-    let wobble = 0;
-    if (enemy.type === 'darter') {
-      const w = BALANCE.kinds.darter.wobble;
-      wobble = Math.sin(world.elapsed * w.rate + enemy.phase) * w.amount;
-    }
-    enemy.x += (Math.cos(heading + wobble) * enemy.speed + enemy.ix) * dt;
-    enemy.y += (Math.sin(heading + wobble) * enemy.speed + enemy.iy) * dt;
-    enemy.ix *= impulseDrag;
-    enemy.iy *= impulseDrag;
-
-    if (enemy.type === 'tank') {
-      enemy.rot += dt * BALANCE.kinds.tank.rotateRate;
-    } else if (enemy.type === 'darter') {
-      const s = BALANCE.kinds.darter.spin;
-      enemy.rot = heading + Math.sin(world.elapsed * s.rate + enemy.phase) * s.amount;
-    } else {
-      enemy.rot = heading;
-    }
+    // How this one moves, and which way it points while doing it, is the kind's
+    // business and nobody else's.
+    enemy.kind.walk(enemy, step);
 
     // Soft separation, so the crowd spreads out instead of stacking.
     for (let j = i - 1; j >= 0; j--) {

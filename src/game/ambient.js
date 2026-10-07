@@ -8,7 +8,7 @@
 import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
 import { TAU } from '../core/math.js';
-import { makeEnemy } from './enemies.js';
+import { makeEnemy } from './kinds.js';
 
 /** Where the menu crowd may wander: the screen's worth of arena, with a gap. */
 function crowdBox(world) {

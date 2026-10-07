@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
-import { makeEnemy } from '../src/game/enemies.js';
+import { makeEnemy } from '../src/game/kinds.js';
 import { BALANCE } from '../src/game/balance.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');

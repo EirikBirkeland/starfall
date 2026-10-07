@@ -8,7 +8,7 @@ import { world, stepWorld } from '../../src/game/world.js';
 import { STATE } from '../../src/game/state.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { resetRun } from '../../src/game/run.js';
-import { makeEnemy } from '../../src/game/enemies.js';
+import { makeEnemy } from '../../src/game/kinds.js';
 import { setSeed } from '../../src/core/rng.js';
 
 /** Start a run with nothing in it but what the test adds. */

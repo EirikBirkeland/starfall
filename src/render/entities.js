@@ -30,6 +30,9 @@ const BULLET_REACH = 32;
 const SHARD_REACH = SHARD_HALO + 6;
 
 function drawEnemy(ctx, enemy, dim, alpha) {
+  // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
+  // moves, this says what it is made of. A new kind that is not a plain polygon
+  // gets a branch here as well as its row there.
   const look = BALANCE.kinds[enemy.type];
   const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
   // A hatchling is the same kind as its parent with a smaller body, so the halo
