@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.3.2",
+    "date": "2026-10-07",
+    "summary": "Enemies arrive as waves, bought with a spawn budget that grows with the run"
+  },
+  {
     "version": "0.3.1",
     "date": "2026-10-07",
     "summary": "The spitter: a telegraphed enemy shot"
