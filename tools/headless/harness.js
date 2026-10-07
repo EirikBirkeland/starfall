@@ -7,20 +7,12 @@
 //
 // The modules hold the world, so a process boots exactly one game. To play more
 // than one run, call resetToTitle() between them.
+//
+// Seeding goes through core/rng.js, the same door the browser uses: the harness
+// imports the game's own rng module and fixes it before booting main.js.
 
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-
-/** A small deterministic generator, so a seeded run replays exactly. */
-export function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function makeGradient() {
   return { addColorStop() {} };
@@ -92,7 +84,9 @@ const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBe
 /**
  * Boot the game with no browser.
  *
- * Options: { root, seed, width, height, dpr, audio, storage }
+ * Options: { root, seed, url, width, height, dpr, audio, storage }
+ * `seed: null` leaves the game to choose its own, which is what a browser does.
+ * Pass `url` (a query string such as '?seed=42') to exercise address-bar seeds.
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -133,6 +127,7 @@ export async function bootGame(options) {
     get innerWidth() { return width; },
     get innerHeight() { return height; },
     devicePixelRatio: opts.dpr === undefined ? 2 : opts.dpr,
+    location: { search: opts.url || '' },
     addEventListener(type, handler) { (listeners[type] = listeners[type] || []).push(handler); },
     localStorage: {
       getItem: (key) => (key in store ? store[key] : null),
@@ -144,13 +139,14 @@ export async function bootGame(options) {
     windowObj.AudioContext = function FakeAudioContext() { return makeAudioContextStub(audioLog); };
   }
 
-  const savedRandom = Math.random;
   globalThis.window = windowObj;
   globalThis.document = { getElementById: (id) => elements[id] || null };
   globalThis.requestAnimationFrame = (handler) => { rafQueue.push(handler); return rafQueue.length; };
-  if (seed !== null) Math.random = mulberry32(seed);
 
   const moduleUrl = (rel) => pathToFileURL(path.join(root, 'src', rel)).href;
+
+  const rng = await import(moduleUrl('core/rng.js'));
+  if (seed !== null) rng.setSeed(seed);
   await import(moduleUrl('main.js'));
 
   const game = globalThis.window.STARFALL;
@@ -222,11 +218,12 @@ export async function bootGame(options) {
       resetAmbient(world);
       world.state = STATE.START;
       world.overTimer = 0;
-      if (nextSeed !== undefined) Math.random = mulberry32(nextSeed);
+      // startRun() reseeds from world.seed, so this is all it takes to set the
+      // next run up for a replay.
+      if (nextSeed !== undefined) world.seed = nextSeed >>> 0;
     },
 
     stop() {
-      Math.random = savedRandom;
       rafQueue = [];
     },
   };

@@ -6,7 +6,8 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { rand, clamp } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { clamp } from '../core/math.js';
 import { burst, ring, shakeIt } from './effects.js';
 import { cueBeep } from './cues.js';
 import { endRun } from './run.js';
@@ -17,7 +18,7 @@ export function fire(world) {
   const bullets = BALANCE.bullets;
   const spec = BALANCE.player;
 
-  const angle = ship.angle + rand(-spec.spread, spec.spread);
+  const angle = ship.angle + logic.range(-spec.spread, spec.spread);
   const nose = ship.r + bullets.noseOffset;
   const nx = ship.x + Math.cos(ship.angle) * nose;
   const ny = ship.y + Math.sin(ship.angle) * nose;
@@ -37,7 +38,7 @@ export function fire(world) {
   const muzzle = bullets.muzzle;
   burst(world, nx, ny, PALETTE.spark, muzzle.count, muzzle.speed, muzzle.life);
   const sound = BALANCE.firing.sound;
-  cueBeep(rand(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
+  cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
 export function updatePlayer(world, dt, input) {

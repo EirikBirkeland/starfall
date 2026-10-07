@@ -1,6 +1,6 @@
 // One frame on the canvas: background, the world, then the interface.
 
-import { rand } from '../core/math.js';
+import { visual } from '../core/rng.js';
 import { STATE } from '../game/state.js';
 import { world } from '../game/world.js';
 import { view } from './canvas.js';
@@ -12,7 +12,7 @@ import { drawHUD } from './hud.js';
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
 function shakeOffset(amount) {
   if (amount <= 0.1) return { x: 0, y: 0 };
-  return { x: rand(-amount, amount), y: rand(-amount, amount) };
+  return { x: visual.range(-amount, amount), y: visual.range(-amount, amount) };
 }
 
 export function renderFrame(fps) {

@@ -1,19 +1,9 @@
 // Small maths helpers shared by the simulation and the renderer.
 //
-// Randomness goes through Math.random for the moment. Milestone 1 replaces it
-// with a seeded generator in core/rng.js so that a run can be replayed.
+// There is no randomness here on purpose: every random number comes from a named
+// stream in core/rng.js, so a run can be replayed from its seed.
 
 export const TAU = Math.PI * 2;
-
-/** Random float in [a, b). */
-export function rand(a, b) {
-  return a + Math.random() * (b - a);
-}
-
-/** Random integer in [a, b], both included. */
-export function randi(a, b) {
-  return Math.floor(rand(a, b + 1));
-}
 
 export function clamp(value, low, high) {
   return value < low ? low : (value > high ? high : value);

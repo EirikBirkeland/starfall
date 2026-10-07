@@ -16,6 +16,7 @@ function createWorld() {
   const spec = BALANCE.player;
   return {
     state: STATE.START,
+    seed: 0,          // the seed this run is a function of; see core/rng.js
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
     difficulty: 0,    // 0..1, driven by elapsed

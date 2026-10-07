@@ -2,13 +2,14 @@
 // It uses the enemy factory so the menu shows what the game is actually made of.
 
 import { BALANCE } from './balance.js';
-import { rand, randi, TAU } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { TAU } from '../core/math.js';
 import { makeEnemy } from './enemies.js';
 
 function makeAmbientEnemy(world, kind) {
-  const enemy = makeEnemy(world, kind, rand(0, world.arena.w), rand(0, world.arena.h));
+  const enemy = makeEnemy(world, kind, logic.range(0, world.arena.w), logic.range(0, world.arena.h));
   enemy.speed *= BALANCE.ambient.speedFactor;
-  const angle = rand(0, TAU);
+  const angle = logic.range(0, TAU);
   enemy.vx = Math.cos(angle) * enemy.speed;
   enemy.vy = Math.sin(angle) * enemy.speed;
   enemy.ambient = true;
@@ -24,9 +25,8 @@ export function resetAmbient(world) {
 
 export function updateAmbient(world, dt) {
   const spec = BALANCE.ambient;
-  if (world.ambient.length < spec.target && Math.random() < dt * spec.refillChance) {
-    const kind = spec.refillKinds[randi(0, spec.refillKinds.length - 1)];
-    world.ambient.push(makeAmbientEnemy(world, kind));
+  if (world.ambient.length < spec.target && logic.chance(dt * spec.refillChance)) {
+    world.ambient.push(makeAmbientEnemy(world, logic.pick(spec.refillKinds)));
   }
 
   for (let i = 0; i < world.ambient.length; i++) {

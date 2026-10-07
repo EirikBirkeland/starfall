@@ -2,7 +2,8 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { rand, lerp, TAU } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { lerp, TAU } from '../core/math.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 import { levelUp } from './progress.js';
@@ -11,16 +12,16 @@ import { levelUp } from './progress.js';
 export function dropShards(world, x, y, count) {
   const spec = BALANCE.shards.drop;
   for (let i = 0; i < count; i++) {
-    const angle = rand(0, TAU);
-    const speed = rand(spec.speedMin, spec.speedMax);
+    const angle = logic.range(0, TAU);
+    const speed = logic.range(spec.speedMin, spec.speedMax);
     world.shards.push({
-      x: x + rand(-spec.jitter, spec.jitter),
-      y: y + rand(-spec.jitter, spec.jitter),
+      x: x + logic.range(-spec.jitter, spec.jitter),
+      y: y + logic.range(-spec.jitter, spec.jitter),
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: BALANCE.shards.life,
-      spin: rand(-spec.spinMax, spec.spinMax),
-      rot: rand(0, TAU),
+      spin: logic.range(-spec.spinMax, spec.spinMax),
+      rot: logic.range(0, TAU),
     });
   }
 }
@@ -63,7 +64,7 @@ export function updateShards(world, dt) {
       world.shardsCollected++;
       world.score += spec.score;
       burst(world, shard.x, shard.y, PALETTE.shard, spark.count, spark.speed, spark.life);
-      cueBeep(rand(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
+      cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
       while (world.xp >= world.xpNeed) levelUp(world);
     }
   }

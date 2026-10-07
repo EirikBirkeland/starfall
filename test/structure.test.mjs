@@ -18,6 +18,17 @@ function jsFilesIn(relativeFolder) {
     .map((name) => path.join(relativeFolder, name));
 }
 
+/** The same, but walking into subfolders too. */
+function allJsIn(relativeFolder) {
+  const out = [];
+  for (const entry of fs.readdirSync(path.join(ROOT, relativeFolder), { withFileTypes: true })) {
+    const name = relativeFolder + '/' + entry.name;
+    if (entry.isDirectory()) out.push(...allJsIn(name));
+    else if (entry.name.endsWith('.js')) out.push(name);
+  }
+  return out;
+}
+
 test('the game folders import nothing from render, audio, ui, or input', () => {
   const offenders = [];
   for (const folder of LOGIC_FOLDERS) {
@@ -72,6 +83,36 @@ test('every tuning number sits in balance.js or a named constant', () => {
         offenders.push(file + ':' + (index + 1) + ' hard-codes ' + magic.join(', '));
       }
     });
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('only the seed chooser reaches for Math.random', () => {
+  // Every other random number comes from a named stream in core/rng.js, which
+  // is what makes a run replayable from its seed (PLAN section 2).
+  const allowed = ['src/core/rng.js'];
+  const offenders = [];
+  for (const file of allJsIn('src')) {
+    if (allowed.includes(file)) continue;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/\bMath\.random\b/.test(source)) offenders.push(file + ' calls Math.random');
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('the simulation reads the logic stream and the eye reads the visual one', () => {
+  // A change in the drawing must not be able to move a run, and a run must not
+  // be able to depend on the drawing. The two streams keep that promise.
+  const offenders = [];
+  for (const file of allJsIn('src/game')) {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/\bvisual\./.test(source)) offenders.push(file + ' reads the visual stream');
+  }
+  for (const folder of ['src/render', 'src/audio', 'src/ui', 'src/input']) {
+    for (const file of allJsIn(folder)) {
+      const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+      if (/\blogic\./.test(source)) offenders.push(file + ' reads the logic stream');
+    }
   }
   assert.deepEqual(offenders, []);
 });

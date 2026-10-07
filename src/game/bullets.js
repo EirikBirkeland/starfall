@@ -1,7 +1,8 @@
 // Bullets: travel, despawn, and the one test that matters, bullet against enemy.
 
 import { BALANCE } from './balance.js';
-import { rand, dist2 } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { dist2 } from '../core/math.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 import { killEnemy } from './enemies.js';
@@ -40,7 +41,7 @@ export function updateBullets(world, dt) {
       if (enemy.hp <= 0) {
         killEnemy(world, j, true);
       } else {
-        cueBeep(rand(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
+        cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
       }
       break;
     }

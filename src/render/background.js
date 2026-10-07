@@ -2,7 +2,8 @@
 // so this state lives in the renderer and never reaches the simulation.
 
 import { PALETTE } from '../core/palette.js';
-import { rand, clamp, TAU } from '../core/math.js';
+import { visual } from '../core/rng.js';
+import { clamp, TAU } from '../core/math.js';
 import { view } from './canvas.js';
 import { world } from '../game/world.js';
 
@@ -23,11 +24,11 @@ export function buildStars() {
     for (let j = 0; j < count; j++) {
       stars.push({
         l: i,
-        x: Math.random() * view.W,
-        y: Math.random() * view.H,
-        r: rand(layer.min, layer.max),
-        tw: Math.random() * TAU,
-        tws: rand(0.5, 2.0),
+        x: visual.next() * view.W,
+        y: visual.next() * view.H,
+        r: visual.range(layer.min, layer.max),
+        tw: visual.next() * TAU,
+        tws: visual.range(0.5, 2.0),
       });
     }
   }
@@ -42,11 +43,11 @@ export function updateStars(dt) {
     star.tw += star.tws * dt;
     if (star.x < -4) {
       star.x = view.W + 4;
-      star.y = Math.random() * view.H;
+      star.y = visual.next() * view.H;
     }
     if (star.y > view.H + 4) {
       star.y = -4;
-      star.x = Math.random() * view.W;
+      star.x = visual.next() * view.W;
     }
   }
 }

@@ -28,7 +28,7 @@ function killTheShip(score) {
   game.world.score = score || 0;
   game.enemies.push({
     type: 'chaser', x: ship.x, y: ship.y, r: 15, hp: 1, maxhp: 1,
-    speed: 0, ix: 0, iy: 0, rot: 0, seed: 0, flash: 0, drop: 0, score: 0,
+    speed: 0, ix: 0, iy: 0, rot: 0, phase: 0, flash: 0, drop: 0, score: 0,
     ambient: false, vx: 0, vy: 0,
   });
   game.step();

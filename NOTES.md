@@ -106,10 +106,9 @@ Also done because the split needed them: `tools/simulate.js` (whole headless run
   outside `balance.js`).
 - `node tools/simulate.js --runs 5` for a quick balance read. The naive bot now dies around 0m55s on
   average (4 seeds), which is the number to beat when difficulty work starts.
-- **The reference run**: `node tools/simulate.js --seed 20261006 --trace` must die at 0m59s with
-  score 811, level 3, 55 kills, 33 shards. That is the v0.0.1 trajectory; the split reproduced it
-  fingerprint for fingerprint. Introducing `core/rng.js` or the fixed step will change it on purpose —
-  rebaseline then and update this line.
+- **The reference run**: `node tools/simulate.js --seed 20261006 --trace` must die at 1m03s with
+  score 783, level 3, 56 kills, 33 shards (rebaselined in session 4 when `core/rng.js` landed;
+  the old v0.0.1 numbers were 0m59s / 811 with 55 kills). The fixed step will move it again on purpose — rebaseline then.
 
 ### Bugs found on the way
 - The best-score key arrived as `'***'` instead of `'starfall.best'` (a mangled literal during the port).
@@ -142,3 +141,57 @@ Also done because the split needed them: `tools/simulate.js` (whole headless run
    Decide there and note it.
 4. Then release `0.1.0` (nothing released this session: the split is invisible to the player and the
    milestone's release item belongs at its end).
+
+## Session 4 (2026-10-07) — Milestone 1: seeded RNG, two streams
+
+Found a finished-but-uncommitted `core/rng.js` work-in-progress in the tree (an earlier session
+ended before it could verify and commit). I reviewed it end to end, kept it, fixed one real bug in
+it (below), verified everything, and committed it.
+
+### What landed
+- **`src/core/rng.js`** — mulberry32 with a golden-ratio seed scramble and 4-number warmup.
+  Two named streams: `logic` (everything that can move the simulation) and `visual` (star twinkle,
+  thruster flicker, shake). `setSeed(seed)` restarts both; `randomSeed()` is the one unseeded draw
+  in the game (clock ^ `Math.random`), and a structure test asserts `Math.random` appears nowhere
+  else in `src/`.
+- Every `Math.random` / `rand()` call site now reads a stream. `core/math.js` lost `rand`/`randi`.
+  Enemy per-instance `seed` field renamed to `phase` (its place in the wobble cycle) — it collided
+  with the word for the run seed.
+- **The fragility from session 3 is gone**: the renderer draws from `visual`, so consuming more (or
+  less) eye-candy can no longer move a run. Test: "drawing cannot move the simulation".
+- `world.seed` exists; `startRun` reseeds the logic stream from it, so **a seed replays a run**.
+  The headless harness now seeds through `core/rng.js` too (it deleted its private mulberry32).
+- Address bar seeds: `?seed=42` fixes the run for the visit (how runs get shared; the groundwork
+  for the M10 daily run). Game-over screen shows `SEED <n>`.
+- New tests: `test/rng.test.mjs` (9 tests: repeatability, ranges, distribution, neighbouring seeds,
+  stream independence), `test/seed.test.mjs` (address-bar seed; same seed replays, different seed
+  doesn't), `test/restart.test.mjs` (see the bug), 2 new structure tests (only the seed chooser
+  calls `Math.random`; `game/` never reads `visual`, `render|audio|ui|input` never read `logic`).
+  Suite is now 27 tests, all passing.
+
+### The bug I found in the unfinished work
+As drafted, `world.seed` was picked once per page visit and `startRun` reseeds from it — so every
+restart in a browser replayed **the exact same arena**. Fixed in `main.js`: the visit's seed is
+*pinned* only when the address bar asked for one or the headless tools fixed one before boot;
+otherwise `pressAction` draws a fresh `randomSeed()` for each run. The harness pin keeps simulate
+deterministic; `test/restart.test.mjs` plays two runs on one unpinned boot and asserts different
+seeds and traces.
+
+### Reference run rebaselined
+`node tools/simulate.js --seed 20261006 --trace` → dies 1m03s, score 783, level 3, 56 kills,
+33 shards. Bot over 4 seeds now averages ~1m06s (was ~0m55s pre-RNG: different stream, luckier
+spawn layout — not a balance change). Old numbers live in the session 3 note.
+
+### Notes for future sessions
+- `game/` modules import the `logic` stream from `core/rng.js` directly (no rng passed around).
+  If a future item needs deterministic replay *within* a run (recording), that's still fine —
+  the whole run is a function of the seed as long as nobody calls `visual` from logic.
+- `simulate.js --seed N --runs R` plays seeds N..N+R-1. `bootGame({ seed: null })` emulates a
+  real browser (unpinned); `{ url: '?seed=42' }` emulates a pinned address bar.
+
+### Next (finish Milestone 1)
+1. `core/pool.js` and `core/grid.js` with tests, then use the pool for bullets/particles (and the
+   grid for bullet↔enemy collision — today `updateBullets` scans the enemy array).
+2. Fixed 120 Hz step + accumulator in `main.js` (clamp long frames per PLAN; today `BALANCE.maxFrameDt`
+   clamps the frame delta to 50 ms — decide 50 vs 100 there and note it). Rebaseline the reference run.
+3. Then release `0.1.0` (last item of M1). Not released this session: M1's release sits at its end.

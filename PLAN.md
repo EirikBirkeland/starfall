@@ -268,7 +268,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 
 ### Milestone 1: foundations
 - [x] Split the single file into the module layout from section 2, with no change in behaviour.
-- [ ] `core/rng.js`: seeded generator, with tests.
+- [x] `core/rng.js`: seeded generator, with tests.
 - [ ] `core/pool.js`: object pool, with tests.
 - [ ] `core/grid.js`: spatial grid with insert, clear, and query by circle, with tests.
 - [x] Move every tuning number into `game/balance.js`.

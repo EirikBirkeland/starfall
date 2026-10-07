@@ -7,6 +7,7 @@ import { resetAmbient } from './game/ambient.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { clamp } from './core/math.js';
+import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { loadBest } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -19,10 +20,23 @@ import { initScreens, hideScreens, showGameOver } from './ui/screens.js';
 let lastFrame = 0;
 let fpsAvg = 60;
 
+/** The seed the address bar asked for, or null when nobody asked. */
+function addressSeed() {
+  const match = /[?&]seed=(\d+)/.exec(window.location.search);
+  return match ? parseInt(match[1], 10) >>> 0 : null;
+}
+
+// True while one seed is locked to this visit: the address bar asked for it
+// (that is how a run gets shared and replayed), or the headless tools fixed
+// one before boot. Unlocked visits pick a fresh seed for every run, so a
+// restart never replays the same arena.
+let seedIsPinned = false;
+
 /** Start a run if the screen accepts one right now. */
 function pressAction() {
   if (!canStartRun(world)) return;
   initAudio();
+  if (!seedIsPinned) world.seed = randomSeed();
   startRun(world);
   hideScreens();
 }
@@ -48,6 +62,7 @@ function describeRun() {
     kills: world.kills,
     shards: world.shardsCollected,
     seconds: Math.floor(world.elapsed),
+    seed: world.seed,
   };
 }
 
@@ -73,6 +88,15 @@ function boot() {
   initScreens();
   initCanvas(document.getElementById('game'));
   onResize();
+  // Whoever arrives first picks this visit's seed: the address bar, then the
+  // headless tools (which fix one before importing this file), and failing both
+  // of them the luck of the moment.
+  const fromAddress = addressSeed();
+  const fromTools = getSeed() !== null;
+  if (fromAddress !== null) setSeed(fromAddress);
+  else if (!fromTools) setSeed(randomSeed());
+  seedIsPinned = fromAddress !== null || fromTools;
+  world.seed = getSeed();
   world.best = loadBest();
   resetRun(world);
   resetAmbient(world);
@@ -100,6 +124,7 @@ window.STARFALL = {
   stats: function () {
     return {
       state: world.state,
+      seed: world.seed,
       score: world.score,
       level: world.player.level,
       hull: world.player.hull,

@@ -2,6 +2,7 @@
 
 import { BALANCE } from '../game/balance.js';
 import { PALETTE } from '../core/palette.js';
+import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { polygon, shipPath } from './shapes.js';
 import { world } from '../game/world.js';
@@ -59,7 +60,7 @@ export function drawPlayer(ctx) {
   ctx.globalAlpha = blinking ? 0.32 : 1;
 
   if (ship.thrust > 0.02) {
-    const length = 10 + Math.random() * 10 + ship.thrust * 12;
+    const length = visual.range(10, 20) + ship.thrust * 12;
     ctx.save();
     ctx.rotate(ship.angle + Math.PI);
     ctx.shadowBlur = 20;

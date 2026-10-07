@@ -3,7 +3,8 @@
 // seeded random stream) but they never touch anything back.
 
 import { BALANCE } from './balance.js';
-import { rand, TAU } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { TAU } from '../core/math.js';
 
 /** Trauma, in the units the camera shake reads. */
 export function shakeIt(world, amount) {
@@ -13,16 +14,16 @@ export function shakeIt(world, amount) {
 export function burst(world, x, y, color, count, speed, life) {
   const fx = BALANCE.effects;
   for (let i = 0; i < count; i++) {
-    const angle = rand(0, TAU);
-    const pSpeed = rand(speed * fx.particleSpeedFloor, speed);
+    const angle = logic.range(0, TAU);
+    const pSpeed = logic.range(speed * fx.particleSpeedFloor, speed);
     world.particles.push({
       x: x,
       y: y,
       vx: Math.cos(angle) * pSpeed,
       vy: Math.sin(angle) * pSpeed,
-      life: rand(fx.particleLifeFloor, life),
+      life: logic.range(fx.particleLifeFloor, life),
       max: life,
-      size: rand(fx.particleSizeMin, fx.particleSizeMax),
+      size: logic.range(fx.particleSizeMin, fx.particleSizeMax),
       color: color,
     });
   }

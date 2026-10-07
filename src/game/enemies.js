@@ -4,7 +4,8 @@
 
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
-import { rand, randi, clamp, dist2, TAU } from '../core/math.js';
+import { logic } from '../core/rng.js';
+import { clamp, dist2, TAU } from '../core/math.js';
 import { addText, burst, ring, shakeIt } from './effects.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer } from './player.js';
@@ -30,10 +31,10 @@ export function makeEnemy(world, type, x, y, opts) {
     speed: ((opts && opts.speed) || kind.speed * speedScale) * ((opts && opts.speedMul) || 1),
     drop: (opts && opts.drop) || kind.drop,
     score: kind.score,
-    rot: rand(0, TAU),
-    spin: rand(-e.spinRange, e.spinRange),
+    rot: logic.range(0, TAU),
+    spin: logic.range(-e.spinRange, e.spinRange),
     flash: 0,
-    seed: rand(0, TAU),
+    phase: logic.range(0, TAU),   // this enemy's place in the wobble and spin cycles
     ix: (opts && opts.ix) || 0,
     iy: (opts && opts.iy) || 0,
     ambient: false,
@@ -47,7 +48,7 @@ export function makeEnemy(world, type, x, y, opts) {
 /** Pick a kind for the current moment of the run. */
 function rollKind(world) {
   const e = BALANCE.enemies;
-  const roll = Math.random();
+  const roll = logic.next();
   const tankChance = world.elapsed > e.tankFrom ? e.tankChance + world.difficulty * e.tankChanceRamp : 0;
   const darterChance = e.darterChance + world.difficulty * e.darterChanceRamp;
   if (roll < tankChance) return 'tank';
@@ -61,11 +62,11 @@ const EDGES = 4;   // an enemy arrives from one of the four arena edges
 function edgeSpot(world, margin) {
   const w = world.arena.w;
   const h = world.arena.h;
-  switch (randi(0, EDGES - 1)) {
-    case 0: return { x: rand(0, w), y: -margin };
-    case 1: return { x: w + margin, y: rand(0, h) };
-    case 2: return { x: rand(0, w), y: h + margin };
-    default: return { x: -margin, y: rand(0, h) };
+  switch (logic.int(0, EDGES - 1)) {
+    case 0: return { x: logic.range(0, w), y: -margin };
+    case 1: return { x: w + margin, y: logic.range(0, h) };
+    case 2: return { x: logic.range(0, w), y: h + margin };
+    default: return { x: -margin, y: logic.range(0, h) };
   }
 }
 
@@ -84,12 +85,12 @@ export function updateSpawning(world, dt) {
 
   const e = BALANCE.enemies;
   const base = Math.max(e.spawnFloor, e.spawnBase - world.elapsed * e.spawnDecay);
-  world.spawnTimer = base * rand(e.spawnJitter[0], e.spawnJitter[1]);
+  world.spawnTimer = base * logic.range(e.spawnJitter[0], e.spawnJitter[1]);
 
   if (world.enemies.length < e.spawnCap) spawnEnemy(world);
   for (let i = 0; i < e.extraWaves.length; i++) {
     const wave = e.extraWaves[i];
-    if (world.elapsed > wave.at && Math.random() < wave.chance && world.enemies.length < e.extraCap) {
+    if (world.elapsed > wave.at && logic.chance(wave.chance) && world.enemies.length < e.extraCap) {
       spawnEnemy(world);
     }
   }
@@ -100,7 +101,7 @@ function splitTank(world, parent) {
   const spec = BALANCE.kinds.tank.split;
   const kidHp = Math.max(1, Math.ceil(parent.hp * spec.hpFactor));
   for (let i = 0; i < spec.into; i++) {
-    const angle = rand(0, TAU);
+    const angle = logic.range(0, TAU);
     const kid = makeEnemy(world, 'chaser',
       parent.x + Math.cos(angle) * spec.offset,
       parent.y + Math.sin(angle) * spec.offset,
@@ -156,7 +157,7 @@ export function updateEnemies(world, dt) {
     let wobble = 0;
     if (enemy.type === 'darter') {
       const w = BALANCE.kinds.darter.wobble;
-      wobble = Math.sin(world.elapsed * w.rate + enemy.seed) * w.amount;
+      wobble = Math.sin(world.elapsed * w.rate + enemy.phase) * w.amount;
     }
     enemy.x += (Math.cos(heading + wobble) * enemy.speed + enemy.ix) * dt;
     enemy.y += (Math.sin(heading + wobble) * enemy.speed + enemy.iy) * dt;
@@ -167,7 +168,7 @@ export function updateEnemies(world, dt) {
       enemy.rot += dt * BALANCE.kinds.tank.rotateRate;
     } else if (enemy.type === 'darter') {
       const s = BALANCE.kinds.darter.spin;
-      enemy.rot = heading + Math.sin(world.elapsed * s.rate + enemy.seed) * s.amount;
+      enemy.rot = heading + Math.sin(world.elapsed * s.rate + enemy.phase) * s.amount;
     } else {
       enemy.rot = heading;
     }

@@ -120,6 +120,7 @@ export function playOneRun(game, options) {
 
   return {
     died: died,
+    seed: game.world.seed,
     frames: frames,
     seconds: +(frames * FRAME_MS / 1000).toFixed(2),
     stats: game.stats(),
@@ -132,10 +133,8 @@ export function playOneRun(game, options) {
 
 /** Boot a game and play exactly one run on it. */
 export async function playRun(options) {
-  const opts = options || {};
-  const game = await bootGame(opts);
-  const summary = playOneRun(game, opts);
-  summary.seed = opts.seed === undefined ? 1 : opts.seed;
+  const game = await bootGame(options);
+  const summary = playOneRun(game, options);
   game.stop();
   return summary;
 }
@@ -151,9 +150,7 @@ export async function playRuns(options) {
   const summaries = [];
   for (let i = 0; i < seeds.length; i++) {
     if (i > 0) await game.resetToTitle(seeds[i]);
-    const summary = playOneRun(game, opts);
-    summary.seed = seeds[i];
-    summaries.push(summary);
+    summaries.push(playOneRun(game, opts));
   }
   game.stop();
   return summaries;

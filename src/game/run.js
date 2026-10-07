@@ -3,6 +3,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
+import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
 import { burst, ring, shakeIt } from './effects.js';
@@ -47,6 +48,9 @@ export function resetRun(world) {
 
 /** Begin a run from the title or the game-over screen. */
 export function startRun(world) {
+  // From this number on, the run is entirely a function of world.seed: the same
+  // seed always plays out the same way.
+  setSeed(world.seed);
   resetRun(world);
   world.state = STATE.PLAY;
 
