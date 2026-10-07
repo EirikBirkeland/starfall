@@ -1,5 +1,6 @@
-// The stuff that sprays, flashes and floats: sparks, shockwave rings, and the
-// little score labels that drift upwards. They are simulated (they need the
+// The stuff that sprays, flashes and floats: sparks, shockwave rings, the little
+// score labels that drift upwards, and the two pieces of feedback that are just a
+// number on the world - trauma and hit-stop. They are simulated (they need the
 // seeded random stream) but they never touch anything back.
 //
 // All three lists live in pools, because they are the busiest things in the game
@@ -28,6 +29,15 @@ export function makeLabel() {
 /** Trauma, in the units the camera shake reads. */
 export function shakeIt(world, amount) {
   world.shake = Math.min(BALANCE.screen.shakeCap, world.shake + amount);
+}
+
+/**
+ * Hit-stop (PLAN section 4): hold the whole run still for `seconds`. The longest
+ * of two overlapping freezes wins, so a small kill landing in the middle of a
+ * player hit cannot cut it short. `stepWorld` spends it.
+ */
+export function hitStop(world, seconds) {
+  world.freeze = Math.max(world.freeze, seconds);
 }
 
 /**

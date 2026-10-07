@@ -21,11 +21,14 @@ function createWorld() {
     seed: 0,          // the seed this run is a function of; see core/rng.js
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
-    steps: 0,         // how many fixed steps this run has been simulated
+    steps: 0,         // how many fixed steps this run has been asked for (a hit-stop step counts)
     difficulty: 0,    // 0..1, driven by elapsed
     overTimer: 0,     // time since the run ended
     spawnTimer: BALANCE.runStart.spawnDelay,
     newBest: false,
+    // Hit-stop: how long the run still has to hold still for, in seconds (0 when
+    // nothing is frozen). game/effects.js `hitStop` sets it, `stepWorld` spends it.
+    freeze: 0,
 
     best: 0,
     score: 0,
@@ -83,23 +86,46 @@ function createWorld() {
 export const world = createWorld();
 
 /**
+ * The two clocks that are not the run's, so they keep ticking through a hit-stop:
+ * the trauma the frame is shaken by, and the guard on restarting after a death -
+ * one belongs to the frame being drawn, the other to the player's finger.
+ */
+function tickFrameClocks(world, dt) {
+  world.shake = Math.max(0, world.shake - BALANCE.screen.shakeDecay * dt);
+  if (world.state === STATE.OVER) world.overTimer += dt;
+}
+
+/**
  * Advance the simulation by `dt` seconds - always `BALANCE.sim.step`, in the
  * browser; the tests are allowed to dial it. `input` is the descriptor from
  * input/index.js. Star layers are updated by the renderer, not here.
  *
  * Every system below writes px/py before it moves something, which is the whole
  * interpolation contract: a position may only change inside a step.
+ *
+ * Answers whether the step actually simulated anything. A hit-stop step does not,
+ * and the frame loop has to know that: input handed to a frozen step was never
+ * heard, so a dash pressed during one is still waiting when the world wakes up.
  */
 export function stepWorld(dt, input) {
   world.steps++;
-  world.time += dt;
-  updateEffects(world, dt);
+  world.time += dt;      // the session clock, which the eye animates on and a freeze does not stop
 
+  if (world.freeze > 0) {
+    // The freeze is spent here rather than in the frame loop on purpose: the
+    // clock has already been paid for these steps, and a timer it did not pay for
+    // would come back as a burst of catch-up steps the moment the world thawed.
+    world.freeze = Math.max(0, world.freeze - dt);
+    tickFrameClocks(world, dt);
+    return false;
+  }
+
+  updateEffects(world, dt);
   if (world.state === STATE.PLAY) stepRun(dt, input);
   else updateAmbient(world, dt);
 
-  world.shake = Math.max(0, world.shake - BALANCE.screen.shakeDecay * dt);
-  if (world.state === STATE.OVER) world.overTimer += dt;
+  tickFrameClocks(world, dt);
+  return true;
 }
 
 function stepRun(dt, input) {

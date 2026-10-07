@@ -82,11 +82,16 @@ function frame(now) {
   const input = readInput();
 
   updateStars(tick.dt);
-  for (let i = 0; i < tick.steps; i++) stepWorld(BALANCE.sim.step, input);
+  // A hit-stop step holds the run still and never hears the controls, so a frame
+  // made entirely of frozen steps must leave a pending dash waiting for the thaw.
+  let heard = false;
+  for (let i = 0; i < tick.steps; i++) {
+    if (stepWorld(BALANCE.sim.step, input)) heard = true;
+  }
   // Only a frame that actually simulated anything has handed the dash request to
   // the game. On a very quick display a frame can run no step at all, and a press
   // that landed on one of those stays pending rather than being swallowed.
-  if (tick.steps > 0) consumeInput();
+  if (heard) consumeInput();
 
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
   consumeCues(world.state);
@@ -150,6 +155,7 @@ window.STARFALL = {
       dashLeft: world.player.dashLeft,
       kills: world.kills,
       t: world.elapsed,
+      freeze: world.freeze,
       enemies: world.enemies.length,
       bullets: world.bullets.count,
       shards: world.shards.count,

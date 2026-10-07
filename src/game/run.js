@@ -48,6 +48,7 @@ export function resetRun(world) {
   world.xpNeed = BALANCE.progression.firstLevelXp;
   world.spawnTimer = BALANCE.runStart.spawnDelay;
   world.shake = 0;
+  world.freeze = 0;
   world.kills = 0;
   world.shardsCollected = 0;
   world.newBest = false;

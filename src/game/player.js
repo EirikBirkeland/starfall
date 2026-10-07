@@ -8,7 +8,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp } from '../core/math.js';
-import { burst, ring, shakeIt, spray } from './effects.js';
+import { burst, ring, shakeIt, hitStop, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { endRun } from './run.js';
 
@@ -224,6 +224,10 @@ export function hitPlayer(world, enemy) {
   ship.hull--;
   ship.invuln = spec.hitInvulnerability;
   shakeIt(world, hit.shake);
+  // The longest freeze in the game. For these milliseconds the ship is still
+  // there, the crowd is still closing in, and nothing can be done about either -
+  // which is exactly why the moment is worth stopping for.
+  hitStop(world, hit.hitStop);
   burst(world, ship.x, ship.y, PALETTE.player, hit.sparks.count, hit.sparks.speed, hit.sparks.life);
   burst(world, ship.x, ship.y, PALETTE.white, hit.flashSparks.count, hit.flashSparks.speed, hit.flashSparks.life);
   ring(world, ship.x, ship.y, PALETTE.white, hit.ring.radius, hit.ring.speed, hit.ring.life);

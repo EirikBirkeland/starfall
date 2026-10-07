@@ -6,7 +6,7 @@ import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
 import { clamp, dist2, TAU } from '../core/math.js';
-import { addText, burst, ring, shakeIt } from './effects.js';
+import { addText, burst, hitStop, ring, shakeIt } from './effects.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
@@ -178,6 +178,8 @@ export function killEnemy(world, enemy, byPlayer) {
   addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, kind.color);
   cueBeep(kind.sound.freq, kind.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
   if (kind.death.shake) shakeIt(world, kind.death.shake);
+  // A kill the kind calls big gets the run to hold its breath for a moment.
+  if (kind.death.hitStop) hitStop(world, kind.death.hitStop);
   dropShards(world, enemy.x, enemy.y, enemy.drop);
   if (enemy.type === 'tank') splitTank(world, enemy);
 }

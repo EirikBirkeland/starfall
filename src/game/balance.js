@@ -112,7 +112,10 @@ export const BALANCE = {
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
       rotateRate: 0.55,
       split: { into: 2, hpFactor: 0.5, radius: 12, drop: 1, speedMul: 1.25, impulse: 190, score: 8, offset: 8 },
-      death: { particles: 30, speed: 340, ringSpeed: 420, shake: 6 },
+      // `hitStop` marks a kill big enough to stop the run for: the seconds the
+      // whole world holds still when this kind goes down (PLAN section 4). A
+      // kind that does not ask for one is simply not a big enough event.
+      death: { particles: 30, speed: 340, ringSpeed: 420, shake: 6, hitStop: 0.04 },
       sound: { freq: 130, dur: 0.24 },
     },
   },
@@ -170,6 +173,9 @@ export const BALANCE = {
   },
 
   playerHit: {
+    // The hit-stop for the ship itself: longer than a big kill's, because this is
+    // the one moment in a run the player has to be able to feel.
+    hitStop: 0.09,
     sparks: { count: 34, speed: 340, life: 0.8 },
     flashSparks: { count: 12, speed: 200, life: 0.5 },
     ring: { radius: 8, speed: 420, life: 0.5 },
