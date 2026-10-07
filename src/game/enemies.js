@@ -19,10 +19,10 @@ function rollKind(world) {
   const e = BALANCE.enemies;
   const roll = logic.next();
   const tankChance = world.elapsed > e.tankFrom ? e.tankChance + world.difficulty * e.tankChanceRamp : 0;
-  const darterChance = e.darterChance + world.difficulty * e.darterChanceRamp;
+  const weaverChance = e.weaverChance + world.difficulty * e.weaverChanceRamp;
   if (roll < tankChance) return 'tank';
-  if (roll < tankChance + darterChance) return 'darter';
-  return 'chaser';
+  if (roll < tankChance + weaverChance) return 'weaver';
+  return 'drifter';
 }
 
 const EDGES = 4;   // an enemy arrives from one of four directions

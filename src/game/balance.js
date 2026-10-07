@@ -109,14 +109,17 @@ export const BALANCE = {
   // game/kinds.js; this is the data it reads. `glow` is the one exception: it
   // is not read by the simulation at all, it is how far that kind's halo reaches
   // past its body, in pixels, and only the renderer looks at it.
+  // One row per kind, named as PLAN 3.3 names them: a drifter walks at you, a
+  // weaver weaves, a tank turns slowly and comes apart. `hull` is counted in
+  // player shots (a bullet does `bullets.damage`), not in PLAN's damage numbers.
   kinds: {
-    chaser: {
+    drifter: {
       radius: 15, speed: 76, hull: 3, score: 10, drop: 2,
       color: PALETTE.violet, fill: PALETTE.violetFill, sides: 3, glow: 16,
       death: { particles: 16, speed: 240, debris: 4, debrisSpeed: 120 },
       sound: { freq: 210, dur: 0.12 },
     },
-    darter: {
+    weaver: {
       radius: 10, speed: 172, hull: 1, score: 15, drop: 1,
       color: PALETTE.pink, fill: PALETTE.pinkFill, sides: 3, glow: 14,
       wobble: { amount: 0.42, rate: 5.5 },
@@ -130,7 +133,7 @@ export const BALANCE = {
       rotateRate: 0.55,
       // What it comes apart into: `into` of `type`, thrown outwards at `impulse`
       // from `offset` out. Naming the kind here is what lets the split be data.
-      split: { into: 2, type: 'chaser', hpFactor: 0.5, radius: 12, drop: 1, speedMul: 1.25, impulse: 190, score: 8, offset: 8 },
+      split: { into: 2, type: 'drifter', hpFactor: 0.5, radius: 12, drop: 1, speedMul: 1.25, impulse: 190, score: 8, offset: 8 },
       // `hitStop` marks a kill big enough to stop the run for: the seconds the
       // whole world holds still when this kind goes down (PLAN section 4). A
       // kind that does not ask for one is simply not a big enough event.
@@ -167,7 +170,7 @@ export const BALANCE = {
     spawnBase: 1.18, spawnDecay: 0.0068, spawnFloor: 0.2,
     spawnJitter: [0.72, 1.3],
     tankFrom: 10, tankChance: 0.13, tankChanceRamp: 0.14,
-    darterChance: 0.28, darterChanceRamp: 0.18,
+    weaverChance: 0.28, weaverChanceRamp: 0.18,
     extraWaves: [{ at: 45, chance: 0.3 }, { at: 110, chance: 0.28 }],
     separationDrag: 0.02,   // leftover impulse decays to this fraction per second
     separationEpsilon: 0.0001,   // closer than this, and the push is meaningless
@@ -263,8 +266,8 @@ export const BALANCE = {
 
   ambient: {
     // The slow, harmless crowd that drifts behind the title screen.
-    kinds: ['chaser', 'darter', 'tank', 'chaser', 'darter', 'tank', 'chaser'],
-    refillKinds: ['chaser', 'darter', 'tank'],
+    kinds: ['drifter', 'weaver', 'tank', 'drifter', 'weaver', 'tank', 'drifter'],
+    refillKinds: ['drifter', 'weaver', 'tank'],
     target: 7,
     refillChance: 1.2,     // per second
     speedFactor: 0.45,

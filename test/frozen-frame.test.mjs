@@ -85,7 +85,7 @@ test('dying stops the world, and the summary arrives anyway', () => {
   ship.invuln = 0;
   ship.dashLeft = 0;                        // a dash is its own kind of grace; this test wants a hit
   ship.fireTimer = 5;                        // no shot, or it would kill the planted enemy first
-  game.enemies.push(makeEnemy(game.world, 'chaser', ship.x, ship.y, {
+  game.enemies.push(makeEnemy(game.world, 'drifter', ship.x, ship.y, {
     hp: 1, speed: 0, drop: 0, score: 0,
   }));
   game.step();

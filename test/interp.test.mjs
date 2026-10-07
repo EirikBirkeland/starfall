@@ -43,8 +43,8 @@ test('everything that moves keeps the place it came from', () => {
   field.player.vx = 200;                // the ship is coasting; the scripted step gives no input
   field.player.vy = -150;
   fire(field);
-  const foe = enemyAt('chaser', 480, 200);
-  foe.speed = 90;                       // a chaser on its way to the ship
+  const foe = enemyAt('drifter', 480, 200);
+  foe.speed = 90;                       // a drifter on its way to the ship
   dropShards(field, 400, 300, 3);
   burst(field, 300, 300, PALETTE.spark, 6, 140, 0.5);
 
@@ -66,7 +66,7 @@ test('everything that moves keeps the place it came from', () => {
 test('a spark made by a hit has no past of its own', () => {
   const field = scriptedRun(43);
   bulletFlyingToward(480, 214, 0, -600);
-  const target = enemyAt('chaser', 480, 200, 1);
+  const target = enemyAt('drifter', 480, 200, 1);
 
   stepTheWorld();
 
@@ -83,7 +83,7 @@ test('the crowd remembers where the step began, not where the shoving left it', 
   // A pile of three is where that shows up.
   const field = scriptedRun(44);
   const pile = [
-    enemyAt('chaser', 480, 200), enemyAt('chaser', 484, 204), enemyAt('chaser', 478, 205),
+    enemyAt('drifter', 480, 200), enemyAt('drifter', 484, 204), enemyAt('drifter', 478, 205),
   ];
   const where = pile.map((enemy) => ({ x: enemy.x, y: enemy.y }));
 

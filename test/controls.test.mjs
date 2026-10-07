@@ -35,7 +35,7 @@ test('the press that launches a run is not also a dash', () => {
   assert.equal(game.stats().state, game.STATE.PLAY, 'Space launched the run');
 
   game.world.spawnTimer = Infinity;        // these tests are about the controls,
-  ship.invuln = Infinity;                  // not about dying to the first chaser
+  ship.invuln = Infinity;                  // not about dying to the first drifter
   for (let i = 0; i < 20; i++) game.step();
   assert.equal(ship.dashCd, 0, 'the launch spent the dash');
   assert.equal(ship.dashLeft, 0, 'and it did not move the ship out from under itself');

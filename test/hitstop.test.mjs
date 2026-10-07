@@ -70,7 +70,7 @@ test('a big kill holds the run still for exactly its hit-stop', () => {
 
 test('a kill that is not big does not stop anything', () => {
   const field = scriptedRun(22);
-  enemyAt('chaser', 400, 300, 1);
+  enemyAt('drifter', 400, 300, 1);
   bulletFlyingToward(400, 300, 0, 0);
 
   step();
@@ -84,7 +84,7 @@ test('being hit is the longest stop in the game', () => {
   const field = scriptedRun(23);
   const ship = field.player;
   ship.invuln = 0;                    // this test is about the ship, not its grace
-  enemyAt('chaser', ship.x, ship.y);
+  enemyAt('drifter', ship.x, ship.y);
 
   const hull = ship.hull;
   step();

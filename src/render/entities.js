@@ -49,7 +49,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   ctx.lineWidth = 2;
   ctx.strokeStyle = flash > 0.4 ? PALETTE.white : look.color;
   ctx.fillStyle = look.fill;
-  if (enemy.type === 'darter') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
+  if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
   ctx.stroke();

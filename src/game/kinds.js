@@ -33,12 +33,12 @@ import { clamp, TAU } from '../core/math.js';
  * balance.js; `walk` and `onDeath` are what it does.
  */
 export const KINDS = {
-  chaser: {
-    stats: BALANCE.kinds.chaser,
+  drifter: {
+    stats: BALANCE.kinds.drifter,
     walk: walksStraight,
   },
-  darter: {
-    stats: BALANCE.kinds.darter,
+  weaver: {
+    stats: BALANCE.kinds.weaver,
     walk: walksWeaving,
   },
   tank: {
@@ -140,8 +140,8 @@ function walksStraight(enemy, step) {
 }
 
 /**
- * At the ship, but swerving from side to side so that leading it is hard. The nose
- * follows the swerve and not the line, so what you see is the way it is going.
+ * At the ship, but weaving from side to side so that leading it is hard. The nose
+ * follows the weave and not the line, so what you see is the way it is going.
  */
 function walksWeaving(enemy, step) {
   const stats = statsOf(enemy);

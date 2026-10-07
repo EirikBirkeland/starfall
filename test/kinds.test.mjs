@@ -85,9 +85,9 @@ test('the collision broad phase is wide enough for the fattest thing in the aren
   assert.equal(widestEnemyRadius(), fattest);
 });
 
-test('a chaser walks the straight line to the ship, nose first', () => {
-  const { enemy } = standing(11, 'chaser', 1500, 1100);
-  const expect = BALANCE.kinds.chaser.speed * STEP;   // at elapsed 0 nothing has scaled yet
+test('a drifter walks the straight line to the ship, nose first', () => {
+  const { enemy } = standing(11, 'drifter', 1500, 1100);
+  const expect = BALANCE.kinds.drifter.speed * STEP;   // at elapsed 0 nothing has scaled yet
 
   stepTheWorld();
 
@@ -97,26 +97,26 @@ test('a chaser walks the straight line to the ship, nose first', () => {
   assert.ok(Math.abs(enemy.rot - Math.PI / 2) < 1e-9, 'its nose points at the ship');
 });
 
-test('a darter walks the same line swerving both ways across it', () => {
-  const straight = headingAgainstTheShip('chaser', 12);
-  const weaving = headingAgainstTheShip('darter', 12);
+test('a weaver walks the same line swerving both ways across it', () => {
+  const straight = headingAgainstTheShip('drifter', 12);
+  const weaving = headingAgainstTheShip('weaver', 12);
 
   const widest = Math.max(...straight.map(Math.abs));
-  assert.ok(widest < 1e-9, 'a chaser never swerved, by ' + widest.toFixed(12) + ' rad');
+  assert.ok(widest < 1e-9, 'a drifter never swerved, by ' + widest.toFixed(12) + ' rad');
 
   const amount = weaving.map(Math.abs);
   assert.ok(Math.max(...amount) > 0.3,
-    'a darter swerved up to ' + Math.max(...amount).toFixed(2) + ' rad off the line');
+    'a weaver swerved up to ' + Math.max(...amount).toFixed(2) + ' rad off the line');
   const left = weaving.filter((t) => t > 0).length;
   assert.ok(left > 20 && left < weaving.length - 20,
     'and it crossed to both sides: ' + left + ' steps left of the line out of ' + weaving.length);
 
-  const wobble = BALANCE.kinds.darter.wobble.amount;
+  const wobble = BALANCE.kinds.weaver.wobble.amount;
   assert.ok(Math.max(...amount) <= wobble + 1e-9, 'and never further than its numbers say');
 });
 
-test('a darter keeps closing on the ship while it swerves', () => {
-  const { field, enemy } = standing(13, 'darter', 1500, 700);
+test('a weaver keeps closing on the ship while it swerves', () => {
+  const { field, enemy } = standing(13, 'weaver', 1500, 700);
   const target = field.player;
   const was = Math.hypot(enemy.x - target.x, enemy.y - target.y);
 
@@ -140,7 +140,7 @@ test('a tank turns on the spot at its own pace, whatever way the ship is', () =>
 });
 
 test('a shove an enemy is still carrying carries on, and dies away', () => {
-  const { enemy } = standing(15, 'chaser', 1500, 1000);
+  const { enemy } = standing(15, 'drifter', 1500, 1000);
   enemy.speed = 0;                 // so the only thing moving it is the shove
   enemy.ix = 300;
 
@@ -177,16 +177,16 @@ test("a tank's death leaves its hatchlings; other kinds leave nothing", () => {
   assert.ok(Math.abs(Math.hypot(kid.ix, kid.iy) - spec.impulse) < 1e-9,
     'and it is thrown clear at the speed they say');
 
-  const lone = standing(17, 'chaser', 600, 600);
+  const lone = standing(17, 'drifter', 600, 600);
   const before = lone.field.enemies.length;
   killEnemy(lone.field, lone.enemy, true);
-  assert.equal(lone.field.enemies.length, before - 1, 'a chaser leaves only its wreck');
+  assert.equal(lone.field.enemies.length, before - 1, 'a drifter leaves only its wreck');
 });
 
 test('walking the crowd spends no randomness, so a walk cannot move a run', () => {
   const field = scriptedRun(18);
-  field.enemies.push(makeEnemy(field, 'chaser', 1200, 1400));
-  field.enemies.push(makeEnemy(field, 'darter', 1600, 1300));
+  field.enemies.push(makeEnemy(field, 'drifter', 1200, 1400));
+  field.enemies.push(makeEnemy(field, 'weaver', 1600, 1300));
   field.enemies.push(makeEnemy(field, 'tank', 1400, 1700));
 
   const state = logic.state;

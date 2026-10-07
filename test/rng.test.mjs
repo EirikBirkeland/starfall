@@ -89,7 +89,7 @@ test('chance happens about the number of times it says it will', () => {
 
 test('pick only picks from the list, and reaches all of it', () => {
   const rng = streamFor(5);
-  const kinds = ['chaser', 'darter', 'tank'];
+  const kinds = ['drifter', 'weaver', 'tank'];
   const seen = new Set();
   for (let i = 0; i < 2000; i++) {
     const kind = rng.pick(kinds);

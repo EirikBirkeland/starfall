@@ -23,8 +23,8 @@ test('the grid is rebuilt from the crowd every step', () => {
   const field = scriptedRun(3);
   assert.equal(field.grid.count, 0, 'a fresh run has nothing to find');
 
-  const near = enemyAt('chaser', 200, 300);
-  const far = enemyAt('darter', 700, 300);
+  const near = enemyAt('drifter', 200, 300);
+  const far = enemyAt('weaver', 700, 300);
   bulletFlyingToward(480, 300, 0, -1);      // a stray that meets nobody
 
   step();
@@ -33,14 +33,14 @@ test('the grid is rebuilt from the crowd every step', () => {
   assert.equal(field.grid.count, 2, 'every enemy in the crowd got filed');
   assert.equal(field.grid.items, field.grid.count, 'and count means what it says');
 
-  const found = field.grid.queryCircle(200, 300, contactOf('chaser'));
+  const found = field.grid.queryCircle(200, 300, contactOf('drifter'));
   assert.ok(found.includes(near), 'the world can be asked who stands there');
   assert.ok(!found.includes(far), 'and it is not told about the far side of the arena');
 });
 
 test('a shot that reaches an enemy does the damage and is spent', () => {
   const field = scriptedRun(4);
-  const target = enemyAt('chaser', 480, 200);
+  const target = enemyAt('drifter', 480, 200);
   const before = target.hp;
   bulletFlyingToward(480, 214, 0, -600);    // one step later it is inside contact
 
@@ -53,13 +53,13 @@ test('a shot that reaches an enemy does the damage and is spent', () => {
 
 test('a shot that stops short of an enemy does nothing', () => {
   const field = scriptedRun(5);
-  const contact = contactOf('chaser');
-  const target = enemyAt('chaser', 480, 200);
+  const contact = contactOf('drifter');
+  const target = enemyAt('drifter', 480, 200);
   bulletFlyingToward(480, 200 + contact + 4, 0, -60);   // ends 4px shy
 
   step();
 
-  assert.equal(target.hp, BALANCE.kinds.chaser.hull, 'it grazed past without touching');
+  assert.equal(target.hp, BALANCE.kinds.drifter.hull, 'it grazed past without touching');
   assert.equal(field.bullets.count, 1, 'and flew on, unspent');
 });
 
@@ -68,7 +68,7 @@ test('one enemy dies once: a corpse in the grid is not shootable', () => {
   // until the next rebuild. It has already paid out, so the rest of the shot
   // must sail through it.
   const field = scriptedRun(6);
-  enemyAt('chaser', 480, 200, 1);
+  enemyAt('drifter', 480, 200, 1);
   for (let i = 0; i < 5; i++) bulletFlyingToward(480 + i * 2, 200, 0, 0);
 
   step();
@@ -76,7 +76,7 @@ test('one enemy dies once: a corpse in the grid is not shootable', () => {
   assert.equal(field.kills, 1, 'one kill, not five');
   assert.equal(field.enemies.length, 0, 'and it left the crowd');
   assert.equal(field.bullets.count, 4, 'four of the five shots are still in the air');
-  assert.equal(field.score, BALANCE.kinds.chaser.score, 'paid out exactly once');
+  assert.equal(field.score, BALANCE.kinds.drifter.score, 'paid out exactly once');
 });
 
 test('a tank hatchling cannot be shot in the step it appears', () => {

@@ -186,7 +186,7 @@ test('nothing can touch you while you dash', () => {
   const field = openSky(78);
   const ship = field.player;
   const hull = ship.hull;
-  const foe = enemyAt('chaser', ship.x + 90, ship.y);
+  const foe = enemyAt('drifter', ship.x + 90, ship.y);
   const reach = foe.r + ship.r;
 
   stepTheWorld(pressDash(field));
@@ -210,7 +210,7 @@ test('nothing can touch you while you dash', () => {
 test('a dash shoulders the crowd out of the way', () => {
   const field = openSky(79);
   const ship = field.player;
-  const foe = enemyAt('chaser', ship.x + 40, ship.y);
+  const foe = enemyAt('drifter', ship.x + 40, ship.y);
   const before = foe.x;
 
   stepTheWorld(pressDash(field));

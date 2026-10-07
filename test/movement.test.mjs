@@ -127,7 +127,7 @@ test('an enemy has to touch the ship to hurt it', () => {
   const field = scriptedRun(66);
   const ship = field.player;
   ship.invuln = 0;
-  const foe = enemyAt('chaser', 0, 0);
+  const foe = enemyAt('drifter', 0, 0);
 
   // Overlapping the drawing of the ship and nowhere near the part that can be
   // hurt. This is the whole point of a small hit radius.

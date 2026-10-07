@@ -29,7 +29,7 @@ function killTheShip(score) {
   ship.invuln = 0;
   ship.fireTimer = 5;          // no shot, or it would kill the planted enemy first
   game.world.score = score || 0;
-  game.enemies.push(makeEnemy(game.world, 'chaser', ship.x, ship.y, {
+  game.enemies.push(makeEnemy(game.world, 'drifter', ship.x, ship.y, {
     hp: 1, speed: 0, drop: 0, score: 0,
   }));
   game.step();

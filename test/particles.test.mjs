@@ -48,20 +48,20 @@ function messFrom(type, bodyRadius) {
 
 test('a death throws sparks and chunks of the thing that died', () => {
   const field = scriptedRun(1);
-  killEnemy(field, enemyAt('chaser', 500, 500), false);
+  killEnemy(field, enemyAt('drifter', 500, 500), false);
 
   assert.ok(sparks(field).length > 8, 'sparks: ' + sparks(field).length);
   assert.ok(chips(field).length > 0, 'and it left chunks of itself behind');
 });
 
 test('the bigger the wreck, the more chunks it leaves', () => {
-  const darter = messFrom('darter');
-  const chaser = messFrom('chaser');
+  const weaver = messFrom('weaver');
+  const drifter = messFrom('drifter');
   const tank = messFrom('tank');
 
-  assert.ok(tank.chips > chaser.chips && chaser.chips > darter.chips,
-    'chunks went darter ' + darter.chips + ', chaser ' + chaser.chips + ', tank ' + tank.chips);
-  assert.ok(tank.sparks > chaser.sparks && chaser.sparks > darter.sparks,
+  assert.ok(tank.chips > drifter.chips && drifter.chips > weaver.chips,
+    'chunks went weaver ' + weaver.chips + ', drifter ' + drifter.chips + ', tank ' + tank.chips);
+  assert.ok(tank.sparks > drifter.sparks && drifter.sparks > weaver.sparks,
     'and the same for the sparks');
 });
 
@@ -211,9 +211,9 @@ function playScriptedSeed(seed, burn) {
   const field = scriptedRun(seed);
   for (let i = 0; i < burn; i++) fx.next();
 
-  enemyAt('chaser', 1500, 1400);
-  enemyAt('chaser', 1500, 1300);
-  enemyAt('darter', 1500, 1200, 1);
+  enemyAt('drifter', 1500, 1400);
+  enemyAt('drifter', 1500, 1300);
+  enemyAt('weaver', 1500, 1200, 1);
   flyFor(2, { firing: true });
 
   return {
