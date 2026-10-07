@@ -204,10 +204,15 @@ export const BALANCE = {
     // Whatever share of the roll the unlocked ones leave over goes to `mixFallback`,
     // the plain walker. This is the seed of the wave director (milestone 3) and is
     // meant to be replaced by it, not grown into it.
+    //
+    // The chances are a share of one roll, so they have to stay under 1 together or
+    // the walker at the bottom stops being rolled at all: `chance + ramp` is what a
+    // row costs once the difficulty ramp has run out, and a row added without taking
+    // one away eats straight into the plain chaff at the bottom.
     mix: [
-      { type: 'tank', from: 10, chance: 0.13, ramp: 0.14 },
-      { type: 'weaver', from: 0, chance: 0.28, ramp: 0.18 },
-      { type: 'darter', from: 60, chance: 0.1, ramp: 0.1 },
+      { type: 'tank', from: 10, chance: 0.12, ramp: 0.1 },
+      { type: 'weaver', from: 0, chance: 0.24, ramp: 0.12 },
+      { type: 'darter', from: 60, chance: 0.08, ramp: 0.08 },
     ],
     mixFallback: 'drifter',
     extraWaves: [{ at: 45, chance: 0.3 }, { at: 110, chance: 0.28 }],
