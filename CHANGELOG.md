@@ -1,5 +1,22 @@
 # Starfall — changelog
 
+## 0.2.4 — 2026-10-07
+The arena is a world now: 3000 × 3000, and a camera to fly it.
+- The fight moved off the window and into a world about six screens across. The view follows the ship
+  one for one - it never slides around under you - and leans a little towards whatever you are aiming
+  at, so you see a touch more of what you are pointing at.
+- The edge of the world is a glowing energy wall: a bright line, a soft band, and a row of ticks
+  reaching in. Only the edges you can actually see are drawn.
+- Nothing arrives in plain sight any more. Enemies come in just off the edge of the screen and never
+  within 260 px of the ship, so being cornered against the world's edge no longer means a chaser
+  lands on you.
+- Shots, sparks, shards and enemies you cannot see are not drawn at all.
+- The simple bot now survives about 1m20s where it took 1m00s, because it can back away instead of
+  being trapped by the edge of the window. The reference run was rebaselined on purpose.
+- Test suite is up to 147: the camera follows, clamps, leans and turns the cursor back into a place in
+  the world; every arrival is off-screen, in the world and off the ship; a wall costs four strokes per
+  visible edge and nothing for an edge you cannot see.
+
 ## 0.2.3 — 2026-10-07
 The game stops for the hits that matter: hit-stop is in.
 - Killing a big enemy holds the whole world still for 40 ms; taking a hit yourself holds it for 90 ms.

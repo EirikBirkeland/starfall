@@ -811,3 +811,121 @@ count of frozen steps, which is a nice trick to remember).
      size range) and the thruster is a drawn flame, not a trail. Either add a real debris particle
      (slower, bigger, longer-lived, spawned by the bigger kinds) and a couple of sparks out of the
      thruster, or [skipped] the parts that are the same thing by another name.
+
+## Session 12 (2026-10-07) — Milestone 2: the arena is a world
+
+### What landed
+PLAN section 4's "the arena is larger than the screen, 3000 × 3000, with a camera that follows the
+player and leans slightly towards the cursor. The edges are a glowing energy wall". M2's biggest open
+item, and the last thing that was really missing from it.
+
+- **`world.arena` is a fixed 3000 × 3000 now** (`BALANCE.arena.w/h`) and `world.view` is the window,
+  which the frame loop writes on every resize the way it used to write the arena. That split is the
+  whole change on the simulation side: **the sim is allowed to know how big the screen is and nothing
+  else about it** - it needs it to put things off the edge of it. It is still display-dependent in the
+  same way it always was (a run played on a 1920 window is not the run played on 1280); what is *new*
+  is that the world itself no longer changes size when the window does.
+- **`src/render/camera.js`** is the whole view. `followCamera(dt, alpha, input)` runs once per frame
+  from `renderFrame`, follows the ship's *interpolated* position **one for one** (no smoothing on the
+  follow: the ship must not swim), and leans `LEAN_FRACTION` (0.16) of the way from the ship to
+  whatever it is aiming at, capped at 150 px, eased with the usual `pow(k, dt)` share-left-over-
+  after-a-second rule. `centreOn` clamps so the window never shows more world than there is; if the
+  window is bigger than the arena the arena floats in the middle of it. `resolveAim(input)` turns the
+  controls' pixels into an arena point (in place, once per frame, in `main.js` before the steps) and
+  `screenX/screenY` turn them back - which is how the headless bot aims now.
+  The lean is a *fixed point*, not a chase: because the bot (and a player holding the mouse still)
+  re-aims from wherever the camera ended up, the feedback converges at `f·d/(1-f)` instead of running
+  away. Worth knowing before anybody is tempted to make the lean bigger than ~0.25.
+- **Spawning moved from the arena's edge to the screen's.** `arrivalSpot` puts an enemy on the border
+  of the view box around the ship (`viewBox`, grown by `radius + spawnMargin`) and rejects anything
+  outside the arena or closer than `spawnMinDistance` (260 px), trying `spawnAttempts` (8) times and
+  then giving up until the next tick. If the whole arena is on screen there is no "off screen" left,
+  so a second pass falls back to the arena's own border. `spawnEnemy` now answers whether one came.
+  This is PLAN milestone 3's "spawns happen off-screen, never on top of the player", arrived at early
+  because the arena made the old rule wrong.
+- **`src/render/walls.js`**: each arena edge the window can see, stroked three times (wide faint →
+  medium → thin bright, the house trick for light without a blur) plus one pass of ticks every 48 px
+  on the world's own grid so the corners line up, all breathing slowly on `world.time`. Four strokes
+  per visible edge, and nothing at all for an edge that is not in sight. Cool blue (`PALETTE.wall`),
+  because warm means harm and the wall is not harm.
+- **The renderer's frame is now** `renderFrame(tick, input)`: sky in screen space, one
+  `translate(-camera.x, -camera.y)`, then every draw call speaks arena coordinates. The vignette
+  moved *outside* the shake translate (it was leaving an unvignetted sliver on one edge every time the
+  screen shook). The starfield parallaxes off the camera's drift from the arena's centre now, not off
+  the ship's offset from the window's.
+- **Culling**: `onScreen(x, y, pad)` guards enemies, shots, shards and sparks. Rings and labels are
+  left alone (a run holds a handful of each and a ring reaches in from off screen as often as not).
+- **The menu crowd keeps to the middle of the world** - the part the title screen is looking at
+  (`crowdBox` in `game/ambient.js`), so wrapping happens around the window and not around 3000 px of
+  black. Same for where the ambient enemies are first put.
+- `STARFALL.camera` (live), `STARFALL.screenOf(x, y)`, and `STARFALL.resetCamera()`. The harness
+  calls `resetCamera()` in `resetToTitle` beside `resetClock()`, for the same reason: a second run on
+  one boot has to start with a view that has not been looking somewhere else, or "the same seed plays
+  the same run" is a lie by 1e-4 px of leftover lean.
+
+### The difficulty moved, and it is the fairness, not a bug
+Reference run, rebaselined on purpose: `--seed 20261006 --trace` → **dies 1m28s, score 1361, level 5,
+93 kills, 73 shards** (was 1m04s / 816 / level 3 / 57 / 36). Bot over seeds 1-4: **1m20s, score 1012**
+(was 1m04s / 828). Two things pay for that, both wanted: the ship has room to back off instead of
+being pinned by the edge of the window, and a spawn can no longer land 34 px from a player who is
+hugging a wall (the old margin was measured from the *arena*, which was the screen).
+Checked that it is not a mistake, two ways: with the arena shrunk back to 1280 × 720 at runtime the bot
+comes back down to ~64 s, and the crowd on screen at 60 s is the same as it was (17 of 21 enemies
+inside the window), so the density did not thin out.
+
+### Proof and numbers
+- **147 tests, all passing** (was 129). `test/camera.test.mjs` (7: opens on the middle of the arena,
+  follows, never shows more world than there is at five places along a diagonal, leans and only so far,
+  *the cursor points at the arena and not at the glass* - including a check that the naive
+  pixels-are-arena answer is a different direction entirely - an exact screen⇄arena round trip, and a
+  3600 × 3200 window with the world floating in it), `test/arena.test.mjs` (7: the world is twice the
+  window and the ship can leave the window behind but not the world; 300 arrivals all off-screen, in
+  the world and > 260 px from the ship; the same from a corner of the world; an enormous window falls
+  back to the world's edge; the menu crowd stays in view and wraps around the window),
+  `test/walls.test.mjs` (4, counted in strokes: nothing in the open, one edge at a wall, two at a
+  corner, nothing for a wall a screen away).
+  Three existing tests moved honestly: the resize test now says the *view* changed and the arena did
+  not; the pool test lets its shots live out instead of leaving the arena; `simulate.test`'s window is
+  240 s because the bot lives longer than 90 now.
+- Draw cost at 45-50 s into a bot run, old vs new (throwaway probe against a `git worktree` of HEAD):
+  254 fills/frame before, 247 after, and the strokes went *up* by 1.7/frame - the wall ticks. So the
+  culling is not a win in the bot's game, where nearly everything happens next to the ship; it is
+  insurance for a player who runs across the world. Say so rather than claim a speedup.
+
+### Decisions, so nobody relitigates them
+- **No smoothing on the follow, only on the lean.** A lagging camera in a game where you thread
+  between enemies is a bug (and it would have made the interpolation fight it).
+- The lean comes from the *aim point*, not from the cursor's screen offset, so it does not care where
+  on the glass the mouse happens to sit and it cannot feed itself around.
+- The camera lives in `render/` (PLAN section 2's layout) and `game/` never reads it. The one bit of
+  the screen the sim does read, `world.view`, is written by `main.js` on resize.
+- `world.view` is a size, not a position, so a run still cannot depend on where the view happened to
+  be looking; only on how big it is. That is the line I did not want to cross.
+
+### Watch out
+- `readInput()` returns one shared descriptor and `resolveAim` mutates its `aimX/aimY`. `readInput`
+  refills them from the mouse every call, so the pair is safe - but do not call `resolveAim` twice on
+  one frame's input.
+- Tests that measure strokes per frame: the ship + hull pips + XP bar frame is 6 strokes today. That
+  is what `walls.test.mjs` differences are built on.
+- The scripted world (`tools/headless/scripted.js`) never renders, so `camera` sits at 0,0 with w=0 and
+  every `onScreen` says no. Harmless today (nothing in those files draws); if a test ever wants both,
+  call `snapCamera()` after moving the ship.
+- The headless bot needs `STARFALL.screenOf` - a bot written against an old release's globals will
+  throw. It is in `tools/headless/harness.js`'s controller too.
+
+### Released **v0.2.4**.
+
+### Next (Milestone 2, what is left)
+1. **Nebula backdrop** (PLAN section 4's last missing visual): slow drifting clouds on an offscreen
+   canvas behind the three star layers, baked at device resolution like the glow sprites. It belongs
+   in `render/background.js`, and it has to be drawn in *screen* space with the camera's drift folded
+   in, the way `drawStars` does now.
+2. The two M2 checkboxes session 11 left: *knockback* (tick it: bullet impulse, the hit shove and the
+   dash shoulder are all in) and *particles* - sparks, rings and the pooling exist; **debris does not**
+   (every death spark is the same 1.3-3.4 px) and the thruster is a drawn flame rather than a trail.
+   Add a real debris particle for the bigger kinds and a couple of sparks off the thruster, or mark
+   the duplicated parts [skipped].
+3. Then M2's release, and M3: enemies as data, enemy bullets, the wave director (the spawn rule here
+   is the seed of it), elites, off-screen indicators - the arena is now big enough to want them.
+
