@@ -136,6 +136,7 @@ test('everything inside the circle is hurt and everything outside is not', () =>
   const edge = standing(field, 'drifter', 1500, 1000 - B.radius);
   const outside = standing(field, 'drifter', 1500, 1000 + B.radius + 1);
   const bystander = standing(field, 'tank', 1500, 1000 + 40);
+  const sideways = standing(field, 'drifter', 1500 + 60, 1000);
 
   killEnemy(field, bomber, true);
 
@@ -151,6 +152,8 @@ test('everything inside the circle is hurt and everything outside is not', () =>
   assert.ok(edge.iy < 0 && Math.abs(edge.ix) < 1e-9,
     'the one above the blast is thrown up: ix ' + edge.ix.toFixed(3) + ', iy ' + edge.iy.toFixed(1));
   assert.ok(bystander.iy > 0, 'and the one below it down');
+  assert.ok(sideways.ix > 0 && Math.abs(sideways.iy) < 1e-9,
+    'and the one beside it sideways, with nothing it did not ask for');
 });
 
 test('the ship standing in the circle pays a hull for it', () => {
@@ -183,12 +186,15 @@ test('a ship outside the circle, or a ship that cannot be hurt, pays nothing', (
 
 test('a blast is a big enough event to stop the run for', () => {
   const { field, bomber } = parked(9, 1500, 1000);
+  const itsOwn = STATS.death.particles + STATS.death.debris;    // the wreck every kind makes
 
   killEnemy(field, bomber, true);
 
   assert.equal(field.freeze, B.hitStop, 'hit-stop, PLAN section 4');
   assert.ok(field.shake >= B.shake, 'and trauma: ' + field.shake.toFixed(1));
-  assert.ok(field.rings.count > 0 && field.particles.count > 0, 'and light to see it in');
+  assert.equal(field.particles.count, itsOwn + B.flash.count,
+    'the corpse sprays its own mess and the blast adds its flash on top: ' + field.particles.count);
+  assert.equal(field.rings.count, 2, 'one shockwave for the death and one for the blast');
 });
 
 // --- who did it -------------------------------------------------------------

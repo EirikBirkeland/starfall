@@ -15,6 +15,7 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
+import { fuseLight, zoneLight } from '../src/render/entities.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 44 });
@@ -139,8 +140,91 @@ test('a wounded bomber is the same drawing, only louder', () => {
   wounded.hp = 1;
   const critical = frameCost();
 
-  // The tell is opacity and pulse rate, which the stub cannot see; what it can see is
-  // that the warning costs no more to draw as it gets louder, so it is never dropped
-  // on a busy frame for being expensive.
+  // The tell is opacity and pulse rate, which the counters above cannot see; what they
+  // can say is that the warning costs no more to draw as it gets louder, so it is
+  // never the first thing dropped on a busy frame.
   assert.deepEqual(critical, whole);
+});
+
+/**
+ * How many times a bomber's light turns around in one second - how many times it
+ * reaches a top or a bottom. A light that does not breathe turns zero times, and one
+ * that breathes twice as fast turns about twice as often, which is the only honest
+ * way to measure a pulse from a function of time.
+ */
+function turns(light, enemy) {
+  let turnCount = 0;
+  let direction = 0;
+  let previous = light(enemy, 0);
+  for (let t = 0.0005; t <= 1.0001; t += 0.0005) {
+    const now = light(enemy, t);
+    if (now > previous + 1e-12) {
+      if (direction < 0) turnCount++;
+      direction = 1;
+    } else if (now < previous - 1e-12) {
+      if (direction > 0) turnCount++;
+      direction = -1;
+    }
+    previous = now;
+  }
+  return turnCount;
+}
+
+/** The brightest and the quietest a light gets across `seconds` of the frame clock. */
+function range(light, enemy, seconds) {
+  const span = seconds === undefined ? 1 : seconds;
+  let low = Infinity;
+  let high = -Infinity;
+  for (let t = 0; t <= span + 1e-9; t += 0.001) {
+    const now = light(enemy, t);
+    if (now < low) low = now;
+    if (now > high) high = now;
+  }
+  return { low, high };
+}
+
+function aBomber(hullLeft) {
+  const field = game.world;
+  const bomber = makeEnemy(field, 'bomber', ship.x + 200, ship.y);
+  bomber.hp = hullLeft === undefined ? bomber.maxhp : hullLeft;
+  return bomber;
+}
+
+test('the ring breathes, and breathes harder the closer the bomber is to going', () => {
+  const whole = aBomber();
+  const hurt = aBomber(Math.round(whole.maxhp * 0.6));
+  const critical = aBomber(1);
+
+  const calm = range(zoneLight, whole);
+  assert.equal(calm.low, calm.high, 'a whole one is a steady circle, not a blinking one');
+
+  const half = range(zoneLight, hurt);
+  assert.ok(half.high > half.low, 'a wounded one breathes');
+  assert.ok(half.low > calm.high, 'and is never as quiet as a whole one');
+
+  const shouting = range(zoneLight, critical);
+  assert.ok(shouting.low > calm.high, 'the near-dead one is louder still at the bottom of its breath');
+  assert.ok(turns(zoneLight, whole) === 0, 'the steady one turns ' + turns(zoneLight, whole) + ' times');
+  assert.ok(turns(zoneLight, hurt) >= 2, 'the wounded one turns ' + turns(zoneLight, hurt) + ' times');
+  assert.ok(turns(zoneLight, critical) > turns(zoneLight, hurt),
+    'and the dying one breathes fastest: ' + turns(zoneLight, critical) + ' against ' + turns(zoneLight, hurt));
+});
+
+test('the fuse is never out, and it strobes harder too', () => {
+  const whole = aBomber();
+  const critical = aBomber(1);
+
+  // Four seconds, so that even the slow breath of a whole bomber is watched through
+  // more than a whole cycle and the two bottoms are really being compared.
+  const calm = range(fuseLight, whole, 4);
+  assert.ok(calm.low > 0, 'a whole bomber still shows a lit fuse: ' + calm.low.toFixed(2));
+  assert.ok(calm.high > calm.low, 'and it breathes, however gently');
+
+  const shouting = range(fuseLight, critical, 4);
+  assert.ok(Math.abs(shouting.low - calm.low) < 1e-3,
+    'every breath bottoms out on the same lit fuse, so it never goes out: '
+    + shouting.low.toFixed(3) + ' against ' + calm.low.toFixed(3));
+  assert.ok(shouting.high > calm.high, 'and it burns brighter at the top of each breath');
+  assert.ok(turns(fuseLight, critical) > turns(fuseLight, whole),
+    turns(fuseLight, critical) + ' strobes against ' + turns(fuseLight, whole));
 });

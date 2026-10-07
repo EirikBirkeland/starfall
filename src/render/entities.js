@@ -65,6 +65,25 @@ const FUSE_PULSE_PANIC = 16;     // ... and this much more when it is about to g
 const FUSE_CALM = 0.25;          // a whole bomber's fuse barely glows; a wounded one strobes
 
 /**
+ * How bright a bomber's death ring is right now, 0..1. It is a function of the
+ * bomber's own `blastPressure` and of the frame clock and of nothing else, and it is
+ * here rather than inline because "it breathes, and breathes harder the closer it is
+ * to going" is the whole warning and therefore worth a test (test/blast-art.test.mjs).
+ */
+export function zoneLight(enemy, at) {
+  const pressure = blastPressure(enemy);
+  const beat = 0.5 + 0.5 * Math.sin(at * (ZONE_PULSE_CALM + pressure * ZONE_PULSE_PANIC) + enemy.phase);
+  return ZONE_CALM + (ZONE_SHOUT - ZONE_CALM) * pressure * (0.55 + 0.45 * beat);
+}
+
+/** The same for the light at its core: never out, strobing faster as it nears. */
+export function fuseLight(enemy, at) {
+  const pressure = blastPressure(enemy);
+  const beat = 0.5 + 0.5 * Math.sin(at * (FUSE_PULSE_CALM + pressure * FUSE_PULSE_PANIC) + enemy.phase);
+  return FUSE_CALM + (1 - FUSE_CALM) * beat * (0.4 + 0.6 * pressure);
+}
+
+/**
  * The enemy's shots, drawn over the crowd: this is the one thing on the arena that
  * can end the run from a distance, so it is never allowed to hide behind a body.
  * A halo and a hot core per shot, both sized off the shot's own radius: the light
@@ -172,8 +191,7 @@ export function drawBlastZones(ctx, list, alpha) {
     if (!onScreen(enemy.x, enemy.y, radius + ZONE_ROOM)) continue;
 
     const pressure = blastPressure(enemy);
-    const beat = 0.5 + 0.5 * Math.sin(world.time * (ZONE_PULSE_CALM + pressure * ZONE_PULSE_PANIC) + enemy.phase);
-    const light = ZONE_CALM + (ZONE_SHOUT - ZONE_CALM) * pressure * (0.55 + 0.45 * beat);
+    const light = zoneLight(enemy, world.time);
     const x = paintX(enemy, alpha);
     const y = paintY(enemy, alpha);
 
@@ -243,10 +261,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // A lit fuse: the light at its core breathes, and the less hull it has left the
     // faster and brighter it breathes. The ring on the floor says how far the blast
     // reaches; this says how close it is.
-    const pressure = blastPressure(enemy);
-    const beat = 0.5 + 0.5 * Math.sin(world.time * (FUSE_PULSE_CALM + pressure * FUSE_PULSE_PANIC) + enemy.phase);
-    paintGlow(ctx, glowFor(PALETTE.blastFlash, FUSE_LIGHT), 0, 0,
-      FUSE_CALM + (1 - FUSE_CALM) * beat * (0.4 + 0.6 * pressure));
+    paintGlow(ctx, glowFor(PALETTE.blastFlash, FUSE_LIGHT), 0, 0, fuseLight(enemy, world.time));
   }
 
   if (enemy.type === 'tank') {
