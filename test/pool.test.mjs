@@ -184,7 +184,9 @@ test('stats describes the pool honestly', () => {
 // the lists the game pools.
 test('the game recycles its sparks, shots, shards, and labels across a whole run', async () => {
   const game = await bootGame({ root: ROOT, seed: 11 });
-  const run = playOneRun(game, { maxSeconds: 240 });
+  // Long enough for the dodging bot to actually die: this test wants a finished run,
+  // and a finished run is what makes the pools' counts mean something.
+  const run = playOneRun(game, { maxSeconds: 900 });
   assert.equal(run.died, true, 'the run had to end for this to mean anything');
 
   // Each bar says "this list saw a real run", and they are not all the same bar:

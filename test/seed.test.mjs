@@ -13,10 +13,14 @@ import { playOneRun } from '../tools/headless/bot.js';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: null, url: '?seed=4031' });
 
-/** Play one run to the end, keeping a fingerprint of the state along the way. */
+/**
+ * Play one run to the end, keeping a fingerprint of the state along the way. The
+ * window is roomy because the bot that plays these runs dodges: what is being proved
+ * is that a run replays, so it has to be allowed to finish.
+ */
 async function play(seed) {
   if (seed !== undefined) await game.resetToTitle(seed);
-  return playOneRun(game, { maxSeconds: 240, every: 97 });
+  return playOneRun(game, { maxSeconds: 900, every: 97 });
 }
 
 let first = null;

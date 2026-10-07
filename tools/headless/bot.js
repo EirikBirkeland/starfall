@@ -1,10 +1,18 @@
-// A deliberately simple player, shared by tools/simulate.js and the tests.
+// The player that plays the game with no browser, shared by tools/simulate.js and
+// the tests. Two of them, in fact, because they answer different questions.
 //
-// It does what a distracted human does: point at whatever is closest, shoot at
-// it, back off when it gets too close, and drift back to the middle otherwise.
-// A smarter bot (dodging bullets, picking upgrades) comes with milestone 3.
+//   naive   what a distracted human does: point at whatever is closest, shoot at
+//           it, back off when it gets too close, drift back to the middle otherwise.
+//   aware   the same player with its eyes open: it reads what is about to land -
+//           shots in the air, lines that have been drawn but not fired, the circle a
+//           bomber is standing in - and steps off it (see tools/headless/threats.js).
+//
+// The naive one is kept because it is the baseline every older note in NOTES.md was
+// measured with, and because a game that is hard for a bot that tries is a different
+// claim from one that is hard for a bot that barely tries. `--bot naive` runs it.
 
 import { bootGame } from './harness.js';
+import { escapeDirection, SKILL } from './threats.js';
 
 /** One 60 Hz frame. The harness drives fixed steps so runs replay exactly. */
 export const FRAME_MS = 16.7;
@@ -37,24 +45,59 @@ function aimAt(game, x, y) {
   game.moveMouse(on.x, on.y);
 }
 
-/** Aim, decide where to run, and press the keys for it. Does not step time. */
-export function botFrame(game) {
-  const arena = game.world.arena;
-  const near = nearestEnemy(game);
-
-  if (near) aimAt(game, near.enemy.x, near.enemy.y);
-  else aimAt(game, arena.w / 2, arena.h / 2 - 200);
-
-  const wanted = wantedDirection(game, near);
+/**
+ * Aim at whatever is closest and press the keys for `wanted`. Does not step time.
+ * The two policies differ only in how they choose `wanted`.
+ */
+function drive(game, wanted) {
   game.key('KeyA', wanted.x < -KEY_THRESHOLD);
   game.key('KeyD', wanted.x > KEY_THRESHOLD);
   game.key('KeyW', wanted.y < -KEY_THRESHOLD);
   game.key('KeyS', wanted.y > KEY_THRESHOLD);
 }
 
+/**
+ * Point the cursor at whatever is closest - at the sky above the middle of the arena
+ * when there is nothing out there at all. Answers the enemy it aimed at, because the
+ * two policies both want to know who that was.
+ */
+function aimAtTheNearest(game) {
+  const near = nearestEnemy(game);
+  if (near) aimAt(game, near.enemy.x, near.enemy.y);
+  else aimAt(game, game.world.arena.w / 2, game.world.arena.h / 2 - 200);
+  return near;
+}
+
+/** Aim at the nearest thing and run from the one thing close enough to matter. */
+function naiveFrame(game) {
+  drive(game, wantedDirection(game, aimAtTheNearest(game)));
+}
+
+/**
+ * Aim at the nearest thing and get out of the way of everything that is on its way
+ * to the ship. The aim is unchanged from the naive bot on purpose: what is being
+ * measured here is a player that can dodge, not one that can also shoot better.
+ */
+function awareFrame(game) {
+  aimAtTheNearest(game);
+
+  const escape = escapeDirection(game.world);
+  drive(game, escape.pressure < SKILL.calm ? driftToMiddle(game) : escape);
+}
+
+/** The two ways to play, and the one the tools use unless told otherwise. */
+export const POLICIES = { naive: naiveFrame, aware: awareFrame };
+export const DEFAULT_POLICY = 'aware';
+
+/** Play one frame as `policy`. */
+export function botFrame(game, policy) {
+  const play = policy === undefined ? POLICIES[DEFAULT_POLICY] : POLICIES[policy];
+  if (!play) throw new Error('no bot policy is called ' + policy);
+  play(game);
+}
+
 function wantedDirection(game, near) {
   const ship = game.player;
-  const arena = game.world.arena;
   if (!near) return driftToMiddle(game);
 
   const dist = Math.sqrt(near.distance2) || 1;
@@ -104,7 +147,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame }
+ * Options: { maxSeconds, every, onFrame, policy }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -118,7 +161,7 @@ export function playOneRun(game, options) {
   let died = false;
   const trace = [];
   while (frames < frameLimit) {
-    botFrame(game);
+    botFrame(game, opts.policy);
     game.step(FRAME_MS);
     frames++;
     if (opts.onFrame) opts.onFrame(game, frames);
@@ -135,6 +178,7 @@ export function playOneRun(game, options) {
 
   return {
     died: died,
+    policy: opts.policy === undefined ? DEFAULT_POLICY : opts.policy,
     seed: game.world.seed,
     frames: frames,
     seconds: +(frames * FRAME_MS / 1000).toFixed(2),
@@ -156,7 +200,7 @@ export async function playRun(options) {
 
 /**
  * Boot one game and play several runs on it, one per seed.
- * Options: { seeds: [..], maxSeconds, every }
+ * Options: { seeds: [..], maxSeconds, every, policy }
  */
 export async function playRuns(options) {
   const opts = options || {};

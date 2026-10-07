@@ -14,10 +14,13 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: null });
 
 test('a restart starts a fresh run, not a replay', () => {
-  const first = playOneRun(game, { maxSeconds: 240, every: 97 });
+  // The window is long because the bot that plays these runs dodges, and a run it
+  // survives is not over. What is being proved here is that a run *ends* and the next
+  // one is new, so the window has to be roomier than that bot's usual death.
+  const first = playOneRun(game, { maxSeconds: 900, every: 97 });
   assert.equal(first.died, true, 'the bot was never destroyed');
 
-  const second = playOneRun(game, { maxSeconds: 240, every: 97 });
+  const second = playOneRun(game, { maxSeconds: 900, every: 97 });
   assert.equal(second.died, true, 'the restart should have taken');
   assert.notEqual(second.seed, first.seed, 'an unpinned visit must pick a new seed');
   assert.notDeepEqual(second.trace, first.trace, 'the second run replayed the first');
