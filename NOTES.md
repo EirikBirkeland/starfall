@@ -2224,3 +2224,151 @@ Still to do here, next session: `tools/balance-report.js`, the other half of thi
 line - per-kind time to first appearance, kills, damage dealt and taken over N runs. That
 is what M4's tuning will be argued from, and it is worth writing before the bosses arrive
 to change the shape of every run.
+
+---
+
+## Session 23 (2026-10-07) — Milestone 3: the run keeps its own sheet, and the balance report reads it
+
+No release: everything the player can see is byte for byte v0.3.5. This is the
+measurement half of milestone 3, the thing four sessions of notes had been asking for.
+
+### What landed
+
+**`src/game/tally.js`** - the run counts what it is made of *while it happens*. Three
+rules, all of them tested: it is a mirror and never a cause (nothing reads it to decide
+anything, and it spends no number out of the logic stream - the reference run is
+identical with it in or out); it states facts and leaves opinions to the report; and it
+is bounded (fixed histograms, so a half-hour run costs what a thirty-second one does).
+
+Per kind: arrived / killed / lost / standing, `firstAt`, hits and damage, mean hull of
+the killed, how many shots each killed body took, and two histograms - whole life
+(arrival to death) and time spent being fired at. Plus the ship's side: a hull loss is
+labelled `body:tank`, `shot:spitter` or `blast`, and the last one of those is what the
+run died of, which is the same fact milestone 9's game-over screen wants (PLAN section
+4) so it will not need a second system.
+
+To make the deaths measurable each enemy now carries five honest fields - `born`,
+`firstHit`, `lastHit`, `hits`, `fired` - written by the tally and read back when the
+body stops. Only the *world* notes an arrival (waves.js `spawnEnemy`, and a tank's
+`hatch`), so a body a test plants by hand or the title-screen crowd builds is not an
+arrival and cannot pollute the tables.
+
+`hitPlayer(world, cause)` takes what did it now, built by three little factories in
+tally.js, and an enemy shot remembers the kind that fired it (`enemyShotAt(..., from)`).
+That last one is what makes `shot:spitter` a thing a table can say.
+
+**`tools/balance-report.js`** plays N runs with the same bot and seeds `simulate.js`
+uses, and prints: the runs, the crowd on screen (mean and peak per kind, crowd points
+against the budget), arrival times against the minute the balance unlocks each kind,
+the killing, time to kill and how long things last, where the shooting went, and what
+hurt the ship. `tools/headless/tables.js` holds the formatters and the column aligner so
+the report is mostly the numbers it is showing. `playOneRun` now hands back the run's
+own `tally`, and `resetRun` builds a *new* sheet per run rather than emptying the old
+one, so a finished run stays readable while the next one plays.
+
+Tests: **361, all passing** (was 334). `test/tally.test.mjs` (15) on the scripted world -
+what counts as an arrival, what counts as a killing, the volley rule, the histogram not
+growing, blame by name, and that counting spends no stream numbers; `test/balance-report.test.mjs`
+(11) on the printing - the formatters, column alignment, percentiles, and two real short
+runs whose tables must add up (killed <= arrived, shares reach 100%, no p90 past its own
+maximum, nothing on the page that could not have arrived in the window). Plus one
+assertion in `test/spitter.test.mjs` that a spit knows whose mouth it came out of.
+**A mutation battery of 27 deliberate mistakes in the counting and the arithmetic, each
+applied in turn: 27 of 27 caught.** Two of the first three survivors were real gaps in my
+own tests (nobody tested blame through the crowd's own contact path, or that the shots
+column was a number at all) and one was a test file the battery had not run.
+
+### The metric that had to be measured before it could be defined
+
+My first time-to-kill was "first hit to death". It said a tank took **92 seconds** to
+kill, which is not a fact about tanks, it is a fact about a bot that clips things in
+passing. So I measured the distribution of the gaps between consecutive hits on one body
+(one run, 1 379 gaps): p10 0.13 s, p50 0.18 s, p75 0.62 s, p90 5.0 s - a clear break
+between "being shot at" and "having moved on". Now a body accumulates `fired`: two hits
+less than `BALANCE.tally.volley` (3) shots' worth of the ship's *own fire rate* apart
+are the same stretch of fire. Written in shots rather than seconds so it means the same
+thing whatever weapon milestone 5 hands out. The tank median is now 2.50 s, a drifter
+0.75 s, a weaver 0.50 s. Same episode gave the histogram sizes: lives want 1 s steps to
+over 4 minutes, fire wants quarters to 32 s.
+
+One more honesty detail: a percentile read off a histogram is the *top* of its step (so
+it never flatters), which can put the p90 past the measured maximum; the report clamps it
+back, because both numbers are in the same table and they had better agree.
+
+### What six 15-minute runs said (seeds 1-6, aware bot, ~40 s of wall clock)
+
+- mean 6m48s, 379 kills, 18 hulls lost across the six, and all six ended in a wreck.
+- **Weavers are 2% of the crowd on screen and ended 4 of the 6 runs.** 5 of 18 hulls.
+  The M10 rule ("no enemy type over 40% of deaths") would flag them today at 67%.
+- **Spitters: 89 arrived, 0 killed, 1% of the shooting.** They hold a band 200-330 px
+  out and the bot aims at whatever is nearest, so they are simply never shot at. A
+  person would kill them; a ruler that cannot is telling you about the ruler as much as
+  the thing measured. Worth remembering before any spitter tuning is argued from this.
+- The wave director means what it says: 225 points of enemy held on average against a
+  235 budget, peaking at 400 points in 102 bodies. Note `waves.maxBodies` is 100, so
+  late waves can be turned away at the door - and a tank's hatchlings get pushed into
+  the crowd without that check at all, which is how 102 happens.
+- Arrival times track the plan: darter unlocks at 1m00s and first turns up at 1m03s
+  (worst run 1m07s); spitter 3m00s -> 3m09s; bomber 6m00s -> 6m04s.
+
+### The bug the report found on its first day: an elite never arrives
+
+Six runs, one of them 11 minutes long: **zero gold bodies**. `stats().elites` agrees, so
+this predates today's work - nobody had ever looked, because until the bot could dodge no
+baseline reached 8:00.
+
+Poking a probe at the wave director for the 11-minute run: after 8:00 only **7 waves
+wanted** an elite, and **6 of those 7 lost it**, because `sendWave` rolls the gold *seat*
+with `logic.int(0, waves.maxMembers - 1)` - 0 to 7 - while the waves it actually buys are
+3 to 5 members long (`waveMaxPoints` is 30, and kinds cost 2 to 8). Session 21's note
+half-saw this ("a wave that never grows that big carries none") and measured 15.1% on a
+parked run, which is not what a live crowd buys.
+
+Written into PLAN.md as an open milestone-3 item, and it is the first thing for next
+session. The shape of the fix I would try, and why it is cheap: keep the two draws per
+wave exactly where they are (so nothing before 8:00 moves, and every existing baseline
+stays byte for byte), but map the rolled seat onto the wave that actually got bought
+(`seat % types.length`) and pay the extra cost out of the room left over, refusing the
+upgrade rather than overspending. Then re-measure the gold share with this report; the
+number to beat is zero.
+
+### Decisions, so nobody relitigates them
+
+- **The counting lives in the simulation, not in the tool.** A tool watching from outside
+  can only diff the crowd between frames, which loses bodies born and killed inside one
+  frame, cannot see damage at all, and cannot say who killed whom. The sim sees all of
+  it, and the same facts are wanted twice more later: milestone 9's "what killed the
+  player", and milestone 10's F3 overlay. The cost is a handful of increments per event
+  and five fields on an enemy.
+- `world.tally` is replaced per run rather than emptied: a new object cannot leak a number
+  from the last run, and the report can hold finished runs' sheets.
+- `standing` (arrived - killed - lost) is derived in the report, not stored in the tally.
+- Percentages and columns are formatted in the tool. `tally.js` never says whether
+  anything is *good*; that is the argument the tables are there to support.
+
+### Watch out
+
+- The histograms are the tally's whole memory. `stepOf` deliberately parks anything past
+  the end in the last step, and the report also prints the exact max, so a runaway number
+  is visible rather than lost. If a run ever outlives 4m16s of *life* in one body, widen
+  `BALANCE.tally.life` - nothing will break, the median just stops being sharp.
+- `enemyShotAt`'s `from` is optional and defaults to `''`, so a hand-built shot is blamed
+  on `shot` rather than on nobody. The only real caller names its kind.
+- `test/tally.test.mjs` is the first file that uses *both* the scripted world and a booted
+  game, and it works (the scripted world is the booted game's world). Still one boot per
+  process; the scripted tests run first and the boot happens in the last test.
+- The report's `ON SCREEN` numbers come from a per-frame sample (the tally cannot know
+  what was standing there mid-frame), so they are in body-frames divided by watched
+  frames, and only count frames where `state === PLAY`.
+
+### Next
+
+1. **Make an elite actually arrive** (the item above and in PLAN.md). Small change, big
+   swing: right now milestone 3's gold content does not exist in a real run.
+2. Then the rest of 3.3: **shielder** (7:30, the first kind that needs a *relationship*
+   between enemies - think about where the link lives, and remember the grid is rebuilt
+   per step and is a snapshot), **splitter swarm** (9:00, packs of 20, which will want a
+   look at `waves.maxMembers` and the per-body price), **sniper** (10:30, a telegraphed
+   laser across the whole arena).
+3. Then milestone 3's release - which will finally be a release the balance report can
+   describe, not just the game.
