@@ -52,7 +52,6 @@ export function renderFrame(fps, alpha) {
   }
 
   ctx.globalCompositeOperation = 'source-over';
-  ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
   ctx.fillStyle = view.vignette;
   ctx.fillRect(0, 0, W, H);

@@ -283,7 +283,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Player movement to the numbers in 3.1: acceleration, friction, small hit radius.
 - [x] Dash with invulnerability, cooldown ring, and streak.
 - [ ] Arena 3000 × 3000 with the following camera, cursor lean, and energy walls.
-- [ ] Pre-rendered glow sprites; remove per-frame `shadowBlur`.
+- [x] Pre-rendered glow sprites; remove per-frame `shadowBlur`.
 - [ ] Hit flash, hit-stop, trauma-based screen shake.
 - [ ] Particle system on a pool: sparks, debris, shockwave rings, thruster trail.
 - [ ] Knockback on enemies when hit.

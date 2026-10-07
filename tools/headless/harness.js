@@ -38,6 +38,8 @@ function makeContextStub(counters, drawLog) {
     fill: () => { counters.fills++; },
     stroke: () => { counters.strokes++; },
     fillText: () => { counters.texts++; },
+    strokeText: () => { counters.texts++; },
+    drawImage: () => { counters.images++; },
     translate: (x, y) => {
       counters.translates++;
       drawLog.translates.push({ x: x, y: y });
@@ -53,6 +55,9 @@ function makeContextStub(counters, drawLog) {
       throw new Error('the canvas stub has no member "' + String(key) + '"');
     },
     set(obj, key, value) {
+      // A frame that blurs is a frame doing the most expensive thing a canvas
+      // can do, so tests can ask whether one happened (render/glow.js).
+      if (key === 'shadowBlur' && value !== 0) counters.shadows++;
       obj[key] = value;
       return true;
     },
@@ -99,7 +104,10 @@ export async function bootGame(options) {
   let width = opts.width || 1280;
   let height = opts.height || 720;
 
-  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0 };
+  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0 };
+  // Everything the glow sprites need is counted apart, so "this frame baked
+  // nothing" is a thing a test can say (render/glow.js).
+  const bakes = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, canvases: 0 };
   const audioLog = { voices: 0 };
   // Where the last frame moved the canvas. The renderer paints entities by
   // translating to them, so this is how a test can see what was drawn where.
@@ -147,7 +155,15 @@ export async function bootGame(options) {
   }
 
   globalThis.window = windowObj;
-  globalThis.document = { getElementById: (id) => elements[id] || null };
+  globalThis.document = {
+    getElementById: (id) => elements[id] || null,
+    /** The offscreen canvases the glow sprites are baked on. */
+    createElement(tag) {
+      bakes.canvases++;
+      const spriteCtx = makeContextStub(bakes, { translates: [] });
+      return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
+    },
+  };
   globalThis.requestAnimationFrame = (handler) => { rafQueue.push(handler); return rafQueue.length; };
 
   const moduleUrl = (rel) => pathToFileURL(path.join(root, 'src', rel)).href;
@@ -197,6 +213,8 @@ export async function bootGame(options) {
     },
     /** Draw counters, so a test can tell that something was actually painted. */
     drawCalls() { return Object.assign({}, counters); },
+    /** What it took to bake the glow sprites: offscreen canvases and gradients. */
+    bakeCalls() { return Object.assign({}, bakes); },
     /** Every translate the last frame made, in the order the frame drew them. */
     translates() { return drawLog.translates.slice(); },
     stats() { return game.stats(); },

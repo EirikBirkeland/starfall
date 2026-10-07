@@ -21,6 +21,14 @@ export const PALETTE = {
   bullet: '#5ef7ff',
   bulletCore: '#eaffff',
   bulletTrail: 'rgba(190,252,255,0.95)',
+  // The thruster's flame, hottest at the nozzle.
+  flameTip: '#fff0be',
+  flameTail: '#ff5ec4',
+  // The dash cooldown ring around the ship.
+  dashRingReady: 'rgba(94,247,255,0.16)',
+  dashRingWait: 'rgba(94,247,255,0.10)',
+  dashRingFilling: 'rgba(169,253,255,0.55)',
+  dashStreak: '#a9fdff',
 
   shard: '#58ffa1',
   shardLine: '#9dffcb',
@@ -32,7 +40,7 @@ export const PALETTE = {
   uiFaint: '#6f8fb0',
   xpBar: ['#2fe0a0', '#58ffa1', '#b6ffe0'],
   xpText: '#9dffcb',
-  star: '200,235,255',
+  star: '#c8ebff',
 
   // Enemy kinds, in the violet to amber range for now. Milestone 3 moves the
   // harmful ones into the red-to-magenta half of the palette.
@@ -43,3 +51,56 @@ export const PALETTE = {
   amber: '#ffb340',
   amberFill: 'rgba(255,179,64,0.13)',
 };
+
+const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
+const HEX6 = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
+const FUNC = /^rgba?\(([^)]+)\)$/i;
+
+/**
+ * The three channels of a colour as numbers 0-255.
+ *
+ * Accepts everything the palette uses: '#abc', '#aabbcc', 'rgb(...)', 'rgba(...)'.
+ * Anything else throws out loud: a colour that silently parsed as black would
+ * put a black hole in the middle of a glow and nobody would notice for a week.
+ */
+export function parseColor(color) {
+  if (typeof color === 'string') {
+    const short = HEX3.exec(color);
+    if (short) {
+      return [parseInt(short[1] + short[1], 16), parseInt(short[2] + short[2], 16), parseInt(short[3] + short[3], 16)];
+    }
+    const long = HEX6.exec(color);
+    if (long) return [parseInt(long[1], 16), parseInt(long[2], 16), parseInt(long[3], 16)];
+    const func = FUNC.exec(color);
+    if (func) {
+      const parts = func[1].split(',').map((part) => Number(part));
+      if (parts.length >= 3 && parts.slice(0, 3).every((n) => Number.isFinite(n))) {
+        return parts.slice(0, 3).map((n) => Math.round(clampChannel(n)));
+      }
+    }
+  }
+  throw new Error('not a colour this can read: ' + String(color));
+}
+
+/** The same colour with a different opacity. The alpha in an rgba() is replaced. */
+export function withAlpha(color, alpha) {
+  const [r, g, b] = parseColor(color);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + Math.min(1, Math.max(0, alpha)) + ')';
+}
+
+/** `t` of the way from `from` to `to`, as a '#rrggbb' string. */
+export function mixColors(from, to, t) {
+  const a = parseColor(from);
+  const b = parseColor(to);
+  const k = Math.min(1, Math.max(0, t));
+  let out = '#';
+  for (let i = 0; i < 3; i++) {
+    out += Math.round(a[i] + (b[i] - a[i]) * k).toString(16).padStart(2, '0');
+  }
+  return out;
+}
+
+// A channel is 0-255 and may arrive as a decimal ('rgb(1.7, 2.2, 3.9)').
+function clampChannel(value) {
+  return Math.min(255, Math.max(0, value));
+}

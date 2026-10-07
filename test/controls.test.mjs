@@ -198,7 +198,9 @@ test('the cooldown ring says how much of the wait is left', () => {
   ship.dashCd = BALANCE.player.dash.cooldown;     // the ring's job is the wait; the wait is dash.test's
   const waiting = strokesOfAFrame();
 
-  assert.equal(waiting, readyRing + 1,
+  // Ready it is one breathing circle. Waiting: the ring, the wide faint arc that
+  // is its glow, and the bright arc closing over the wait.
+  assert.equal(waiting, readyRing + 2,
     'a ship with a wait to show drew ' + waiting + ' strokes, a ready one drew ' + readyRing);
 });
 
@@ -211,6 +213,8 @@ test('the dash drags afterimages behind the hull', () => {
   clearTheSky();
   tapSpace();
   game.step();
-  assert.equal(game.translates().length, calm + 2,
-    'the dash painted ' + (game.translates().length - calm) + ' extra things where the ship has been');
+  // The blur is stamped where the ship is, and each afterimage has its own place.
+  assert.equal(game.translates().length, calm + 3,
+    'the dash painted ' + (game.translates().length - calm)
+    + ' things where the ship has been, not the blur and its two ghosts');
 });

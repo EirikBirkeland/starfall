@@ -89,7 +89,9 @@ export const BALANCE = {
   },
 
   // How an enemy kind behaves. Behaviour itself is a small function in
-  // game/enemies.js; this is the data it reads.
+  // game/enemies.js; this is the data it reads. `glow` is the one exception: it
+  // is not read by the simulation at all, it is how far that kind's halo reaches
+  // past its body, in pixels, and only the renderer looks at it.
   kinds: {
     chaser: {
       radius: 15, speed: 76, hull: 3, score: 10, drop: 2,

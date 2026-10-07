@@ -1,7 +1,7 @@
 // Three parallax star layers, sliding slowly past the ship. Purely decorative,
 // so this state lives in the renderer and never reaches the simulation.
 
-import { PALETTE } from '../core/palette.js';
+import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { view } from './canvas.js';
@@ -55,14 +55,13 @@ export function updateStars(dt) {
 export function drawStars(ctx) {
   const px = world.player.x - view.W / 2;
   const py = world.player.y - view.H / 2;
-  ctx.shadowBlur = 0;
   for (let i = 0; i < stars.length; i++) {
     const star = stars[i];
     const layer = LAYERS[star.l];
     const x = ((star.x - px * layer.depth) % view.W + view.W) % view.W;
     const y = ((star.y - py * layer.depth) % view.H + view.H) % view.H;
     const alpha = layer.alpha * (0.62 + 0.38 * Math.sin(star.tw));
-    ctx.fillStyle = 'rgba(' + PALETTE.star + ',' + alpha.toFixed(3) + ')';
+    ctx.fillStyle = withAlpha(PALETTE.star, alpha);
     ctx.beginPath();
     ctx.arc(x, y, star.r, 0, TAU);
     ctx.fill();

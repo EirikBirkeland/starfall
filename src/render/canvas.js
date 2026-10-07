@@ -1,6 +1,7 @@
-// The canvas, its size, and the two gradients that depend on that size.
+// The canvas, its size, and the things baked from that size.
 
 import { PALETTE } from '../core/palette.js';
+import { setGlowResolution } from './glow.js';
 
 export const view = {
   canvas: null,
@@ -27,6 +28,9 @@ export function resizeCanvas() {
   view.canvas.height = Math.round(view.H * view.DPR);
   view.canvas.style.width = view.W + 'px';
   view.canvas.style.height = view.H + 'px';
+  // The glow sprites are baked at device resolution, so they are rebuilt when it
+  // changes (render/glow.js).
+  setGlowResolution(view.DPR);
 
   view.bgGrad = ctx.createLinearGradient(0, 0, 0, view.H);
   view.bgGrad.addColorStop(0, PALETTE.bgTop);
