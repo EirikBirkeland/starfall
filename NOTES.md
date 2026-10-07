@@ -2795,3 +2795,164 @@ release all wait.
 - Next session starts on its first unchecked item: the level-up choice with three cards.
 - The goal is a median survival of 5:00 or more, through weapons and upgrades.
 - Do not make the game easier to get there. Read the hard rule in that block before touching balance.
+
+---
+
+## Session 27 (2026-10-07) — Firepower 1: the level-up choice. Released **v0.4.0**
+
+The first item of the owner's priority block: the run now stops and asks you what it
+should grow into. It took the whole session, and the interesting part was not the cards.
+
+### What landed
+
+**`src/game/upgrades.js`** is the new system: the lines as data (`LINES` - id, name, what
+one rank sells, one line of flavour, which icon), the ranks as state (`world.upgrades`),
+and the offer. A line is one multiplier and nothing else: `gainOf(world, id)` is
+`1 + step * rank`, and it is read *where the number is used* - `fire()` takes the shot's
+damage and velocity from it, `shotsPerSecond()` in `player.js` is the only reader of the
+fire rate line - so nothing caches a rank into a ship field and a card taken between two
+frames applies to the very next shot. The numbers themselves are `BALANCE.upgrades`.
+
+**`STATE.LEVEL`** is the pause. `stepWorld` still runs the effects and the window's own
+clocks, does not run a single system, does not advance `elapsed`, and **answers false**:
+"this step simulated nothing", which is the same honest answer a hit-stop step gives and
+the reason the frame loop can tell a press that was heard from one that was not. A dash
+pressed while the cards are up is *spent*, not kept - `main.js` swallows the request for
+as long as the run is paused, because the pause lasts as long as the player takes to read
+and a dash that goes off three seconds after the key is not a gift but a hazard.
+
+**`src/render/cards.js`** draws the choice, and owns its geometry: `cardLayout(count, W,
+H)` is cached per window size and is what both the frame and `main.js`'s `cardAt(x, y)`
+read, so the click and the drawing cannot disagree. Cards are canvas and not DOM because
+PLAN section 4 wants each icon drawn in code; `haloText` was exported from `hud.js`
+rather than duplicated. Everything on them is cool (white, cyan, mint): a card is the
+best news a run gives out, and warm is reserved for what is about to hurt you (three new
+`PALETTE` entries for the scrim, the face and the edge). The deal is *presented in table
+order*, so key 1 is always the left card; the random draw decides which lines come up,
+not where they are printed. Rank pips show what is taken, with the next one pulsing; the
+`+30% shot damage` line is printed from `step`, so the card cannot lie about its number.
+
+**Levels stopped being numbers.** `levelUp` no longer touches `ship.fireRate` at all -
+the old `fireRateGain`/`fireRateFlat`/`RAPID FIRE` reward is gone, because the choice is
+the reward now. `world.pendingLevels` is the queue: a large shard can pay for three
+levels in one step and each of them gets its own choice, one after the other.
+
+**The bot plays it** (`tools/headless/bot.js`): `botFrame` answers the cards before it
+flies, and its policy is written down rather than clever - take the line with the
+fewest ranks in it, break ties damage > fire rate > shot speed. It presses `Digit1..3`,
+the same keys the player has, through the real keyboard module. `tools/simulate.js`
+now prints the run's build as `build 5/5/4`, and the game-over card says what the run
+was built from (`BUILT FROM · DAMAGE 5 · FIRE RATE 5 · SHOT SPEED 4`).
+
+### The bug, and it is the lesson of the session
+
+The first version of `refreshOffer` dealt a fresh set of cards whenever the table was
+empty. It never asked whether a level was still *owed*, so taking the only card you were
+owed dealt three more and stayed paused: **every run stalled forever at its first
+level-up.** The tests did not say "the pause never ends", they said a dozen unrelated
+things - four files went red, `test/restart.test.mjs` took 234 seconds, and
+`tools/simulate.js` printed `alive at the cap 15m00s score 189 level 2 kills 13` for
+every seed, which reads like a balance change and is actually a frozen simulation. The
+fix is one line (`if (world.pendingLevels <= 0) { world.state = STATE.PLAY; return; }`),
+and the rule to keep: **a pause's exit condition is what is still owed, never what is
+currently on screen.**
+
+Worth writing down next to it: `summary.seconds` in the headless tools is *frames times
+the frame length*, not game time, so a stalled run looks like a very good one. If a
+measurement ever reports survival you do not believe, look at `stats().t` before you
+believe `seconds`. Printing both is a small favour to a future session.
+
+### The XP tuning (PLAN 3.6, honestly)
+
+The shape is PLAN's and so are its linear and quadratic terms: `base + level*6 +
+level^2*0.9`. `base` is 90 rather than 8 and a shard is worth 14 rather than 1, and both
+deviations are written into `balance.js` and into PLAN 3.6 itself so nobody "fixes" them
+back:
+
+- A quadratic cost front-loads absurdly (cumulative is cubic, so the first card costs a
+  two-hundredth of the fifteenth). At base 8 the whole first minute of a run is a slot
+  machine: measured, cards 1-5 landed inside 20 seconds. The base is what makes the
+  first card land a quarter minute in.
+- PLAN's unit was written for an XP income about ten times what a run actually collects.
+  A five-minute run collects ~250 shards (kills are ~2/s but most shards are left
+  behind), and the fifteen ranks the three lines have to give cost ~230 shards' worth
+  at 14 each. That is the whole tuning: **the pool of cards lasts about as long as a
+  median run.** Once it is gone a level is still a level - the chime, the label, the
+  score - but the run does not stop for a card it cannot give, and `pendingLevels` is
+  forgiven rather than left dangling. The reference run does exactly this: it dies at
+  level 17 with all fifteen ranks spent.
+
+Measured drip over 6 runs: first card 9-29 s, seven to nine cards by 2:00, all fifteen
+by five to six minutes. `shards.xp` and `progression.base` are one coupled pair; if you
+raise one, look at the other.
+
+### The finding: firepower does not buy the bot's survival, and the reason matters
+
+Measured over the same 24 seeds, aware bot, 900 s cap:
+
+| | median | mean | kills | score | level |
+|---|---|---|---|---|---|
+| before (no upgrade system) | 6m15s | 6m12s | 348 | 5,140 | 5.3 |
+| now (three lines, bot picks) | **5m53s** | 6m15s | **754** | **11,347** | 14.8 |
+
+And a probe that pins the ship to a maxed build from the first frame: median **305 s**
+against **376 s** for the same bot with none, while killing two to three times as many
+bodies. So the firepower is real and the median did not rise with it. Why: **the wave
+director spends room, not time.** The crowd is filled to a points budget that grows on
+the clock (`waves.crowd*`), so killing faster does not thin the crowd, it *turns it
+over*, and the room left is refilled with the dearest kinds a wave can buy - tanks,
+shielders, bombers - rather than the cheap drifters that were standing there. Fast
+killing converts directly into more arrivals, and arrivals are what kill this bot.
+Session 18's note found the same shape from the other side (a bigger budget means the
+bot dies sooner).
+
+Consequences for the priority block, for whoever does the "survival check" item: the
+median of 5:53 already clears the 5:00 goal, and it was not reached *through* the
+weapons, which is what the block asks for. Do not chase it by weakening the crowd (the
+hard rule), and do not inflate the ranks to silly numbers hoping the median moves; the
+knob that actually sets the median is the spawn budget, and the honest options are to
+say so in the block or to make firepower buy safety in a way the bot can show (killing
+a bomber before it walks in, hunting a shielder, breaking a pack before it dives - all
+of which need **target priorities**, which the bot has never had: session 26's note
+already says the report cannot see this). The claim above is a claim about this bot,
+which survives by dodging and threatens nothing on purpose.
+
+### Reference run, rebaselined on purpose
+
+`node tools/simulate.js --seed 20261006 --trace` → **dies 6m46s, score 13193, level 17,
+888 kills, 273 shards, build 5/5/5** (was 3m17s, 2988, level 5, 209 kills, 78 shards).
+The trace fingerprint now mixes in `level` as well, so every older trace is stale.
+
+### Tests: 442, all passing (was 425)
+
+- `test/upgrades.test.mjs` (11, scripted world): the curve; a level pauses the run and
+  *nothing in the arena moves* while it is paused (the fingerprint excludes the effects
+  on purpose, because the effects are allowed to keep living); the deal is every line
+  with room, in table order, and a maxed line never comes back; taking a card; a card
+  that is not there being refused; two levels at once being two choices; every line
+  five ranks deep; damage and shot speed coming **out of the gun** (a fired bullet's
+  `dmg` and |v|, not a ledger entry); the fire rate line measured as the gap a shot
+  leaves behind; and a maxed-out run taking a level without stopping.
+- `test/level-up.test.mjs` (6, the real game): earn a level with real shards and a
+  number key answers it; a click on a card takes it and a click at (4,4) takes nothing
+  (`cardAt` agrees with the layout); the choice is painted (draw-call deltas against a
+  frame of the same run playing); the dash swallowed by the pause; and the bot taking
+  upgrades, dying anyway, and the game-over card naming the build.
+- `test/elite.test.mjs`: "a large shard is worth what it says it is worth" was a latent
+  over-assertion - it assumed every point of XP lands in the bank, which stopped being
+  true the moment a shard could buy a level. It now counts the levels the shard bought.
+
+### Notes for whoever is next
+
+- The offer rules that PLAN 3.5 asks for - weight towards what you already have, always
+  at least one untouched line - are implemented and **cannot bite yet**: three lines and
+  three slots means every available line is on the table whatever the weights do. The
+  next item adds a fourth line and they start to matter. Do not delete them as dead.
+- `guaranteeSomethingNew` swaps the *last* slot. With a fourth line that becomes visible;
+  if the presentation ever needs to protect a particular place, change it there.
+- Next up in the block: **split shot** (3.5), which is the first line that is not a
+  multiplier - it wants to reach `fire()` where the bullets are made, and to be a fan.
+  Then pierce, then ricochet, then a release.
+- Small things this session left on the table, none of them bugs: the HUD has no upgrade
+  icons yet (milestone 4 has that item), Esc during the card screen does nothing, and
+  `simulate.js` still prints no median and no game-seconds column.

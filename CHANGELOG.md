@@ -1,6 +1,6 @@
 # Starfall — changelog
 
-## 0.4.0 — 2026-10-08
+## 0.4.0 — 2026-10-07
 The run builds itself now: every level-up stops the game and deals you three cards.
 - **Levels are choices, not numbers.** Collect enough shards and the run holds still,
   three cards slide up out of the bottom of the screen, and the world starts again the
