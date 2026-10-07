@@ -2004,3 +2004,138 @@ loudly instead of counting as a pass.
    will want a look at `waves.maxMembers`), sniper (10:30, a telegraphed laser across the whole
    arena - which wants the harness transform this session grew, and probably an off-screen arrow
    of its own).
+
+---
+
+## Session 21 (2026-10-07) — Milestone 3: elite variants. Released **v0.3.5**
+
+### What landed
+PLAN 3.3's last row of the enemy table: **any type can arrive gold from 8:00** - four
+times the hull, 1.15 the speed, a gold outline, a large shard and a chance of a heal.
+
+**An elite is a flag on an enemy, never a kind.** `BALANCE.elite` is multipliers
+(`hullMul`, `speedMul`, `costMul`, `scoreMul`, `dropMul`) and `makeEnemy` applies them
+through one `PLAIN` object of ones, so "four of its kind" is written once. Every kind
+in the game is elite for free, a gold tank still hatches, a gold bomber still blasts,
+and `test/kinds.test.mjs` never had to know. A new file **`src/game/elite.js`** holds
+only the two decisions nobody else can make: whether a wave is carrying one at all, and
+what it leaves behind.
+
+- **Arrival: one gold body per wave, bought out of the wave's own room.** Two rolls in
+  `sendWave` - whether this wave wants one, and which member of it - and the member at
+  that seat is bought with `pickMember(world, left / costMul)` and charged
+  `cost × costMul` from the room, so `wave.points` still means what it says and a wave
+  can never overspend. The seat is random so a gold body stands anywhere in the fan
+  instead of always leading it; a wave that never grows that big carries none (that is
+  the discount noted under `chance`). `spawnEnemy(world, type, bearing, elite)` is the
+  door, so an arrival asked for by name can be gold too.
+- **`crowdCost` now reads `enemy.cost`, not `kind.stats.cost`** - the one number that
+  means "what this body is worth to fight", set once in `makeEnemy`. `crowdCost` and
+  `collectIndicators` both read it, which is how an elite is worth an arrow at the
+  window edge where its plain self is not, with no new system: session 19's note said
+  exactly this and it was true.
+- **Spoils** (`eliteSpoils`, only on a player's kill, after the kind's own scatter): one
+  **large shard** - the same mint pickup with `worth: 6` in it, so `xp`, `score`, the
+  burst and the ring all follow from one number instead of a second pickup type - and
+  **the chance of a hull back**. The heal is only rolled when the ship is actually hurt,
+  so an elite never wastes its gift, and `healPlayer` (new, in `player.js`) clamps to
+  `player.maxHull` (new: `BALANCE.player.maxHull`, reset with the run, and the HUD pips
+  now count `max(ship.maxHull, ship.hull)`). Mint sparks, a mint ring, a rising chord
+  and a `+1 HULL` label: the only good news the run hands out by itself.
+- **The look**: gold twice over - a wide soft pass under the thin outline (the house
+  idiom) plus one glow sprite - and, once it is hurt, a gold ring closing round it as
+  its hull drains. That ring is the important half: four times the hull of a thing has
+  to be seen going down or an elite reads as an enemy that cannot be hurt. The kill
+  label is gold too. `PALETTE.elite` is PLAN's `#ffd76a`; the shards stayed mint, so
+  nothing else in the arena wears gold and warm-still-means-harm holds.
+
+### Numbers, measured rather than guessed
+- Realised rate: **15.1% of waves** carry a gold body at `chance: 0.2` (a wave that
+  never reaches the rolled seat carries none). Over 4000 waves the gold kinds came out
+  drifter 270, weaver 166, darter 77, bomber 33, spitter 34, tank 24 - a gold tank is
+  rare because at 24 points it fits in almost no wave, which is the right outcome.
+- A live 3m50s soak parked at 7:50 (immortal bot): 6 gold bodies born, peak 3 on screen,
+  big shards collected, ~4 heals, 0 blurs, 3 gradients (the XP bar's), no throw.
+- **`crowdCost` at 3x an elite's kind** is what keeps the crowd honest: elites displace
+  cheap bodies rather than being added on top of them.
+
+### Proof of what did and did not move
+- Reference run `--seed 20261006 --trace`: **byte for byte identical**, and the whole
+  **128-seed baseline is byte for byte identical too** (every one of them dies before
+  8:00). That is the `from` gate doing its job: a run that ends before the eighth minute
+  cannot notice any of this exists, and `test/elite.test.mjs` says so directly
+  ("none of it moves a run that ends before the eighth minute", and one that measures
+  the stream not moving at all: 500 rolls, zero numbers spent).
+- **Tests: 304, all passing** (was 282). `test/elite.test.mjs` (16) drives the scripted
+  world: the multipliers for every kind, the gold price in the crowd budget, a gold
+  tank's hatchlings coming out plain, the roll spending nothing before 8:00, the realised
+  rate, at most one per wave, no wave overspending its room (with the room pinned near
+  `waveMinPoints`, where a gold body least fits), large-shard worth and collection,
+  spoils only for a player's kill, the heal's rate and its clamp, and that a whole ship
+  is never healed. `test/elite-art.test.mjs` (6) counts draws: gold is one stroke and
+  one light over its own kind, the hull ring appears only when there is hull to show,
+  a plain wounded body grows nothing, a large shard is both a bigger light *and* a
+  bigger body, an off-window body paints nothing and an off-window **elite earns an
+  arrow its plain self does not**, and a heal speaks mint.
+- **Mutation battery: 28 of 28 caught** (`/tmp/mutate-elite.mjs`, throwaway) across
+  elite.js, kinds.js, waves.js, pickups.js, player.js, entities.js and indicators.js.
+
+### The trick worth keeping: the stub can now measure a drawn shape's size
+One mutant survived the first pass - the large shard's *body* radius, which the canvas
+stub could not see (it logged stamps and translates, and `moveTo`/`lineTo` were noops).
+So `tools/headless/harness.js` now logs every path point through the same transform it
+already carried, and `game.points()` hands them back in device pixels. `bodyReach()`
+in the elite-art test drops a shard, pins it still, and measures how far the drawn
+points reach from its middle - 5.4 px against 9 px, which is the mutant caught. Same
+reasoning as last session's `at`: if the promise is about what is drawn, the stub has to
+be able to look at what is drawn.
+
+### Decisions, so nobody relitigates them
+- **Flag, not kind.** A `kindOf('elite')` would have meant a second table, a second
+  roster, and every new kind forgetting to be elite.
+- **One per wave, seat rolled.** Per-body rolls would have made a wave of gold possible
+  (and the budget would have allowed it); "a wave with a leader" is the thing a player
+  can read. The seat is rolled over `waves.maxMembers`, which is why the arriving rate
+  lands under `chance` - said in the balance comment, with the measured number.
+- **`costMul` (3) under `hullMul` (4)** deliberately: at 4 a gold tank costs 32, more
+  than `waves.waveMaxPoints`, and would be unbuyable. If a kind's `cost` ever rises past
+  ~10, say so out loud in the balance note or gold ones of it will quietly stop arriving.
+- **Spoils belong to a player's kill**, like shards and score: a bomber chain that happens
+  to finish a gold body is not something the player chose to bring down.
+- **The big shard is one shard with `worth` in it**, not a new pickup. `worth > 1` is
+  the only test anywhere, in the sim and in the drawing.
+- **`healPlayer` itself is unconditional** - it gives hull, clamps, and says how much it
+  gave. Whether a heal is *owed* is `elite.js`'s business (state, hull room, the roll),
+  and keeping the two apart is what makes both testable without a fake roll.
+- The elite's `r` is unchanged on purpose: the outline is the tell, not the size, and
+  keeping the radius identical means no collision or cull rule had to change.
+
+### Watch out
+- `enemy.cost` is now the one cost every reader uses (crowd budget, window-edge arrows).
+  Anything that builds an enemy outside `makeEnemy` must set it; nothing does.
+- Nothing in the bot's 2m9s measures the elite - the whole feature lives past its death.
+  `chance`, `costMul` and `heal.chance` are judgement until either the bot dodges or
+  `tools/balance-report.js` can print a run that reaches 8:00. That is now the strongest
+  argument for those two items.
+- Still knowingly blind: the *hue* of the gold (an elite drawn in the enemy reds would
+  pass), the alpha of the hull ring, and the HUD pip count - `max(maxHull, hull)` equals
+  3 today, so no test could tell a mutant there. Say so again if it stops being true.
+- A gold body could also shine in the title-screen ambient crowd (`ambient.js` builds
+  its enemies with `makeEnemy`, so `{ elite: true }` would work). Deliberately not done:
+  the menu crowd is decoration and its RNG spend would move the attract screen.
+
+### Next (milestone 3)
+1. **Extend the simulation bot to dodge, and add `tools/balance-report.js`** - bodies on
+   screen over the run, the kind mix, time-to-kill by kind, and now the elite share too.
+   Three sessions of notes have asked, and for the first time there is late-game content
+   that no measurement reaches. A dodging bot that can live past 8:00 is also the only way
+   the 128-seed baseline will ever stop being blind to a kind that unlocks at 8:00.
+2. Then the remaining enemies: **shielder** (7:30, "projects a shield onto nearby
+   enemies" - the first kind that needs a *relationship* between enemies: think about
+   where the link lives, and note that the grid is rebuilt per step and is a snapshot),
+   **splitter swarm** (9:00, packs of 20, which will want a look at `waves.maxMembers`
+   and at the per-body budget), **sniper** (10:30, a telegraphed laser across the whole
+   arena - it wants the harness transforms and probably an arrow of its own).
+3. Small thing to fold into one of those: the elite's gold is unseen by the tests, so if
+   a future session touches the palette, a `PALETTE.elite !== any kind colour` assertion
+   in `test/palette.test.mjs` is cheap and would catch a collision.
