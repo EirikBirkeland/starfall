@@ -30,6 +30,7 @@ import { logic } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { cueBeep } from './cues.js';
 import { spray } from './effects.js';
+import { enemyShotAt } from './enemyshots.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -48,6 +49,10 @@ export const KINDS = {
     stats: BALANCE.kinds.darter,
     walk: walksHunting,
     onDeath: shattersAlongItsAxis,
+  },
+  spitter: {
+    stats: BALANCE.kinds.spitter,
+    walk: walksSpacing,
   },
   tank: {
     stats: BALANCE.kinds.tank,
@@ -120,10 +125,13 @@ export function makeEnemy(world, type, x, y, opts) {
     phase: logic.range(0, TAU),   // this enemy's place in the wobble and spin cycles
     // The small state machine a kind may keep for itself. Most kinds never look at
     // these: a darter spends its life in `stage` counting down `timer`, and the
-    // line it locks on before a lunge lives in dirX/dirY. An enemy that has not
-    // been anywhere sits in '' with nothing to count.
+    // line it locks on before a lunge lives in dirX/dirY. `stageTime` is how long
+    // the beat it is in was when it started, so `aimProgress` can say how far
+    // through it the enemy is. An enemy that has not been anywhere sits in '' with
+    // nothing to count.
     stage: '',
     timer: 0,
+    stageTime: 0,
     dirX: 0,
     dirY: 0,
     ix: chosen(opts, 'ix', 0),
@@ -251,6 +259,7 @@ function hunting(enemy, step, hunt) {
   enemy.dirY = dy / distance;
   enemy.stage = AIMING;
   enemy.timer = hunt.aim.time;
+  enemy.stageTime = hunt.aim.time;
   shout(hunt.aim.sound);
 }
 
@@ -266,6 +275,7 @@ function aiming(enemy, step, hunt) {
 
   enemy.stage = LUNGING;
   enemy.timer = hunt.lunge.time;
+  enemy.stageTime = hunt.lunge.time;
   shout(hunt.lunge.sound);
 }
 
@@ -279,6 +289,7 @@ function lunging(enemy, step, hunt) {
 
   enemy.stage = RESTING;
   enemy.timer = hunt.rest.time;
+  enemy.stageTime = hunt.rest.time;
 }
 
 /** Overshot and turning around, at a crawl, until the next beat comes round. */
@@ -287,11 +298,75 @@ function resting(enemy, step, hunt) {
   if (enemy.timer > 0) return;
   enemy.stage = '';
   enemy.timer = hunt.beat;
+  enemy.stageTime = hunt.beat;
 }
 
 /** The sound a beat was given, which is not a number the simulation keeps. */
 function shout(spec) {
   cueBeep(spec.freq, spec.dur, spec.wave, spec.vol, spec.slide);
+}
+
+/** The one beat a spitter has, between holding its distance and holding it again. */
+const SPITTING = 'spit';
+
+/**
+ * The spitter: it keeps its distance and spits from there. It walks in from beyond
+ * `far`, backs off inside `near`, and shuffles sideways in between so it is never a
+ * sitting duck. When its wait is up and the ship is within reach it stops dead for
+ * `wind.time` - having already decided which way the shot goes, before the wind-up
+ * began - and the shot leaves along that. The wind-up is the telegraph: a still,
+ * warm, slowly brightening mouth, and then something slow and warm in the air.
+ */
+function walksSpacing(enemy, step) {
+  const spec = statsOf(enemy).spit;
+  enemy.timer -= step.dt;
+  if (enemy.stage === SPITTING) return winding(enemy, step, spec);
+  return holding(enemy, step, spec);
+}
+
+/** Hold the band it likes, and start a spit when the wait is up and the ship is in reach. */
+function holding(enemy, step, spec) {
+  const dx = step.ship.x - enemy.x;
+  const dy = step.ship.y - enemy.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const nx = dx / distance;
+  const ny = dy / distance;
+
+  const inOrOut = distance > spec.range.far ? enemy.speed
+    : (distance < spec.range.near ? -enemy.speed : 0);
+  const sideways = Math.sin(step.world.elapsed * spec.drift.rate + enemy.phase) * spec.drift.speed;
+  const vx = nx * inOrOut - ny * sideways;
+  const vy = ny * inOrOut + nx * sideways;
+  const pace = Math.hypot(vx, vy);
+  if (pace > 0) glide(enemy, step, vx / pace, vy / pace, pace);
+  else glide(enemy, step, 0, 0, 0);      // standing still, but a shove still moves it
+  // It walks backwards on purpose, so without this it would simply leave the world.
+  heldByTheWall(step.world, enemy);
+
+  enemy.rot = Math.atan2(ny, nx);         // its mouth points at the ship, always
+  if (enemy.timer > 0 || distance > spec.range.far) return;
+
+  enemy.dirX = nx;
+  enemy.dirY = ny;
+  enemy.stage = SPITTING;
+  enemy.timer = spec.wind.time;
+  enemy.stageTime = spec.wind.time;
+  shout(spec.wind.sound);
+}
+
+/** The wind-up, and the shot at the end of it. */
+function winding(enemy, step, spec) {
+  glide(enemy, step, 0, 0, 0);            // it stops dead to spit
+  enemy.rot = Math.atan2(enemy.dirY, enemy.dirX);
+  if (enemy.timer > 0) return;
+
+  enemyShotAt(step.world,
+    enemy.x + enemy.dirX * enemy.r,
+    enemy.y + enemy.dirY * enemy.r,
+    enemy.dirX, enemy.dirY, spec.shot);
+  enemy.stage = '';
+  enemy.timer = spec.after;
+  enemy.stageTime = spec.after;
 }
 
 /** Is this darter holding its aim right now - i.e. should it be drawing a line. */
@@ -304,9 +379,18 @@ export function isLunging(enemy) {
   return enemy.stage === LUNGING;
 }
 
-/** How far through its aim a darter is, 0..1: the telegraph's countdown. */
+/** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */
+export function isSpitting(enemy) {
+  return enemy.stage === SPITTING;
+}
+
+/**
+ * How far through the beat it is holding, 0..1 - the countdown a telegraph is drawn
+ * from. It reads `stageTime` rather than the kind's numbers so that any beat can be
+ * counted down, whoever declared it.
+ */
 export function aimProgress(enemy) {
-  return clamp(1 - enemy.timer / statsOf(enemy).hunt.aim.time, 0, 1);
+  return clamp(1 - enemy.timer / (enemy.stageTime || 1), 0, 1);
 }
 
 /**

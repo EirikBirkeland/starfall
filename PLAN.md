@@ -293,7 +293,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 ### Milestone 3: enemies and waves
 - [x] Enemy definitions as data in one table, with behaviours as small functions.
 - [ ] Add each enemy from 3.3, one per session, each with its telegraph and death effect.
-- [ ] Enemy bullets, in warm colours, with their own pool.
+- [x] Enemy bullets, in warm colours, with their own pool.
 - [ ] The wave director: a spawn budget that grows with time and is spent on the enemy types unlocked so far.
       Spawns happen off-screen, never on top of the player.
 - [ ] Elite variants.

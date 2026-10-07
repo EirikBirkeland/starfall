@@ -105,6 +105,13 @@ export const BALANCE = {
     sound: { base: 720, jitter: 100, dur: 0.05, wave: 'square', vol: 0.045, slide: 300 },
   },
 
+  // What every enemy shot shares, whoever fired it. How fast and how big a
+  // particular one is lives with the kind that spits it (see `kinds.spitter.spit`).
+  enemyShots: {
+    despawnMargin: 40,        // this far outside the arena, it is gone
+    impact: { count: 6, speed: 200, life: 0.3 },
+  },
+
   // How an enemy kind behaves. Behaviour itself is a small function in
   // game/kinds.js; this is the data it reads. `glow` is the one exception: it
   // is not read by the simulation at all, it is how far that kind's halo reaches
@@ -158,6 +165,31 @@ export const BALANCE = {
       },
       sound: { freq: 240, dur: 0.12 },
     },
+    spitter: {
+      radius: 14, speed: 66, hull: 5, score: 26, drop: 3,
+      color: PALETTE.orange, fill: PALETTE.orangeFill, sides: 5, glow: 18,
+      // It keeps its distance and spits from there. `near`/`far` are the band it
+      // tries to stand in - it walks in from beyond `far` and backs off inside
+      // `near` - and `drift` is the sideways crawl that stops it sitting still
+      // inside that band. `wind` is the wind-up: it stops dead, its mouth fills with
+      // light, and the shot leaves along the direction it had locked when the
+      // wind-up *began*. `after` is the pause before the next one.
+      //
+      // The shot is slower than the ship on purpose: a slow, warm, visible bullet is
+      // a threat you can read, and it is the reading that makes it fair.
+      spit: {
+        range: { near: 200, far: 330 },
+        drift: { speed: 52, rate: 1.3 },
+        wind: {
+          time: 0.45,
+          sound: { freq: 300, dur: 0.2, wave: 'sawtooth', vol: 0.022, slide: 90 },
+        },
+        after: 1.7,
+        shot: { speed: 270, radius: 4.5, life: 2.6, color: PALETTE.enemyShot },
+      },
+      death: { particles: 18, speed: 260, debris: 5, debrisSpeed: 180 },
+      sound: { freq: 180, dur: 0.16 },
+    },
     tank: {
       radius: 26, speed: 48, hull: 9, score: 35, drop: 5,
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
@@ -207,12 +239,15 @@ export const BALANCE = {
     //
     // The chances are a share of one roll, so they have to stay under 1 together or
     // the walker at the bottom stops being rolled at all: `chance + ramp` is what a
-    // row costs once the difficulty ramp has run out, and a row added without taking
-    // one away eats straight into the plain chaff at the bottom.
+    // row costs once the difficulty ramp has run out, and these four cost 0.85 of a
+    // roll between them, which leaves about a sixth of the crowd as plain chaff
+    // however late the run gets. A row added without taking one away eats straight
+    // into that sixth.
     mix: [
       { type: 'tank', from: 10, chance: 0.12, ramp: 0.1 },
       { type: 'weaver', from: 0, chance: 0.24, ramp: 0.12 },
       { type: 'darter', from: 60, chance: 0.08, ramp: 0.08 },
+      { type: 'spitter', from: 180, chance: 0.06, ramp: 0.05 },
     ],
     mixFallback: 'drifter',
     extraWaves: [{ at: 45, chance: 0.3 }, { at: 110, chance: 0.28 }],
@@ -310,8 +345,8 @@ export const BALANCE = {
 
   ambient: {
     // The slow, harmless crowd that drifts behind the title screen.
-    kinds: ['drifter', 'weaver', 'tank', 'darter', 'drifter', 'weaver', 'tank', 'darter'],
-    refillKinds: ['drifter', 'weaver', 'tank', 'darter'],
+    kinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter', 'drifter', 'weaver', 'tank'],
+    refillKinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter'],
     target: 8,
     refillChance: 1.2,     // per second
     speedFactor: 0.45,

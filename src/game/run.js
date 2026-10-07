@@ -34,6 +34,7 @@ export function resetRun(world) {
   ship.angle = -Math.PI / 2;
 
   world.bullets.clear();
+  world.enemyShots.clear();
   world.enemies.length = 0;
   world.shards.clear();
   world.grid.clear();

@@ -12,6 +12,7 @@ import { resetAmbient } from '../src/game/ambient.js';
 import { burst } from '../src/game/effects.js';
 import { dropShards } from '../src/game/pickups.js';
 import { fire } from '../src/game/player.js';
+import { enemyShotAt } from '../src/game/enemyshots.js';
 import { PALETTE } from '../src/core/palette.js';
 import {
   scriptedRun, enemyAt, bulletFlyingToward, stepTheWorld,
@@ -23,6 +24,7 @@ function eachMover(field, run) {
     ['the ship', [field.player]],
     ['a bullet', field.bullets.items],
     ['an enemy', field.enemies],
+    ['an enemy shot', field.enemyShots.items],
     ['a shard', field.shards.items],
     ['a spark', field.particles.items],
   ];
@@ -47,6 +49,8 @@ test('everything that moves keeps the place it came from', () => {
   foe.speed = 90;                       // a drifter on its way to the ship
   dropShards(field, 400, 300, 3);
   burst(field, 300, 300, PALETTE.spark, 6, 140, 0.5);
+  // Both axes, because the test below asks that every mover moved in both.
+  enemyShotAt(field, 700, 700, 0.6, -0.8, BALANCE.kinds.spitter.spit.shot);
 
   // Whatever was made during this step starts out where it was put.
   eachMover(field, (thing, what) => {

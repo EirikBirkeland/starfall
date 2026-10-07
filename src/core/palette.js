@@ -66,11 +66,18 @@ export const PALETTE = {
   amberFill: 'rgba(255,179,64,0.13)',
   red: '#ff4d6d',
   redFill: 'rgba(255,77,109,0.16)',
+  orange: '#ff7a3d',
+  orangeFill: 'rgba(255,122,61,0.14)',
   // The darter's warning line (render/entities.js): the wide soft pass is the
   // enemy's own red, the thin one over it is paler, and the head of it is almost
   // white - the order your eye should read them in.
   telegraph: '#ff9fb0',
   telegraphHead: '#ffd9df',
+  // An enemy's shot, and the light that fills a spitter's mouth before one leaves.
+  // Warm, every one of them: cyan is yours and this is not (PLAN section 4).
+  enemyShot: '#ff9a5c',
+  enemyShotCore: '#fff1dd',
+  spitCharge: '#ffd9a8',
 };
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;

@@ -179,6 +179,7 @@ window.STARFALL = {
       freeze: world.freeze,
       enemies: world.enemies.length,
       bullets: world.bullets.count,
+      shots: world.enemyShots.count,
       shards: world.shards.count,
       gridCells: world.grid.stats().filled,
       parts: world.particles.count,

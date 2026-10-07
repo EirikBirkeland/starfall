@@ -10,6 +10,7 @@ import { Grid } from '../core/grid.js';
 import { updateEffects, makeParticle, makeRing, makeLabel } from './effects.js';
 import { updatePlayer } from './player.js';
 import { updateBullets, makeBullet } from './bullets.js';
+import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies, updateSpawning } from './enemies.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
@@ -78,6 +79,9 @@ function createWorld() {
     // pairs by index, which an unordered pool cannot promise.
     bullets: new Pool(makeBullet),
     shards: new Pool(makeShard),
+    // The enemy's shots, pooled separately: they travel the other way and only ever
+    // look for the ship. See game/enemyshots.js.
+    enemyShots: new Pool(makeEnemyShot),
     enemies: [],
     // The collision broad phase. Rebuilt from the crowd every step, so it is
     // derived state that no run depends on.
@@ -143,6 +147,7 @@ function stepRun(dt, input) {
   updatePlayer(world, dt, input);
   updateSpawning(world, dt);
   updateBullets(world, dt);
+  if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run
   updateShards(world, dt);
 }

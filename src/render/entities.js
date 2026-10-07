@@ -12,7 +12,7 @@ import { polygon, shipPath } from './shapes.js';
 import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
-import { aimProgress, isAiming, isLunging, lungeReach } from '../game/kinds.js';
+import { aimProgress, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -42,6 +42,35 @@ const DART_BLUR_LENGTH = 30;     // px of blur a lunging dart drags behind it
 const DART_BLUR_WIDTH = 9;
 const DART_BLUR_LIGHT = 0.55;
 const DART_CHARGE = 8;         // px of light building at the nose while it aims
+const SPIT_CHARGE = 9;         // px of light filling a spitter's mouth
+const ENEMY_SHOT_HALO = 8;     // px of light past a shot's own reach
+
+/**
+ * The enemy's shots, drawn over the crowd: this is the one thing on the arena that
+ * can end the run from a distance, so it is never allowed to hide behind a body.
+ * A halo and a hot core per shot, both sized off the shot's own radius: the light
+ * reaches a little further than the distance that actually hits you, so a shot is
+ * never harder to see than it is to dodge.
+ */
+export function drawEnemyShots(ctx, alpha) {
+  const shots = world.enemyShots.items;
+  for (let i = 0; i < shots.length; i++) {
+    const shot = shots[i];
+    const halo = shot.r + ENEMY_SHOT_HALO;
+    if (!onScreen(shot.x, shot.y, halo + 4)) continue;
+    paintGlow(ctx, glowFor(shot.color, halo), paintX(shot, alpha), paintY(shot, alpha), 0.8);
+  }
+
+  ctx.fillStyle = PALETTE.enemyShotCore;
+  for (let i = 0; i < shots.length; i++) {
+    const shot = shots[i];
+    const halo = shot.r + ENEMY_SHOT_HALO;
+    if (!onScreen(shot.x, shot.y, halo + 4)) continue;
+    ctx.beginPath();
+    ctx.arc(paintX(shot, alpha), paintY(shot, alpha), shot.r * 0.7, 0, TAU);
+    ctx.fill();
+  }
+}
 
 /** The dart's own silhouette: all nose and swept wings, and nothing behind them. */
 function dartPath(ctx, r) {
@@ -140,6 +169,11 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // The last thing to arrive is the light at its nose, which is where the line
     // it is drawing starts.
     paintGlow(ctx, glowFor(PALETTE.telegraphHead, DART_CHARGE), enemy.r * 1.6, 0, aimProgress(enemy));
+  }
+  if (isSpitting(enemy)) {
+    // A spitter's whole warning: its mouth, pointed at you, filling with light over
+    // the wind-up. It starts at nothing, so the change is the tell.
+    paintGlow(ctx, glowFor(PALETTE.spitCharge, SPIT_CHARGE), enemy.r * 1.3, 0, aimProgress(enemy));
   }
 
   if (enemy.type === 'tank') {
