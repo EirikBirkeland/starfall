@@ -512,3 +512,118 @@ gain for a player who moves, and the bot barely moves. That is the number M3's d
 3. Arena 3000×3000 + camera (reading the interpolated position) + energy walls.
 4. Hit-stop (freeze 40 ms on big kills, 90 ms on a player hit) - the session-7 note says how to do it
    without the clock biting back: drain the accumulator while frozen.
+
+## Session 9 (2026-10-07) — Milestone 2: the dash
+
+Session 8's notes ended with the dash as "next", and the working tree already held an uncommitted,
+half-tested attempt at it. Almost all of this session was finishing and verifying that: the design in
+`player.js`/`balance.js` was sound and stayed, the tests were where it fell apart.
+
+### What landed
+- **The dash itself** (PLAN 3.1's last movement row, now ticked). `BALANCE.player.dash`:
+  220 px in 0.12 s, 2.5 s cooldown, and one committed burst on *rails*: `dashStep()` moves the ship
+  by `distance/time * dt` each step and the engines are not consulted until it is over, so the brake
+  cannot strangle it halfway (that was session 8's open question - a velocity shove would have been
+  eaten by `brake`, exactly like `recoil` is). When it ends the ship keeps the dash's direction at
+  `maxSpeed`, which leaves a `v²/2a` = 16 px glide: a flick, not a teleport, and not a slingshot.
+  Direction: the lean if one is held, else the cursor, else the nose (cursor sitting on the ship).
+  The wait is measured from the **start** of the dash, so one ended early by a wall still costs 2.5 s.
+- **Invulnerability became one question**: `player.js` exports `isInvulnerable(ship)`
+  (`invuln > 0 || dashLeft > 0`) and `enemies.js` asks that instead of reading `invuln`. Ships (M5)
+  will want to add to the same answer.
+- **`dashShoulder()`**: while the dash lasts, every enemy within `drawR + r + 26` gets its impulse
+  *set* (not added - it is shouldered for ~15 steps and a growing impulse would fling it) to 320 px/s
+  outwards. Not just feel: the moment the dash is over the crowd can hurt again, so a dash that ends
+  inside a mob has to end somewhere there is room to stand.
+- **The input layer grew one-shot requests** (`keyTaps`/`mouseTaps`, `consumeInput()`). Held state is
+  read fresh; a dash is a *request* that stays pending until a frame which ran at least one
+  simulation step has handed it over (`main.js`: `if (tick.steps > 0) consumeInput()`), so a press on
+  a stepless frame - a 240 Hz+ display, or a frame after a long stall - is not swallowed. The request
+  is spent whether the dash answered it or not: one press, one dash, nothing buffered behind a wait.
+  Space and right mouse dash; the left button only fires; blur drops a pending request.
+- **Painted, not simulated** (`render/entities.js`): a tapering gradient streak 46 px along the way
+  the ship came with two afterimages in it (drawn rotated back to `ship.angle`, so the ghosts keep
+  their facing), a ring + 14-spark burst at the start, 2 sparks sprayed backwards every step, and
+  the cooldown as a ring around the hull - one arc closing over the wait, a breathing circle once it
+  is ready. `effects.js` grew `spray()` (aimed sparks) next to `burst()`; both now build their sparks
+  through one `sparkAt()`, drawing the same numbers in the same order per spark, so neither can be
+  told apart by a run.
+- `world.player` has `dashLeft/dashCd/dashDirX/dashDirY`, all zeroed by `resetRun`, all in
+  `STARFALL.stats()`. `index.html` lists the control on the title screen.
+
+### The bug: the launch press was also a dash
+`keyboard.js` set `keyTaps.dash` **after** calling `handlers.onConfirm()`, and `main.js`'s
+`pressAction()` retires the request (`consumeInput()`) to stop the launch key dashing. So the
+clearing happened first and the flag second: every run begun with Space began with a dash already
+spent, one frame in. Fixed by recording the tap before onConfirm is told, which is also the honest
+order - the handler is allowed to swallow a press that already happened. (`mouse.js` already had it
+right: tap, then `onPress`.) Consequence worth knowing: a press that arrives while the run is already
+flying is *not* swallowed, so mashing LMB and Space together on the title screen spends one dash.
+That is correct - the second press is a dash request like any other - and it is why the older tests
+launch with the mouse alone now.
+
+### The lesson from the broken tests: bound every loop, and count what you think you counted
+Predecessor's `controls.test.mjs` never ran to completion, and two failures in it are worth writing
+down because either one alone would have been invisible:
+1. **It hung the test process.** It mashed Space once per frame `while (ship.dashCd > 0)`, but a
+   mashed press fires the instant the wait ends, so `dashCd` was never observed at 0 at the top of the
+   loop: infinite. Every wait loop in that file now has a frame guard (`frames < 1000`) and the test
+   asserts the guard never tripped. A regression must fail, not hang the box for 16 minutes.
+2. **One loop ran zero times** - a `1000/60` (ms) frame length divided into a seconds-scale
+   cooldown - and the test still "passed" everything it had asserted, because nothing had counted the
+   iterations. So the mashing test counts dash *starts* and asserts `starts === 1`: a loop that does
+   not run now fails instead of agreeing. Same for the launch test, which asserts the dash did **not**
+   happen by reading both `dashCd` and `dashLeft`.
+Both files were also hand-checked against the harness: `ready()` winds the ship back to "dash ready"
+(stops an underway dash too), and `tapSpace()` is a real down+up through `window` listeners.
+
+### Tests: 102, all passing (was 79)
+- `test/dash.test.mjs` (12) drives the scripted world, so it measures seconds: the whole 220 px and
+  no further; the 16 px glide and the standstill after it; the lean beats the cursor; a diagonal dash
+  at the cursor; a steady speed through the air while the engines argue with it; the `px/py`
+  interpolation contract; the wall case (paid in full, ends at the wall); passing through an enemy for
+  free and taking a hull the step after it is over; the shoulder; one press one dash; sparks and ring.
+- `test/controls.test.mjs` (11) boots the real game and fires real events at it: launch-not-a-dash,
+  Space dashes, the wait lasts 2.5 s and a held press inside it buys nothing, mashing is one dash per
+  press with nothing queued, auto-repeat is not a press, right button dashes and does not fire, left
+  fires and does not dash, a press on a stepless frame survives, blur drops a pending request.
+  The last two check the **drawing** through the canvas stub: the cooldown ring costs one extra stroke
+  while waiting, and a dashing frame moves the canvas twice more than a calm one (the two ghosts).
+  That trick - `game.drawCalls()` and `game.translates()`, reset each frame - is the only way to prove
+  something is painted here, and it is cheap.
+- `tools/headless/harness.js`: `pressMouse(x, y, button)` / `releaseMouse(button)`, and
+  `scripted.js` carries `dash` in its default input and reports `dashLeft/dashCd` in its tracks.
+
+### Reference run: unchanged, on purpose
+`--seed 20261006 --trace` is still 1m14s / 1108 / level 4 / 74 kills / 64 shards, and the trace hash
+is identical frame for frame. The bot never dashes, and the dash's own `logic` draws only happen while
+dashing, so nothing moved. Good control: it also proves the new drawing code does not touch the sim's
+stream (the flame is now driven by `input.moving` alone, not by the dash - the `visual` stream moved
+and the `logic` one did not).
+
+### Decisions, so a later session does not relitigate them
+- **No input buffering.** A dash request during the wait is dropped, not held for the end of it. It
+  reads as honest (the game never moves you that you did not ask for in this instant) and it keeps the
+  one-press-one-dash rule one line long. If it ever feels stiff, the buffer belongs in the input layer
+  with a lifetime in seconds, not in `beginDash`.
+- **The thruster flame follows the engines, not the speed.** During a dash `thrust` decays: the
+  engines are off, and the streak is what paints a dash. (A flame at full length while sliding
+  sideways, pointed at the cursor, looked wrong.)
+- The dash's numbers live in `BALANCE.player.dash`; the *look* constants (`STREAK_LENGTH`, the ring
+  colours) are named constants in `render/entities.js`, which `structure.test.mjs` allows.
+- `dashShoulder` walks the whole enemy list, not the grid: it runs for ~15 steps and the grid is
+  rebuilt by `updateEnemies` after the player. Cheaper than an honest ordering, and it is not the hot
+  path the grid was built for.
+
+### Released **v0.2.1**.
+
+### Next (Milestone 2)
+1. Pre-rendered glow sprites; drop the per-frame `shadowBlur` (and the per-bullet gradient). Measure
+   before and after with a throwaway bench; the numbers from session 7's note are in `framerate.test.mjs`.
+2. Arena 3000×3000 + camera (read the interpolated position, `render/interp.js`) + cursor lean +
+   energy walls. `dashDirection` uses `input.aimX/aimY` as **arena** coords, so it needs the camera's
+   inverse the moment one exists - same for `mouse.js`'s comment about canvas pixels.
+3. Hit-stop (freeze 40 ms on big kills, 90 ms on a player hit): drain the accumulator while frozen,
+   per session 7's note, or the clock will bite.
+4. Then M3: enemies as data, and the dodging bot - session 8's note has the naive baseline
+   (1m00s over seeds 1-4) that a dashing bot should beat.
