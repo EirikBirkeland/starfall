@@ -1422,3 +1422,122 @@ inverted `aimProgress`, one jet missing, no clamp, no thin pass, no blur - faile
 4. Then the **wave director** consuming `mix` (a spawn budget, off-screen `arrivalSpot` as the
    spawn primitive), elites, off-screen indicators, and the bot learning to dodge - with
    `tools/balance-report.js` beside it and the 128-seed rule from session 13 in mind.
+
+## Session 17 (2026-10-07) — Milestone 3: enemy bullets, and the spitter that uses them
+
+Three commits and a release (**v0.3.1**). Session 16's note said to do the bullet pool *before*
+the Spitter, not inside it; in practice they arrived in one piece of work, because a shot system
+with nothing that fires one is untestable arithmetic. The pool went in first and the spitter
+became its first - and so far only - user.
+
+### Commit 1: the mix has room in it
+`enemies.mix` rows cost `chance + ramp` of one roll once the ramp has run out, so a fourth row
+had to be paid for: tank 0.12/0.10, weaver 0.24/0.12, darter 0.08/0.08, spitter 0.06/0.05 - the
+specials now cost 0.85 between them and about a sixth of a late crowd stays plain chaff. The
+reference run **moved** here, as it always does when the mix moves: `--seed 20261006` is now
+**1m57s, score 1791, level 4, 123 kills, 54 shards**, and 128 seeds average **1m26s, score 1120,
+level 3.2, 81 kills**. Both are the new baseline; `/tmp/trace.A.txt` at that commit is what every
+later step in this session was diffed against.
+
+### Commit 2: `src/game/enemyshots.js` - the other direction
+`world.enemyShots` is a pool of `{x,y,px,py,vx,vy,life,r,color}`, deliberately *not* part of
+`game/bullets.js`: the player's bullets go looking for the crowd (which is why that file owns the
+grid), these go looking for one thing, so a shot costs one `dist2` and never touches the grid.
+`enemyShotAt(world, x, y, dx, dy, spec)` takes the firing kind's own `shot` numbers (`speed`,
+`radius`, `life`, `color`) - what every shot shares is only where it stops existing and what it
+costs you. `updateEnemyShots(world, dt)` flies them, kills them at `life <= 0` or
+`BALANCE.enemyShots.despawnMargin` (40 px) outside the arena, and answers false if a hit ended
+the run mid-loop, so `stepRun` stops there: `updateBullets` → **`updateEnemyShots`** →
+`updateEnemies`. A hit is `shot.r + ship.r` (4.5 + 6 px), costs one `hitPlayer(world, null)` and
+spends the shot. An invulnerable ship - the grace after a hit, or a dash - is let through with
+the shot **unspent**, which is what makes dashing across a volley the right answer instead of a
+way to eat two hits. `resetRun` clears the pool. `main.js`'s `stats()` gained `shots`.
+
+### Commit 3: the spitter, and PLAN's second telegraph
+PLAN 3.3's row (keeps its distance, fires slow aimed shots, 3:00) as this game does numbers:
+`radius 14, speed 66, hull 5, score 26, drop 3`, orange, five sides, `spit.range 200-330`,
+`drift 52 px/s at rate 1.3`, `wind.time 0.45` (+ a sawtooth as it fills), `after 1.7`,
+`shot { speed 270, radius 4.5, life 2.6 }`. Slower than the ship's 320 on purpose: a slow warm
+dot in the air is a threat you can read, and the reading is what makes it fair.
+
+`walksSpacing` has two beats, not four: `''` (hold the band - in from beyond `far`, back off
+inside `near`, plus a sideways `sin(elapsed × rate + phase)` shuffle so it is never a sitting
+duck; `heldByTheWall` because it walks backwards on purpose) and `'spit'` (stop dead, and at the
+end of the wind-up `enemyShotAt` along `dirX/dirY`). **The direction is locked in the *holding*
+step, before the wind-up starts** - same rule as the darter's line, and for the same reason:
+what you were shown is what arrives. Its mouth points at the ship the whole time it walks
+(`rot = atan2(ny, nx)`) and then holds the locked line while it fires, so the tell is literally
+"the mouth is pointed at me and filling up".
+
+**`stageTime`, and one shared countdown.** `makeEnemy` gained `stageTime` - how long the beat it
+is in was when it began - written at every beat entry of both kinds, and `aimProgress` now reads
+`1 - timer / (stageTime || 1)` instead of digging into `stats.hunt.aim.time`. That is the small
+generalisation session 16 wondered about: one helper counts down any beat, and the renderer still
+only ever asks `isAiming` / `isLunging` / `isSpitting` / `aimProgress`. No stage string appears in
+`render/`.
+
+**Drawing.** `drawEnemyShots` is called in `renderer.js` *after* `drawEnemies`, with the reason
+in the comment: a shot must never be hidden by the thing that fired it. Per shot: one glow sprite
+(halo = `r + 8` px, so the light reaches past the 10.5 px that actually hits you) plus one
+`arc`/`fill` core at `r * 0.7`, both culled by `onScreen`. A spitter mid-wind-up costs one extra
+glow at `r * 1.3` along its nose, strength = `aimProgress`, so the light starts at nothing and
+the *change* is the tell. New palette: `orange`/`orangeFill` (kind), `enemyShot`/
+`enemyShotCore`/`spitCharge` (all warm, all said so in a comment - PLAN section 4).
+
+### Verified
+`node --check` on everything touched; **218 tests** (was 197: +15 `test/spitter.test.mjs`, +4
+`test/enemy-shot-art.test.mjs`, +2 `test/kinds.test.mjs`); `--seed 1 --runs 128` byte-for-byte the
+commit-1 baseline, and the reference trace from commit 1 is **identical** after commits 2 and 3 -
+the whole spitter is inert in a run that never reaches 3:00, which is exactly what it should
+prove before it is believed. The bot dies at 1m26s on average, so nothing about the bot measures
+this enemy yet.
+
+18 mutations tried over the two files, and the ones that survived were my tests' fault, twice:
+(1) "the shot goes where it was pointed" had the spitter *directly above* the ship, so one
+component of its direction was nil and a `vx × 1.1` mutation changed nothing - moved to a
+diagonal spot and it is caught; (2) the wall test had the spitter backing away *from* the wall, so
+deleting `heldByTheWall` was invisible - the ship now sits between the spitter and the wall and
+the test asserts it is stopped there *and* stays pinned. A cadence test that counted spits inside
+a fixed 4.3 s window was measuring luck; it now measures the interval between successive spits
+(±0.3 s) and pins both `wind.time` and `after`. Everything else failed a test on its own: firing
+from the middle instead of the rim, firing out of reach, never backing off, creeping during the
+wind-up, re-aiming at the moment of firing, no wait between spits, no invulnerability check, not
+spending the shot, no life check, no despawn, no `updateEnemyShots`, no `clear()` on restart, no
+core fill, no cull, no mouth light. Still blind, and knowingly: the canvas stub counts draws, it
+does not see **colour** or **arc radius**, so swapping `enemyShotCore` for `enemyShot`, or drawing
+the core at `r × 4`, is invisible here (same blind spot as the darter's line colours).
+
+### Decisions, so nobody relitigates them
+- **Two beats, not four.** The spitter has a hold and a wind-up and nothing else; `SPITTING` is
+  the only named stage and `''` means "holding its distance". A `rest` beat would have been a
+  number nobody can feel.
+- **`stageTime` in the enemy, not a per-kind lookup in `aimProgress`.** The renderer must not
+  compare stage strings and it must not need a kind's table to know how far a beat has run.
+- **The wind-up's light starts at strength 0** and grows, rather than starting faint. A thing
+  appearing is a better tell than a thing being there, and it makes `aimProgress` testable at all
+  (the stub sees a stamp or it does not).
+- **No lower bound on firing.** It fires whenever `distance <= far`, even hugged, even though the
+  warning then shrinks towards the wind-up alone. A spitter in your face is already backing off
+  and contact damage is doing the punishing; a `range.min` knob would be one more number to defend.
+- **The shot is slower than the ship** (270 vs 320). You can outrun a shot you read late by
+  walking the right way. Deliberate.
+- **The spitter unlocks at 180 s, per PLAN**, which means the bot never sees one and neither
+  will most players yet. It is data in `mix`, not code; moving it earlier is one number and a
+  reference-run re-record if the next sessions decide the arena wants it sooner.
+- Menu crowd gained a spitter (`ambient.kinds`/`refillKinds`) so the shape is learnable before it
+  shoots; menu enemies drift in straight lines and never call a kind's walk, so no menu spitter
+  ever fires or makes a sound.
+
+### Next (milestone 3)
+1. **The wave director** consuming `mix` - a spawn budget that grows with time, spent on the
+   unlocked rows, with off-screen `arrivalSpot` as the spawn primitive. This is the item that
+   makes everything so far arrive *well*; currently a wave is one `spawnEnemy` call at a random
+   edge point.
+2. **The Bomber** (telegraphed circle on death, hurts other enemies too). It wants `killEnemy`'s
+   `onDeath` moved above the `if (!byPlayer) return;` line - a death effect is a property of
+   dying, not of being shot - so expect a small refactor of `enemies.js` with it.
+3. **Off-screen indicators**: with a 3000×3000 arena and a 1280×720 window you already fight
+   things you cannot see; a spitter firing from off-screen is worse than a drifter drifting in.
+   Probably wants the camera/`render/` edge and an arrow per off-screen enemy, cheap and dim.
+4. Then elites, the bot learning to dodge shots (it does not: `tools/headless/bot.js` only avoids
+   bodies), and `tools/balance-report.js` with the 128-seed rule from session 13 in mind.
