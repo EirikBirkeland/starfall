@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 0.3.6 — 2026-10-07
+The gold bodies actually arrive now.
+- 0.3.5 put elites in the game and, it turns out, never sent any: the seat a gold body
+  takes in a wave was rolled over a wave eight bodies long, while the waves a crowd can
+  actually pay for are two or three bodies long. Eight measured runs - one of them eleven
+  minutes - saw exactly zero gold bodies. The balance report is what showed it.
+- A wave now buys its leader *first* and buys its escort with whatever room is left,
+  so a wave of two can still be led by one. The rate is the one the roll always asked
+  for: one wave in five after 8:00 carries a gold body, which is roughly one every
+  quarter minute once the run is that old.
+- A leader pays for itself. It costs three of its kind out of the run's spawn budget,
+  so a wave that brings a gold tank brings fewer of everything else - the crowd is
+  still held to what the run may hold, gold or not.
+- A wave that carries a leader now stands it anywhere in the group rather than always
+  at the front of it, which is what makes it read as the leader of a wave.
+- A run that ends before 8:00 is untouched: the reference run is byte for byte the same
+  3m17s it has been. The runs that live past it are harder now, by about as much as a
+  gold body is worth.
+
 ## 0.3.5 — 2026-10-07
 From eight minutes in, some of them come in gold.
 - Any enemy can arrive as an **elite**: four times the hull, a fifth faster, and

@@ -22,7 +22,8 @@
 // A wave spends exactly one roll of the `logic` stream per member, however many
 // kinds have unlocked, so adding a kind to the roster cannot move a run that never
 // meets it. Once the run is eight minutes old a wave may want a gold body, which
-// costs two more rolls per wave and none at all before then - see game/elite.js.
+// costs two or three more rolls per wave - whether it carries a leader, what kind it
+// is, and where in the fan it stands - and none at all before then: see game/elite.js.
 
 import { BALANCE } from './balance.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
@@ -241,12 +242,23 @@ const ELITE = { elite: true };
  * both a wave. Their bearings are spread evenly across the fan around the one the
  * wave picked, so a group reads as a group coming in.
  *
- * One of them may be gold (game/elite.js). Two rolls decide it - whether this wave
- * carries an elite, and which member of it - so a gold body arrives as a wave with a
- * leader standing somewhere unpredictable in the fan, never as a screenful of gold.
- * A wave that never grows to have that many members carries none, and a gold member
- * the room cannot pay for arrives plain: the room is what limits how many bodies and
- * how much of a crowd the run is fighting, gold or not.
+ * One of them may be gold (game/elite.js), and three rolls decide it: whether this
+ * wave carries a leader at all, what kind it is, and where in the fan it stands. So
+ * a gold body arrives as a wave with a leader, never as a screenful of gold.
+ *
+ * The leader is bought *first*, at a gold body's price, and the escort is bought with
+ * whatever room is left over. That order is the point: an elite is a wave spending
+ * itself on one bigger body rather than a wave with something extra on top, and the
+ * room it costs is the same room that would otherwise have been two more bodies. It
+ * also means the seat is always a place that exists: the roll is over the members the
+ * wave actually bought, and since the leader is bought before any of them are, the
+ * wave is dealt round its leader rather than having it wait at the front of the fan.
+ *
+ * The one way a wave wants a leader and does not get one is a room too small to pay
+ * for a gold body of any kind that has unlocked; then the wave arrives plain and
+ * spends the room on bodies instead. `waves.waveMinPoints` is what keeps that
+ * theoretical - it is at least one gold body of the cheapest kind, and test/elite
+ * asserts the lockstep.
  *
  * Answers null when not one of them found somewhere to stand, which only happens
  * on a window that already shows the whole arena. The room is none the worse for
@@ -256,30 +268,40 @@ function sendWave(world, points) {
   const spec = BALANCE.waves;
   const goldPrice = BALANCE.elite.costMul;
   const bearing = logic.range(0, TAU);
-  const seat = rollElite(world) ? logic.int(0, spec.maxMembers - 1) : -1;
 
   const types = BUY;
   types.length = 0;
   let left = points;
-  while (types.length < spec.maxMembers) {
-    // A gold member is bought out of the same room as everyone else, at its own
-    // price; when what is left of the room cannot pay that, this member arrives
-    // plain and the wave carries no elite.
-    let gold = types.length === seat;
-    let type = pickMember(world, gold ? left / goldPrice : left);
-    if (type === null) {
-      gold = false;
-      type = pickMember(world, left);
-      if (type === null) break;
-    }
 
-    types.push({ type: type, elite: gold });
-    left -= kindOf(type).stats.cost * (gold ? goldPrice : 1);
+  let led = false;
+  if (rollElite(world)) {
+    // The kind is rolled out of the room divided by the gold price, so the one that
+    // comes back is a kind this wave can actually pay for gold.
+    const type = pickMember(world, left / goldPrice);
+    if (type !== null) {
+      types.push({ type: type, elite: true });
+      left -= kindOf(type).stats.cost * goldPrice;
+      led = true;
+    }
   }
+
+  while (types.length < spec.maxMembers) {
+    const type = pickMember(world, left);
+    if (type === null) break;
+    types.push({ type: type, elite: false });
+    left -= kindOf(type).stats.cost;
+  }
+
+  // Which place in the fan the leader takes. A wave of one is that one, wherever it
+  // stands, so the roll is not spent on a seat nobody can be given.
+  const seat = led && types.length > 1 ? logic.int(0, types.length - 1) : 0;
 
   const members = [];
   for (let i = 0; i < types.length; i++) {
-    const across = acrossFan(-spec.fan / 2, spec.fan / 2, i, types.length);
+    // The leader came in at the front of the buying list; this lifts it to its seat
+    // and lets the escort wrap round behind it, keeping the order it was bought in.
+    const slot = types.length === 1 ? 0 : (i + seat) % types.length;
+    const across = acrossFan(-spec.fan / 2, spec.fan / 2, slot, types.length);
     const enemy = spawnEnemy(world, types[i].type, bearing + across, types[i].elite);
     if (enemy !== null) members.push(enemy);
   }

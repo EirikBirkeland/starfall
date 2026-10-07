@@ -344,23 +344,25 @@ export const BALANCE = {
   // gold and a kind added later is elite for free.
   //
   //   from     seconds of run before one may arrive at all - PLAN's 8:00
-  //   chance   that a wave wants one. Per wave and at most one per wave, so an elite
-  //            reads as a wave with a leader rather than as a field of gold. A wave
-  //            that never grows to have as many members as the roll asked for carries
-  //            none, so the rate that arrives is under this: 15.1% of waves over 4000
-  //            of them at 0.2, which at the late-game beat of one wave every few
-  //            seconds is a gold body every half minute or so. The number is low on
-  //            purpose - an elite takes `costMul` of the crowd budget as well as being
+  //   chance   that a wave carries one. Per wave and at most one per wave, so an elite
+  //            reads as a wave with a leader rather than as a field of gold. Because
+  //            the leader is bought before its escort (game/waves.js) this is also the
+  //            rate that arrives, whatever the wave turns out to be worth: measured at
+  //            3 gold bodies in the 42 s one of the report's runs spent past 8:00 - a
+  //            gold body every quarter minute of the late game. The number is low on
+  //            purpose: an elite takes `costMul` of the crowd budget as well as being
   //            four times as tough, and a crowd made mostly of them would not fit on
-  //            the screen. Nothing in the bot's 2m10s of survival measures it; it is
-  //            judgement, and it is the first number to revisit once a run can be
-  //            played that far (see NOTES).
+  //            the screen. What the bot does not measure is a player *hunting* one;
+  //            `scoreMul` and a large shard are there to make that worth doing.
   //   hullMul / speedMul   PLAN's numbers, and the whole of what an elite *is*
   //   costMul  what one takes out of the spawn budget - which is also what an arrow
   //            at the window edge is worth (render/indicators.js). It sits under
   //            hullMul deliberately: at 4 the dearest kind would cost 32, more than
   //            one wave is allowed to spend (waves.waveMaxPoints), and a gold tank
-  //            would never arrive at all.
+  //            would never arrive at all. A wave rolls its leader's kind out of the
+  //            room divided by this number, so `waves.waveMinPoints` has to stay
+  //            worth at least one gold body of the cheapest kind - test/elite asserts
+  //            that lockstep, and the wave would arrive without a leader if it broke.
   //   scoreMul / dropMul   what killing one pays. Above hullMul for the score: an
   //            elite is an event and should be worth hunting.
   //   heal     the chance it gives the ship back a hull, and how many. Only rolled

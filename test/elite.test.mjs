@@ -6,8 +6,9 @@
 //
 //   what one *is* - its kind times four, times one and a bit, and its kind in every
 //   other way, because the tell is the gold and not a different body;
-//   how the run gets one - one roll per wave, only after 8:00, and at most one gold
-//   body in a wave, paid for out of the same spawn budget as everyone else;
+//   how the run gets one - three rolls per wave, only after 8:00: whether it carries
+//   a leader, what kind, and where in the fan it stands. At most one gold body in a
+//   wave, bought first and paid for out of the same spawn budget as everyone else;
 //   what it leaves behind - a large shard and the chance of a hull back, and only
 //   for whoever killed it;
 //   and what none of it costs a run that never lives that long: nothing at all, which
@@ -22,7 +23,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { logic } from '../src/core/rng.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { killEnemy } from '../src/game/enemies.js';
-import { crowdCost, roomToSpare, spawnEnemy, updateWaves } from '../src/game/waves.js';
+import { crowdBudget, crowdCost, roomToSpare, spawnEnemy, updateWaves } from '../src/game/waves.js';
 import { eliteSpoils, rollElite } from '../src/game/elite.js';
 import { dropBigShard } from '../src/game/pickups.js';
 import { healPlayer } from '../src/game/player.js';
@@ -30,9 +31,12 @@ import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const STEP = BALANCE.sim.step;
 const E = BALANCE.elite;
+const W = BALANCE.waves;
 const SHARDS = BALANCE.shards;
 /** A run aged past every `from` in the game, so nothing is locked out. */
 const LATE = Math.max(...Object.values(BALANCE.kinds).map((kind) => kind.from), E.from) + 30;
+/** The cheapest body the director can buy. */
+const CHEAPEST = Math.min(...Object.values(BALANCE.kinds).map((kind) => kind.cost));
 
 /** A run parked `seconds` old with the director on a leash. */
 function runAged(seed, seconds) {
@@ -55,6 +59,40 @@ function goldRolls(field, rolls) {
   let gold = 0;
   for (let i = 0; i < rolls; i++) if (rollElite(field)) gold++;
   return gold;
+}
+
+/** The angle a body came in at, measured off the bearing its wave came in on. */
+function offsetInFan(field, wave, enemy) {
+  let off = Math.atan2(enemy.y - field.player.y, enemy.x - field.player.x) - wave.bearing;
+  while (off > Math.PI) off -= Math.PI * 2;
+  while (off < -Math.PI) off += Math.PI * 2;
+  return off;
+}
+
+/**
+ * Which place in the fan a body took, 0 at one edge of it. The fan is spread evenly
+ * and in order, so this is the seat the wave's leader was given.
+ */
+function seatInFan(field, wave, enemy) {
+  const mine = offsetInFan(field, wave, enemy);
+  return wave.members.filter((other) => offsetInFan(field, wave, other) < mine - 1e-9).length;
+}
+
+/**
+ * Fill the arena with bodies until the room left for the next wave is as small as the
+ * director will still spend a wave on. Three bodies of room, which is what a crowd
+ * that is mostly standing there looks like. The dearest kind goes in first so that
+ * the crowd that does it is small enough not to hit the ceiling on bodies.
+ */
+function crowdTighteningRoomTo(field) {
+  field.enemies.length = 0;
+  for (const kind of ['tank', 'drifter']) {
+    const cost = BALANCE.kinds[kind].cost;
+    while (roomToSpare(field) >= W.waveMinPoints + cost) {
+      field.enemies.push(makeEnemy(field, kind, 300 + field.enemies.length * 6, 300));
+    }
+  }
+  return roomToSpare(field);
 }
 
 // --- what an elite is ---------------------------------------------------------
@@ -158,6 +196,103 @@ test('a wave carries at most one, and several waves carry one', () => {
   assert.ok(Math.abs(share - E.chance) < 0.06,
     withGold + ' of ' + waves + ' waves: ' + (share * 100).toFixed(1) + '% against '
     + (E.chance * 100).toFixed(1) + '%');
+});
+
+test('a short wave still carries its leader', () => {
+  // The room here is the least the director will spend a wave on: two or three bodies
+  // of room, and the leader used to be rolled for a seat in a wave eight bodies long.
+  // Six runs of the balance report, one of them eleven minutes, brought up zero gold
+  // bodies because of that (NOTES, session 23). A wave that wants a leader gets one
+  // however short it turns out, and pays for it out of what it would have spent on
+  // the bodies it no longer brings.
+  const field = runAged(916, LATE);
+  const room = crowdTighteningRoomTo(field);
+  assert.ok(room >= W.waveMinPoints && room < W.waveMinPoints + CHEAPEST,
+    'the room is ' + room + ', which is a wave and not much more');
+  let waves = 0;
+  let withGold = 0;
+  let bodies = 0;
+  for (let i = 0; i < 3000; i++) {
+    const left = crowdTighteningRoomTo(field);
+    field.spawnTimer = 0;
+    const wave = updateWaves(field, STEP);
+    if (!wave) continue;
+    waves++;
+    bodies += wave.members.length;
+    const gold = wave.members.filter((enemy) => enemy.elite).length;
+    assert.ok(gold <= 1, 'a wave brought ' + gold + ' gold bodies; one is the ceiling');
+    if (gold === 1) withGold++;
+    assert.ok(wave.points <= left, 'a short wave spent ' + wave.points + ' of ' + left);
+  }
+
+  assert.ok(waves > 500, 'the director sent ' + waves + ' waves to look at');
+  const size = bodies / waves;
+  assert.ok(size < W.maxMembers / 2, 'these are short waves: ' + size.toFixed(2) + ' bodies each');
+  const share = withGold / waves;
+  assert.ok(Math.abs(share - E.chance) < 0.03,
+    withGold + ' of ' + waves + ' short waves carried a leader: ' + (share * 100).toFixed(1)
+    + '% against ' + (E.chance * 100).toFixed(1) + '% wanted');
+});
+
+test('the leader takes a place in the fan rather than the front of it', () => {
+  // The seat is what makes a gold body read as the leader of a wave rather than as
+  // the first thing it sent. The wave is dealt round its leader, so every place in
+  // the fan is a place a leader can stand.
+  const field = runAged(917, LATE);
+  const seats = new Map();
+  let gold = 0;
+  for (let i = 0; i < 900; i++) {
+    field.enemies.length = 0;
+    field.spawnTimer = 0;
+    const wave = updateWaves(field, STEP);
+    if (!wave) continue;
+    const leader = wave.members.find((enemy) => enemy.elite);
+    if (!leader || wave.members.length < 3) continue;
+    const seat = seatInFan(field, wave, leader);
+    seats.set(seat, (seats.get(seat) || 0) + 1);
+    gold++;
+  }
+
+  assert.ok(gold > 40, 'the director sent ' + gold + ' waves of three or more with a leader');
+  const places = [...seats.keys()].sort((a, b) => a - b);
+  assert.ok(places.length >= 3, 'the leader stood in ' + places.length + ' places in the fan, not one');
+  assert.ok(places[places.length - 1] >= 2,
+    'the leader never stood deeper in the fan than ' + places.join(', '));
+  // Every place a wave of three can show is as likely as any other, and no further
+  // in than that unless the wave was big enough to have the seat.
+  for (const place of [0, 1, 2]) {
+    const asked = seats.get(place) || 0;
+    assert.ok(asked > gold / 10, 'seat ' + place + ' was asked for ' + asked + ' times in ' + gold);
+  }
+});
+
+test('a run that plays past 8:00 meets gold bodies', () => {
+  // The promise the balance report measured zero on, stated as a test and played
+  // through the world's own step: the director runs a live crowd for three minutes of
+  // it and the run's own sheet has to say gold bodies came into it.
+  const field = runAged(919, LATE);
+  field.spawnTimer = 0;
+  const held = crowdBudget(field) - W.waveMinPoints;
+
+  let seen = 0;
+  for (let i = 0; i < Math.round(180 / STEP); i++) {
+    stepTheWorld();
+    for (const enemy of field.enemies) if (enemy.elite) seen++;
+    // Somebody is killing things. Left alone the crowd fills the arena inside half a
+    // minute and the director stops sending anything to look at - both by the budget
+    // and by the ceiling on bodies, which is the line a real crowd is held to too.
+    if (crowdCost(field) > held || field.enemies.length > 90) {
+      killEnemy(field, field.enemies[0], false);
+    }
+  }
+
+  assert.ok(field.tally.arrived > 300, 'the crowd came in all the same: ' + field.tally.arrived);
+  assert.ok(field.tally.eliteArrived >= 3,
+    'three minutes of a late crowd brought ' + field.tally.eliteArrived + ' gold bodies');
+  assert.ok(seen > 0, 'no gold body was ever standing in the arena');
+  assert.ok(field.tally.eliteArrived <= field.tally.arrived / 3,
+    field.tally.eliteArrived + ' gold out of ' + field.tally.arrived
+    + ' arrivals is more of a crowd than one wave in five carries');
 });
 
 test('a gold body is bought out of the room the wave was given', () => {
