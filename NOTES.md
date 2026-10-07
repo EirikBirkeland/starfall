@@ -2956,3 +2956,146 @@ The trace fingerprint now mixes in `level` as well, so every older trace is stal
 - Small things this session left on the table, none of them bugs: the HUD has no upgrade
   icons yet (milestone 4 has that item), Esc during the card screen does nothing, and
   `simulate.js` still prints no median and no game-seconds column.
+
+---
+
+## Session 28 (2026-10-07) — Firepower 2: split shot, and the gun stops being one shot. Released **v0.4.1**
+
+The second item of the owner's block. It is the first upgrade line that is not a
+multiplier, which turned out to be the interesting part of the session: the model had to
+grow before the line could be written.
+
+### What landed
+
+**Split shot (PLAN 3.5)** is a fourth line, five ranks, `BALANCE.upgrades.split`:
+`step: 1` extra projectile per rank, `fan: 0.087` rad (5°) between neighbours, and
+`share: 0.35` - what each extra carries of a normal shot's damage. `fire()` asks
+`volleyOf(world)` how many projectiles this pull makes and lays them out with `shotFan`.
+
+**A line can now be one of two kinds of number.** Everything up to now sold a *share* of
+something and `gainOf` was the only reading (`1 + step * rank`). A pile of projectiles is
+not a share of anything, so a line now carries a `unit` - `percent` or `each` - and
+`effectOf` prints either (`+30% shot damage`, `+1 extra shot`, straight from `step`, so
+neither kind of card can lie about its number). `gainOf` **throws** if you ask it for a
+whole-things line: `1 + 1*5` is a plausible-looking six that would have multiplied
+something the wrong thing silently. `volleyOf` is the other reading, and it is the only
+place `split`'s id appears outside balance.
+
+**The share is the decision of the session.** PLAN says "1 extra projectile per rank in a
+fan" and nothing about their weight, so I had to choose, and the options were: every
+projectile at full damage (a rank is then a flat multiplier on the gun, ~6x at rank 5, and
+the fan becomes strictly better than the damage line rather than different from it); every
+projectile at a reduced share (then the *first* card can make a lone long-range shot
+weaker than it was, which is a card that hurts you to take); or **the shot you aimed stays
+whole and every extra carries 0.35 of it**. I took the third: a rank never takes anything
+away, the fan buys *coverage* - more of the crowd touched per pull - and what you pay is
+geometric instead of numerical, since shots that have spread too far to touch one enemy
+touch nothing. That is the trade the card is supposed to sell, and the test proves both
+halves of it. `gainOf`-style "always better" upgrades make every run the same run.
+
+**The fan's geometry.** The aimed shot is first and straight down the nose, then one ring
+at a time alternating sides: offsets 0, +g, -g, +2g, -2g, +3g. Five ranks means an odd
+number of extras and an odd number cannot be symmetric about the aim, so the biggest fan
+leans one gap (5°) to the right; the alternative - putting the heaviest shot off the
+nose - means the player's aim is a lie, which is worse. The extras alternate ±g, so at
+every rank up to the last the fan *is* symmetric. `shotFan` writes into one module-level
+scratch array, refilled per pull: nothing allocates in a shot loop (PLAN section 2).
+
+**Four lines into three places: the offering rules bite for the first time.** Session 27
+left a note that the weighting and `guaranteeSomethingNew` could not do anything while
+three lines filled three slots. They can now, and there is a property test for it: three
+lines with ranks in them and one fresh, dealt over 60 seeds, and every deal must contain
+something untouched. I checked the test bites by commenting the guarantee out (it fails
+immediately). The other offer tests were rewritten to stop assuming *which* three of the
+four lines come up, which is what made them real tests rather than a photo.
+
+**The bot** (`tools/headless/bot.js`) now has `['damage', 'split', 'fireRate', 'bulletSpeed']`
+as its appetite - split second, because it is the line that buys coverage and coverage is
+what this bot needs - and an unlisted line is last resort rather than first choice
+(`indexOf` returning -1 used to win every tie). `tools/simulate.js` prints the build from
+`Object.values(ranks)` so a fifth line will show up without anyone editing the tool.
+
+**Rendering**: `render/cards.js`'s one long `if/else` icon became a dispatch table of four
+small functions (`ICONS`), each with its own name and comment, and an icon with no shape
+now throws instead of quietly drawing the shot-speed arrow. Split shot's icon is a muzzle
+with three shots leaving it, the middle one brightest - the aimed one is the heavy one, and
+the card says so in the picture. Tint is the palette's violet, which was unused on cards.
+
+### The measurement (same 24 seeds as session 27, `aware` bot, 900 s cap)
+
+| | median | mean | median kills | median score | outlasted the cap |
+|---|---|---|---|---|---|
+| three lines, bot picks | 5m53s | 6m15s | 754 total/median ~ | 5,140 | - |
+| **+ split shot** | **8m17s** | **10m02s** | **2708** | **44,292** | **8 of 24** |
+
+Reference run rebaselined on purpose: `node tools/simulate.js --seed 20261006 --trace` →
+**dies 8m49s, score 39141, level 28, 2396 kills, 840 shards, build 5/5/5/5** (was 6m46s /
+13193 / level 17 / 888 / 273 / 5-5-5).
+
+Read this against session 27's finding, which said firepower does *not* buy this bot's
+survival because the wave director refills the room you clear. That is still true of the
+share lines - and it is still true here, in the sense that the crowd is not thinner. What
+changed is that split shot is the first firepower that buys **time per arrival**: a fan
+drops a wave member while it is still in the air and off to the side, so the bot spends
+less of its time inside a body's reach. Kills went up 3.6x for a 40% longer median, which
+is the shape you would expect if the claim is right. The owner's 5:00 goal is now cleared
+by a wide margin *through the weapons*, which is what the block asked for, and nothing in
+the crowd moved: no hull, speed, budget or ramp was touched, and `git diff` on the enemy
+files is empty.
+
+Peak live bullets in a fully-split run: **53** (out of PLAN's 1500 target), from a pool
+that built 54 objects for 15,819 lives. Perf is not a concern here; a six-shot pull is
+one pull, and `shotsPerSecond` is untouched by the line (tested).
+
+### The thing that broke, and it is a standing lesson for the suite
+
+Three tests failed the moment the line was in: `test/seed.test.mjs` and `test/pool.test.mjs`
+both played until the bot died, and the bot **stopped dying** - one seed was still flying at
+the 900 s cap. That is the same trap `test/restart.test.mjs` already documents ("no length
+a test can wait out is a promise that a run is still going"), arriving one file earlier
+because the game got better. Fixed properly rather than by stretching a window:
+`tools/headless/bot.js` now exports `endingItAt(seconds)`, an `onFrame` that holds the
+ship to one hull with no grace and plants a body on it once the run has been played long
+enough. `seed.test.mjs` (150 s), `pool.test.mjs` (150 s) and `level-up.test.mjs` (120 s)
+use it, and restart.test.mjs's private copy of the same trick was folded into it. The suite
+got faster on the way. **Rule: a test that needs a finished run arranges the finish; it
+never waits for one.**
+
+### Notes for whoever is next
+
+- **The card pool runs out before a good run does.** Twenty ranks between the four lines,
+  and a median run now spends all of them (`build 5/5/5/5` is the common report). Session
+  27 tuned `shards.xp = 14` and `progression.base = 90` so that the pool lasted about as
+  long as a median run; a median run got 40% longer, so the pair needs another look *when
+  the next lines arrive*, not before - milestone 4's behaviour lines and milestone 5's
+  secondaries are the fix, and levels past the pool are still levels (chime, label, score)
+  without stopping the run. Do not "fix" the XP curve by making levels cheaper in the
+  meantime: the drip is what makes the first card land a quarter minute in.
+- `share: 0.35` and `fan: 0.087` are one coupled pair with `damage.step`: 0.35 keeps a
+  full fan (6 shots) worth 2.75 shots, against the damage line's 2.5 at five ranks. If
+  you raise the share, a long-range single-target pull starts beating the damage line and
+  the fan stops being a choice.
+- One **sound** per pull, not per projectile - the mix has no voice limiting until
+  milestone 7, and six beeps per pull reads as a buzz. When milestone 7 lands, the shot
+  sound is the thing that should get richer with a fan, not louder.
+- The muzzle flash is still one burst per pull regardless of the fan. Deliberate for now:
+  six bursts at the same point is a blob. If a fan ever looks under-dressed, the fix is a
+  wider, aimed `spray()` per extra projectile, not more sparks at the muzzle.
+- Tests: **451, all passing** (was 442). New file `test/split.test.mjs` (6): the volley
+  size, the fan's exact shape as data the test writes out itself, the aimed shot being the
+  heavy one and the extras not being free, a fan still being one pull of the trigger, and
+  two geometry tests where the answer cannot be luck (300 px, one gap = 26 px of sideways,
+  aim error worth +-14 px, a drifter touched at 18 - so a plain shot can never touch the
+  off-axis enemy and a two-gap shot never misses it). `test/upgrades.test.mjs` gained the
+  deal-property test and the `gainOf`-throws test.
+- Small things still on the table, none of them bugs: the HUD has no upgrade icons yet
+  (milestone 4), Esc during the card screen does nothing, and `tools/simulate.js` prints
+  no median and no game-seconds column - the block's last item wants that median.
+
+### Next
+
+**Pierce** (PLAN 3.5): shots pass through one extra enemy per rank. It belongs in
+`updateBullets`, where a bullet that hits is killed today, so it is the first line that
+has to *not* kill its bullet - which means the loop's `break` and the grid's snapshot rules
+(session 6) both have to be reconsidered, and a pierce needs to remember who it has already
+hit or it will shave the same body every step. Then **ricochet**, then the block's release.
