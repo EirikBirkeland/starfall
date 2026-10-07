@@ -1,5 +1,6 @@
-// The two DOM screens: the title and the game-over card. Everything else is on
-// the canvas.
+// The DOM screens: the title and the game-over card. The level-up choice is not here
+// - it is painted on the canvas (render/cards.js), because its cards are drawn, not
+// typed. Everything the run shows while it is being played is on the canvas too.
 
 let el = null;
 
@@ -11,6 +12,7 @@ export function initScreens() {
     finalBest: document.getElementById('finalBest'),
     newBest: document.getElementById('newBest'),
     stats: document.getElementById('finalStats'),
+    build: document.getElementById('finalBuild'),
   };
 }
 
@@ -30,5 +32,6 @@ export function showGameOver(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
+  el.build.textContent = 'BUILT FROM   \u00b7   ' + summary.build;
   el.over.classList.remove('hidden');
 }

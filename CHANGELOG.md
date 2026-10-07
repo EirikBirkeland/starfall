@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 0.4.0 — 2026-10-08
+The run builds itself now: every level-up stops the game and deals you three cards.
+- **Levels are choices, not numbers.** Collect enough shards and the run holds still,
+  three cards slide up out of the bottom of the screen, and the world starts again the
+  moment you answer - with the mouse, or with keys **1**, **2**, **3**.
+- Three lines to build with, five ranks each: **DAMAGE** (+30% shot damage a rank),
+  **FIRE RATE** (+22% shots a second) and **SHOT SPEED** (+22% shot velocity). Each card
+  shows an icon drawn in code, its rank as pips with the next one waiting, and one plain
+  line on what it is worth. A line that is maxed stops coming back, and the cards are
+  weighted towards the lines you have already committed to.
+- The XP curve is PLAN 3.6's, and its first term has been raised so that the first card
+  lands about a quarter of a minute in and the fifteenth about where a good run ends -
+  fifteen ranks is all three lines have to give, and a card you never get to spend is a
+  card you never needed.
+- Measured over 24 runs: the bot now kills **754** bodies a run where it used to manage
+  **348**, for twice the score, and survives a median of **5m53s**. A finished run walks
+  away with all fifteen ranks; the game-over card now says what it was built from.
+- Nothing about the crowd moved: same hull, same speeds, same spawn budget, same ramp.
+
 ## 0.3.8 — 2026-10-07
 Twenty of them at once: the swarm arrives at nine minutes.
 - A **swarm** is one arrival made of up to twenty small, fast bodies. The wave director

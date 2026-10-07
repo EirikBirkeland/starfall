@@ -57,7 +57,11 @@ export const BALANCE = {
       labelOffset: 6,
       sound: { notes: [520, 780, 1040], dur: 0.16, wave: 'sine', vol: 0.09 },
     },
-    fireRate: 4.4,          // shots per second, before levels
+    fireRate: 4.4,          // shots per second, before upgrades
+    // A ceiling on how many shots one ship may have in the air per second, mostly
+    // so that no combination of lines can turn the frame budget into confetti. It
+    // deliberately sits above everything the fire rate line can reach on its own
+    // (4.4 * 2.1 = 9.2), so what a player picks is never silently thrown away.
     fireRateMax: 15,
     startInvulnerability: 1.2,
     hitInvulnerability: 1.5,
@@ -501,7 +505,13 @@ export const BALANCE = {
     pullFar: 120,
     collectRadius: 25,      // a shard this close to the ship's centre is yours
     drag: 0.25,             // fraction of speed left after one second
-    xp: 1,
+    // What one shard is worth towards the next level, in the same units the curve below
+    // is written in. Measured with it: a five-minute run collects about two hundred and
+    // fifty of them, and the fifteen ranks the three lines have to give cost about two
+    // hundred and thirty shards' worth - so the choice keeps coming until roughly the
+    // end of a run like that one, and then stops, which is the honest thing to do with
+    // three lines.
+    xp: 14,
     score: 2,
     pickupSpark: { count: 5, speed: 120, life: 0.3 },
     // A large shard: PLAN 3.3's elite drop. Worth `worth` of the ordinary ones, and
@@ -515,12 +525,46 @@ export const BALANCE = {
     sound: { base: 1050, jitter: 270, dur: 0.05, wave: 'sine', vol: 0.05, slide: 1900 },
   },
 
+  // Levels, and what one is worth (PLAN 3.6). A level is no longer a number: it is
+  // the pause where the run is built (game/upgrades.js), so this curve *is* the pace
+  // at which the player's power arrives.
+  //
+  // The shape is PLAN's - `base + level * linear + level^2 * quad` - and so are the
+  // linear and quadratic terms. The base is not: PLAN wrote 8 before a level meant a
+  // card, and a quadratic curve spends its first levels absurdly cheaply (the first
+  // card costs a two-hundredth of the fifteenth), so at 8 the whole first minute of a
+  // run is a slot machine. The base is what makes the first card land about a quarter
+  // minute in, and what makes the fifteenth land about where a median run ends - the
+  // three lines have fifteen ranks between them, and a card the run never gets to
+  // spend is a card the run never needed. All measured (NOTES, session 27).
   progression: {
-    firstLevelXp: 8,
-    levelBase: 7, levelLinear: 3, levelExponent: 1.55,
-    fireRateGain: 1.075, fireRateFlat: 0.06,
-    label: 'RAPID FIRE',
+    base: 90,
+    linear: 6,
+    quad: 0.9,
     labelOffset: 16,      // the level text floats this far above the ship
+  },
+
+  // The upgrade lines (game/upgrades.js). One rank of a line is worth
+  // `1 + step * rank` of the thing it sells, so the card text is never a lie about
+  // the number: it prints `step`.
+  //
+  // Three lines, five ranks each (PLAN 3.5 starts here), and every one of them is
+  // firepower: the point of the build is that the run's shots get heavier, faster and
+  // more numerous, not that the ship gets tougher (PLAN section 7's hard rule).
+  upgrades: {
+    damage: { ranks: 5, step: 0.3 },
+    fireRate: { ranks: 5, step: 0.22 },
+    bulletSpeed: { ranks: 5, step: 0.22 },
+  },
+
+  // The level-up choice (game/upgrades.js, render/cards.js).
+  cards: {
+    offer: 3,      // how many cards are dealt, which is what keys 1, 2, 3 are for
+    // PLAN 3.5: offer cards weighted towards what the player already has. A line
+    // with three ranks in it is therefore four times as likely to come back round,
+    // which is what makes a run commit to a build instead of spreading one rank over
+    // everything on offer.
+    bias: 1,
   },
 
   playerHit: {

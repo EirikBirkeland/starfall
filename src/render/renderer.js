@@ -13,6 +13,7 @@ import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawPlayer, d
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
+import { drawCards } from './cards.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
 function shakeOffset(amount) {
@@ -26,9 +27,11 @@ function shakeOffset(amount) {
  * the next it sits, and the frame rate. Moving things are drawn between where
  * they were and where they are - see render/interp.js - and so does the camera.
  *
- * `input` is the frame's input descriptor, which the camera leans towards.
+ * `input` is the frame's input descriptor, which the camera leans towards. `pointer`
+ * is where the mouse sits on the glass - only the upgrade choice cares about it, and
+ * only because it has to light up the card it is over.
  */
-export function renderFrame(tick, input) {
+export function renderFrame(tick, input, pointer) {
   const ctx = view.ctx;
   const W = view.W;
   const H = view.H;
@@ -77,7 +80,7 @@ export function renderFrame(tick, input) {
     drawShieldBubbles(ctx, world.enemies, tick.alpha);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
-    if (world.state === STATE.PLAY) drawPlayer(ctx, tick.alpha);
+    if (world.state !== STATE.START) drawPlayer(ctx, tick.alpha);
     drawSparks(ctx, tick.alpha);
     drawTexts(ctx);
   }
@@ -92,5 +95,8 @@ export function renderFrame(tick, input) {
   // the edge they point along however hard the frame shakes, and the vignette cannot
   // dim the one warning that has to be seen in a corner.
   if (world.state === STATE.PLAY) drawIndicators(ctx, tick.dt, tick.alpha);
-  if (world.state === STATE.PLAY || world.state === STATE.OVER) drawHUD(ctx, tick.fps);
+  if (world.state !== STATE.START) drawHUD(ctx, tick.fps);
+  // Last of all, over the interface it pauses: the run is holding still and the whole
+  // window belongs to the choice (game/upgrades.js).
+  if (world.state === STATE.LEVEL) drawCards(ctx, pointer);
 }

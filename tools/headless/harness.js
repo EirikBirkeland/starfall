@@ -130,7 +130,7 @@ function makeAudioContextStub(log) {
   };
 }
 
-const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats'];
+const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild'];
 
 /**
  * Boot the game with no browser.
@@ -291,6 +291,7 @@ export async function bootGame(options) {
         finalScore: elements.finalScore.textContent,
         finalBest: elements.finalBest.textContent,
         stats: elements.finalStats.textContent,
+        build: elements.finalBuild.textContent,
         newBestShown: !elements.newBest.classList.contains('hidden'),
       };
     },

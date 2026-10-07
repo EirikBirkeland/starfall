@@ -9,6 +9,8 @@ import { saveBest } from '../core/save.js';
 import { burst, ring, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
 import { newTally } from './tally.js';
+import { firstLevelXp } from './progress.js';
+import { resetRanks } from './upgrades.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -52,7 +54,13 @@ export function resetRun(world) {
   world.steps = 0;
   world.score = 0;
   world.xp = 0;
-  world.xpNeed = BALANCE.progression.firstLevelXp;
+  world.xpNeed = firstLevelXp();
+  // The run starts with nothing bought and nothing on the table: a card left over from
+  // the last run would pause a run that has earned nothing.
+  resetRanks(world);
+  world.offer.length = 0;
+  world.pendingLevels = 0;
+  world.offerTime = 0;
   world.spawnTimer = BALANCE.runStart.spawnDelay;
   world.waveNumber = 0;
   world.shake = 0;

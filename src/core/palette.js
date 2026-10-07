@@ -55,6 +55,13 @@ export const PALETTE = {
   xpText: '#9dffcb',
   star: '#c8ebff',
 
+  // The upgrade choice (render/cards.js). Cool through and through, because a card is
+  // the best thing that can happen to you (PLAN section 4) and a warm one would read
+  // as a threat.
+  cardScrim: 'rgba(3,7,20,0.74)',
+  cardFace: 'rgba(9,20,44,0.94)',
+  cardEdge: '#3f89c9',
+
   // Enemy kinds. PLAN section 4 wants the harmful ones in the red-to-magenta half
   // of the palette; the darter is the first drawn from there, and the drifter's
   // violet is the last one still waiting its turn.

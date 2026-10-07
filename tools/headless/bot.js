@@ -7,6 +7,9 @@
 //           shots in the air, lines that have been drawn but not fired, the circle a
 //           bomber is standing in - and steps off it (see tools/headless/threats.js).
 //
+// Both of them answer the level-up choice when the run stops for one, with keys, the
+// way a player does (see `chooseCard` below).
+//
 // The naive one is kept because it is the baseline every older note in NOTES.md was
 // measured with, and because a game that is hard for a bot that tries is a different
 // claim from one that is hard for a bot that barely tries. `--bot naive` runs it.
@@ -89,8 +92,44 @@ function awareFrame(game) {
 export const POLICIES = { naive: naiveFrame, aware: awareFrame };
 export const DEFAULT_POLICY = 'aware';
 
+/**
+ * The level-up choice, taken the way a player takes one: a number key.
+ *
+ * The policy is written down rather than clever, because a bot that picks at random
+ * measures nothing and a bot that picks perfectly overstates a human. So: take the
+ * line with the fewest ranks already in it, and break a tie in the order below - the
+ * three lines all multiply the same damage per second, so spreading them is the
+ * strongest thing to do while they are all short, and damage is the one that matters
+ * most when the crowd out-scales the gun.
+ */
+const APPETITE = ['damage', 'fireRate', 'bulletSpeed'];
+
+function preferredCard(game, offer) {
+  const ranks = game.world.upgrades;
+  let best = offer[0];
+  for (const id of offer) {
+    if (ranks[id] > ranks[best]) continue;
+    if (ranks[id] < ranks[best] || APPETITE.indexOf(id) < APPETITE.indexOf(best)) best = id;
+  }
+  return best;
+}
+
+function chooseCard(game) {
+  const offer = game.world.offer;
+  if (offer.length === 0) return;
+  const number = offer.indexOf(preferredCard(game, offer)) + 1;
+  game.key('Digit' + number, true);
+  game.key('Digit' + number, false);
+}
+
 /** Play one frame as `policy`. */
 export function botFrame(game, policy) {
+  // A paused run has one business and it is not flying: the cards are answered first,
+  // and the run is back before the next frame is drawn.
+  if (game.world.state === game.STATE.LEVEL) {
+    chooseCard(game);
+    return;
+  }
   const play = policy === undefined ? POLICIES[DEFAULT_POLICY] : POLICIES[policy];
   if (!play) throw new Error('no bot policy is called ' + policy);
   play(game);
@@ -141,7 +180,7 @@ export function fingerprint(game) {
   for (const enemy of game.enemies) { mix(enemy.x); mix(enemy.y); mix(enemy.hp); }
   const stats = game.stats();
   mix(stats.bullets); mix(stats.shards); mix(stats.parts);
-  mix(stats.score); mix(stats.xp); mix(stats.t); mix(stats.wave);
+  mix(stats.score); mix(stats.xp); mix(stats.level); mix(stats.t); mix(stats.wave);
   return (h >>> 0);
 }
 

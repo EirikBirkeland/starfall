@@ -37,7 +37,12 @@ function xpFill(ctx, bx, bw) {
   return xpGradient;
 }
 
-function haloText(ctx, text, x, y, color, halo) {
+/**
+ * Text with a halo: the same letters stroked wide and faint under themselves, which is
+ * the look of a blur for one more stroke (see render/glow.js on why nothing blurs).
+ * The caller sets the font. Shared by the HUD and the upgrade cards.
+ */
+export function haloText(ctx, text, x, y, color, halo) {
   ctx.lineWidth = TEXT_HALO_WIDTH;
   ctx.strokeStyle = withAlpha(halo, TEXT_HALO);
   ctx.strokeText(text, x, y);

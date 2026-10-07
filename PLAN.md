@@ -357,8 +357,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [ ] Release.
 
 ### Milestone 4: upgrades
-- [ ] XP curve from 3.6, level-up pause, and the three-card choice screen.
-- [ ] Upgrade definitions as data. Stat upgrades first.
+- [x] XP curve from 3.6, level-up pause, and the three-card choice screen.
+- [x] Upgrade definitions as data. Stat upgrades first.
 - [ ] Each behaviour upgrade from 3.5, one per session, each with a test of its logic.
 - [ ] Each secondary system from 3.2, one per session.
 - [ ] Card offer weighting, reroll, and banish.

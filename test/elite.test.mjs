@@ -26,6 +26,7 @@ import { killEnemy } from '../src/game/enemies.js';
 import { crowdBudget, crowdCost, roomToSpare, spawnEnemy, updateWaves } from '../src/game/waves.js';
 import { eliteSpoils, rollElite } from '../src/game/elite.js';
 import { dropBigShard } from '../src/game/pickups.js';
+import { xpNeededFor } from '../src/game/progress.js';
 import { healPlayer } from '../src/game/player.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { CHEAPEST, CHEAPEST_KIND, LAST_UNLOCK } from '../tools/headless/balance-tools.js';
@@ -399,12 +400,17 @@ test('a large shard is worth what it says it is worth', () => {
   const ship = field.player;
   dropBigShard(field, ship.x, ship.y);
   const xp = field.xp;
+  const level = ship.level;
   const score = field.score;
   const collected = field.shardsCollected;
 
   stepTheWorld();
   assert.ok(field.shardsCollected > collected, 'the ship sucked it in on the next step');
-  assert.equal(field.xp - xp, SHARDS.xp * SHARDS.big.worth, 'and was paid for it');
+  // What it paid for is what is left in the bank plus whatever levels it bought on the
+  // way in (game/progress.js) - a run already near a level would otherwise look short.
+  let spent = 0;
+  for (let n = level; n < ship.level; n++) spent += xpNeededFor(n);
+  assert.equal(field.xp - xp + spent, SHARDS.xp * SHARDS.big.worth, 'and was paid for it');
   assert.equal(field.score - score, SHARDS.score * SHARDS.big.worth);
 });
 

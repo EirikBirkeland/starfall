@@ -4,6 +4,7 @@
 import { world, stepWorld } from './game/world.js';
 import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
+import { takeOffer, describeRanks } from './game/upgrades.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
@@ -14,6 +15,7 @@ import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camer
 import { buildStars, updateStars } from './render/background.js';
 import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
+import { cardAt } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
@@ -59,7 +61,17 @@ function pressAction() {
 
 function onCanvasPressed() {
   initAudio();
+  // While the cards are up the click is an answer, not a shot and not a restart.
+  if (world.state === STATE.LEVEL) {
+    takeOffer(world, cardAt(mouse.x, mouse.y));
+    return;
+  }
   if (world.state !== STATE.PLAY) pressAction();
+}
+
+/** A number key over one of the cards on the table, or nothing at all. */
+function onPickCard(number) {
+  takeOffer(world, number - 1);
 }
 
 function onResize() {
@@ -82,6 +94,7 @@ function describeRun() {
     shards: world.shardsCollected,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    build: describeRanks(world),
   };
 }
 
@@ -110,11 +123,15 @@ function frame(now) {
   // Only a frame that actually simulated anything has handed the dash request to
   // the game. On a very quick display a frame can run no step at all, and a press
   // that landed on one of those stays pending rather than being swallowed.
-  if (heard) consumeInput();
+  //
+  // A run paused for an upgrade choice is the other case: the pause lasts as long as
+  // the player takes to read, so a request made during it is spent rather than kept -
+  // a dash that goes off three seconds after the key was pressed is not a gift.
+  if (heard || world.state === STATE.LEVEL) consumeInput();
 
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
   consumeCues(world.state);
-  renderFrame(tick, input);
+  renderFrame(tick, input, mouse);
 
   requestAnimationFrame(frame);
 }
@@ -141,6 +158,7 @@ function boot() {
   initInput(view.canvas, {
     onConfirm: pressAction,
     onPress: onCanvasPressed,
+    onPickCard: onPickCard,
     onToggleMute: toggleMuted,
   });
   window.addEventListener('resize', onResize);
@@ -207,6 +225,11 @@ window.STARFALL = {
       steps: world.steps,
       xp: world.xp,
       xpNeed: world.xpNeed,
+      // The build, and the choice on the table if there is one (game/upgrades.js).
+      // The headless bot reads these to pick a card the way a player does.
+      pending: world.pendingLevels,
+      offer: world.offer.slice(),
+      ranks: Object.assign({}, world.upgrades),
     };
   },
 };

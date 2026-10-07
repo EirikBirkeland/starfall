@@ -12,12 +12,28 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
+import { gainOf } from './upgrades.js';
+
+/**
+ * How often the gun cycles: the ship's own rate, times whatever the fire rate line is
+ * worth (game/upgrades.js), under the ceiling the frame budget can afford. Read here
+ * and nowhere else, so the card a player picks and the shot that comes out of the
+ * nose are always talking about the same number.
+ */
+export function shotsPerSecond(world) {
+  return Math.min(BALANCE.player.fireRateMax,
+    world.player.fireRate * gainOf(world, 'fireRate'));
+}
 
 /** One shot: a bullet, a shove backwards, a muzzle flash, and a cue. */
 export function fire(world) {
   const ship = world.player;
   const gun = BALANCE.bullets;
   const spec = BALANCE.player;
+
+  // Both multipliers are taken from the upgrade lines as this shot leaves, which is
+  // what lets a card taken mid-frame apply to the very next shot.
+  const speed = gun.speed * gainOf(world, 'bulletSpeed');
 
   const angle = ship.angle + logic.range(-spec.spread, spec.spread);
   const nose = ship.drawR + gun.noseOffset;
@@ -29,10 +45,10 @@ export function fire(world) {
   bullet.y = ny;
   bullet.px = nx;
   bullet.py = ny;
-  bullet.vx = Math.cos(angle) * gun.speed;
-  bullet.vy = Math.sin(angle) * gun.speed;
+  bullet.vx = Math.cos(angle) * speed;
+  bullet.vy = Math.sin(angle) * speed;
   bullet.life = gun.life;
-  bullet.dmg = gun.damage;
+  bullet.dmg = gun.damage * gainOf(world, 'damage');
 
   ship.vx -= Math.cos(ship.angle) * spec.recoil;
   ship.vy -= Math.sin(ship.angle) * spec.recoil;
@@ -234,7 +250,7 @@ export function updatePlayer(world, dt, input) {
   ship.fireTimer -= dt;
   if (input.firing && ship.fireTimer <= 0) {
     fire(world);
-    ship.fireTimer = 1 / ship.fireRate;
+    ship.fireTimer = 1 / shotsPerSecond(world);
   }
 }
 

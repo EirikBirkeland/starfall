@@ -17,6 +17,8 @@ import { updateWaves } from './waves.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
 import { newTally } from './tally.js';
+import { firstLevelXp } from './progress.js';
+import { newRanks } from './upgrades.js';
 
 function createWorld() {
   const spec = BALANCE.player;
@@ -39,10 +41,18 @@ function createWorld() {
     best: 0,
     score: 0,
     xp: 0,
-    xpNeed: BALANCE.progression.firstLevelXp,
+    xpNeed: firstLevelXp(),
     kills: 0,
     shardsCollected: 0,
     shake: 0,
+    // The upgrade the run is being built out of, and the choice on the table right
+    // now (game/upgrades.js). `offer` is the ids of the cards dealt - empty whenever
+    // the run is playing - `pendingLevels` how many levels are still owed a card, and
+    // `offerTime` when they came out, which is all the slide-in needs to know.
+    upgrades: newRanks(),
+    offer: [],
+    pendingLevels: 0,
+    offerTime: 0,
     // What this run is being made of, counted as it goes (game/tally.js). A mirror
     // and never a cause: nothing here is read by the simulation itself.
     tally: newTally(),
@@ -129,8 +139,9 @@ function tickFrameClocks(world, dt) {
  * interpolation contract: a position may only change inside a step.
  *
  * Answers whether the step actually simulated anything. A hit-stop step does not,
- * and the frame loop has to know that: input handed to a frozen step was never
- * heard, so a dash pressed during one is still waiting when the world wakes up.
+ * and neither does one of the pause where an upgrade is picked, and the frame loop
+ * has to know that: input handed to a step that never happened was never heard, so a
+ * dash pressed during either is still waiting when the world wakes up.
  */
 export function stepWorld(dt, input) {
   world.steps++;
@@ -146,11 +157,15 @@ export function stepWorld(dt, input) {
   }
 
   updateEffects(world, dt);
+  // A level-up is a pause: the effects and the window's own clocks keep running, the
+  // arena does not, and the answer is "no step happened" - so a dash pressed while the
+  // cards are up waits for the run instead of being thrown away.
+  const paused = world.state === STATE.LEVEL;
   if (world.state === STATE.PLAY) stepRun(dt, input);
-  else updateAmbient(world, dt);
+  else if (!paused) updateAmbient(world, dt);
 
   tickFrameClocks(world, dt);
-  return true;
+  return !paused;
 }
 
 function stepRun(dt, input) {
