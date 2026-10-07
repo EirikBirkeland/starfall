@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.2.3",
+    "date": "2026-10-07",
+    "summary": "Hit-stop: the run holds its breath on a big kill and on a hit"
+  },
+  {
     "version": "0.2.2",
     "date": "2026-10-07",
     "summary": "Pre-rendered glow sprites: no blurs, no per-frame gradients"
