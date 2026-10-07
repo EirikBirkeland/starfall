@@ -180,6 +180,7 @@ window.STARFALL = {
       enemies: world.enemies.length,
       bullets: world.bullets.count,
       shots: world.enemyShots.count,
+      wave: world.waveNumber,
       shards: world.shards.count,
       gridCells: world.grid.stats().filled,
       parts: world.particles.count,

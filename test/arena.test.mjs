@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { spawnEnemy } from '../src/game/enemies.js';
+import { spawnEnemy } from '../src/game/waves.js';
 import { resetAmbient } from '../src/game/ambient.js';
 import { STATE } from '../src/game/state.js';
 import { scriptedRun, stepTheWorld, flyFor } from '../tools/headless/scripted.js';
@@ -69,7 +69,7 @@ test('everything arrives off the edge of the window, inside the world, off the s
       && Math.abs(enemy.y - ship.y) <= field.view.h / 2;
     assert.ok(!inPlainSight, 'it arrived in plain sight at ' + enemy.x + ',' + enemy.y);
 
-    assert.ok(distance(enemy, ship) > BALANCE.enemies.spawnMinDistance,
+    assert.ok(distance(enemy, ship) > BALANCE.waves.minDistance,
       'it arrived on top of the ship: ' + Math.round(distance(enemy, ship)) + ' px away');
   }
 });
@@ -85,7 +85,7 @@ test('a ship in the corner of the world gets no easier arrival', () => {
 
   for (const enemy of came) {
     assert.ok(fromEdge(enemy) >= -1e-9, 'it arrived outside the world');
-    assert.ok(distance(enemy, ship) > BALANCE.enemies.spawnMinDistance,
+    assert.ok(distance(enemy, ship) > BALANCE.waves.minDistance,
       'it landed on the ship in the corner: ' + Math.round(distance(enemy, ship)) + ' px');
   }
 });
@@ -102,7 +102,7 @@ test('when the whole world is on screen, they come from its edge', () => {
   for (const enemy of came) {
     assert.ok(fromEdge(enemy) >= -1e-9, 'it arrived outside the world');
     assert.ok(fromEdge(enemy) < 60, 'it did not come from the edge of the world: ' + fromEdge(enemy));
-    assert.ok(distance(enemy, ship) > BALANCE.enemies.spawnMinDistance);
+    assert.ok(distance(enemy, ship) > BALANCE.waves.minDistance);
   }
 });
 

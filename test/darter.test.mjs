@@ -15,7 +15,8 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';
 import { aimProgress, isAiming, isLunging, lungeReach, makeEnemy } from '../src/game/kinds.js';
-import { killEnemy, spawnEnemy } from '../src/game/enemies.js';
+import { killEnemy } from '../src/game/enemies.js';
+import { spawnEnemy } from '../src/game/waves.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const STEP = BALANCE.sim.step;
@@ -271,13 +272,12 @@ test('a darter comes apart along its own axis', () => {
     'a jet out of the nose and one out of the tail, and nothing else');
 });
 
-test('the mix does not send a darter before its time', () => {
+test('the roster does not send a darter before its time', () => {
   const field = scriptedRun(12);
-  const darterFrom = BALANCE.enemies.mix.find((entry) => entry.type === 'darter').from;
+  const darterFrom = BALANCE.kinds.darter.from;
 
   const roll = (seconds) => {
     field.elapsed = seconds;
-    field.difficulty = 0.5;
     const seen = new Set();
     for (let i = 0; i < 400; i++) {
       field.enemies.length = 0;

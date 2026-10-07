@@ -119,15 +119,31 @@ export const BALANCE = {
   // One row per kind, named as PLAN 3.3 names them: a drifter walks at you, a
   // weaver weaves, a tank turns slowly and comes apart. `hull` is counted in
   // player shots (a bullet does `bullets.damage`), not in PLAN's damage numbers.
+  //
+  // Three more numbers per kind are the wave director's (game/waves.js), and they
+  // describe the kind as a *spawn*, not as a fighter:
+  //
+  //   from    seconds of run before it may arrive at all (PLAN 3.3's "appears from")
+  //   weight  how often one of them is wanted when the director is buying
+  //   cost    how much of the run's spawn budget one of them takes up
+  //
+  // `weight` is a share of the arrivals and nothing else - the six numbers below say
+  // "for every six drifters, five weavers, three darters, three tanks, two spitters".
+  // `cost` is what makes a tank a rare thing rather than a common one: the room a
+  // wave has to spend is what limits how many bodies arrive, and an expensive kind
+  // fits into a wave fewer times. Raising a weight and lowering a cost is how you
+  // make a kind common; the reverse makes it a rare, worrying arrival.
   kinds: {
     drifter: {
       radius: 15, speed: 76, hull: 3, score: 10, drop: 2,
+      from: 0, cost: 2, weight: 6,
       color: PALETTE.violet, fill: PALETTE.violetFill, sides: 3, glow: 16,
       death: { particles: 16, speed: 240, debris: 4, debrisSpeed: 120 },
       sound: { freq: 210, dur: 0.12 },
     },
     weaver: {
       radius: 10, speed: 172, hull: 1, score: 15, drop: 1,
+      from: 0, cost: 3, weight: 5,
       color: PALETTE.pink, fill: PALETTE.pinkFill, sides: 3, glow: 14,
       wobble: { amount: 0.42, rate: 5.5 },
       spin: { rate: 9, amount: 0.35 },
@@ -136,6 +152,7 @@ export const BALANCE = {
     },
     darter: {
       radius: 11, speed: 104, hull: 2, score: 18, drop: 2,
+      from: 60, cost: 4, weight: 3,
       // `sides` is the fallback shape; the dart is drawn by its own silhouette.
       color: PALETTE.red, fill: PALETTE.redFill, sides: 3, glow: 16,
       // The hunt, in four beats: it walks at you, stops dead to line itself up,
@@ -167,6 +184,7 @@ export const BALANCE = {
     },
     spitter: {
       radius: 14, speed: 66, hull: 5, score: 26, drop: 3,
+      from: 180, cost: 6, weight: 2,
       color: PALETTE.orange, fill: PALETTE.orangeFill, sides: 5, glow: 18,
       // It keeps its distance and spits from there. `near`/`far` are the band it
       // tries to stand in - it walks in from beyond `far` and backs off inside
@@ -192,6 +210,7 @@ export const BALANCE = {
     },
     tank: {
       radius: 26, speed: 48, hull: 9, score: 35, drop: 5,
+      from: 10, cost: 8, weight: 3,
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
       rotateRate: 0.55,
       // What it comes apart into: `into` of `type`, thrown outwards at `impulse`
@@ -218,45 +237,63 @@ export const BALANCE = {
   },
 
   enemies: {
-    hardCap: 100,      // above this, no spawn at all
-    spawnCap: 95,      // the steady spawn keeps the crowd under this
-    extraCap: 80,      // the extra rolls of the later ramp keep it under this
-    // Enemies arrive just off the part of the arena the player can see: this far
-    // beyond the edge of the screen, by their own radius, and never this close
-    // to the ship (PLAN milestone 3: nothing spawns on top of the player).
-    spawnMargin: 34,
-    spawnMinDistance: 260,
-    spawnAttempts: 8,  // tries before the spawn clock gives up on this tick
-    difficultyRamp: 165,
     hpScaleWindow: 95, hpScaleMax: 1.6,
     speedScaleWindow: 190, speedScaleMax: 0.5,
-    spawnBase: 1.18, spawnDecay: 0.0068, spawnFloor: 0.2,
-    spawnJitter: [0.72, 1.3],
-    // What arrives, in order of being rolled, and from what moment of the run.
-    // Whatever share of the roll the unlocked ones leave over goes to `mixFallback`,
-    // the plain walker. This is the seed of the wave director (milestone 3) and is
-    // meant to be replaced by it, not grown into it.
-    //
-    // The chances are a share of one roll, so they have to stay under 1 together or
-    // the walker at the bottom stops being rolled at all: `chance + ramp` is what a
-    // row costs once the difficulty ramp has run out, and these four cost 0.85 of a
-    // roll between them, which leaves about a sixth of the crowd as plain chaff
-    // however late the run gets. A row added without taking one away eats straight
-    // into that sixth.
-    mix: [
-      { type: 'tank', from: 10, chance: 0.12, ramp: 0.1 },
-      { type: 'weaver', from: 0, chance: 0.24, ramp: 0.12 },
-      { type: 'darter', from: 60, chance: 0.08, ramp: 0.08 },
-      { type: 'spitter', from: 180, chance: 0.06, ramp: 0.05 },
-    ],
-    mixFallback: 'drifter',
-    extraWaves: [{ at: 45, chance: 0.3 }, { at: 110, chance: 0.28 }],
     separationDrag: 0.02,   // leftover impulse decays to this fraction per second
     separationEpsilon: 0.0001,   // closer than this, and the push is meaningless
     separationPush: 0.5,    // each of a touching pair gives way this much
     spinRange: 1.2,         // how fast a kind's art turns by itself
     hitFlash: 0.09,
     hitFlashShove: 0.12,
+  },
+
+  // The wave director (game/waves.js). One budget decides how much of a crowd the
+  // run may hold; a wave is what it buys with the room left in it.
+  //
+  //   crowdBase / crowdPerMinute / crowdMax
+  //              points of enemy the arena will hold at this moment of the run.
+  //              A body costs its kind's `cost` and the crowd averages about 4.5
+  //              points a body, so these three are ~4 bodies to begin with, ~19
+  //              after a minute, ~45 after three, and ~90 from about 6:00 on. That
+  //              curve is the difficulty, and it runs the opposite way to intuition:
+  //              a bigger budget means the bot dies *sooner*. Measure it over 128
+  //              seeds before you touch it (session 18 of NOTES.md has the numbers
+  //              this was set against: 2m12s of bot survival, 18.7 bodies on screen
+  //              at 1:00).
+  //   waveMinPoints  the least worth spending, so a dribble of room is not a wave.
+  //              It is deliberately at least as big as the dearest kind's `cost`: a
+  //              wave that could not afford a tank would never bring one, and the
+  //              mix would quietly turn into cheap things as a run went on. There is
+  //              a test that says so.
+  //   waveMaxPoints  the most one wave may spend, so a big gap in pressure arrives
+  //              as three waves and not as one screenful
+  //   maxMembers     however cheap they are, one wave is not more bodies than this
+  //   maxBodies      the hard ceiling, whatever the budget says: this many bodies is
+  //              what the frame budget was measured against, not a difficulty knob
+  //   gap [s]        the beat between one wave and the next, so a wave stays a thing
+  //              you can see arrive
+  //   retry [s]      how soon to look again when there was nothing worth spending
+  //   fan [rad]      how wide a wave's members spread around its bearing
+  //   fanRetry [rad] and how much further it fans out when the arena was not there
+  //
+  // The last three are where an arrival is allowed to land at all: this far beyond
+  // the edge of the screen, never this close to the ship, and this many tries before
+  // the director gives up on one member and lets the next step look again.
+  waves: {
+    crowdBase: 18,
+    crowdPerMinute: 64,
+    crowdMax: 400,
+    waveMinPoints: 12,
+    waveMaxPoints: 30,
+    maxMembers: 8,
+    maxBodies: 100,
+    gap: [0.9, 1.4],
+    retry: 0.5,
+    fan: 0.9,
+    fanRetry: 0.45,
+    margin: 34,
+    minDistance: 260,
+    attempts: 8,
   },
 
   shards: {

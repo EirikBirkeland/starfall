@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { makeEnemy } from '../src/game/kinds.js';
-import { spawnEnemy } from '../src/game/enemies.js';
+import { spawnEnemy } from '../src/game/waves.js';
 import { resetRun } from '../src/game/run.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
@@ -263,14 +263,13 @@ test('it cannot back its way out of the world', () => {
   assert.ok(spitter.hp > 0, 'still here, still spitting at a ship in the corner');
 });
 
-test('the mix keeps the spitter off the stage for its three minutes', () => {
+test('the roster keeps the spitter off the stage for its three minutes', () => {
   const field = scriptedRun(12);
-  const spitterFrom = BALANCE.enemies.mix.find((entry) => entry.type === 'spitter').from;
+  const spitterFrom = BALANCE.kinds.spitter.from;
   assert.equal(spitterFrom, 180, 'PLAN 3.3 puts it at 3:00');
 
   const roll = (seconds) => {
     field.elapsed = seconds;
-    field.difficulty = 1;
     const seen = new Set();
     for (let i = 0; i < 400; i++) {
       field.enemies.length = 0;

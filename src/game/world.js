@@ -4,14 +4,14 @@
 
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
-import { clamp } from '../core/math.js';
 import { Pool } from '../core/pool.js';
 import { Grid } from '../core/grid.js';
 import { updateEffects, makeParticle, makeRing, makeLabel } from './effects.js';
 import { updatePlayer } from './player.js';
 import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
-import { updateEnemies, updateSpawning } from './enemies.js';
+import { updateEnemies } from './enemies.js';
+import { updateWaves } from './waves.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
 
@@ -23,9 +23,11 @@ function createWorld() {
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
     steps: 0,         // how many fixed steps this run has been asked for (a hit-stop step counts)
-    difficulty: 0,    // 0..1, driven by elapsed
     overTimer: 0,     // time since the run ended
+    // How long until the wave director is next allowed to spend (game/waves.js).
     spawnTimer: BALANCE.runStart.spawnDelay,
+    // How many waves this run has seen. The HUD will want it (PLAN section 4).
+    waveNumber: 0,
     newBest: false,
     // Hit-stop: how long the run still has to hold still for, in seconds (0 when
     // nothing is frozen). game/effects.js `hitStop` sets it, `stepWorld` spends it.
@@ -142,10 +144,9 @@ export function stepWorld(dt, input) {
 
 function stepRun(dt, input) {
   world.elapsed += dt;
-  world.difficulty = clamp(world.elapsed / BALANCE.enemies.difficultyRamp, 0, 1);
 
   updatePlayer(world, dt, input);
-  updateSpawning(world, dt);
+  updateWaves(world, dt);
   updateBullets(world, dt);
   if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run

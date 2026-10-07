@@ -44,11 +44,11 @@ export function resetRun(world) {
 
   world.elapsed = 0;
   world.steps = 0;
-  world.difficulty = 0;
   world.score = 0;
   world.xp = 0;
   world.xpNeed = BALANCE.progression.firstLevelXp;
   world.spawnTimer = BALANCE.runStart.spawnDelay;
+  world.waveNumber = 0;
   world.shake = 0;
   world.freeze = 0;
   world.kills = 0;

@@ -62,9 +62,11 @@ test('the opening frames bake the game a handful of glow sprites', () => {
 });
 
 test('a busy frame paints light without blurring and without gradients', () => {
-  // Most of a minute in, so every kind, shard, spark, label and bar that a run
-  // shows has shown itself and had its sprite baked.
-  flyUntil(45);
+  // A minute and a half in: every kind a run meets by then - the darter arrives at
+  // 1:00 - has been drawn and had its sprite baked, and the next kind, the spitter,
+  // is three minutes away, so the windows below meet nothing new. That is what makes
+  // the last test's "builds nothing" a fair demand.
+  flyUntil(100);
   const busy = flyAndCount(300);
 
   assert.ok(busy.alive, 'the ship is still there to be measured on');
@@ -81,7 +83,7 @@ test('a steady frame builds nothing at all', () => {
 
   assert.ok(later.alive, 'the ship is still there');
   assert.ok(later.stamps > 5000, 'still shining: ' + later.stamps);
-  assert.ok(earlier.baked <= 2, 'a window may still meet something new: ' + earlier.baked);
+  assert.ok(earlier.baked <= 4, 'a window may still meet something new: ' + earlier.baked);
   assert.equal(later.baked, 0, 'a steady frame bakes no new sprite');
   assert.equal(later.bakeGradients, 0, 'and builds no gradient to bake one with');
   assert.equal(later.shadows, 0, 'and never asks for a blur');

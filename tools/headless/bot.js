@@ -98,7 +98,7 @@ export function fingerprint(game) {
   for (const enemy of game.enemies) { mix(enemy.x); mix(enemy.y); mix(enemy.hp); }
   const stats = game.stats();
   mix(stats.bullets); mix(stats.shards); mix(stats.parts);
-  mix(stats.score); mix(stats.xp); mix(stats.t);
+  mix(stats.score); mix(stats.xp); mix(stats.t); mix(stats.wave);
   return (h >>> 0);
 }
 

@@ -16,6 +16,9 @@ test('shots, kills, and pickups all reach the synthesiser', () => {
   // and this file is not about the dash - see test/controls.test.mjs.
   game.pressMouse(640, 240);
   game.moveMouse(900, 360);
+  // The ship cannot be hurt here. This file measures the synthesiser, and a run
+  // that ended halfway through would go quiet for reasons that are not about audio.
+  game.world.player.invuln = Infinity;
   for (let i = 0; i < 240; i++) game.step();
 
   assert.ok(game.audio.voices > 10, 'firing and killing should cost voices, got ' + game.audio.voices);
