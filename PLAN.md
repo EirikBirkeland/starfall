@@ -286,10 +286,13 @@ player's hull. The enemies stay as they are; the player's firepower rises to mee
 
 One item per session, as always:
 
-- [ ] Level-up choice: the XP curve from 3.6, a pause on level-up, and three cards to pick from
+- [x] Level-up choice: the XP curve from 3.6, a pause on level-up, and three cards to pick from
       (mouse, or keys 1, 2, 3). Start with the stat upgrades Damage, Fire rate and Bullet speed,
       5 ranks each. Teach the simulation bot to pick a card, so headless runs still play through.
       **Release as soon as this works**, so the owner can play it.
+      (Done in session 27 and released as 0.4.0 - ticked now, three releases late. The XP curve
+      needed a base of 90 rather than PLAN's 8 for the first card to land a quarter minute in;
+      see PLAN 3.6 and NOTES session 27.)
 - [x] Split shot (3.5): one extra projectile per rank, in a fan.
       (Done. The extras carry a share of the aimed shot's damage rather than all of it -
       see `BALANCE.upgrades.split` and NOTES session 28 - so a rank buys coverage instead
