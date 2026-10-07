@@ -267,16 +267,16 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Create `CHANGELOG.md` and `NOTES.md`. Release `0.0.1` as the starting point.
 
 ### Milestone 1: foundations
-- [ ] Split the single file into the module layout from section 2, with no change in behaviour.
+- [x] Split the single file into the module layout from section 2, with no change in behaviour.
 - [ ] `core/rng.js`: seeded generator, with tests.
 - [ ] `core/pool.js`: object pool, with tests.
 - [ ] `core/grid.js`: spatial grid with insert, clear, and query by circle, with tests.
-- [ ] Move every tuning number into `game/balance.js`.
+- [x] Move every tuning number into `game/balance.js`.
 - [ ] Fixed-step simulation with interpolated rendering.
-- [ ] Separate logic from rendering completely: `game/` must import nothing from `render/`, `audio/`, or `ui/`.
-- [ ] `tools/simulate.js`: runs a whole run headless with a simple bot (move away from the nearest enemy,
+- [x] Separate logic from rendering completely: `game/` must import nothing from `render/`, `audio/`, or `ui/`.
+- [x] `tools/simulate.js`: runs a whole run headless with a simple bot (move away from the nearest enemy,
       shoot the nearest enemy) and prints time survived, kills, and level. Must not throw.
-- [ ] Set up `node --test` and make it pass.
+- [x] Set up `node --test` and make it pass.
 - [ ] Release `0.1.0`.
 
 ### Milestone 2: feel
