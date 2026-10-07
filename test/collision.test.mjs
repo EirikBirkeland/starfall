@@ -101,9 +101,12 @@ test('a spent shot goes back to the pool, not to the garbage collector', () => {
   assert.equal(field.bullets.count, 6);
   const built = field.bullets.stats().made;
 
-  for (let i = 0; i < 120; i++) step();     // one second of fixed steps
+  // Longer than a shot lives: in an arena this big the edge is not what usually
+  // ends a shot, its life is.
+  const steps = Math.ceil(BALANCE.bullets.life / BALANCE.sim.step) + 1;
+  for (let i = 0; i < steps; i++) step();
 
-  assert.equal(field.bullets.count, 0, 'every one of them flew out of the arena');
+  assert.equal(field.bullets.count, 0, 'every one of them ran out');
   assert.equal(field.bullets.stats().free, built, 'and every one came back to the drawer');
 
   bulletFlyingToward(480, 200, 0, -1);

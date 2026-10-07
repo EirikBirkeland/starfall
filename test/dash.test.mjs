@@ -164,7 +164,7 @@ test('the dash paints between where it was and where it is', () => {
 });
 
 test('the arena holds the ship through a dash, and the wait is still paid', () => {
-  const wall = BALANCE.arena.defaultW - BALANCE.player.drawRadius;
+  const wall = BALANCE.arena.w - BALANCE.player.drawRadius;
   const field = openSky(77, wall - 20);
   const ship = field.player;
 

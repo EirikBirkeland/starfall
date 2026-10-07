@@ -10,6 +10,7 @@ import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { loadBest } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
+import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
 import { renderFrame } from './render/renderer.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
@@ -55,8 +56,11 @@ function onCanvasPressed() {
 function onResize() {
   resizeCanvas();
   buildStars();
-  world.arena.w = view.W;
-  world.arena.h = view.H;
+  // The arena is its own size now, so a resize only tells the simulation how big
+  // the window watching it has become - which is all it ever needs to know about
+  // the screen: it is how spawning knows what is off the edge of it.
+  world.view.w = view.W;
+  world.view.h = view.H;
 }
 
 function describeRun() {
@@ -80,6 +84,9 @@ function frame(now) {
   lastAlpha = tick.alpha;
   const stateBefore = world.state;
   const input = readInput();
+  // The controls speak in pixels on the glass and the simulation speaks in arena
+  // coordinates, so the aim goes through the camera on its way in.
+  resolveAim(input);
 
   updateStars(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
@@ -95,7 +102,7 @@ function frame(now) {
 
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
   consumeCues(world.state);
-  renderFrame(tick.fps, tick.alpha);
+  renderFrame(tick, input);
 
   requestAnimationFrame(frame);
 }
@@ -137,6 +144,10 @@ window.STARFALL = {
   world: world,
   player: world.player,
   enemies: world.enemies,
+  /** Where the window is looking (render/camera.js). A live object. */
+  camera: camera,
+  /** Where an arena point lands on the screen - how a headless bot aims. */
+  screenOf: function (x, y) { return { x: screenX(x), y: screenY(y) }; },
   /**
    * Stand a fresh page load's clock up again. Every real play session arrives on
    * a page that has never run a frame, and a headless tool that plays a second
@@ -144,6 +155,12 @@ window.STARFALL = {
    * else in the step cycle and the seed no longer replays it.
    */
   resetClock: function () { clock.reset(); },
+  /**
+   * Put the camera back on the ship with no lean left over. Same reasoning as
+   * resetClock above: a new run is played on a view that has not been looking
+   * somewhere else.
+   */
+  resetCamera: function () { snapCamera(); },
   stats: function () {
     return {
       state: world.state,

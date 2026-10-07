@@ -6,6 +6,7 @@
 import { clamp } from '../core/math.js';
 import { withAlpha } from '../core/palette.js';
 import { paintX, paintY } from './interp.js';
+import { onScreen } from './camera.js';
 import { world } from '../game/world.js';
 
 const RING_GLOW = 0.22;        // how bright the wide faint pass under a ring is
@@ -13,11 +14,16 @@ const RING_GLOW_MIN = 4;       // and how wide it is, growing thin as the ring f
 const RING_GLOW_SPAN = 6;
 const TEXT_GLOW = 0.3;
 const TEXT_GLOW_WIDTH = 4;
+// A spark is a couple of pixels and carries no halo, so it only has to be nearly
+// on screen to be worth a fillRect. Rings and labels are left alone: a run holds
+// a handful of each, and a ring is as likely to reach in from off screen as not.
+const SPARK_REACH = 24;
 
 export function drawParticles(ctx, alpha) {
   const particles = world.particles;
   for (let i = 0; i < particles.count; i++) {
     const p = particles.items[i];
+    if (!onScreen(p.x, p.y, SPARK_REACH)) continue;
     const t = clamp(p.life / p.max, 0, 1);
     ctx.globalAlpha = t;
     ctx.fillStyle = p.color;

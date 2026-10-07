@@ -27,14 +27,23 @@ export function nearestEnemy(game) {
   return found ? { enemy: found, distance2: best } : null;
 }
 
+/**
+ * Point the cursor at an arena point. The camera decides where that lands on the
+ * screen, so the bot aims the way a player does - at pixels - instead of assuming
+ * the arena and the window are the same size.
+ */
+function aimAt(game, x, y) {
+  const on = game.screenOf(x, y);
+  game.moveMouse(on.x, on.y);
+}
+
 /** Aim, decide where to run, and press the keys for it. Does not step time. */
 export function botFrame(game) {
-  const ship = game.player;
   const arena = game.world.arena;
   const near = nearestEnemy(game);
 
-  if (near) game.moveMouse(near.enemy.x, near.enemy.y);
-  else game.moveMouse(arena.w / 2, arena.h / 2 - 200);
+  if (near) aimAt(game, near.enemy.x, near.enemy.y);
+  else aimAt(game, arena.w / 2, arena.h / 2 - 200);
 
   const wanted = wantedDirection(game, near);
   game.key('KeyA', wanted.x < -KEY_THRESHOLD);

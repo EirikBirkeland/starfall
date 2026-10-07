@@ -1,11 +1,15 @@
 // The input layer's single output: one small descriptor the simulation reads
-// once per step. Gamepad and touch will join it here later.
+// once per frame. Gamepad and touch will join it here later.
 //
 // Two kinds of thing come through. Held state (which way the ship is being
 // driven, whether the fire button is down) is read fresh every frame. One-shot
 // requests (a dash) are *requests*: they stay pending until a frame that ran any
 // simulation steps has handed them over, so a press that lands on a frame that
 // simulated nothing is not swallowed. consumeInput() is what retires them.
+//
+// One field is not final as it leaves here: `readInput` reports the aim where it
+// sits on the glass, and main.js turns it into an arena point with
+// render/camera.js's `resolveAim` before any of it reaches the simulation.
 
 import { keys, keyTaps, initKeyboard, clearKeys } from './keyboard.js';
 import { mouse, mouseTaps, initMouse, releaseMouse } from './mouse.js';

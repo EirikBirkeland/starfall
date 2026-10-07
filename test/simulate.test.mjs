@@ -36,10 +36,12 @@ test('a whole run plays out with no browser', async () => {
 });
 
 test('tools/simulate.js runs clean and repeats itself exactly', () => {
-  const args = ['--trace', '--seconds', '90', '--seed', '31'];
+  // The window is longer than the simple bot survives (a little over 1m20s on
+  // average), because the run has to end for the fingerprint to mean much.
+  const args = ['--trace', '--seconds', '240', '--seed', '31'];
   const first = simulate(args);
   const second = simulate(args);
-  const other = simulate(['--trace', '--seconds', '90', '--seed', '32']);
+  const other = simulate(['--trace', '--seconds', '240', '--seed', '32']);
 
   assert.match(first, /died/);
   assert.equal(first, second, 'the same seed must replay the same run');

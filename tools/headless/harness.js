@@ -217,6 +217,8 @@ export async function bootGame(options) {
     bakeCalls() { return Object.assign({}, bakes); },
     /** Every translate the last frame made, in the order the frame drew them. */
     translates() { return drawLog.translates.slice(); },
+    /** Where an arena point lands on the screen, now the arena is not the window. */
+    screenOf: (x, y) => game.screenOf(x, y),
     stats() { return game.stats(); },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
@@ -251,6 +253,9 @@ export async function bootGame(options) {
       game.resetClock();
       resetRun(world);
       resetAmbient(world);
+      // A fresh page's camera has never looked anywhere else, so a second run on
+      // one boot has to say the same thing - after the ship has been put back.
+      game.resetCamera();
       world.state = STATE.START;
       world.overTimer = 0;
       // startRun() reseeds from world.seed, so this is all it takes to set the

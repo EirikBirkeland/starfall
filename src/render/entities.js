@@ -11,6 +11,7 @@ import { clamp, TAU } from '../core/math.js';
 import { polygon, shipPath } from './shapes.js';
 import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
+import { onScreen } from './camera.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -22,12 +23,19 @@ const FLASH_LIGHT = 0.85;  // ...and how bright the white one is while it flashe
 const SHARD_HALO = 13;
 const SHARD_LIGHT = 0.6;   // a shard twinkles, but it must not outshine a shot
 
+// How far past the edge of the window each kind of thing is still drawn: its own
+// reach, plus room for the halo around it. The arena is a good deal bigger than
+// the window, so most of what the game holds is off screen and never asked about.
+const BULLET_REACH = 32;
+const SHARD_REACH = SHARD_HALO + 6;
+
 function drawEnemy(ctx, enemy, dim, alpha) {
   const look = BALANCE.kinds[enemy.type];
   const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
   // A hatchling is the same kind as its parent with a smaller body, so the halo
   // follows the body it has and not the kind it is.
   const halo = enemy.r + look.glow * HALO_REACH;
+  if (!onScreen(enemy.x, enemy.y, halo + 4)) return;
 
   ctx.save();
   if (dim) ctx.globalAlpha = 0.45;
@@ -240,12 +248,14 @@ export function drawBullets(ctx, alpha) {
   const trail = bulletTrailSprite();
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
+    if (!onScreen(b.x, b.y, BULLET_REACH)) continue;
     paintStreak(ctx, trail, paintX(b, alpha), paintY(b, alpha), Math.atan2(b.vy, b.vx));
   }
 
   ctx.fillStyle = PALETTE.bulletCore;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
+    if (!onScreen(b.x, b.y, BULLET_REACH)) continue;
     ctx.beginPath();
     ctx.arc(paintX(b, alpha), paintY(b, alpha), 2.4, 0, TAU);
     ctx.fill();
@@ -256,6 +266,7 @@ export function drawShards(ctx, alpha) {
   const shards = world.shards.items;
   for (let i = 0; i < shards.length; i++) {
     const shard = shards[i];
+    if (!onScreen(shard.x, shard.y, SHARD_REACH)) continue;
     const fade = shard.life < 2 ? clamp(shard.life / 2, 0, 1) : 1;
     const pulse = 0.75 + 0.25 * Math.sin(world.time * 6 + shard.rot);
     ctx.save();

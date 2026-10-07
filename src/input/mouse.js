@@ -1,6 +1,7 @@
 // The mouse: where it is, which button is held, and which one was just pressed.
-// Coordinates are in canvas pixels, which until the camera arrives are also
-// arena coordinates.
+// Coordinates are pixels on the canvas, which are *not* arena coordinates now that
+// the arena is bigger than the window: the aim goes through render/camera.js's
+// `resolveAim` on its way to the simulation (see input/index.js).
 //
 // The left button fires, the right button dashes (PLAN section 6). An event with
 // no button on it - a synthetic one from the headless harness, say - counts as

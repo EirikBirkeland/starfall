@@ -51,7 +51,7 @@ test('the title screen breathes until you launch', () => {
   assert.equal(game.stats().hull, 3);
 });
 
-test('a mid-run window resize keeps the ship inside the arena', () => {
+test('a mid-run window resize moves the view, not the arena', () => {
   for (let i = 0; i < 120; i++) {
     game.moveMouse(700, 300);
     game.step();
@@ -66,10 +66,12 @@ test('a mid-run window resize keeps the ship inside the arena', () => {
   }
 
   const ship = game.player;
-  assert.equal(game.world.arena.w, 400, 'the simulation heard about the new window');
-  assert.equal(game.world.arena.h, 800);
-  assert.ok(ship.x >= 0 && ship.x <= 400 && ship.y >= 0 && ship.y <= 800,
-    'the ship escaped the arena: ' + ship.x + ',' + ship.y);
+  assert.equal(game.world.view.w, 400, 'the simulation heard about the new window');
+  assert.equal(game.world.view.h, 800);
+  assert.equal(game.world.arena.w, BALANCE.arena.w, 'the world it plays in kept its own size');
+  assert.equal(game.world.arena.h, BALANCE.arena.h);
+  const inside = ship.x > 0 && ship.x < BALANCE.arena.w && ship.y > 0 && ship.y < BALANCE.arena.h;
+  assert.ok(inside, 'the ship escaped the arena: ' + ship.x + ',' + ship.y);
   assert.ok(game.stats().t > 5, 'the run kept going through the resize');
 });
 

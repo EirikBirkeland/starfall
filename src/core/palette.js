@@ -34,6 +34,11 @@ export const PALETTE = {
   shardLine: '#9dffcb',
   shardFill: 'rgba(88,255,161,0.28)',
 
+  // The energy wall at the edge of the arena. Cool, like everything that is not
+  // out to get you: it is the world stopping, not a hazard.
+  wall: '#57b8ff',
+  wallTick: '#9fdcff',
+
   white: '#ffffff',
   uiText: '#eafcff',
   uiDim: '#78b9dd',

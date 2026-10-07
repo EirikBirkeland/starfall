@@ -66,26 +66,83 @@ function rollKind(world) {
   return 'chaser';
 }
 
-const EDGES = 4;   // an enemy arrives from one of the four arena edges
+const EDGES = 4;   // an enemy arrives from one of four directions
 
-/** A point just outside the arena, `margin` pixels out. */
-function edgeSpot(world, margin) {
-  const w = world.arena.w;
-  const h = world.arena.h;
-  switch (logic.int(0, EDGES - 1)) {
-    case 0: return { x: logic.range(0, w), y: -margin };
-    case 1: return { x: w + margin, y: logic.range(0, h) };
-    case 2: return { x: logic.range(0, w), y: h + margin };
-    default: return { x: -margin, y: logic.range(0, h) };
+/** A point on the border of a box, picked by side and then along that side. */
+function onBoxEdge(box, side) {
+  switch (side) {
+    case 0: return { x: logic.range(box.x0, box.x1), y: box.y0 };
+    case 1: return { x: box.x1, y: logic.range(box.y0, box.y1) };
+    case 2: return { x: logic.range(box.x0, box.x1), y: box.y1 };
+    default: return { x: box.x0, y: logic.range(box.y0, box.y1) };
   }
 }
 
-/** Send one enemy of `type` (or a rolled kind) in from an edge. */
+/** The arena's own border, pulled in by `margin`. */
+function arenaBox(world, margin) {
+  return {
+    x0: margin, y0: margin,
+    x1: world.arena.w - margin, y1: world.arena.h - margin,
+  };
+}
+
+/**
+ * The border of the screen, pushed out by `margin` and centred on the ship.
+ * Everything on it is that much off what the player can see.
+ */
+function viewBox(world, margin) {
+  const ship = world.player;
+  const halfW = world.view.w / 2 + margin;
+  const halfH = world.view.h / 2 + margin;
+  return {
+    x0: ship.x - halfW, x1: ship.x + halfW,
+    y0: ship.y - halfH, y1: ship.y + halfH,
+  };
+}
+
+/** Somewhere an enemy is allowed to stand: inside the arena, not on the ship. */
+function arrivalFits(world, spot, radius) {
+  if (spot.x < radius || spot.x > world.arena.w - radius) return false;
+  if (spot.y < radius || spot.y > world.arena.h - radius) return false;
+  const min = BALANCE.enemies.spawnMinDistance;
+  return dist2(spot.x, spot.y, world.player.x, world.player.y) > min * min;
+}
+
+/**
+ * Where the next enemy comes from: just off the part of the arena the player can
+ * see, so nothing arrives out of nowhere. When the arena is smaller than the
+ * screen there is no `off the screen` left to use, and the arena's own edge is
+ * the next best thing. Answers null when neither fits - a window that is already
+ * full of arena does not need more of it.
+ */
+function arrivalSpot(world, radius) {
+  const attempts = BALANCE.enemies.spawnAttempts;
+  const atTheEdge = viewBox(world, radius + BALANCE.enemies.spawnMargin);
+  for (let i = 0; i < attempts; i++) {
+    const spot = onBoxEdge(atTheEdge, logic.int(0, EDGES - 1));
+    if (arrivalFits(world, spot, radius)) return spot;
+  }
+
+  const onTheArena = arenaBox(world, radius);
+  for (let i = 0; i < attempts; i++) {
+    const spot = onBoxEdge(onTheArena, logic.int(0, EDGES - 1));
+    if (arrivalFits(world, spot, radius)) return spot;
+  }
+  return null;
+}
+
+/**
+ * Send one enemy of `type` (or a rolled kind) in from off-screen. Answers whether
+ * one arrived: on a window with the whole arena in it there is sometimes nowhere
+ * to put it, and the spawn clock simply tries again.
+ */
 export function spawnEnemy(world, type) {
-  if (world.enemies.length > BALANCE.enemies.hardCap) return;
+  if (world.enemies.length > BALANCE.enemies.hardCap) return false;
   const kind = type || rollKind(world);
-  const spot = edgeSpot(world, BALANCE.kinds[kind].radius + BALANCE.enemies.spawnMargin);
+  const spot = arrivalSpot(world, BALANCE.kinds[kind].radius);
+  if (spot === null) return false;
   world.enemies.push(makeEnemy(world, kind, spot.x, spot.y));
+  return true;
 }
 
 /** The spawn clock. Later in the run a tick sometimes sends more than one. */

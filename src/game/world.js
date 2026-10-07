@@ -38,8 +38,12 @@ function createWorld() {
     shardsCollected: 0,
     shake: 0,
 
-    /** The arena is the viewport for now; milestone 2 makes it a real world. */
-    arena: { w: BALANCE.arena.defaultW, h: BALANCE.arena.defaultH },
+    // The world the run happens in, and the window it is watched through. The
+    // arena is the size of the game; the view is the size of the screen, which is
+    // all the simulation ever needs to know about the screen (it is how spawning
+    // knows what is off it). The frame loop writes the second on every resize.
+    arena: { w: BALANCE.arena.w, h: BALANCE.arena.h },
+    view: { w: BALANCE.arena.viewW, h: BALANCE.arena.viewH },
 
     player: {
       x: 0, y: 0, vx: 0, vy: 0,

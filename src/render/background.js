@@ -1,10 +1,15 @@
-// Three parallax star layers, sliding slowly past the ship. Purely decorative,
+// Three parallax star layers, sliding slowly past the world. Purely decorative,
 // so this state lives in the renderer and never reaches the simulation.
+//
+// They shift with the camera rather than with the ship: a layer moves a fraction
+// of the distance the view has travelled across the arena, which is what makes the
+// three of them read as depth.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { view } from './canvas.js';
+import { camera } from './camera.js';
 import { world } from '../game/world.js';
 
 const LAYERS = [
@@ -53,8 +58,10 @@ export function updateStars(dt) {
 }
 
 export function drawStars(ctx) {
-  const px = world.player.x - view.W / 2;
-  const py = world.player.y - view.H / 2;
+  // Measured from the middle of the arena, so the layers sit still on the title
+  // screen (where the camera parks) however big the world is.
+  const px = camera.cx - world.arena.w / 2;
+  const py = camera.cy - world.arena.h / 2;
   for (let i = 0; i < stars.length; i++) {
     const star = stars[i];
     const layer = LAYERS[star.l];

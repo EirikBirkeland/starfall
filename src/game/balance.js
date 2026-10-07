@@ -17,10 +17,16 @@ export const BALANCE = {
   },
 
   arena: {
-    // Until milestone 2 the arena is the window, so these are only the values
-    // before the first resize lands.
-    defaultW: 960,
-    defaultH: 600,
+    // The world is bigger than the window and the camera looks at a corner of it
+    // (PLAN section 4). The ship is kept inside these numbers.
+    w: 3000,
+    h: 3000,
+    // The window is not balance, but the simulation has to know how big it is to
+    // spawn things off the edge of it, so the frame loop writes the real size
+    // into `world.view` on every resize and these are what it assumes until the
+    // first one lands.
+    viewW: 1280,
+    viewH: 720,
   },
 
   grid: {
@@ -133,7 +139,12 @@ export const BALANCE = {
     hardCap: 100,      // above this, no spawn at all
     spawnCap: 95,      // the steady spawn keeps the crowd under this
     extraCap: 80,      // the extra rolls of the later ramp keep it under this
-    spawnMargin: 34,   // spawned this far outside the arena
+    // Enemies arrive just off the part of the arena the player can see: this far
+    // beyond the edge of the screen, by their own radius, and never this close
+    // to the ship (PLAN milestone 3: nothing spawns on top of the player).
+    spawnMargin: 34,
+    spawnMinDistance: 260,
+    spawnAttempts: 8,  // tries before the spawn clock gives up on this tick
     difficultyRamp: 165,
     hpScaleWindow: 95, hpScaleMax: 1.6,
     speedScaleWindow: 190, speedScaleMax: 0.5,
