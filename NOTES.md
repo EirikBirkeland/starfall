@@ -2372,3 +2372,125 @@ number to beat is zero.
    laser across the whole arena).
 3. Then milestone 3's release - which will finally be a release the balance report can
    describe, not just the game.
+
+---
+
+## Session 24 (2026-10-07) — Milestone 3: an elite actually arrives. Released **v0.3.6**
+
+The item session 23 found and left at the top of the list: eight measured runs, one of
+them eleven minutes, and not one gold body in any of them. Now they arrive, and the
+rate is the rate the roll always asked for.
+
+### What landed
+
+**`sendWave` buys its leader first.** A wave that wants a gold body now rolls its kind
+out of `room / elite.costMul` and pays for it *before* a single escort body is bought,
+then buys the escort with whatever room is left, then rolls which place in the fan the
+leader takes - over `types.length`, the members the wave actually bought - and deals the
+wave round it (`slot = (i + seat) % types.length`). Three rolls after 8:00, none before.
+
+Session 23's suggested shape was: buy the wave plain, then promote a member and pay the
+difference out of the leftovers. I started it that way and threw it out. The buying loop
+only stops when nothing left fits, so the leftover room is by construction smaller than
+the cheapest body in the game - there is nothing there to pay a promotion out of. Buying
+the leader first is the same money spent in the order that works, and it says the nicer
+thing out loud: **an elite is a wave spending itself on one bigger body, not a wave with
+something extra on top.** A gold tank wave is a gold tank and two drifters instead of
+eight cheap bodies. The budget is still the budget, gold or not.
+
+`balance.js` lost the fictional measurement in its `elite.chance` comment (15.1% of
+waves, from a parked run that never resembled a live crowd) and got today's real one
+instead, plus a note that `waves.waveMinPoints` has to stay worth at least one gold body
+of the cheapest kind - `test/elite.test.mjs` already asserts that lockstep, and it is
+what keeps the new "the room could not pay, so the wave arrived plain" branch theoretical
+rather than dead code.
+
+### What it measured
+
+Before, 8 runs (seeds 1-8, aware bot): **0 gold bodies across 984 waves**. After, same
+seeds: **9 across 958 waves**, and every run that ends before 8:00 is byte for byte what
+it was - the reference run `--seed 20261006` is still 3m17s / 2988 / level 5 / 209 kills /
+78 shards, trace hash identical, checked before and after every edit. Only runs that live
+past 8:00 moved, which is the whole point of gating the roll on the clock: seed 2 went
+11m01 to 8m42 (four times the hull bites), seed 7 9m33 to 9m50 (a luckier draw).
+
+Then 24 seeds for the number that matters: **mean 6m13s, all 24 died, 30 gold bodies
+arrived, 13 of them brought down, 6 was the most ever standing at once.** The rate is
+now exactly `chance` per wave - the new short-wave test measures 19.8% over 3000 waves
+where the old code managed 4.6%. Left at 0.2 deliberately: one gold body every quarter
+minute of a run that has reached 8:00 is a lot, but they are worth hunting (5x score, a
+large shard, maybe a hull) and the bot never chooses to hunt anything. M10 can make that
+argument with the report instead of with a feeling.
+
+A probe worth remembering, because it says why the bug hid: in live runs the room the
+director buys a wave with is **under 16 points in 112 of 148 waves**. Waves are two or
+three bodies long in real play, and the old seat was a roll from 0 to 7. Every test that
+emptied the arena first gave the director its full 30 points, bought eight members, and
+the seat landed every time. `test/waves.test.mjs` and `test/elite.test.mjs` were both
+guilty of that; the new tests park a crowd in the arena instead.
+
+### Tests: 364, all passing (was 361)
+
+`test/elite.test.mjs` gained three, all on the scripted world:
+
+- **"a short wave still carries its leader"** - fills the arena with tanks and drifters
+  until exactly `waveMinPoints` of room is left, plays 3000 waves, and asks for `chance`
+  of them to be led. Fails on the old code at 4.6%. This is the regression test.
+- **"the leader takes a place in the fan rather than the front of it"** - measures the
+  gold body's rank by angle among its own wave's members, and asks for every place a wave
+  of three can show to be asked for about as often. (It fails on the old code too, for an
+  incidental reason: a seat of 0 meant the gold body was bought first, ate the room, and
+  left a wave too short for the test to look at.)
+- **"a run that plays past 8:00 meets gold bodies"** - three minutes through the world's
+  own `stepWorld`, with something killing bodies to keep the crowd at the budget, and the
+  run's own tally has to say gold arrived. The end-to-end version, including the tally.
+
+A 10-mutation battery over the new buying: 9 caught (free leader, plain-priced leader,
+leader rolled as if plain, no rotation, leader not marked gold, every member gold,
+escort ceiling off, leader never bought, elite gate ignored). One survived: rolling the
+seat over `maxMembers` and folding with `%`. That is behaviourally identical except that
+it spreads the leader round the fan slightly unevenly, and no test claims to look at
+that. Noted rather than papered over.
+
+### The bug that was not in the game: a flaky test
+
+The release script failed where `node --test` had passed twice: `test/restart.test.mjs`
+"the bot was never destroyed". Its boot is deliberately unpinned, so it plays **random**
+seeds and asserts they die inside 900 s - which session 23's window-widening made look
+fine and which was never a promise anything could keep. One random seed went the full
+fifteen minutes and the file failed for a reason that had nothing to do with what it
+tests.
+
+Fixed by ending the runs instead of waiting for one: 120 s of play, then the ship is held
+to one hull with no grace and a body is planted on it every frame until it stops - the
+`test/session.test.mjs` trick, through `playOneRun`'s `onFrame`. The file went from
+16-30 s to 2.7 s, passed five boots in a row, and now proves the thing it is about (a
+restart takes, the next seed is new). `test/seed.test.mjs` and `test/pool.test.mjs` have
+the same long windows but pinned seeds, so they are deterministic, just slow. Worth
+knowing that a test whose seed is random cannot assert that a run ends.
+
+### Watch out
+
+- Elites **heal** (34% of a hull back per gold body killed, when the ship is hurt). A run
+  that hunts them can now outlive what it used to, which is good design and a long tail:
+  none of 24 runs hit the 15-minute cap today, but that is the number to watch when the
+  difficulty arc is argued in M10, together with the fact that the report's "weaver ended
+  9 of 24 runs" is 37% - just under PLAN's 40% ceiling for one kind.
+- Known and untouched: `waves.maxBodies` is 100 while the late budget is worth more than
+  that in cheap bodies, so late waves are sometimes turned away at the door - and a tank's
+  hatchlings get pushed into the crowd without that check at all. Separate item, and the
+  probe said the room before a wave is tight rather than generous most of the time, so it
+  is a late-game wrinkle rather than the shape of the run.
+- Before/after balance reports on the same seeds cost a minute and are how this was all
+  argued (`node tools/balance-report.js --runs 8 > /tmp/before.txt` before touching
+  `waves.js`). Do it again for the next enemy.
+
+### Next
+
+1. **Shielder** (PLAN 3.3, 7:30), the first kind that needs a *relationship* between
+   enemies - it projects a shield onto nearby ones. Think about where the link lives;
+   the grid is rebuilt per step and is a snapshot of the crowd as it was at the top of
+   `updateBullets`, so reading neighbours off it from a behaviour needs care.
+2. Then splitter swarm (9:00, packs of 20 - which wants a look at `waves.maxMembers` and
+   what one pack costs), then sniper (10:30, a telegraphed laser across the arena).
+3. Milestone 3's release, once the kinds are in.
