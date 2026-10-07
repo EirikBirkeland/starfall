@@ -9,9 +9,9 @@
 // Two rules make it what it is:
 //
 //   The circle is the whole of it, and it is drawn by the renderer out of the same
-//   number this file reads. A centre inside the radius is hurt and a centre outside
-//   it is not, for the ship exactly as for the crowd, so a ring you can see is a
-//   promise you can stand on.
+//   number this file reads. A centre inside the radius - or standing exactly on the
+//   line - is hurt and a centre outside it is not, for the ship exactly as for the
+//   crowd, so a ring you can see is a promise you can stand on.
 //
 //   Whoever lit it gets the credit for everything it kills, and that carries down a
 //   chain: a bomber caught in a blast detonates too, and if the player fired the

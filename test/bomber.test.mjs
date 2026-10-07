@@ -133,14 +133,14 @@ test('the circle it is drawn standing in is exactly the blast', () => {
 
 test('everything inside the circle is hurt and everything outside is not', () => {
   const { field, bomber } = parked(5, 1500, 1000);
-  const edge = standing(field, 'drifter', 1500, 1000 - B.radius + 1);
+  const edge = standing(field, 'drifter', 1500, 1000 - B.radius);
   const outside = standing(field, 'drifter', 1500, 1000 + B.radius + 1);
   const bystander = standing(field, 'tank', 1500, 1000 + 40);
 
   killEnemy(field, bomber, true);
 
   const hurt = BALANCE.kinds.drifter.hull - edge.hp;
-  assert.equal(hurt, B.damage, 'the one at the edge was inside it, so it took ' + B.damage);
+  assert.equal(hurt, B.damage, 'a centre standing exactly on the line is inside it, so it took ' + B.damage);
   assert.equal(outside.hp, BALANCE.kinds.drifter.hull,
     'and the one a pixel further out was outside it and took nothing');
   assert.ok(edge.flash > 0, 'and it shows the hit, whoever did it');
