@@ -12,7 +12,7 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
-import { gainOf } from './upgrades.js';
+import { gainOf, volleyOf } from './upgrades.js';
 
 /**
  * How often the gun cycles: the ship's own rate, times whatever the fire rate line is
@@ -25,21 +25,36 @@ export function shotsPerSecond(world) {
     world.player.fireRate * gainOf(world, 'fireRate'));
 }
 
-/** One shot: a bullet, a shove backwards, a muzzle flash, and a cue. */
-export function fire(world) {
-  const ship = world.player;
-  const gun = BALANCE.bullets;
-  const spec = BALANCE.player;
+/** The scratch the fan is written into: one array per process, refilled per pull. */
+const fanScratch = [];
 
-  // Both multipliers are taken from the upgrade lines as this shot leaves, which is
-  // what lets a card taken mid-frame apply to the very next shot.
-  const speed = gun.speed * gainOf(world, 'bulletSpeed');
+/**
+ * Where one pull's projectiles point, written into one scratch array and refilled per
+ * pull (nothing allocates in a shot loop, PLAN section 2): the gun's own shot straight
+ * down the nose, then the split line's extras laid out around it, nearest first and
+ * alternating sides. So the shot the player aimed at is always the first one and always
+ * goes exactly where it was aimed, and the fan grows outwards one ring at a time.
+ *
+ * A line of five ranks means an odd number of extras, and an odd number cannot sit
+ * evenly on both sides of the aim: the last one leans one gap to the right. The gap is
+ * small enough that nobody can see it. The alternative - aiming the heaviest shot
+ * somewhere the player did not point - is worse.
+ */
+function shotFan(aim, count, gap) {
+  fanScratch.length = 0;
+  fanScratch.push(aim);
 
-  const angle = ship.angle + logic.range(-spec.spread, spec.spread);
-  const nose = ship.drawR + gun.noseOffset;
-  const nx = ship.x + Math.cos(ship.angle) * nose;
-  const ny = ship.y + Math.sin(ship.angle) * nose;
+  let ring = 1;
+  let side = 1;
+  while (fanScratch.length < count) {
+    fanScratch.push(aim + side * ring * gap);
+    if (side > 0) { side = -1; } else { side = 1; ring++; }
+  }
+  return fanScratch;
+}
 
+/** One projectile, written field by field like every spawner must. */
+function shoot(world, nx, ny, angle, speed, dmg) {
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
@@ -47,14 +62,48 @@ export function fire(world) {
   bullet.py = ny;
   bullet.vx = Math.cos(angle) * speed;
   bullet.vy = Math.sin(angle) * speed;
-  bullet.life = gun.life;
-  bullet.dmg = gun.damage * gainOf(world, 'damage');
+  bullet.life = BALANCE.bullets.life;
+  bullet.dmg = dmg;
+  return bullet;
+}
+
+/**
+ * One pull of the trigger: the volley, a shove backwards, a muzzle flash, and one cue.
+ *
+ * The multipliers are taken from the upgrade lines as the shots leave, which is what
+ * lets a card taken mid-frame apply to the very next shot. With the split line the
+ * volley is more than one projectile: they all leave from the same point in a fan
+ * around the nose, the aimed one at full weight and each extra carrying a share of it
+ * (BALANCE.upgrades.split), so a rank never takes anything away and always buys
+ * coverage instead - more of the crowd touched per pull.
+ */
+export function fire(world) {
+  const ship = world.player;
+  const gun = BALANCE.bullets;
+  const spec = BALANCE.player;
+  const split = BALANCE.upgrades.split;
+
+  const speed = gun.speed * gainOf(world, 'bulletSpeed');
+  const weight = gun.damage * gainOf(world, 'damage');
+  const nose = ship.drawR + gun.noseOffset;
+  const nx = ship.x + Math.cos(ship.angle) * nose;
+  const ny = ship.y + Math.sin(ship.angle) * nose;
+
+  const fan = shotFan(ship.angle, volleyOf(world), split.fan);
+  for (let i = 0; i < fan.length; i++) {
+    // Every projectile gets its own small aim error, so a fan is a fan of shots and not
+    // a grid of them - but the aimed one is the one that keeps its full weight.
+    const angle = fan[i] + logic.range(-spec.spread, spec.spread);
+    shoot(world, nx, ny, angle, speed, i === 0 ? weight : weight * split.share);
+  }
 
   ship.vx -= Math.cos(ship.angle) * spec.recoil;
   ship.vy -= Math.sin(ship.angle) * spec.recoil;
 
   const muzzle = gun.muzzle;
   burst(world, nx, ny, PALETTE.spark, muzzle.count, muzzle.speed, muzzle.life);
+  // One sound per pull, however many projectiles came with it: the mix has no voice
+  // limiting until milestone 7, and six beeps per pull is a buzz, not a shot.
   const sound = BALANCE.firing.sound;
   cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
 }

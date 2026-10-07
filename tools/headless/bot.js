@@ -16,6 +16,7 @@
 
 import { bootGame } from './harness.js';
 import { escapeDirection, SKILL } from './threats.js';
+import { makeEnemy } from '../../src/game/kinds.js';
 
 /** One 60 Hz frame. The harness drives fixed steps so runs replay exactly. */
 export const FRAME_MS = 16.7;
@@ -98,20 +99,27 @@ export const DEFAULT_POLICY = 'aware';
  * The policy is written down rather than clever, because a bot that picks at random
  * measures nothing and a bot that picks perfectly overstates a human. So: take the
  * line with the fewest ranks already in it, and break a tie in the order below - the
- * three lines all multiply the same damage per second, so spreading them is the
+ * share lines all multiply the same damage per second, so spreading them is the
  * strongest thing to do while they are all short, and damage is the one that matters
- * most when the crowd out-scales the gun.
+ * most when the crowd out-scales the gun. Split shot sits second because it is the one
+ * line that buys coverage rather than weight, and it is the crowd that kills this bot.
  */
-const APPETITE = ['damage', 'fireRate', 'bulletSpeed'];
+const APPETITE = ['damage', 'split', 'fireRate', 'bulletSpeed'];
 
 function preferredCard(game, offer) {
   const ranks = game.world.upgrades;
   let best = offer[0];
   for (const id of offer) {
     if (ranks[id] > ranks[best]) continue;
-    if (ranks[id] < ranks[best] || APPETITE.indexOf(id) < APPETITE.indexOf(best)) best = id;
+    if (ranks[id] < ranks[best] || appetiteOf(id) < appetiteOf(best)) best = id;
   }
   return best;
+}
+
+/** Where a line sits in the list above. A line nobody wrote down is the last resort. */
+function appetiteOf(id) {
+  const place = APPETITE.indexOf(id);
+  return place === -1 ? APPETITE.length : place;
 }
 
 function chooseCard(game) {
@@ -238,6 +246,29 @@ export async function playRun(options) {
   const summary = playOneRun(game, options);
   game.stop();
   return summary;
+}
+
+/**
+ * A run-finisher for a test that needs a *finished* run and cannot wait for a death:
+ * from `seconds` in, hold the ship to one hull with no grace and put a body on it,
+ * every frame, until it stops. Hand it to playOneRun as `onFrame`.
+ *
+ * A bot with the upgrade lines behind it can outlast any window a test can afford - a
+ * maxed build was still flying at fifteen minutes (NOTES, session 28) - so "play until
+ * it dies" stopped being a promise anybody can keep. What those tests need is an ended
+ * run, and this ends one, at a frame count they choose.
+ */
+export function endingItAt(seconds) {
+  return function finishIt(game, frames) {
+    if (frames * FRAME_MS < seconds * 1000) return;
+    const ship = game.player;
+    ship.hull = 1;
+    ship.invuln = 0;
+    ship.fireTimer = 5;           // no shot, or it kills the body planted on it
+    game.enemies.push(makeEnemy(game.world, 'drifter', ship.x, ship.y, {
+      hp: 1, speed: 0, drop: 0, score: 0,
+    }));
+  };
 }
 
 /**

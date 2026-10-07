@@ -8,19 +8,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
-import { playOneRun } from '../tools/headless/bot.js';
+import { playOneRun, endingItAt } from '../tools/headless/bot.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: null, url: '?seed=4031' });
 
+/** How long a run is played for before it is ended on purpose. */
+const RUN_SECONDS = 150;
+
 /**
- * Play one run to the end, keeping a fingerprint of the state along the way. The
- * window is roomy because the bot that plays these runs dodges: what is being proved
- * is that a run replays, so it has to be allowed to finish.
+ * Play one run, keeping a fingerprint of the state along the way, and end it when it is
+ * due. What is being proved is that a run replays, so the run has to be long enough to
+ * fingerprint and it cannot be left to chance: a bot with the upgrade lines behind it
+ * will outlast any window a test can wait out (see `endingItAt`), so the finish is
+ * arranged rather than hoped for.
  */
 async function play(seed) {
   if (seed !== undefined) await game.resetToTitle(seed);
-  return playOneRun(game, { maxSeconds: 900, every: 97 });
+  return playOneRun(game, {
+    maxSeconds: 4 * RUN_SECONDS,
+    every: 97,
+    onFrame: endingItAt(RUN_SECONDS),
+  });
 }
 
 let first = null;

@@ -152,7 +152,9 @@ Behaviour upgrades:
 
 - **Ricochet**: shots bounce to another enemy, 1 extra bounce per rank.
 - **Pierce**: shots pass through 1 extra enemy per rank.
-- **Split shot**: 1 extra projectile per rank in a fan.
+- **Split shot**: 1 extra projectile per rank in a fan. Each extra carries a share of the
+  aimed shot's damage, so the fan buys coverage across the crowd rather than multiplying
+  the gun.
 - **Burn**: hits ignite for damage over time; burning enemies spread it on death at rank 3.
 - **Chill**: hits slow by 8% per rank; frozen enemies shatter for area damage at rank 5.
 - **Leech**: every 60 kills heals 1 hull (fewer kills per rank).
@@ -282,7 +284,10 @@ One item per session, as always:
       (mouse, or keys 1, 2, 3). Start with the stat upgrades Damage, Fire rate and Bullet speed,
       5 ranks each. Teach the simulation bot to pick a card, so headless runs still play through.
       **Release as soon as this works**, so the owner can play it.
-- [ ] Split shot (3.5): one extra projectile per rank, in a fan.
+- [x] Split shot (3.5): one extra projectile per rank, in a fan.
+      (Done. The extras carry a share of the aimed shot's damage rather than all of it -
+      see `BALANCE.upgrades.split` and NOTES session 28 - so a rank buys coverage instead
+      of multiplying the gun, and the aimed shot stays the heaviest thing in the fan.)
 - [ ] Pierce (3.5): shots pass through one extra enemy per rank.
 - [ ] Ricochet (3.5): shots bounce to another enemy, one extra bounce per rank. Release.
 - [ ] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.

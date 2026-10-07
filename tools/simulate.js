@@ -65,7 +65,7 @@ function reportLine(summary) {
     + '  shards ' + s.collected
     + '  hull ' + s.hull
     // What the run was built from, in the order game/upgrades.js lists the lines.
-    + '  build ' + s.ranks.damage + '/' + s.ranks.fireRate + '/' + s.ranks.bulletSpeed;
+    + '  build ' + Object.values(s.ranks).join('/');
 }
 
 function average(summaries, pick) {

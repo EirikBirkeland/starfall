@@ -9,15 +9,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
-import { playOneRun, startBotRun, FRAME_MS } from '../tools/headless/bot.js';
+import { playOneRun, startBotRun, endingItAt, FRAME_MS } from '../tools/headless/bot.js';
 import { cardAt, cardLayout } from '../src/render/cards.js';
 import { dropShards } from '../src/game/pickups.js';
+import { LINES } from '../src/game/upgrades.js';
 import { BALANCE } from '../src/game/balance.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 61 });
 const world = game.world;
 const ship = world.player;
+const LINE_IDS = LINES.map((line) => line.id);
+const ALL_RANKS = LINES.reduce((sum, line) => sum + BALANCE.upgrades[line.id].ranks, 0);
+
+/** The whole build, as one number, so a test can say "exactly one rank more". */
+function ranksTaken() {
+  return Object.values(world.upgrades).reduce((sum, rank) => sum + rank, 0);
+}
 
 /**
  * Pay for exactly one level and step until the run has stopped to spend it. The bank
@@ -67,24 +75,34 @@ test('the run launches and is untouched until it levels up', () => {
 
 test('the run stops for a choice, and a number key answers it', () => {
   const before = game.stats().t;
+  const taken = ranksTaken();
   earnALevel();
 
   assert.equal(world.offer.length, BALANCE.cards.offer, 'three cards are up');
-  assert.deepEqual(world.offer, ['damage', 'fireRate', 'bulletSpeed'], 'in the order the table knows them');
+  assert.equal(new Set(world.offer).size, BALANCE.cards.offer, 'and no line comes twice');
+  for (const id of world.offer) {
+    assert.ok(LINE_IDS.includes(id), id + ' is a line the game knows: ' + id);
+  }
 
   const frozen = game.stats().t;
   for (let i = 0; i < 20; i++) game.step(FRAME_MS);
   assert.equal(game.stats().t, frozen, 'no run time passes while the cards are up');
 
+  const middle = world.offer[1];
+  const middleBefore = world.upgrades[middle];
   game.key('Digit2', true);
   game.key('Digit2', false);
   assert.equal(world.state, game.STATE.PLAY, 'the run came back');
-  assert.equal(world.upgrades.fireRate, 1, 'and the middle card was the fire rate line');
+  assert.equal(world.upgrades[middle], middleBefore + 1,
+    'and the middle card was the ' + middle + ' line');
+  assert.equal(ranksTaken(), taken + 1, 'exactly one rank, from exactly one line');
   assert.ok(game.stats().t > before, 'and the clock is running again');
 });
 
 test('a click on a card takes that card, and a click off them takes nothing', () => {
   earnALevel();
+  const taking = world.offer[1];
+  const before = world.upgrades[taking];
 
   const layout = cardLayout(world.offer.length, 1280, 720);
   const middle = layout.cards[1];
@@ -95,10 +113,9 @@ test('a click on a card takes that card, and a click off them takes nothing', ()
   assert.equal(world.state, game.STATE.LEVEL, 'a click off the cards is not an answer');
   game.releaseMouse(0);
 
-  const before = world.upgrades.fireRate;
   game.pressMouse(middle.x + middle.w / 2, middle.y + middle.h / 2, 0);
   assert.equal(world.state, game.STATE.PLAY, 'and a click on one is');
-  assert.equal(world.upgrades.fireRate, before + 1, 'the middle card is the middle line');
+  assert.equal(world.upgrades[taking], before + 1, 'the middle card is the middle line');
   game.releaseMouse(0);
 });
 
@@ -112,12 +129,15 @@ test('the choice is painted, and paints over a frame that is not running', () =>
   assert.ok(paused.strokes > running.strokes + 6, 'and the panels, which are stroked: ' + paused.strokes);
   assert.ok(paused.images > 0, 'and something shines: ' + paused.images);
 
-  const damageBefore = world.upgrades.damage;
-  const fireBefore = world.upgrades.fireRate;
+  const taking = world.offer[0];
+  const before = Object.assign({}, world.upgrades);
   game.key('Digit1', true);
   game.key('Digit1', false);
-  assert.equal(world.upgrades.damage, damageBefore + 1, 'and key 1 is the left-hand card');
-  assert.equal(world.upgrades.fireRate, fireBefore, 'and only that one card was taken');
+  assert.equal(world.upgrades[taking], before[taking] + 1, 'and key 1 is the left-hand card');
+  for (const id of LINE_IDS) {
+    if (id === taking) continue;
+    assert.equal(world.upgrades[id], before[id], id + ' was not touched');
+  }
 });
 
 test('a dash pressed while the cards are up is spent, not stored', () => {
@@ -137,16 +157,39 @@ test('a dash pressed while the cards are up is spent, not stored', () => {
   assert.equal(ship.dashCd, 0, 'and it was not banked for later either');
 });
 
+test('every line has a face: a name, a number, and a shape drawn for it', () => {
+  // Cards are canvas, not DOM (PLAN section 4 wants each icon drawn in code), so the
+  // only way to see one here is to paint one. Every line gets put on the table on its
+  // own: a line whose icon was never written throws, and a line whose words were never
+  // written draws a card with nothing on it.
+  for (const line of LINES) {
+    world.state = game.STATE.LEVEL;
+    world.offer.length = 0;
+    world.offer.push(line.id);
+    world.offerTime = world.time;
+
+    const frame = painted();
+    assert.ok(frame.texts > 2, line.id + ' prints its name and its number: ' + frame.texts + ' texts');
+    assert.ok(frame.images > 0, line.id + ' has something that shines: ' + frame.images);
+    assert.ok(frame.strokes > 2, line.id + ' has a panel and an icon: ' + frame.strokes + ' strokes');
+  }
+
+  world.offer.length = 0;
+  world.state = game.STATE.PLAY;
+});
+
 test('the bot picks a card when the run stops for one, and still dies in the end', async () => {
   await game.resetToTitle(62);
-  const run = playOneRun(game, { maxSeconds: 900 });
+  // Finished on purpose: a bot that has been handed the upgrade lines can outlast any
+  // window this suite could afford to wait for (NOTES, session 28).
+  const run = playOneRun(game, { maxSeconds: 300, onFrame: endingItAt(120) });
 
   assert.equal(run.died, true, 'the run ended');
-  const ranks = game.world.upgrades;
-  const taken = ranks.damage + ranks.fireRate + ranks.bulletSpeed;
-  assert.ok(taken > 0, 'the bot took upgrades on the way: ' + JSON.stringify(ranks));
-  assert.ok(taken <= 15, 'and never more than the three lines have to give: ' + taken);
+  const taken = ranksTaken();
+  assert.ok(taken > 0, 'the bot took upgrades on the way: ' + JSON.stringify(world.upgrades));
+  assert.ok(taken <= ALL_RANKS, 'and never more than the lines have to give: ' + taken);
   assert.ok(game.stats().level > 3, 'and levelled up enough to have taken them');
-  assert.match(game.screen.build, /DAMAGE|FIRE RATE|SHOT SPEED|NO UPGRADES/, 'and the game-over card says what it was built from');
+  assert.match(game.screen.build, /DAMAGE|FIRE RATE|SHOT SPEED|SPLIT SHOT|NO UPGRADES/,
+    'and the game-over card says what it was built from');
   game.stop();
 });

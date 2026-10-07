@@ -1,11 +1,17 @@
 // The upgrade lines a run is built out of, and the three cards dealt when it levels
 // up (PLAN 3.5).
 //
-// A line is one multiplier and nothing else: its numbers live in BALANCE.upgrades,
-// next to every other tuning number, and whatever reads it asks here for the
-// multiplier as it stands. Nothing caches a rank into a ship field, so a rank can be
-// taken at any moment - between two frames, in the middle of a step - and every
-// system that cares simply starts agreeing with it.
+// A line is one number and nothing else: its numbers live in BALANCE.upgrades, next to
+// every other tuning number, and whatever reads it asks here for that number as it
+// stands. Nothing caches a rank into a ship field, so a rank can be taken at any moment
+// - between two frames, in the middle of a step - and every system that cares simply
+// starts agreeing with it.
+//
+// There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
+// *share* of something, which is a multiplier a caller multiplies with the number it
+// already has: `gainOf`. One line - split shot - sells whole things instead, projectiles
+// that come out of the gun alongside the one you aimed, and a caller counts them:
+// `volleyOf`. A card prints either, which is why the printing lives here.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -17,16 +23,25 @@ import { logic } from '../core/rng.js';
 const PERCENT = 100;
 
 /**
+ * The two things a line's `step` can mean, and so the two ways a card says it out loud:
+ * a `percent` line sells a share of something (a step of 0.3 is worth +30%), an `each`
+ * line hands out whole things by the piece (a step of 1 is worth "+1 extra shot").
+ */
+const SHARE_UNIT = 'percent';
+const WHOLE_UNIT = 'each';
+
+/**
  * The lines, in the order the cards are dealt from. `id` is the key into
- * BALANCE.upgrades and into `world.upgrades`; `what` is the plain line PLAN 3.5 asks
- * each card for, printed after the percentage that `step` is worth; `flavour` is the
- * one human sentence under it; `icon` picks the shape drawn on the card
+ * BALANCE.upgrades and into `world.upgrades`; `unit` is one of the two words above and
+ * `what` is the thing the line sells, so the card can print `step` next to it;
+ * `flavour` is the one human sentence under it; `icon` picks the shape drawn on the card
  * (render/cards.js).
  */
 export const LINES = [
   {
     id: 'damage',
     name: 'DAMAGE',
+    unit: SHARE_UNIT,
     what: 'shot damage',
     flavour: 'Everything you hit feels it more.',
     icon: 'damage',
@@ -34,6 +49,7 @@ export const LINES = [
   {
     id: 'fireRate',
     name: 'FIRE RATE',
+    unit: SHARE_UNIT,
     what: 'shots per second',
     flavour: 'Less waiting between one shot and the next.',
     icon: 'fireRate',
@@ -41,11 +57,23 @@ export const LINES = [
   {
     id: 'bulletSpeed',
     name: 'SHOT SPEED',
+    unit: SHARE_UNIT,
     what: 'shot velocity',
     flavour: 'Less lead to hold, and less of it missing.',
     icon: 'bulletSpeed',
   },
+  {
+    id: 'split',
+    name: 'SPLIT SHOT',
+    unit: WHOLE_UNIT,
+    what: 'extra shot',
+    flavour: 'One more projectile per pull, in a fan.',
+    icon: 'split',
+  },
 ];
+
+/** The line that hands out whole projectiles rather than a share of one. */
+const SPLIT_LINE = 'split';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -78,22 +106,39 @@ export function maxRanksOf(id) {
   return BALANCE.upgrades[id].ranks;
 }
 
-/** What one rank of a line adds, as a share - which is what the card prints. */
+/** What one rank of a line adds - which is what the card prints. */
 export function stepOf(id) {
   return BALANCE.upgrades[id].step;
 }
 
+/** The plain line under the card's name: what one more rank is worth, in words. */
 export function effectOf(id) {
-  return '+' + Math.round(stepOf(id) * PERCENT) + '% ' + lineOf(id).what;
+  const line = lineOf(id);
+  if (line.unit === WHOLE_UNIT) return '+' + stepOf(id) + ' ' + line.what;
+  return '+' + Math.round(stepOf(id) * PERCENT) + '% ' + line.what;
 }
 
 /**
- * The multiplier a line is worth right now: `1 + step * rank`. Callers read this
+ * The multiplier a share line is worth right now: `1 + step * rank`. Callers read this
  * where the number is used - a shot's damage, the gap between two shots - so there
  * is nothing to keep in step with a rank.
+ *
+ * Asking a line that hands out whole things for a multiplier is a bug, and it throws:
+ * `1 + 1 * rank` reads as a plausible number and would quietly multiply the wrong one.
  */
 export function gainOf(world, id) {
+  const line = lineOf(id);
+  if (line.unit !== SHARE_UNIT) throw new Error(id + ' is not a line of shares');
   return 1 + stepOf(id) * rankOf(world, id);
+}
+
+/**
+ * How many projectiles one pull of the trigger sends out: the gun's own shot, plus
+ * every extra the split line has to give (PLAN 3.5). This is that line read as a
+ * count rather than as words on a card; `fire` fans them out around the aim.
+ */
+export function volleyOf(world) {
+  return 1 + rankOf(world, SPLIT_LINE) * stepOf(SPLIT_LINE);
 }
 
 /** Lines with a rank still to give. */

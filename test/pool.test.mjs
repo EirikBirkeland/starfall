@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { Pool } from '../src/core/pool.js';
 import { bootGame } from '../tools/headless/harness.js';
-import { playOneRun } from '../tools/headless/bot.js';
+import { playOneRun, endingItAt } from '../tools/headless/bot.js';
 import { BALANCE } from '../src/game/balance.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -184,9 +184,10 @@ test('stats describes the pool honestly', () => {
 // the lists the game pools.
 test('the game recycles its sparks, shots, shards, and labels across a whole run', async () => {
   const game = await bootGame({ root: ROOT, seed: 11 });
-  // Long enough for the dodging bot to actually die: this test wants a finished run,
-  // and a finished run is what makes the pools' counts mean something.
-  const run = playOneRun(game, { maxSeconds: 900 });
+  // Long enough to be a busy run, and finished on purpose: a bot with the upgrade lines
+  // behind it is still flying at fifteen minutes, and this test wants a *finished* run
+  // because that is what makes the pools' counts mean something.
+  const run = playOneRun(game, { maxSeconds: 300, onFrame: endingItAt(150) });
   assert.equal(run.died, true, 'the run had to end for this to mean anything');
 
   // Each bar says "this list saw a real run", and they are not all the same bar:

@@ -544,17 +544,30 @@ export const BALANCE = {
     labelOffset: 16,      // the level text floats this far above the ship
   },
 
-  // The upgrade lines (game/upgrades.js). One rank of a line is worth
-  // `1 + step * rank` of the thing it sells, so the card text is never a lie about
-  // the number: it prints `step`.
+  // The upgrade lines (game/upgrades.js). `step` is what one rank is worth, and the
+  // card text prints it rather than paraphrasing it, so a card can never lie about its
+  // number. For a line that sells a share of something (damage, fire rate, shot speed)
+  // `step` is that share and the line is worth `1 + step * rank`. For a line that hands
+  // out whole things - `unit: 'each'`, and split shot is the first - `step` is how many
+  // whole things one rank adds, and there is no multiplier to ask it for.
   //
-  // Three lines, five ranks each (PLAN 3.5 starts here), and every one of them is
-  // firepower: the point of the build is that the run's shots get heavier, faster and
-  // more numerous, not that the ship gets tougher (PLAN section 7's hard rule).
+  // Five ranks each (PLAN 3.5 starts here), and every one of them is firepower: the
+  // point of the build is that the run's shots get heavier, faster and more numerous,
+  // not that the ship gets tougher (PLAN section 7's hard rule).
   upgrades: {
     damage: { ranks: 5, step: 0.3 },
     fireRate: { ranks: 5, step: 0.22 },
     bulletSpeed: { ranks: 5, step: 0.22 },
+    split: {
+      ranks: 5,
+      step: 1,          // one extra projectile per rank (PLAN 3.5)
+      // The extras are laid out around the gun's own shot and each carries `share` of
+      // its weight, so a rank never takes anything away: the shot you aimed stays the
+      // heaviest thing in the fan. What you pay is that a fan which has spread too
+      // wide to touch one enemy is a fan that hit nothing, so the line wants you close.
+      share: 0.35,
+      fan: 0.087,       // radians between two neighbours of the fan (5 degrees)
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

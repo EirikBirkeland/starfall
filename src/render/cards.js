@@ -28,12 +28,13 @@ const RISE = 0.2;           // how long one card takes to slide in (PLAN: under 
 const STAGGER = 0.08;       // and how much later the next one starts
 const PUSH = 26;            // how far below its place it starts
 
-// The three shapes, one per line (the ids come from game/upgrades.js). Kept apart
+// The four shapes, one per line (the ids come from game/upgrades.js). Kept apart
 // from the colours so a line can be drawn in whichever cool colour suits it.
 const TINT = {
   damage: PALETTE.white,
   fireRate: PALETTE.player,
   bulletSpeed: PALETTE.shard,
+  split: PALETTE.violet,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -249,58 +250,100 @@ function drawKeyHint(ctx, number, x, y) {
 }
 
 /**
- * The three shapes, all pointing up, all cool: an impact for damage, a stack for the
- * gun's cycle, a shot with its own wake for velocity. Small, drawn from paths, and
- * legible at a card's worth of pixels.
+ * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
+ * cycle, a shot with its own wake for velocity, three of them for split shot. Small,
+ * drawn from paths, and legible at a card's worth of pixels. Each line names one of
+ * these in game/upgrades.js, and an icon with no shape is a bug that says so rather
+ * than drawing the wrong thing.
  */
+const ICONS = {
+  damage: iconDamage,
+  fireRate: iconFireRate,
+  bulletSpeed: iconBulletSpeed,
+  split: iconSplit,
+};
+
 function drawIcon(ctx, kind, cx, cy, size, tint) {
+  const shape = ICONS[kind];
+  if (shape === undefined) throw new Error('no card icon is called ' + kind);
+
   ctx.save();
   ctx.translate(cx, cy);
   ctx.globalCompositeOperation = 'lighter';
   paintGlow(ctx, glowFor(tint, Math.round(size * 0.9)), 0, 0, 0.5, 1);
   ctx.globalCompositeOperation = 'source-over';
-
-  if (kind === 'damage') {
-    // A hit: a solid diamond with what came off it flying off in four directions.
-    polygon(ctx, 0, 0, size * 0.42, 4, Math.PI / 4);
-    ctx.fillStyle = withAlpha(tint, 0.9);
-    ctx.fill();
-    ctx.strokeStyle = withAlpha(tint, 0.85);
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 4; i++) {
-      const a = Math.PI / 4 + i * (Math.PI / 2);
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * size * 0.52, Math.sin(a) * size * 0.52);
-      ctx.lineTo(Math.cos(a) * size * 0.86, Math.sin(a) * size * 0.86);
-      ctx.stroke();
-    }
-  } else if (kind === 'fireRate') {
-    // Three of the same shot, close together, the newest one the brightest.
-    for (let i = 0; i < 3; i++) {
-      const dy = (i - 1) * size * 0.36;
-      ctx.beginPath();
-      ctx.moveTo(0, dy - size * 0.24);
-      ctx.lineTo(size * 0.34, dy + size * 0.16);
-      ctx.lineTo(-size * 0.34, dy + size * 0.16);
-      ctx.closePath();
-      ctx.fillStyle = withAlpha(tint, 0.34 + i * 0.3);
-      ctx.fill();
-    }
-  } else {
-    // One shot, going fast enough to be leaving a wake behind it.
-    polygon(ctx, 0, -size * 0.1, size * 0.46, 3, -Math.PI / 2);
-    ctx.fillStyle = withAlpha(tint, 0.9);
-    ctx.fill();
-    ctx.strokeStyle = withAlpha(tint, 0.6);
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-      const dy = size * (0.34 + i * 0.2);
-      const half = size * (0.4 - i * 0.1);
-      ctx.beginPath();
-      ctx.moveTo(-half, dy);
-      ctx.lineTo(half, dy);
-      ctx.stroke();
-    }
-  }
+  shape(ctx, size, tint);
   ctx.restore();
+}
+
+/** A hit: a solid diamond with what came off it flying off in four directions. */
+function iconDamage(ctx, size, tint) {
+  polygon(ctx, 0, 0, size * 0.42, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.85);
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * (Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * size * 0.52, Math.sin(a) * size * 0.52);
+    ctx.lineTo(Math.cos(a) * size * 0.86, Math.sin(a) * size * 0.86);
+    ctx.stroke();
+  }
+}
+
+/** Three of the same shot, close together, the newest one the brightest. */
+function iconFireRate(ctx, size, tint) {
+  for (let i = 0; i < 3; i++) {
+    const dy = (i - 1) * size * 0.36;
+    ctx.beginPath();
+    ctx.moveTo(0, dy - size * 0.24);
+    ctx.lineTo(size * 0.34, dy + size * 0.16);
+    ctx.lineTo(-size * 0.34, dy + size * 0.16);
+    ctx.closePath();
+    ctx.fillStyle = withAlpha(tint, 0.34 + i * 0.3);
+    ctx.fill();
+  }
+}
+
+/** One shot, going fast enough to be leaving a wake behind it. */
+function iconBulletSpeed(ctx, size, tint) {
+  polygon(ctx, 0, -size * 0.1, size * 0.46, 3, -Math.PI / 2);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.6);
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const dy = size * (0.34 + i * 0.2);
+    const half = size * (0.4 - i * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(-half, dy);
+    ctx.lineTo(half, dy);
+    ctx.stroke();
+  }
+}
+
+/**
+ * One muzzle and three shots leaving it: the fan a split pull makes. The middle one is
+ * the brightest, because that one is the shot the player aimed and the heaviest thing
+ * the gun fires.
+ */
+function iconSplit(ctx, size, tint) {
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.translate(0, size * 0.44);
+    ctx.rotate((i - 1) * 0.46);
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.88);
+    ctx.lineTo(size * 0.16, -size * 0.4);
+    ctx.lineTo(-size * 0.16, -size * 0.4);
+    ctx.closePath();
+    ctx.fillStyle = withAlpha(tint, i === 1 ? 0.95 : 0.55);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();
+  ctx.arc(0, size * 0.44, size * 0.13, 0, Math.PI * 2);
+  ctx.fillStyle = withAlpha(tint, 0.85);
+  ctx.fill();
 }

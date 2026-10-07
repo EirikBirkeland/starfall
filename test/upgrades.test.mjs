@@ -11,12 +11,20 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
-import { LINES, gainOf, rankOf, takeOffer, describeRanks } from '../src/game/upgrades.js';
+import {
+  LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf, volleyOf,
+} from '../src/game/upgrades.js';
 import { fire, shotsPerSecond } from '../src/game/player.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const PROGRESS = BALANCE.progression;
 const IDS = LINES.map((line) => line.id);
+
+/** Is this deal in the order the table prints it? */
+function inTableOrder(offer) {
+  const places = offer.map((id) => IDS.indexOf(id));
+  return places.every((place, i) => i === 0 || place > places[i - 1]);
+}
 
 /** Everything the pause must hold still, as one comparable string. */
 function whereEverythingStands(field) {
@@ -60,20 +68,39 @@ test('a level earned stops the run, and nothing in the arena moves while it is s
   assert.equal(field.xpNeed, xpNeededFor(2), 'and the next one is priced');
 });
 
-test('the cards offered are every line with a rank left, in table order', () => {
+test('the cards on the table are three different lines with a rank left, in table order', () => {
   const field = scriptedRun(32);
   earnLevel(field);
-  assert.deepEqual(field.offer, IDS, 'a fresh run is offered the lot');
 
+  assert.equal(field.offer.length, BALANCE.cards.offer, 'as many cards as the table has places');
+  assert.equal(new Set(field.offer).size, field.offer.length, 'no line comes twice');
+  for (const id of field.offer) assert.ok(IDS.includes(id), id + ' is a line the game knows');
+  assert.ok(inTableOrder(field.offer), 'and they are printed in the order the table knows them');
+
+  // Enough ranks spent that exactly three lines have room: the deal is those three,
+  // whatever the weights did, because there is nothing else to deal.
   for (const id of IDS) field.upgrades[id] = BALANCE.upgrades[id].ranks - 1;
-  field.offer.length = 0;
-  earnLevel(field);
-  assert.deepEqual(field.offer, IDS, 'a line on its last rank is still worth offering');
-
   field.upgrades.damage = BALANCE.upgrades.damage.ranks;
   field.offer.length = 0;
   earnLevel(field);
-  assert.deepEqual(field.offer, ['fireRate', 'bulletSpeed'], 'a maxed line is not');
+  assert.deepEqual(field.offer, IDS.filter((id) => id !== 'damage'), 'a maxed line is not offered');
+});
+
+test('a deal always has something the run has never taken (PLAN 3.5)', () => {
+  // Three slots and four lines is the first time this can bite: a build that has been
+  // going a while must not stop ever seeing a new line, or the game of choices stops
+  // offering choices. So it is proved over a fistful of seeds rather than one.
+  for (let seed = 0; seed < 60; seed++) {
+    const field = scriptedRun(400 + seed);
+    field.upgrades.damage = 3;
+    field.upgrades.fireRate = 2;
+    field.upgrades.bulletSpeed = 1;      // three lines with ranks, one still fresh
+    earnLevel(field);
+
+    assert.equal(field.offer.length, BALANCE.cards.offer);
+    assert.ok(field.offer.some((id) => field.upgrades[id] === 0),
+      'seed ' + seed + ' dealt nothing new: ' + field.offer.join(', '));
+  }
 });
 
 test('taking a card banks the rank and hands the run back', () => {
@@ -81,14 +108,15 @@ test('taking a card banks the rank and hands the run back', () => {
   assert.equal(describeRanks(field), 'NO UPGRADES', 'a fresh run has no build to show');
 
   earnLevel(field);
+  const taking = field.offer[0];
   assert.equal(takeOffer(field, 0), true);
 
-  assert.equal(field.upgrades.damage, 1, 'the first card was damage');
-  assert.equal(rankOf(field, 'damage'), 1);
+  assert.equal(field.upgrades[taking], 1, 'the left-hand card was the ' + taking + ' line');
+  assert.equal(rankOf(field, taking), 1);
   assert.equal(field.pendingLevels, 0);
   assert.equal(field.offer.length, 0, 'the table is clear');
   assert.equal(field.state, STATE.PLAY, 'and the run is running again');
-  assert.equal(describeRanks(field), 'DAMAGE 1', 'and the build can be described');
+  assert.equal(describeRanks(field), lineOf(taking).name + ' 1', 'and the build can be described');
 });
 
 test('a card that is not on the table is refused, and refuses to do anything', () => {
@@ -111,25 +139,46 @@ test('two levels at once are two choices, one after the other', () => {
   assert.equal(field.state, STATE.LEVEL);
   assert.equal(field.offer.length, BALANCE.cards.offer, 'but only one choice is on the table');
 
+  const second = field.offer[1];
   assert.equal(takeOffer(field, 1), true);
   assert.equal(field.state, STATE.LEVEL, 'the second level wants answering too');
   assert.equal(field.pendingLevels, 1);
-  assert.equal(field.upgrades.damage, 0, 'and the first card went to the middle one');
-  assert.equal(field.upgrades.fireRate, 1);
+  assert.equal(field.upgrades[second], 1, 'and the first card went to the middle one');
 
+  const first = field.offer[0];
+  const beforeFirst = field.upgrades[first];
   assert.equal(takeOffer(field, 0), true);
   assert.equal(field.state, STATE.PLAY, 'and then it is over');
   assert.equal(field.pendingLevels, 0);
+  assert.equal(field.upgrades[first], beforeFirst + 1, 'and this one went to the left-hand card');
 });
 
-test('every line is five ranks deep and each one is worth its step', () => {
+test('every line is five ranks deep and worth its step, in its own kind of number', () => {
   const field = scriptedRun(36);
   for (const line of LINES) {
     const spec = BALANCE.upgrades[line.id];
     assert.equal(spec.ranks, 5, line.id + ' is five ranks deep, as PLAN 3.5 starts them');
     field.upgrades[line.id] = spec.ranks;
-    assert.equal(gainOf(field, line.id), 1 + spec.step * spec.ranks);
+
+    if (line.unit === 'percent') {
+      assert.equal(gainOf(field, line.id), 1 + spec.step * spec.ranks);
+    } else {
+      // A line of whole things is counted, not multiplied, and the card says so.
+      assert.ok(Number.isInteger(spec.step), line.id + ' hands out whole things');
+      assert.equal(effectOf(line.id), '+' + spec.step + ' ' + line.what);
+    }
   }
+
+  // And asking the wrong kind of line for the wrong kind of number is a mistake that
+  // says so out loud, instead of quietly multiplying by a plausible-looking six.
+  assert.throws(() => gainOf(field, 'split'), /not a line of shares/);
+  field.upgrades.split = 2;
+  assert.equal(volleyOf(field), 1 + 2 * BALANCE.upgrades.split.step);
+});
+
+test('a card prints the number its line is worth', () => {
+  assert.equal(effectOf('damage'), '+' + Math.round(BALANCE.upgrades.damage.step * 100) + '% shot damage');
+  assert.equal(effectOf('split'), '+' + BALANCE.upgrades.split.step + ' extra shot');
 });
 
 test('damage and shot speed come out of the gun, not just onto the ledger', () => {
@@ -151,7 +200,7 @@ test('damage and shot speed come out of the gun, not just onto the ledger', () =
   assert.ok(Math.abs(Math.hypot(shot.vx, shot.vy) - gun.speed * gainOf(field, 'bulletSpeed')) < 1e-9, 'and faster');
 });
 
-test('the fire rate line shortens the gap between two shots', () => {
+test('the fire rate line shortens the gap between two pulls, whatever a pull fires', () => {
   const field = scriptedRun(38);
   const spec = BALANCE.player;
   assert.equal(shotsPerSecond(field), spec.fireRate, 'a plain gun cycles at its own rate');

@@ -8,8 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
-import { playOneRun, FRAME_MS } from '../tools/headless/bot.js';
-import { makeEnemy } from '../src/game/kinds.js';
+import { playOneRun, endingItAt } from '../tools/headless/bot.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: null });
@@ -28,16 +27,7 @@ const RUN_SECONDS = 120;
  * one window earlier). What this file proves is that a restart takes and the next run is
  * new, and that needs two *finished* runs of whatever length they turned out to be.
  */
-function finishItWhenDue(game, frames) {
-  if (frames * FRAME_MS < RUN_SECONDS * 1000) return;
-  const ship = game.player;
-  ship.hull = 1;
-  ship.invuln = 0;
-  ship.fireTimer = 5;           // no shot, or it kills the body planted on it
-  game.enemies.push(makeEnemy(game.world, 'drifter', ship.x, ship.y, {
-    hp: 1, speed: 0, drop: 0, score: 0,
-  }));
-}
+const finishItWhenDue = endingItAt(RUN_SECONDS);
 
 test('a restart starts a fresh run, not a replay', () => {
   const options = { maxSeconds: 4 * RUN_SECONDS, every: 97, onFrame: finishItWhenDue };
