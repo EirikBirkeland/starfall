@@ -2785,3 +2785,13 @@ one pack on it is touched **29.6 s of every 60**, a ship running at full speed k
    `maxBodies` question settled first, since it spawns swarms from its cells.
 3. Then milestone 3's release item, and milestone 4 (XP curve, the three-card choice) -
    which is where a swarm's 10 score and 1 shard per body stops being a rounding error.
+
+## Owner's order, 2026-10-08: firepower first
+
+The owner has put a new block at the top of section 7 in `PLAN.md`: **PRIORITY: firepower first**.
+It replaces every "what comes next" above this entry. The Hive, the rest of milestone 3 and its
+release all wait.
+
+- Next session starts on its first unchecked item: the level-up choice with three cards.
+- The goal is a median survival of 5:00 or more, through weapons and upgrades.
+- Do not make the game easier to get there. Read the hard rule in that block before touching balance.

@@ -261,6 +261,45 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 
 ## 7. Milestones
 
+### PRIORITY: firepower first (owner's order, 2026-10-08)
+
+**This is now the current milestone. Do it before any other unchecked item in this plan,
+including the rest of milestone 3. Start in your very next session.**
+
+Why: the owner plays the releases, and cannot get far enough to see the new features. The default
+weapon is fine for thirty seconds and then the game is only dodging. The player needs to grow
+strong, quickly and visibly. More pew pew.
+
+The goal: **median survival of at least 5:00**, reached through the player's weapons and upgrades.
+
+Hard rule for this milestone: **do not make the game easier.** Do not lower enemy hull, speed,
+damage or numbers, do not slow the spawn budget or the difficulty ramp, and do not raise the
+player's hull. The enemies stay as they are; the player's firepower rises to meet them.
+
+One item per session, as always:
+
+- [ ] Level-up choice: the XP curve from 3.6, a pause on level-up, and three cards to pick from
+      (mouse, or keys 1, 2, 3). Start with the stat upgrades Damage, Fire rate and Bullet speed,
+      5 ranks each. Teach the simulation bot to pick a card, so headless runs still play through.
+      **Release as soon as this works**, so the owner can play it.
+- [ ] Split shot (3.5): one extra projectile per rank, in a fan.
+- [ ] Pierce (3.5): shots pass through one extra enemy per rank.
+- [ ] Ricochet (3.5): shots bounce to another enemy, one extra bounce per rank. Release.
+- [ ] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.
+- [ ] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line. Release.
+- [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
+      let the player pick the weapon on the title screen with a key.
+- [ ] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`
+      bot picking upgrades. The median must be 5:00 or more. If it is not, add firepower: stronger
+      ranks, more ranks, another upgrade from 3.5. Never by weakening the enemies (see the hard rule).
+      Write the numbers in `NOTES.md`. Release.
+
+How it should feel: by two minutes in, the screen is visibly full of the player's own shots, and
+every level-up changes what the weapon does, not only a number.
+
+When an item here is also listed under milestone 4 or 5, tick it there as well.
+When every item above is ticked, go back to the first unchecked item of milestone 3.
+
 ### Milestone 0: take stock
 - [x] Read the existing `index.html` end to end. Write a summary of what works and what is broken in `NOTES.md`.
 - [x] Fix any syntax error or crash you can find by reading.
