@@ -184,6 +184,14 @@ Synergies (give these a special card frame, and discover them in the codex):
 
 XP needed for level n: `8 + n × 6 + n² × 0.9`, rounded. A good run reaches about level 35 by the final boss.
 
+The shape and the last two terms are what the code uses. The **base is 90, not 8**, and a
+shard is worth **14**, not 1 (both in `BALANCE`), and both were measured (NOTES session 27):
+a quadratic cost spends its first levels absurdly cheaply, so at base 8 the whole first
+minute of a run is a slot machine, and PLAN's unit was written for an XP income far above
+what a run actually collects. The pair is one coupled tuning: the target is that the last
+rank of the card pool lands about where a median run ends. Do not "fix" either number back
+without measuring that again.
+
 ### 3.7 Between runs
 
 Each run awards **stardust**: 1 per 100 score, plus bonuses for bosses. Spend it in the hangar on:
