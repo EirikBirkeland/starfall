@@ -102,9 +102,11 @@ export const DEFAULT_POLICY = 'aware';
  * share lines all multiply the same damage per second, so spreading them is the
  * strongest thing to do while they are all short, and damage is the one that matters
  * most when the crowd out-scales the gun. Split shot sits second because it is the one
- * line that buys coverage rather than weight, and it is the crowd that kills this bot.
+ * line that buys coverage rather than weight, and it is the crowd that kills this bot;
+ * pierce third, for the same reason in the other direction - it buys depth down the
+ * column of bodies chasing the ship, which is exactly what this bot is aiming at.
  */
-const APPETITE = ['damage', 'split', 'fireRate', 'bulletSpeed'];
+const APPETITE = ['damage', 'split', 'pierce', 'fireRate', 'bulletSpeed'];
 
 function preferredCard(game, offer) {
   const ranks = game.world.upgrades;
@@ -261,6 +263,9 @@ export async function playRun(options) {
 export function endingItAt(seconds) {
   return function finishIt(game, frames) {
     if (frames * FRAME_MS < seconds * 1000) return;
+    // Once the run has ended there is nothing left to end, and a hull written back to
+    // one after the death would be a lie in whatever the test reads off the summary.
+    if (game.world.state === game.STATE.OVER) return;
     const ship = game.player;
     ship.hull = 1;
     ship.invuln = 0;

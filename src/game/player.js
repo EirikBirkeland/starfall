@@ -12,7 +12,7 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
-import { gainOf, volleyOf } from './upgrades.js';
+import { gainOf, volleyOf, pierceOf } from './upgrades.js';
 
 /**
  * How often the gun cycles: the ship's own rate, times whatever the fire rate line is
@@ -54,7 +54,7 @@ function shotFan(aim, count, gap) {
 }
 
 /** One projectile, written field by field like every spawner must. */
-function shoot(world, nx, ny, angle, speed, dmg) {
+function shoot(world, nx, ny, angle, speed, dmg, pierce) {
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
@@ -64,6 +64,10 @@ function shoot(world, nx, ny, angle, speed, dmg) {
   bullet.vy = Math.sin(angle) * speed;
   bullet.life = BALANCE.bullets.life;
   bullet.dmg = dmg;
+  // The shot carries the gun's pierce with it, the same way it carries its damage: what
+  // the run had earned when the trigger moved is what this shot does.
+  bullet.pierce = pierce;
+  bullet.hits.length = 0;
   return bullet;
 }
 
@@ -75,7 +79,9 @@ function shoot(world, nx, ny, angle, speed, dmg) {
  * volley is more than one projectile: they all leave from the same point in a fan
  * around the nose, the aimed one at full weight and each extra carrying a share of it
  * (BALANCE.upgrades.split), so a rank never takes anything away and always buys
- * coverage instead - more of the crowd touched per pull.
+ * coverage instead - more of the crowd touched per pull. Each projectile also leaves
+ * with the pierce line's number, so a shot can go on through the body it was aimed at
+ * and look for the one standing behind it (game/bullets.js).
  */
 export function fire(world) {
   const ship = world.player;
@@ -90,11 +96,12 @@ export function fire(world) {
   const ny = ship.y + Math.sin(ship.angle) * nose;
 
   const fan = shotFan(ship.angle, volleyOf(world), split.fan);
+  const pierce = pierceOf(world);
   for (let i = 0; i < fan.length; i++) {
     // Every projectile gets its own small aim error, so a fan is a fan of shots and not
     // a grid of them - but the aimed one is the one that keeps its full weight.
     const angle = fan[i] + logic.range(-spec.spread, spec.spread);
-    shoot(world, nx, ny, angle, speed, i === 0 ? weight : weight * split.share);
+    shoot(world, nx, ny, angle, speed, i === 0 ? weight : weight * split.share, pierce);
   }
 
   ship.vx -= Math.cos(ship.angle) * spec.recoil;

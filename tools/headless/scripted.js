@@ -33,7 +33,7 @@ export function enemyAt(type, x, y, hp) {
 }
 
 /** A shot that is already in flight, written field by field like any spawner must. */
-export function bulletFlyingToward(x, y, vx, vy) {
+export function bulletFlyingToward(x, y, vx, vy, pierce) {
   const bullet = world.bullets.spawn();
   bullet.x = x;
   bullet.y = y;
@@ -43,6 +43,10 @@ export function bulletFlyingToward(x, y, vx, vy) {
   bullet.vy = vy;
   bullet.life = BALANCE.bullets.life;
   bullet.dmg = BALANCE.bullets.damage;
+  // Including the pierce, which a recycled shot would otherwise bring with it from
+  // whatever the gun last fired.
+  bullet.pierce = pierce === undefined ? 0 : pierce;
+  bullet.hits.length = 0;
   return bullet;
 }
 

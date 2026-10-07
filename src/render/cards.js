@@ -28,13 +28,14 @@ const RISE = 0.2;           // how long one card takes to slide in (PLAN: under 
 const STAGGER = 0.08;       // and how much later the next one starts
 const PUSH = 26;            // how far below its place it starts
 
-// The four shapes, one per line (the ids come from game/upgrades.js). Kept apart
+// The shapes, one per line (the ids come from game/upgrades.js). Kept apart
 // from the colours so a line can be drawn in whichever cool colour suits it.
 const TINT = {
   damage: PALETTE.white,
   fireRate: PALETTE.player,
   bulletSpeed: PALETTE.shard,
   split: PALETTE.violet,
+  pierce: PALETTE.wall,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -251,17 +252,25 @@ function drawKeyHint(ctx, number, x, y) {
 
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
- * cycle, a shot with its own wake for velocity, three of them for split shot. Small,
- * drawn from paths, and legible at a card's worth of pixels. Each line names one of
- * these in game/upgrades.js, and an icon with no shape is a bug that says so rather
- * than drawing the wrong thing.
+ * cycle, a shot with its own wake for velocity, three of them for split shot, one going
+ * through two bodies for pierce. Small, drawn from paths, and legible at a card's worth
+ * of pixels. Each line names one of these in game/upgrades.js, and an icon with no shape
+ * is a bug that says so rather than drawing the wrong thing.
  */
 const ICONS = {
   damage: iconDamage,
   fireRate: iconFireRate,
   bulletSpeed: iconBulletSpeed,
   split: iconSplit,
+  pierce: iconPierce,
 };
+
+/** The three lengths of the pierce icon's shot, brightest where it started. */
+const PIERCE_SHOT = [
+  { from: 0.86, to: 0.14, wide: 0.17, thin: 0.13, at: 0.95 },
+  { from: -0.12, to: -0.46, wide: 0.12, thin: 0.09, at: 0.55 },
+  { from: -0.56, to: -0.86, wide: 0.08, thin: 0.03, at: 0.3 },
+];
 
 function drawIcon(ctx, kind, cx, cy, size, tint) {
   const shape = ICONS[kind];
@@ -346,4 +355,34 @@ function iconSplit(ctx, size, tint) {
   ctx.arc(0, size * 0.44, size * 0.13, 0, Math.PI * 2);
   ctx.fillStyle = withAlpha(tint, 0.85);
   ctx.fill();
+}
+
+/**
+ * One shot on its way through two bodies, and still going. The column of light gets
+ * thinner and fainter the further it has travelled, which is the whole deal of the card
+ * in one picture: the body behind the one you aimed at gets what is left of the shot.
+ */
+function iconPierce(ctx, size, tint) {
+  // Bodies first, quiet, so the shot reads as going through them rather than past.
+  for (const y of [0.3, -0.3]) {
+    polygon(ctx, 0, y * size, size * 0.3, 4, Math.PI / 4);
+    ctx.fillStyle = withAlpha(tint, 0.16);
+    ctx.fill();
+    polygon(ctx, 0, y * size, size * 0.3, 4, Math.PI / 4);
+    ctx.strokeStyle = withAlpha(tint, 0.5);
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+
+  // Then the shot: three lengths of it, each narrower and dimmer than the one below.
+  for (const s of PIERCE_SHOT) {
+    ctx.beginPath();
+    ctx.moveTo(-s.wide * size / 2, s.from * size);
+    ctx.lineTo(s.wide * size / 2, s.from * size);
+    ctx.lineTo(s.thin * size / 2, s.to * size);
+    ctx.lineTo(-s.thin * size / 2, s.to * size);
+    ctx.closePath();
+    ctx.fillStyle = withAlpha(tint, s.at);
+    ctx.fill();
+  }
 }

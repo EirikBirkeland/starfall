@@ -1,11 +1,12 @@
 // The headless simulation: a whole run, played by the bot, and the promise that a
 // seed replays exactly.
 //
-// The windows here are roomy because the default bot dodges, and so outlives the
-// plain one that played these tests first: about six minutes to two. `--bot naive`
-// is measured here too, for two reasons - it is the baseline the older notes in
-// NOTES.md were taken against, and the difference between the two players is the
-// whole point of having two.
+// The runs that need to *end* arrange their own ending (tools/headless/bot.js,
+// `endingItAt`) rather than waiting for a death: a bot with the upgrade lines behind it
+// outlasts any window a test can afford, and a test that waits for a death it will not
+// get has stopped measuring something (NOTES, session 28). `--bot naive` is measured
+// here too, for two reasons - it is the baseline the older notes in NOTES.md were taken
+// against, and the difference between the two players is the whole point of having two.
 //
 // One boot for the whole file, because the modules hold the world: a process plays
 // one game, and `resetToTitle` is what puts another run up. The command-line checks
@@ -16,7 +17,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
-import { playOneRun } from '../tools/headless/bot.js';
+import { playOneRun, endingItAt } from '../tools/headless/bot.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 11 });
@@ -33,7 +34,9 @@ async function play(seed, options) {
 }
 
 test('a whole run plays out with no browser', async () => {
-  const run = await play(11, { maxSeconds: 900 });
+  // Killed off at 2:30 on purpose: everything below is about what a finished run leaves
+  // behind, and the bot is no longer a player a test can wait out.
+  const run = await play(11, { maxSeconds: 900, onFrame: endingItAt(150) });
 
   assert.equal(run.died, true, 'the bot was never destroyed in ' + run.seconds + 's');
   assert.ok(run.seconds > 15, 'the bot should survive a while, got ' + run.seconds + 's');

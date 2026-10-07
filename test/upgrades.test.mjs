@@ -13,6 +13,7 @@ import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
 import {
   LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf, volleyOf,
+  countOf, pierceOf,
 } from '../src/game/upgrades.js';
 import { fire, shotsPerSecond } from '../src/game/player.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
@@ -77,13 +78,19 @@ test('the cards on the table are three different lines with a rank left, in tabl
   for (const id of field.offer) assert.ok(IDS.includes(id), id + ' is a line the game knows');
   assert.ok(inTableOrder(field.offer), 'and they are printed in the order the table knows them');
 
-  // Enough ranks spent that exactly three lines have room: the deal is those three,
-  // whatever the weights did, because there is nothing else to deal.
-  for (const id of IDS) field.upgrades[id] = BALANCE.upgrades[id].ranks - 1;
-  field.upgrades.damage = BALANCE.upgrades.damage.ranks;
+  // Max every line but three: the deal has to be exactly those three, whatever the
+  // weights did, because there is nothing else to deal - and a maxed line stays off the
+  // table however many levels are dealt.
+  for (const id of IDS) field.upgrades[id] = BALANCE.upgrades[id].ranks;
+  const room = IDS.slice(1, BALANCE.cards.offer + 1);
+  for (const id of room) field.upgrades[id] = BALANCE.upgrades[id].ranks - 1;
   field.offer.length = 0;
   earnLevel(field);
-  assert.deepEqual(field.offer, IDS.filter((id) => id !== 'damage'), 'a maxed line is not offered');
+
+  assert.deepEqual(field.offer, room, 'the three with a rank left, and nobody else');
+  for (const id of field.offer) {
+    assert.ok(field.upgrades[id] < BALANCE.upgrades[id].ranks, id + ' really did have a rank to give');
+  }
 });
 
 test('a deal always has something the run has never taken (PLAN 3.5)', () => {
@@ -94,7 +101,7 @@ test('a deal always has something the run has never taken (PLAN 3.5)', () => {
     const field = scriptedRun(400 + seed);
     field.upgrades.damage = 3;
     field.upgrades.fireRate = 2;
-    field.upgrades.bulletSpeed = 1;      // three lines with ranks, one still fresh
+    field.upgrades.bulletSpeed = 1;      // three lines with ranks, others still fresh
     earnLevel(field);
 
     assert.equal(field.offer.length, BALANCE.cards.offer);
@@ -166,19 +173,24 @@ test('every line is five ranks deep and worth its step, in its own kind of numbe
       // A line of whole things is counted, not multiplied, and the card says so.
       assert.ok(Number.isInteger(spec.step), line.id + ' hands out whole things');
       assert.equal(effectOf(line.id), '+' + spec.step + ' ' + line.what);
+      assert.equal(countOf(field, line.id), spec.step * spec.ranks);
     }
   }
 
   // And asking the wrong kind of line for the wrong kind of number is a mistake that
   // says so out loud, instead of quietly multiplying by a plausible-looking six.
   assert.throws(() => gainOf(field, 'split'), /not a line of shares/);
+  assert.throws(() => countOf(field, 'damage'), /not a line of whole things/);
   field.upgrades.split = 2;
+  field.upgrades.pierce = 3;
   assert.equal(volleyOf(field), 1 + 2 * BALANCE.upgrades.split.step);
+  assert.equal(pierceOf(field), 3 * BALANCE.upgrades.pierce.step);
 });
 
 test('a card prints the number its line is worth', () => {
   assert.equal(effectOf('damage'), '+' + Math.round(BALANCE.upgrades.damage.step * 100) + '% shot damage');
   assert.equal(effectOf('split'), '+' + BALANCE.upgrades.split.step + ' extra shot');
+  assert.equal(effectOf('pierce'), '+' + BALANCE.upgrades.pierce.step + ' body passed through');
 });
 
 test('damage and shot speed come out of the gun, not just onto the ledger', () => {

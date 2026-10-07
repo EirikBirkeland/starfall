@@ -548,8 +548,8 @@ export const BALANCE = {
   // card text prints it rather than paraphrasing it, so a card can never lie about its
   // number. For a line that sells a share of something (damage, fire rate, shot speed)
   // `step` is that share and the line is worth `1 + step * rank`. For a line that hands
-  // out whole things - `unit: 'each'`, and split shot is the first - `step` is how many
-  // whole things one rank adds, and there is no multiplier to ask it for.
+  // out whole things - `unit: 'each'`: split shot and pierce - `step` is how many whole
+  // things one rank adds, and there is no multiplier to ask it for.
   //
   // Five ranks each (PLAN 3.5 starts here), and every one of them is firepower: the
   // point of the build is that the run's shots get heavier, faster and more numerous,
@@ -567,6 +567,27 @@ export const BALANCE = {
       // wide to touch one enemy is a fan that hit nothing, so the line wants you close.
       share: 0.35,
       fan: 0.087,       // radians between two neighbours of the fan (5 degrees)
+    },
+    pierce: {
+      ranks: 5,
+      step: 1,          // one more body a shot may go through, per rank (PLAN 3.5)
+      // What the next body takes of the weight the last one took, so a shot spends
+      // itself as it ploughs: body one is a whole shot, body two is 80% of one, and so on
+      // down. That is the price of the line - a rank is worth nothing at all to a run that
+      // is fighting one thing at a time - and what it buys is the body standing behind the
+      // one you aimed at. A full stack of six bodies lands about 3.7 shots worth, which
+      // is the same family of trade split shot makes (session 28) for a rarer geometry:
+      // split wants a crowd wide, pierce wants one column deep.
+      //
+      // The number is PLAN's own convention for damage that passes on to a second target
+      // - the arc weapon loses 20% per jump (3.2) - and it is high enough that the fifth
+      // rank of the line still adds a third of a shot to a busy pull rather than a shred
+      // of one.
+      share: 0.8,
+      // The sparks out of the far side of a body a shot has just gone through. It is
+      // the only tell a passing shot has, so it is a slightly bigger burst than an
+      // impact that stopped the shot.
+      pass: { count: 5, speed: 190, life: 0.26, spread: 0.55 },
     },
   },
 

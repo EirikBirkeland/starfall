@@ -151,7 +151,9 @@ Critical chance, XP gain.
 Behaviour upgrades:
 
 - **Ricochet**: shots bounce to another enemy, 1 extra bounce per rank.
-- **Pierce**: shots pass through 1 extra enemy per rank.
+- **Pierce**: shots pass through 1 extra enemy per rank. Each body past the first takes
+  a share of the weight the one before it took, so the line buys depth into a column
+  rather than multiplying the gun.
 - **Split shot**: 1 extra projectile per rank in a fan. Each extra carries a share of the
   aimed shot's damage, so the fan buys coverage across the crowd rather than multiplying
   the gun.
@@ -288,7 +290,11 @@ One item per session, as always:
       (Done. The extras carry a share of the aimed shot's damage rather than all of it -
       see `BALANCE.upgrades.split` and NOTES session 28 - so a rank buys coverage instead
       of multiplying the gun, and the aimed shot stays the heaviest thing in the fan.)
-- [ ] Pierce (3.5): shots pass through one extra enemy per rank.
+- [x] Pierce (3.5): shots pass through one extra enemy per rank.
+      (Done. Each body past the first carries `share` of the one before it - see
+      `BALANCE.upgrades.pierce` and NOTES session 29 - so the line buys depth into a
+      column instead of multiplying the gun, and a rank is worth nothing to a run that
+      is fighting one body at a time.)
 - [ ] Ricochet (3.5): shots bounce to another enemy, one extra bounce per rank. Release.
 - [ ] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.
 - [ ] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line. Release.

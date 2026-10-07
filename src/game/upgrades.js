@@ -9,9 +9,9 @@
 //
 // There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
-// already has: `gainOf`. One line - split shot - sells whole things instead, projectiles
-// that come out of the gun alongside the one you aimed, and a caller counts them:
-// `volleyOf`. A card prints either, which is why the printing lives here.
+// already has: `gainOf`. Two lines - split shot and pierce - hand out whole things
+// instead, and a caller counts them: `countOf`, which `volleyOf` and `pierceOf` are the
+// two readings of. A card prints either, which is why the printing lives here.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -70,10 +70,20 @@ export const LINES = [
     flavour: 'One more projectile per pull, in a fan.',
     icon: 'split',
   },
+  {
+    id: 'pierce',
+    name: 'PIERCE',
+    unit: WHOLE_UNIT,
+    what: 'body passed through',
+    flavour: 'A shot goes through one more body, and on to the next.',
+    icon: 'pierce',
+  },
 ];
 
-/** The line that hands out whole projectiles rather than a share of one. */
+/** The line that hands out extra projectiles alongside the one you aimed. */
 const SPLIT_LINE = 'split';
+/** The line that hands out extra bodies each projectile may go through. */
+const PIERCE_LINE = 'pierce';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -133,12 +143,32 @@ export function gainOf(world, id) {
 }
 
 /**
+ * How many whole things a line of `unit: each` hands out right now: `step * rank`.
+ * Asking a line of shares for a count is a bug and says so, exactly the other way round
+ * from `gainOf`.
+ */
+export function countOf(world, id) {
+  const line = lineOf(id);
+  if (line.unit !== WHOLE_UNIT) throw new Error(id + ' is not a line of whole things');
+  return stepOf(id) * rankOf(world, id);
+}
+
+/**
  * How many projectiles one pull of the trigger sends out: the gun's own shot, plus
  * every extra the split line has to give (PLAN 3.5). This is that line read as a
  * count rather than as words on a card; `fire` fans them out around the aim.
  */
 export function volleyOf(world) {
-  return 1 + rankOf(world, SPLIT_LINE) * stepOf(SPLIT_LINE);
+  return 1 + countOf(world, SPLIT_LINE);
+}
+
+/**
+ * How many bodies past the first one a shot may go through (PLAN 3.5). A shot is
+ * handed this when it leaves and spends one of it per body, so it is the count of
+ * *extra* bodies, not of bodies in total.
+ */
+export function pierceOf(world) {
+  return countOf(world, PIERCE_LINE);
 }
 
 /** Lines with a rank still to give. */
