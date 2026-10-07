@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawBullets, drawEnemies, drawPlayer, drawShards } from './entities.js';
+import { drawBullets, drawEnemies, drawPlayer, drawShards, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawHUD } from './hud.js';
 
@@ -65,6 +65,8 @@ export function renderFrame(tick, input) {
     drawSmoke(ctx, tick.alpha);
     drawRings(ctx);
     drawBullets(ctx, tick.alpha);
+    // Under the crowd, so a darter sits on top of its own warning line.
+    drawTelegraphs(ctx, world.enemies, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     if (world.state === STATE.PLAY) drawPlayer(ctx, tick.alpha);
     drawSparks(ctx, tick.alpha);

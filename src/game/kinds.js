@@ -22,11 +22,14 @@
 // spend numbers from the `logic` stream unless its comment says it does: a walk
 // runs once per enemy per step, and a run is a function of its seed, so a walk that
 // drew one would quietly rewrite every run after it. `hatch` is the only one that
-// does, and only when something dies.
+// does, and only when something dies. Queuing a sound cue is allowed: a cue is a
+// note to the audio layer, not a number the simulation keeps.
 
 import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
+import { cueBeep } from './cues.js';
+import { spray } from './effects.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -40,6 +43,11 @@ export const KINDS = {
   weaver: {
     stats: BALANCE.kinds.weaver,
     walk: walksWeaving,
+  },
+  darter: {
+    stats: BALANCE.kinds.darter,
+    walk: walksHunting,
+    onDeath: shattersAlongItsAxis,
   },
   tank: {
     stats: BALANCE.kinds.tank,
@@ -110,6 +118,14 @@ export function makeEnemy(world, type, x, y, opts) {
     spin: logic.range(-e.spinRange, e.spinRange),
     flash: 0,
     phase: logic.range(0, TAU),   // this enemy's place in the wobble and spin cycles
+    // The small state machine a kind may keep for itself. Most kinds never look at
+    // these: a darter spends its life in `stage` counting down `timer`, and the
+    // line it locks on before a lunge lives in dirX/dirY. An enemy that has not
+    // been anywhere sits in '' with nothing to count.
+    stage: '',
+    timer: 0,
+    dirX: 0,
+    dirY: 0,
     ix: chosen(opts, 'ix', 0),
     iy: chosen(opts, 'iy', 0),
     ambient: false,
@@ -121,17 +137,50 @@ export function makeEnemy(world, type, x, y, opts) {
 }
 
 /**
- * Walk this enemy one step along the line to the ship, `swerve` radians off it,
- * carrying whatever shove is still in it (a bullet's kick, a hit's shove). Answers
- * the direction it walked, which is where a nose points unless the kind says so.
+ * Move one enemy along the unit vector (dx, dy) at `pace` px/s for one step,
+ * carrying whatever shove is already in it (a bullet's kick, a dash's shoulder,
+ * a neighbour making room), and let that shove die away on the way.
  */
-function advance(enemy, step, swerve) {
-  const heading = Math.atan2(step.ship.y - enemy.y, step.ship.x - enemy.x);
-  enemy.x += (Math.cos(heading + swerve) * enemy.speed + enemy.ix) * step.dt;
-  enemy.y += (Math.sin(heading + swerve) * enemy.speed + enemy.iy) * step.dt;
+function glide(enemy, step, dx, dy, pace) {
+  enemy.x += (dx * pace + enemy.ix) * step.dt;
+  enemy.y += (dy * pace + enemy.iy) * step.dt;
   enemy.ix *= step.drag;
   enemy.iy *= step.drag;
+}
+
+/**
+ * Walk this enemy one step along the line to the ship, `swerve` radians off it,
+ * at `pace` px/s or at its own if nothing is given. Answers the direction it
+ * walked, which is where a nose points unless the kind says so.
+ */
+function advance(enemy, step, swerve, pace) {
+  const heading = Math.atan2(step.ship.y - enemy.y, step.ship.x - enemy.x);
+  glide(enemy, step, Math.cos(heading + swerve), Math.sin(heading + swerve),
+    pace === undefined ? enemy.speed : pace);
   return heading;
+}
+
+/** Turn toward `want` at up to `rate` rad/s, and never past it. */
+function turnToward(enemy, step, want, rate) {
+  let diff = (want - enemy.rot) % TAU;
+  if (diff > Math.PI) diff -= TAU;
+  if (diff < -Math.PI) diff += TAU;
+  const reach = rate * step.dt;
+  enemy.rot += clamp(diff, -reach, reach);
+}
+
+/**
+ * Pull an enemy back inside the arena by its own body, and say whether it had to.
+ * Only the kinds that can throw themselves at a wall need this; the ones that walk
+ * at the ship are always walking away from it.
+ */
+function heldByTheWall(world, enemy) {
+  const r = enemy.r;
+  const x = enemy.x;
+  const y = enemy.y;
+  enemy.x = clamp(x, r, world.arena.w - r);
+  enemy.y = clamp(y, r, world.arena.h - r);
+  return enemy.x !== x || enemy.y !== y;
 }
 
 /** Straight at the ship, nose first, and no ideas. */
@@ -157,6 +206,130 @@ function walksWeaving(enemy, step) {
 function walksHeavy(enemy, step) {
   advance(enemy, step, 0);
   enemy.rot += step.dt * statsOf(enemy).rotateRate;
+}
+
+/**
+ * The three beats of a darter's hunt that are not the walking between them. `''`
+ * is the fourth: the walk, which is where an enemy starts and where it comes back
+ * to after a rest.
+ */
+const AIMING = 'aim';
+const LUNGING = 'lunge';
+const RESTING = 'rest';
+
+/**
+ * The darter: it walks at you, stops dead to line itself up, comes down that line
+ * in a straight dash, and rests. Which beat it is in is `enemy.stage`, and how long
+ * it has left in that beat is `enemy.timer`; the renderer draws the warning line
+ * out of the same three numbers (`isAiming`, `aimProgress`, `lungeReach`), which is
+ * what makes the telegraph a promise rather than a threat.
+ */
+function walksHunting(enemy, step) {
+  const hunt = statsOf(enemy).hunt;
+  enemy.timer -= step.dt;
+  if (enemy.stage === AIMING) return aiming(enemy, step, hunt);
+  if (enemy.stage === LUNGING) return lunging(enemy, step, hunt);
+  if (enemy.stage === RESTING) return resting(enemy, step, hunt);
+  return hunting(enemy, step, hunt);
+}
+
+/**
+ * The walk between lunges: a creeping pace at the ship, and the moment it is close
+ * enough it stops to take aim. `timer` is the beat between one lunge and the next
+ * look, so a darter that missed gets another look rather than another lunge.
+ */
+function hunting(enemy, step, hunt) {
+  enemy.rot = advance(enemy, step, 0);
+  if (enemy.timer > 0) return;
+
+  const dx = step.ship.x - enemy.x;
+  const dy = step.ship.y - enemy.y;
+  if (dx * dx + dy * dy > hunt.commit * hunt.commit) return;
+
+  const distance = Math.hypot(dx, dy) || 1;
+  enemy.dirX = dx / distance;
+  enemy.dirY = dy / distance;
+  enemy.stage = AIMING;
+  enemy.timer = hunt.aim.time;
+  shout(hunt.aim.sound);
+}
+
+/**
+ * The telegraph. It stands still and brings its nose around onto the line it has
+ * locked, and holds there for `aim.time`. Being shot still shoves it around - it
+ * just cannot change its mind, so the line you were shown stays the line it goes.
+ */
+function aiming(enemy, step, hunt) {
+  glide(enemy, step, 0, 0, 0);
+  turnToward(enemy, step, Math.atan2(enemy.dirY, enemy.dirX), hunt.turn);
+  if (enemy.timer > 0) return;
+
+  enemy.stage = LUNGING;
+  enemy.timer = hunt.lunge.time;
+  shout(hunt.lunge.sound);
+}
+
+/** The lunge itself: the locked line, at several times its walking pace. */
+function lunging(enemy, step, hunt) {
+  enemy.rot = Math.atan2(enemy.dirY, enemy.dirX);
+  glide(enemy, step, enemy.dirX, enemy.dirY, enemy.speed * hunt.lunge.mul);
+  // The arena ends a lunge that runs into it; the darter does not stick to a wall.
+  if (heldByTheWall(step.world, enemy)) enemy.timer = 0;
+  if (enemy.timer > 0) return;
+
+  enemy.stage = RESTING;
+  enemy.timer = hunt.rest.time;
+}
+
+/** Overshot and turning around, at a crawl, until the next beat comes round. */
+function resting(enemy, step, hunt) {
+  enemy.rot = advance(enemy, step, 0, enemy.speed * hunt.rest.crawl);
+  if (enemy.timer > 0) return;
+  enemy.stage = '';
+  enemy.timer = hunt.beat;
+}
+
+/** The sound a beat was given, which is not a number the simulation keeps. */
+function shout(spec) {
+  cueBeep(spec.freq, spec.dur, spec.wave, spec.vol, spec.slide);
+}
+
+/** Is this darter holding its aim right now - i.e. should it be drawing a line. */
+export function isAiming(enemy) {
+  return enemy.stage === AIMING;
+}
+
+/** Is it mid-lunge - i.e. should it be dragging a blur behind it. */
+export function isLunging(enemy) {
+  return enemy.stage === LUNGING;
+}
+
+/** How far through its aim a darter is, 0..1: the telegraph's countdown. */
+export function aimProgress(enemy) {
+  return clamp(1 - enemy.timer / statsOf(enemy).hunt.aim.time, 0, 1);
+}
+
+/**
+ * How far one darter's lunge carries it, in px. The warning line is drawn exactly
+ * this far, which is the whole reason the number is here and not in the renderer.
+ */
+export function lungeReach(enemy) {
+  const hunt = statsOf(enemy).hunt;
+  return enemy.speed * hunt.lunge.mul * hunt.lunge.time;
+}
+
+/**
+ * A dart comes apart along its own axis: a jet of sparks out of the nose and the
+ * same again out of the tail, on top of the wreck every kind makes. This spends
+ * the `fx` stream, which is the cosmetic one, so it cannot move a run.
+ */
+function shattersAlongItsAxis(world, enemy) {
+  const stats = statsOf(enemy);
+  const jet = stats.death.jet;
+  const noseX = enemy.x + Math.cos(enemy.rot) * enemy.r;
+  const noseY = enemy.y + Math.sin(enemy.rot) * enemy.r;
+  spray(world, noseX, noseY, stats.color, jet.count, jet.speed, jet.life, enemy.rot, jet.spread);
+  spray(world, noseX, noseY, stats.color, jet.count, jet.speed, jet.life, enemy.rot + Math.PI, jet.spread);
 }
 
 /**

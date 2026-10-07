@@ -55,14 +55,22 @@ export const PALETTE = {
   xpText: '#9dffcb',
   star: '#c8ebff',
 
-  // Enemy kinds, in the violet to amber range for now. Milestone 3 moves the
-  // harmful ones into the red-to-magenta half of the palette.
+  // Enemy kinds. PLAN section 4 wants the harmful ones in the red-to-magenta half
+  // of the palette; the darter is the first drawn from there, and the drifter's
+  // violet is the last one still waiting its turn.
   violet: '#8b6cff',
   violetFill: 'rgba(139,108,255,0.16)',
   pink: '#ff5ec4',
   pinkFill: 'rgba(255,94,196,0.16)',
   amber: '#ffb340',
   amberFill: 'rgba(255,179,64,0.13)',
+  red: '#ff4d6d',
+  redFill: 'rgba(255,77,109,0.16)',
+  // The darter's warning line (render/entities.js): the wide soft pass is the
+  // enemy's own red, the thin one over it is paler, and the head of it is almost
+  // white - the order your eye should read them in.
+  telegraph: '#ff9fb0',
+  telegraphHead: '#ffd9df',
 };
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;

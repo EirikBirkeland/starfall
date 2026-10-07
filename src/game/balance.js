@@ -127,6 +127,37 @@ export const BALANCE = {
       death: { particles: 12, speed: 240, debris: 2, debrisSpeed: 165 },
       sound: { freq: 210, dur: 0.12 },
     },
+    darter: {
+      radius: 11, speed: 104, hull: 2, score: 18, drop: 2,
+      // `sides` is the fallback shape; the dart is drawn by its own silhouette.
+      color: PALETTE.red, fill: PALETTE.redFill, sides: 3, glow: 16,
+      // The hunt, in four beats: it walks at you, stops dead to line itself up,
+      // comes down that line faster than you can run, and rests while it comes
+      // about. `commit` is how far off it will start an aim at all; `turn` how fast
+      // it can bring its nose onto the line during one; `mul` is the lunge's speed
+      // as a multiple of its own, so the run's speed scaling reaches the lunge too.
+      // The warning line the renderer draws is `mul * time` of its own speed long,
+      // which is exactly how far the lunge goes.
+      hunt: {
+        commit: 430, beat: 0.4, turn: 9,
+        aim: {
+          time: 0.62,
+          sound: { freq: 1250, dur: 0.12, wave: 'triangle', vol: 0.016, slide: 2000 },
+        },
+        lunge: {
+          mul: 5.2, time: 0.45,
+          sound: { freq: 720, dur: 0.1, wave: 'square', vol: 0.03, slide: 180 },
+        },
+        rest: { time: 0.55, crawl: 0.3 },
+      },
+      // It comes apart along its own axis: `jet` sparks out of the nose and the
+      // same again out of the tail, on top of the wreck every kind makes.
+      death: {
+        particles: 14, speed: 300, debris: 3, debrisSpeed: 210,
+        jet: { count: 8, speed: 260, life: 0.3, spread: 0.22 },
+      },
+      sound: { freq: 240, dur: 0.12 },
+    },
     tank: {
       radius: 26, speed: 48, hull: 9, score: 35, drop: 5,
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
@@ -169,8 +200,16 @@ export const BALANCE = {
     speedScaleWindow: 190, speedScaleMax: 0.5,
     spawnBase: 1.18, spawnDecay: 0.0068, spawnFloor: 0.2,
     spawnJitter: [0.72, 1.3],
-    tankFrom: 10, tankChance: 0.13, tankChanceRamp: 0.14,
-    weaverChance: 0.28, weaverChanceRamp: 0.18,
+    // What arrives, in order of being rolled, and from what moment of the run.
+    // Whatever share of the roll the unlocked ones leave over goes to `mixFallback`,
+    // the plain walker. This is the seed of the wave director (milestone 3) and is
+    // meant to be replaced by it, not grown into it.
+    mix: [
+      { type: 'tank', from: 10, chance: 0.13, ramp: 0.14 },
+      { type: 'weaver', from: 0, chance: 0.28, ramp: 0.18 },
+      { type: 'darter', from: 60, chance: 0.1, ramp: 0.1 },
+    ],
+    mixFallback: 'drifter',
     extraWaves: [{ at: 45, chance: 0.3 }, { at: 110, chance: 0.28 }],
     separationDrag: 0.02,   // leftover impulse decays to this fraction per second
     separationEpsilon: 0.0001,   // closer than this, and the push is meaningless
@@ -266,9 +305,9 @@ export const BALANCE = {
 
   ambient: {
     // The slow, harmless crowd that drifts behind the title screen.
-    kinds: ['drifter', 'weaver', 'tank', 'drifter', 'weaver', 'tank', 'drifter'],
-    refillKinds: ['drifter', 'weaver', 'tank'],
-    target: 7,
+    kinds: ['drifter', 'weaver', 'tank', 'darter', 'drifter', 'weaver', 'tank', 'darter'],
+    refillKinds: ['drifter', 'weaver', 'tank', 'darter'],
+    target: 8,
     refillChance: 1.2,     // per second
     speedFactor: 0.45,
     spinFactor: 0.6,

@@ -14,15 +14,23 @@ import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
 
-/** Pick a kind for the current moment of the run. */
+/**
+ * Pick a kind for the current moment of the run. `mix` is the list in balance.js:
+ * each row that has unlocked yet takes its share of the roll, in order, and
+ * whatever is left over is the plain walker. A row costs the roll one number
+ * either way, so the stream does not care which kinds exist yet.
+ */
 function rollKind(world) {
-  const e = BALANCE.enemies;
+  const spec = BALANCE.enemies;
   const roll = logic.next();
-  const tankChance = world.elapsed > e.tankFrom ? e.tankChance + world.difficulty * e.tankChanceRamp : 0;
-  const weaverChance = e.weaverChance + world.difficulty * e.weaverChanceRamp;
-  if (roll < tankChance) return 'tank';
-  if (roll < tankChance + weaverChance) return 'weaver';
-  return 'drifter';
+  let cut = 0;
+  for (let i = 0; i < spec.mix.length; i++) {
+    const entry = spec.mix[i];
+    if (world.elapsed < entry.from) continue;
+    cut += entry.chance + world.difficulty * entry.ramp;
+    if (roll < cut) return entry.type;
+  }
+  return spec.mixFallback;
 }
 
 const EDGES = 4;   // an enemy arrives from one of four directions

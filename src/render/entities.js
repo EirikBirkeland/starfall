@@ -12,6 +12,7 @@ import { polygon, shipPath } from './shapes.js';
 import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
+import { aimProgress, isAiming, isLunging, lungeReach } from '../game/kinds.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -28,6 +29,85 @@ const SHARD_LIGHT = 0.6;   // a shard twinkles, but it must not outshine a shot
 // the window, so most of what the game holds is off screen and never asked about.
 const BULLET_REACH = 32;
 const SHARD_REACH = SHARD_HALO + 6;
+
+// The darter's own art: the warning line it draws before it commits, and the blur
+// it comes in on. Two passes for each glow - a wide soft one under a thin bright
+// one - because that is how light is painted here without asking the canvas to
+// blur anything (render/glow.js).
+const TELEGRAPH_SOFT = 6;      // px, the width of the soft pass under the line
+const TELEGRAPH_THIN = 1.5;    // px, the line itself
+const TELEGRAPH_HEAD = 7;      // px, the bright dot at its end
+const TELEGRAPH_ROOM = 30;     // px of slack on the cull test, for the head
+const DART_BLUR_LENGTH = 30;     // px of blur a lunging dart drags behind it
+const DART_BLUR_WIDTH = 9;
+const DART_BLUR_LIGHT = 0.55;
+const DART_CHARGE = 8;         // px of light building at the nose while it aims
+
+/** The dart's own silhouette: all nose and swept wings, and nothing behind them. */
+function dartPath(ctx, r) {
+  ctx.beginPath();
+  ctx.moveTo(r * 2.1, 0);
+  ctx.lineTo(r * 0.3, r * 0.6);
+  ctx.lineTo(-r * 1.1, r * 0.34);
+  ctx.lineTo(-r * 0.5, 0);
+  ctx.lineTo(-r * 1.1, -r * 0.34);
+  ctx.lineTo(r * 0.3, -r * 0.6);
+  ctx.closePath();
+}
+
+let dartBlur = null;
+
+function dartBlurSprite() {
+  if (!dartBlur) dartBlur = makeStreak(PALETTE.telegraphHead, PALETTE.red, DART_BLUR_LENGTH, DART_BLUR_WIDTH);
+  return dartBlur;
+}
+
+/** One straight stroke, because the warning line is drawn twice. */
+function strokeBetween(ctx, x0, y0, x1, y1) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+
+/**
+ * The warning line (PLAN 3.3's telegraph): a thin warm line along the way the
+ * darter has already decided to go, reaching out to the length its lunge will
+ * actually cover and burning brighter as its countdown runs out. It is drawn out of
+ * the same three numbers the simulation moves the enemy by - `lungeReach`, the
+ * locked `dirX/dirY`, `aimProgress` - so it can never promise something else.
+ */
+export function drawTelegraphs(ctx, list, alpha) {
+  for (let i = 0; i < list.length; i++) {
+    const enemy = list[i];
+    if (!isAiming(enemy)) continue;
+    const reach = lungeReach(enemy);
+    if (!onScreen(enemy.x, enemy.y, reach + TELEGRAPH_ROOM)) continue;
+
+    const done = aimProgress(enemy);
+    // It reaches out to its full length early and then only brightens, so there is
+    // a moment of "that is where it is going" before it commits to it.
+    const length = reach * Math.min(1, 0.35 + done);
+    const x = paintX(enemy, alpha);
+    const y = paintY(enemy, alpha);
+    const tipX = x + enemy.dirX * length;
+    const tipY = y + enemy.dirY * length;
+
+    const was = ctx.globalAlpha;
+    ctx.strokeStyle = PALETTE.red;
+    ctx.lineWidth = TELEGRAPH_SOFT;
+    ctx.globalAlpha = was * (0.1 + 0.28 * done);
+    strokeBetween(ctx, x, y, tipX, tipY);
+
+    ctx.strokeStyle = PALETTE.telegraph;
+    ctx.lineWidth = TELEGRAPH_THIN;
+    ctx.globalAlpha = was * (0.35 + 0.65 * done);
+    strokeBetween(ctx, x, y, tipX, tipY);
+    ctx.globalAlpha = was;
+
+    paintGlow(ctx, glowFor(PALETTE.telegraphHead, TELEGRAPH_HEAD), tipX, tipY, 0.2 + 0.8 * done);
+  }
+}
 
 function drawEnemy(ctx, enemy, dim, alpha) {
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
@@ -46,13 +126,21 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   paintGlow(ctx, glowFor(look.color, halo), 0, 0, HALO_LIGHT);
   if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, halo), 0, 0, flash * FLASH_LIGHT);
   ctx.rotate(enemy.rot);
+  if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   ctx.lineWidth = 2;
   ctx.strokeStyle = flash > 0.4 ? PALETTE.white : look.color;
   ctx.fillStyle = look.fill;
   if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
+  else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
   ctx.stroke();
+  if (isAiming(enemy)) {
+    // Only a darter has an aim to hold, so this never asks which kind it is.
+    // The last thing to arrive is the light at its nose, which is where the line
+    // it is drawing starts.
+    paintGlow(ctx, glowFor(PALETTE.telegraphHead, DART_CHARGE), enemy.r * 1.6, 0, aimProgress(enemy));
+  }
 
   if (enemy.type === 'tank') {
     ctx.rotate(-enemy.rot * 1.8);

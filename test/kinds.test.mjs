@@ -185,12 +185,17 @@ test("a tank's death leaves its hatchlings; other kinds leave nothing", () => {
 
 test('walking the crowd spends no randomness, so a walk cannot move a run', () => {
   const field = scriptedRun(18);
-  field.enemies.push(makeEnemy(field, 'drifter', 1200, 1400));
-  field.enemies.push(makeEnemy(field, 'weaver', 1600, 1300));
-  field.enemies.push(makeEnemy(field, 'tank', 1400, 1700));
+  // Every kind there is, so a new one cannot slip a draw into its walk unnoticed.
+  // The darter starts within its `commit` range, so it runs a whole beat or two.
+  const spots = [[1200, 1400], [1600, 1300], [1400, 1700], [1700, 1600], [1300, 1200]];
+  const names = Object.keys(KINDS);
+  names.forEach((name, i) => {
+    const spot = spots[i % spots.length];
+    field.enemies.push(makeEnemy(field, name, spot[0], spot[1]));
+  });
 
   const state = logic.state;
-  for (let i = 0; i < 60; i++) stepTheWorld();
-  assert.equal(field.enemies.length, 3, 'the crowd is still here');
+  for (let i = 0; i < 240; i++) stepTheWorld();
+  assert.equal(field.enemies.length, names.length, 'the crowd is still here');
   assert.equal(logic.state, state, 'not one draw from the stream a run is made of');
 });
