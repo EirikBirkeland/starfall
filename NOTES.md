@@ -929,3 +929,132 @@ inside the window), so the density did not thin out.
 3. Then M2's release, and M3: enemies as data, enemy bullets, the wave director (the spawn rule here
    is the seed of it), elites, off-screen indicators - the arena is now big enough to want them.
 
+
+## Session 13 (2026-10-07) — Milestone 2: wreckage and a wake
+
+### What landed
+The particle item is finished: the pool now holds **three shapes** instead of one, and the last
+missing piece of PLAN section 4's particle list - debris, and a thruster *trail* rather than a
+drawn flame - is in.
+
+- **The shapes are `spark`, `debris`, `smoke`** (`SPARK`/`DEBRIS`/`SMOKE` out of `game/effects.js`,
+  which are also the keys of `BALANCE.effects.shapes`). One pool, one list, one update loop; what
+  differs is a handful of numbers per shape and the way the renderer draws it. `sparkAt` became
+  `emit(world, shape, ...)`, which writes **every** field of the shape - the old contract, now with
+  `shape`, `rot` and `spin` added to it. `burst` and `spray` still make sparks; `wreck()` makes
+  debris; `engineTrail()` makes the wake.
+- **Per-shape physics in `BALANCE.effects.shapes`**: `drag` (share of its own speed left after a
+  second), `lifeFloor`, `sizeMin`/`sizeMax`, `spin`. A chip drags at 0.12 where a spark drags at
+  0.045, which is the whole reason a chunk ends up somewhere a spark never reaches; chips also live
+  0.9 s against a spark's 0.7 and can be dealt 6 px against 3.4. `updateEffects` refills one small
+  `dragOf` table with three `pow`s per step so the particle loop allocates nothing and does not
+  branch on the shape either (`rot += spin * dt` is free for the shapes that do not turn).
+- **Deaths throw chunks, scaled by the body that came apart**: `chipsOf(kind, enemy)` takes the
+  kind's count and multiplies by `enemy.r / kind.radius`, so a tank hatchling (r 12 of a tank's 26)
+  is a small tank and makes a small mess. Counts: darter 2, chaser 4, tank 14. `endRun` wrecks the
+  ship too - the ship came apart, it should leave chunks like anything else that dies.
+- **The wake** is `engineTrail(world, ship, dt)`, called from `updatePlayer` right after `thrust`
+  is written. `rate` puffs a second (26) through an accumulator on the ship - `ship.exhaustTimer`,
+  reset in `resetRun` - so the sim can run at 120 Hz without anybody needing 120 puffs. A puff is
+  born at the nozzle, thrown back along the *aim* (the same heading the drawn flame uses) and
+  carries `inherit` (0.35) of the ship's own velocity, so the trail hangs behind the ship instead of
+  flying off by itself. No wake during a dash: the dash has its streak.
+- **The renderer draws the wake apart from the rest and earlier.** `drawParticles` became
+  `drawSparks` (sparks and chunks, last, over everything) and `drawSmoke` (right after the walls and
+  shards, under the crowd and the ship). That split is a readability decision: ~8 soft puffs
+  overlapping along the way you came is exactly the kind of thing that would otherwise sit between
+  you and your own ship. A chunk is a `fillRect` under `translate`+`rotate(p.rot)` - `CHIP_LENGTH`
+  2.4× as long as it is wide, keeping `CHIP_KEEP` 0.6 of its size before it winks out (a chunk winks
+  out, it does not shrink away).
+- **`paintGlow` grew a `scale` argument.** The whole wake is one 12 px glow sprite stamped at a
+  size that grows as the puff cools (`PUFF_BLOOM` 2, born at `p.size / PUFF_BASE` 6 px), which is
+  how a trail of soft blobs costs one bake and one `drawImage` each.
+- **`PUFF_LIGHT` came down from 0.34 to 0.16** after writing the numbers down: additive puffs at 26 a
+  second overlap three or four deep near the ship, and at 0.34 the sum was in the same class of
+  brightness as the ship's own halo and the energy wall. The faint end is the right end.
+
+### The new stream, and the 17% that was not there
+`core/rng.js` has a third stream, **`fx`**, seeded from the run like `logic` and read by
+`game/effects.js` for every sprinkle. The reason is the same one the `visual` stream exists: a burst
+with one more spark in it must not be able to move a shot that was already in flight. `test/structure
+.test.mjs` now guards three streams (`game/` may not read `visual`, `render|audio|ui|input` may not
+read `logic` or `fx`), and `test/particles.test.mjs` proves it behaviourally: burn 5000 numbers off
+`fx`, play two seconds of a scripted run with shots flying and enemies dying, get the identical
+fingerprint.
+
+**The surprise, and the lesson.** Moving the particle draws off `logic` changed the bot's average
+survival over seeds 1-32 from 1m24s / score 1108 to 1m35s / 1276 - *every* seed better, ~13%, for a
+change that is pure output. Two things settled it:
+
+1. A `git worktree` of HEAD with **only** `effects.js` pointed at a second stream reproduced the new
+   numbers *exactly* (1m35s, 1276, 92 kills), so nothing but the stream layout had moved.
+2. Over **128 seeds** instead of 32: new 1m27s / 1175 / 85 kills, old 1m26s / 1145 / 83. Equal.
+
+So it was seed-set noise all the way down, and 32 runs is not enough to call a difficulty change in
+this game: sd across seeds is ~18 s, so a 32-run mean carries about ±6 s and two of them disagree
+with each other by more than that routinely. **Measure balance over 128 seeds** (`node
+tools/simulate.js --seed 1000 --runs 128`, about 2 min). The single reference run in these notes
+(seed 20261006) is now 1m07s / 825 / level 3 / 61 kills where it was 1m28s / 1361 - one sample
+against another one sample, and worth nothing on its own. Keep the number for continuity, compare
+with the mean.
+
+### Proof and numbers
+- **161 tests, all passing** (was 147). `test/particles.test.mjs` (11: a death leaves sparks *and*
+  chunks; the bigger the wreck the more chunks, in both shapes; a small body makes a small mess; a
+  chunk tumbles and coasts > 1.15× further than a spark on the same shove; the wake appears at the
+  configured rate while driving and not otherwise; a drifting ship trails nothing; a dash trails no
+  wake but does throw sparks; a puff carries `inherit` of the ship's velocity - measured as the mean
+  vx of 40 puffs from a parked ship against a ship doing 200; every live particle has every field
+  finite and a known shape; a spray thins out and the pool takes all eight back; and the stream
+  test above). `test/particle-art.test.mjs` (2, by differencing a loaded frame against the same
+  frame empty: **one fill per chunk and per spark, one sprite stamp per puff, no strokes, no blurs,
+  no gradients, and the whole wake bakes one sprite** - which the two tests were written against
+  *after* the first version wrongly expected a bare frame to be zero strokes; the ship, its hull pips
+  and the XP bar are 6 strokes whatever is flying).
+- I checked the two new physics tests bite: with `inherit: 0` and debris drag set to the spark's, the
+  pair fails. Good, they are not decoration.
+- **Draw cost** at ~45 s into a bot run (seed 7, ship made invulnerable so the window is comparable),
+  old vs new from a HEAD worktree: 247 → 249 fills/frame, 30 → 35 sprite stamps/frame (the 5-6 live
+  puffs), strokes unchanged. Caveat honestly: the two runs are not the same run - the stream layout
+  differs, and the frames held 13 enemies against 11.
+- One existing test moved honestly: `pool.test`'s "busy run" bar is now per list, because a label is
+  one per kill and so its count is the run's luck (46 this seed), not the pool's busy-ness.
+
+### Decisions, so nobody relitigates them
+- The wake is **simulated**, unlike the dash streak, because a trail has to be *left behind in the
+  world* and the dash's blur is a property of the dash. Both are honest; they answer different things.
+- `engineTrail` lives in `game/effects.js` beside the other sprays rather than in `player.js`: one
+  file owns how things spray, and `player.js` just says "the engines are lit, this much time passed".
+- Every particle draws **exactly four** `fx` numbers even when it cannot tumble, so that no spray can
+  be told from another by how much it asks the stream for. Two wasted numbers a puff is a price I am
+  glad to pay against a shape that draws a different amount.
+- Debris takes the dead thing's own colour. It is not a new colour and it is not a hazard; it is the
+  enemy, afterwards.
+- `particleCap` is shared by all three shapes and `trim()` drops the *newest*, so under cap pressure
+  the wake goes first. That is the behaviour I want and I left it untested on purpose, because "which
+  particles survive a cap" is exactly the thing a run must never depend on.
+- Renamed the local `fx = BALANCE.effects` in `effects.js` to `fxSpec`. The name collision with the
+  stream is what made my first probe throw, and a later reader deserves the warning.
+
+### Watch out
+- `BALANCE.effects` has no `particleDrag` / `particleLifeFloor` / `particleSizeMin` /
+  `particleSizeMax` any more: they are per-shape under `effects.shapes`. A fourth shape means three
+  edits - the table, a constant in `game/effects.js`, and a branch in whichever of the two draw loops
+  in `render/effects.js` wants it (each one skips the shapes that are not its own).
+- `drawSmoke` is only called in the run branch of `renderFrame`. The title screen has no particles at
+  all, because the ambient crowd never dies. If that ever changes, the wake will need a call there.
+- `emit` writes `rot` and `spin` for every shape; the sparks and puffs ignore them. Do not make a
+  shape whose look depends on a field some spawner forgets - the whole pool depends on that promise.
+- The wake has no "particle amount" setting yet (milestone 9). When it arrives it can now be added
+  without moving a single run, which was the point.
+
+### Released **v0.2.5**.
+
+### Next (Milestone 2, what is left)
+1. **The nebula backdrop** - PLAN section 4's last missing visual: slow drifting clouds on an
+   offscreen canvas behind the three star layers, baked once at device resolution like the glow
+   sprites are, and drawn in *screen* space with the camera's drift folded in the way `drawStars`
+   does now. That closes milestone 2, so it wants a release of its own afterwards.
+2. Then milestone 3: enemy definitions as data, enemy bullets on their own pool, the wave director
+   (the off-screen `arrivalSpot` rule from session 12 is the seed of it), elites, off-screen
+   indicators - and the bot learning to dodge bullets, with `tools/balance-report.js` beside it.
