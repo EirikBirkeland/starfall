@@ -1,5 +1,21 @@
 # Starfall — changelog
 
+## 0.2.6 — 2026-10-07
+The sky behind the fight is a nebula now, and milestone 2 - feel - is finished.
+- Deep blue clouds drift behind the stars. They are slow, they are cold, and they are
+  dimmer than the faintest star, so they say "space" without ever competing with a
+  bullet, a shard or your own ship. It slides as you cross the world, but less than
+  any layer of stars does, which is exactly what puts it furthest away.
+- It is one offscreen canvas baked once - the first frame pays for it and nothing
+  after that does, not even resizing the window - and it costs about five image
+  stamps a frame: no blur, no gradient, no stroke.
+- The clouds are a seamless tile, so they wrap forever instead of running out at the
+  edge, and they are scattered on a jittered grid with each cloud given a different
+  brightness, so the sky has dark patches and bright cores instead of being fog.
+- Tests are up to 168: the sky covers the whole window however far it has drifted and
+  however big the window is, it is baked exactly once, it is never blurred, and the
+  near pass always slides further than the far one.
+
 ## 0.2.5 — 2026-10-07
 Deaths leave a mess now, and the ship leaves a wake.
 - Every wreck throws chunks of itself as well as sparks: short bars that tumble over as they fly,

@@ -288,7 +288,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Particle system on a pool: sparks, debris, shockwave rings, thruster trail.
 - [x] Knockback on enemies when hit.
 - [x] Parallax starfield in three layers and the nebula backdrop.
-- [ ] Release.
+- [x] Release.
 
 ### Milestone 3: enemies and waves
 - [ ] Enemy definitions as data in one table, with behaviours as small functions.
