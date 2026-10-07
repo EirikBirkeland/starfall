@@ -6,11 +6,12 @@ import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { clamp } from '../core/math.js';
 import { Pool } from '../core/pool.js';
+import { Grid } from '../core/grid.js';
 import { updateEffects, makeParticle, makeRing, makeLabel } from './effects.js';
 import { updatePlayer } from './player.js';
-import { updateBullets } from './bullets.js';
+import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemies, updateSpawning } from './enemies.js';
-import { updateShards } from './pickups.js';
+import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
 
 function createWorld() {
@@ -49,11 +50,16 @@ function createWorld() {
       level: 1,
     },
 
-    bullets: [],
+    // Bullets and shards churn the most and nobody reads them in order, so they
+    // live in pools. The crowd stays a plain array: its separation pass walks
+    // pairs by index, which an unordered pool cannot promise.
+    bullets: new Pool(makeBullet),
+    shards: new Pool(makeShard),
     enemies: [],
-    shards: [],
-    // The effect lists live in pools: they are the most churn-heavy things in
-    // the game, and nothing reads them in order.
+    // The collision broad phase. Rebuilt from the crowd every step, so it is
+    // derived state that no run depends on.
+    grid: new Grid(BALANCE.grid.cellSize),
+    // The effect lists are pooled for the same reason: a single death sprays 30 sparks.
     particles: new Pool(makeParticle),
     rings: new Pool(makeRing),
     texts: new Pool(makeLabel),

@@ -114,14 +114,46 @@ function splitTank(world, parent) {
         iy: Math.sin(angle) * spec.impulse,
       });
     kid.score = spec.score;
+    // The crowd grew after this step's grid was rebuilt, so a hatchling can be
+    // shot from the next step. It is thrown clear as it appears; nobody notices.
     world.enemies.push(kid);
   }
 }
 
-/** Remove enemy `index` and pay out whatever it is worth. */
-export function killEnemy(world, index, byPlayer) {
-  const enemy = world.enemies[index];
-  world.enemies.splice(index, 1);
+/**
+ * The widest enemy the arena can hold, tank hatchlings included. The collision
+ * broad phase queries with it, so no enemy is too fat to be found.
+ */
+export function widestEnemyRadius() {
+  let widest = 0;
+  for (const kind of Object.values(BALANCE.kinds)) {
+    if (kind.radius > widest) widest = kind.radius;
+    if (kind.split && kind.split.radius > widest) widest = kind.split.radius;
+  }
+  return widest;
+}
+
+/**
+ * File the whole crowd in the world's collision grid. This is a snapshot for one
+ * step, rebuilt before anything queries it; an enemy killed after the rebuild
+ * stays in it until the next one, so callers skip what is already dead.
+ */
+export function rebuildEnemyGrid(world) {
+  const grid = world.grid;
+  grid.clear();
+  for (let i = 0; i < world.enemies.length; i++) grid.insert(world.enemies[i]);
+}
+
+/** Take one enemy out of the crowd. Not finding it is a bug, not a no-op. */
+function removeEnemy(world, enemy) {
+  const at = world.enemies.indexOf(enemy);
+  if (at < 0) throw new Error('that enemy is not in the crowd, so it cannot be killed twice');
+  world.enemies.splice(at, 1);
+}
+
+/** Remove one enemy and pay out whatever it is worth. */
+export function killEnemy(world, enemy, byPlayer) {
+  removeEnemy(world, enemy);
 
   const kind = BALANCE.kinds[enemy.type];
   const death = BALANCE.death;

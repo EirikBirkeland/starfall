@@ -181,8 +181,8 @@ test('stats describes the pool honestly', () => {
 });
 
 // And now the same promise where it matters: a real run, played to the end, with
-// its three effect pools.
-test('the game recycles its sparks, rings, and labels across a whole run', async () => {
+// the lists the game pools.
+test('the game recycles its sparks, shots, shards, and labels across a whole run', async () => {
   const game = await bootGame({ root: ROOT, seed: 11 });
   const run = playOneRun(game, { maxSeconds: 240 });
   assert.equal(run.died, true, 'the run had to end for this to mean anything');
@@ -191,6 +191,8 @@ test('the game recycles its sparks, rings, and labels across a whole run', async
     ['sparks', game.world.particles, BALANCE.effects.particleCap],
     ['rings', game.world.rings, null],      // rings are few and short; nothing caps them
     ['labels', game.world.texts, BALANCE.effects.textCap],
+    ['shots', game.world.bullets, null],    // bullets live about a second each
+    ['shards', game.world.shards, null],    // and are dropped by every kill
   ];
   for (const [name, pool, cap] of fx) {
     const stats = pool.stats();

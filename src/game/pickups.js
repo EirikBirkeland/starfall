@@ -8,21 +8,25 @@ import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 import { levelUp } from './progress.js';
 
+/** The shape of a shard. `dropShards` writes every field. */
+export function makeShard() {
+  return { x: 0, y: 0, vx: 0, vy: 0, life: 0, spin: 0, rot: 0 };
+}
+
 /** A dead enemy scatters `count` shards around itself. */
 export function dropShards(world, x, y, count) {
   const spec = BALANCE.shards.drop;
   for (let i = 0; i < count; i++) {
     const angle = logic.range(0, TAU);
     const speed = logic.range(spec.speedMin, spec.speedMax);
-    world.shards.push({
-      x: x + logic.range(-spec.jitter, spec.jitter),
-      y: y + logic.range(-spec.jitter, spec.jitter),
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: BALANCE.shards.life,
-      spin: logic.range(-spec.spinMax, spec.spinMax),
-      rot: logic.range(0, TAU),
-    });
+    const shard = world.shards.spawn();
+    shard.x = x + logic.range(-spec.jitter, spec.jitter);
+    shard.y = y + logic.range(-spec.jitter, spec.jitter);
+    shard.vx = Math.cos(angle) * speed;
+    shard.vy = Math.sin(angle) * speed;
+    shard.life = BALANCE.shards.life;
+    shard.spin = logic.range(-spec.spinMax, spec.spinMax);
+    shard.rot = logic.range(0, TAU);
   }
 }
 
@@ -34,12 +38,13 @@ export function updateShards(world, dt) {
   const magnet2 = spec.magnetRadius * spec.magnetRadius;
   const collectR = world.player.r + spec.collectRadius;
   const collect2 = collectR * collectR;
+  const shards = world.shards;
 
-  for (let i = world.shards.length - 1; i >= 0; i--) {
-    const shard = world.shards[i];
+  for (let i = shards.count - 1; i >= 0; i--) {
+    const shard = shards.items[i];
     shard.life -= dt;
     if (shard.life <= 0) {
-      world.shards.splice(i, 1);
+      shards.killAt(i);
       continue;
     }
     shard.rot += shard.spin * dt;
@@ -59,7 +64,7 @@ export function updateShards(world, dt) {
     shard.y += shard.vy * dt;
 
     if (near2 < collect2) {
-      world.shards.splice(i, 1);
+      shards.killAt(i);
       world.xp += spec.xp;
       world.shardsCollected++;
       world.score += spec.score;

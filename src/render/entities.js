@@ -111,7 +111,7 @@ export function drawPlayer(ctx) {
 }
 
 export function drawBullets(ctx) {
-  const bullets = world.bullets;
+  const bullets = world.bullets.items;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
     const tail = 0.035;
@@ -141,8 +141,9 @@ export function drawBullets(ctx) {
 }
 
 export function drawShards(ctx) {
-  for (let i = 0; i < world.shards.length; i++) {
-    const shard = world.shards[i];
+  const shards = world.shards.items;
+  for (let i = 0; i < shards.length; i++) {
+    const shard = shards[i];
     const fade = shard.life < 2 ? clamp(shard.life / 2, 0, 1) : 1;
     const pulse = 0.75 + 0.25 * Math.sin(world.time * 6 + shard.rot);
     ctx.save();

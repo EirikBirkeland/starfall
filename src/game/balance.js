@@ -17,6 +17,13 @@ export const BALANCE = {
     defaultH: 600,
   },
 
+  grid: {
+    // The collision broad phase's cell width in pixels. It wants to be about
+    // twice the widest hit test (the fattest enemy plus the bullet's reach), so
+    // a query reads a couple of cells and every cell it reads holds something.
+    cellSize: 64,
+  },
+
   player: {
     radius: 13,
     speed: 258,

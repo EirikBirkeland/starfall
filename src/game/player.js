@@ -15,27 +15,26 @@ import { endRun } from './run.js';
 /** One shot: a bullet, a shove backwards, a muzzle flash, and a cue. */
 export function fire(world) {
   const ship = world.player;
-  const bullets = BALANCE.bullets;
+  const gun = BALANCE.bullets;
   const spec = BALANCE.player;
 
   const angle = ship.angle + logic.range(-spec.spread, spec.spread);
-  const nose = ship.r + bullets.noseOffset;
+  const nose = ship.r + gun.noseOffset;
   const nx = ship.x + Math.cos(ship.angle) * nose;
   const ny = ship.y + Math.sin(ship.angle) * nose;
 
-  world.bullets.push({
-    x: nx,
-    y: ny,
-    vx: Math.cos(angle) * bullets.speed,
-    vy: Math.sin(angle) * bullets.speed,
-    life: bullets.life,
-    dmg: bullets.damage,
-  });
+  const bullet = world.bullets.spawn();
+  bullet.x = nx;
+  bullet.y = ny;
+  bullet.vx = Math.cos(angle) * gun.speed;
+  bullet.vy = Math.sin(angle) * gun.speed;
+  bullet.life = gun.life;
+  bullet.dmg = gun.damage;
 
   ship.vx -= Math.cos(ship.angle) * spec.recoil;
   ship.vy -= Math.sin(ship.angle) * spec.recoil;
 
-  const muzzle = bullets.muzzle;
+  const muzzle = gun.muzzle;
   burst(world, nx, ny, PALETTE.spark, muzzle.count, muzzle.speed, muzzle.life);
   const sound = BALANCE.firing.sound;
   cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
