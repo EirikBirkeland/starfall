@@ -32,6 +32,7 @@ import { clamp, TAU } from '../core/math.js';
 import { cueBeep } from './cues.js';
 import { spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
+import { blast } from './blast.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -59,6 +60,11 @@ export const KINDS = {
     stats: BALANCE.kinds.tank,
     walk: walksHeavy,
     onDeath: hatch,
+  },
+  bomber: {
+    stats: BALANCE.kinds.bomber,
+    walk: walksBomber,
+    onDeath: detonate,
   },
 };
 
@@ -392,6 +398,47 @@ function winding(enemy, step, spec) {
   enemy.stageTime = spec.after;
 }
 
+/**
+ * The bomber: the straight walk, and nothing in the way of ideas - its behaviour is
+ * its death, and its warning is the circle it is drawn standing in. Below `arm` of
+ * its hull left it stops being careful about the thing it is carrying and speeds up,
+ * because the one that is about to go off is the one in a hurry.
+ */
+function walksBomber(enemy, step) {
+  const spec = statsOf(enemy).blast;
+  enemy.rot = advance(enemy, step, 0, enemy.speed * (isCritical(enemy) ? spec.rush : 1));
+}
+
+/** Is a bomber wounded far enough to be on its way into you in a hurry. */
+export function isCritical(enemy) {
+  const spec = statsOf(enemy).blast;
+  return spec !== undefined && enemy.hp <= enemy.maxhp * spec.arm;
+}
+
+/**
+ * How far one enemy's death reaches, in px - 0 for a kind that does not go off. The
+ * renderer draws exactly this as a ring, which is what makes the ring the blast's
+ * word and not the renderer's opinion about it.
+ */
+export function blastRadius(enemy) {
+  const spec = statsOf(enemy).blast;
+  return spec === undefined ? 0 : spec.radius;
+}
+
+/**
+ * How close a bomber is to going off, 0 when whole and 1 the moment it is critical.
+ * The ring is drawn out of this, so a whole one is a faint circle and a wounded one
+ * is a shout - and the number is the walk's own, so the tell and the behaviour are
+ * the same fact twice.
+ */
+export function blastPressure(enemy) {
+  const spec = statsOf(enemy).blast;
+  if (spec === undefined) return 0;
+  const lost = enemy.maxhp - enemy.hp;
+  const beforeItTurns = enemy.maxhp * (1 - spec.arm) || 1;
+  return clamp(lost / beforeItTurns, 0, 1);
+}
+
 /** Is this darter holding its aim right now - i.e. should it be drawing a line. */
 export function isAiming(enemy) {
   return enemy.stage === AIMING;
@@ -437,6 +484,14 @@ function shattersAlongItsAxis(world, enemy) {
   const noseY = enemy.y + Math.sin(enemy.rot) * enemy.r;
   spray(world, noseX, noseY, stats.color, jet.count, jet.speed, jet.life, enemy.rot, jet.spread);
   spray(world, noseX, noseY, stats.color, jet.count, jet.speed, jet.life, enemy.rot + Math.PI, jet.spread);
+}
+
+/**
+ * A bomber's death is the circle it spent its life drawing, closing. `byPlayer` comes
+ * straight from the death, so a chain the player lit pays them for all of it.
+ */
+function detonate(world, enemy, byPlayer) {
+  blast(world, enemy.x, enemy.y, statsOf(enemy).blast, byPlayer);
 }
 
 /**

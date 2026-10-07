@@ -50,6 +50,11 @@ function makeContextStub(counters, drawLog) {
     beginPath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop,
     closePath: noop, save: noop, restore: noop, rotate: noop,
     scale: noop, setTransform: noop,
+    // A dash pattern is part of the drawing state, so it is saved and restored like a
+    // colour. The bomber's death zone is dashed (render/entities.js) and the stub has
+    // to at least agree to be told one.
+    setLineDash: (dashes) => { counters.dashes++; drawLog.dashes.push(dashes); },
+    lineDashOffset: 0,
   };
   return new Proxy(target, {
     get(obj, key) {
@@ -107,16 +112,16 @@ export async function bootGame(options) {
   let width = opts.width || 1280;
   let height = opts.height || 720;
 
-  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0 };
+  const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
   // Everything the glow sprites need is counted apart, so "this frame baked
   // nothing" is a thing a test can say (render/glow.js).
-  const bakes = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, canvases: 0 };
+  const bakes = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0, canvases: 0 };
   const audioLog = { voices: 0 };
   // Everything the last frame asked to be put on the canvas. The renderer paints
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [] };
+  const drawLog = { translates: [], images: [], dashes: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -165,7 +170,7 @@ export async function bootGame(options) {
     /** The offscreen canvases the glow sprites are baked on. */
     createElement(tag) {
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, { translates: [], images: [] });
+      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [] });
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -186,6 +191,7 @@ export async function bootGame(options) {
       clock += ms === undefined ? 16.7 : ms;
       drawLog.translates.length = 0;
       drawLog.images.length = 0;
+      drawLog.dashes.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -232,6 +238,8 @@ export async function bootGame(options) {
     get world() { return game.world; },
     get player() { return game.player; },
     get enemies() { return game.enemies; },
+    /** Where the window is looking, in arena coordinates (render/camera.js). */
+    get camera() { return game.camera; },
     get screen() {
       return {
         startHidden: elements.startScreen.classList.contains('hidden'),

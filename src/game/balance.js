@@ -222,6 +222,38 @@ export const BALANCE = {
       death: { particles: 30, speed: 340, debris: 14, debrisSpeed: 200, ringSpeed: 420, shake: 6, hitStop: 0.04 },
       sound: { freq: 130, dur: 0.24 },
     },
+    bomber: {
+      radius: 18, speed: 96, hull: 7, score: 32, drop: 4,
+      from: 360, cost: 7, weight: 3,
+      color: PALETTE.ember, fill: PALETTE.emberFill, sides: 8, glow: 20,
+      // Its whole behaviour is its death. It walks at you - and that is all it does -
+      // while the circle drawn round it says exactly what standing in it costs when it
+      // finally goes off: `radius` px from its centre, `damage` in player shots, for
+      // the crowd as much as for the ship. Measured from a *centre* either way, which
+      // is what makes the drawn ring the honest edge: your ship's middle outside the
+      // line and you are not hurt, whoever else's middle is inside it and you are.
+      //
+      // `arm` is the share of its hull left when it stops being careful about the
+      // thing it is carrying: below it the bomber walks `rush` times as fast and its
+      // ring starts to pulse hard, which is the tell that it means to take you with
+      // it. So the decision a bomber asks for is where to shoot it, not whether.
+      //
+      // It is also the first thing in the game that can hurt its own kind, which is
+      // what makes the wave director's habit of arriving in knots something you can
+      // use: a wave that walks into a dying bomber is a wave that dies.
+      blast: {
+        radius: 108, damage: 6,
+        arm: 0.45, rush: 1.4,
+        shove: 260,          // the blast throws the crowd outwards as it goes
+        ring: { radius: 12, speed: 760, life: 0.32 },
+        flash: { count: 24, speed: 420, life: 0.4 },
+        shake: 9,
+        hitStop: 0.05,
+        sound: { freq: 84, dur: 0.4, wave: 'sawtooth', vol: 0.16, slide: 34 },
+      },
+      death: { particles: 20, speed: 280, debris: 6, debrisSpeed: 190 },
+      sound: { freq: 150, dur: 0.2 },
+    },
   },
 
   death: {
@@ -382,8 +414,8 @@ export const BALANCE = {
 
   ambient: {
     // The slow, harmless crowd that drifts behind the title screen.
-    kinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter', 'drifter', 'weaver', 'tank'],
-    refillKinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter'],
+    kinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter', 'drifter', 'weaver', 'bomber'],
+    refillKinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter', 'bomber'],
     target: 8,
     refillChance: 1.2,     // per second
     speedFactor: 0.45,

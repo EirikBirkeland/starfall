@@ -68,6 +68,16 @@ export const PALETTE = {
   redFill: 'rgba(255,77,109,0.16)',
   orange: '#ff7a3d',
   orangeFill: 'rgba(255,122,61,0.14)',
+  // The bomber is the hottest thing in the arena: it is the one enemy whose death is
+  // the attack, so it sits between the darter's red and the spitter's orange and is
+  // drawn with a lit fuse (render/entities.js).
+  ember: '#ff4a1e',
+  emberFill: 'rgba(255,74,30,0.16)',
+  // A bomber's death zone: the ring it stands in while it lives, and the light of
+  // the explosion itself. Both warm, and the flash nearly white so it reads as the
+  // last frame of a thing rather than as a new one (PLAN section 4).
+  blastZone: '#ff6a2e',
+  blastFlash: '#ffe3b0',
   // The darter's warning line (render/entities.js): the wide soft pass is the
   // enemy's own red, the thin one over it is paler, and the head of it is almost
   // white - the order your eye should read them in.

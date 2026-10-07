@@ -33,6 +33,14 @@ const SHIP = { x: ARENA.w / 2, y: ARENA.h / 2 };   // where a fresh run puts the
 /** The cheapest body the director can buy, however far the run has got. */
 const CHEAPEST = Math.min(...Object.values(BALANCE.kinds).map((kind) => kind.cost));
 
+/**
+ * A moment of the run late enough that every kind in the table has unlocked. The
+ * tests that ask "can the roll bring anything" have to be sat past the last `from`,
+ * and saying it as the last `from` is the only way they stay true when a kind is
+ * added - which is exactly when they would otherwise start lying quietly.
+ */
+const ALL_UNLOCKED = Math.max(...Object.values(BALANCE.kinds).map((kind) => kind.from)) + 30;
+
 function angleDifference(a, b) {
   let diff = (a - b) % TAU;
   if (diff > Math.PI) diff -= TAU;
@@ -214,7 +222,7 @@ test('every kind fits in the smallest wave the director will send', () => {
     'the dearest kind costs ' + dearest + ' and the smallest wave is worth ' + W.waveMinPoints);
 
   // And it is not just affordable, it is rolled: a big wave brings the big kinds.
-  const field = runAged(224, 300);
+  const field = runAged(224, ALL_UNLOCKED);
   const seen = new Set();
   for (let i = 0; i < 200; i++) {
     field.enemies.length = 0;
@@ -258,18 +266,18 @@ test('the roll can bring any kind that is unlocked, and none that is not', () =>
   assert.deepEqual([...early].sort(), ['drifter', 'tank', 'weaver'],
     'at half a minute the roster is what has appeared by then');
 
-  field.elapsed = 240;
+  field.elapsed = ALL_UNLOCKED;
   const late = new Set();
   for (let i = 0; i < 600; i++) late.add(pickMember(field, Infinity));
   for (const type of Object.keys(BALANCE.kinds)) {
-    assert.ok(late.has(type), 'by 4:00 a ' + type + ' shows up in the roll');
+    assert.ok(late.has(type), 'once they have all had their turn a ' + type + ' shows up in the roll');
   }
 });
 
 test('the roll is weighted by what each kind is worth', () => {
   // Every kind unlocked is offered its weight of the roll, no more and no less -
   // which is what makes the two passes over the roster agree with each other.
-  const field = runAged(227, 300);
+  const field = runAged(227, ALL_UNLOCKED);
   const rows = Object.keys(BALANCE.kinds).map((type) => ({
     type: type,
     weight: BALANCE.kinds[type].weight,

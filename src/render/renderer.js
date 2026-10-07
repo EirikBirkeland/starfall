@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawBullets, drawEnemies, drawEnemyShots, drawPlayer, drawShards, drawTelegraphs } from './entities.js';
+import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawPlayer, drawShards, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawHUD } from './hud.js';
 
@@ -57,10 +57,14 @@ export function renderFrame(tick, input) {
 
   if (world.state === STATE.START) {
     drawWalls(ctx);
+    drawBlastZones(ctx, world.ambient, tick.alpha);
     drawEnemies(ctx, world.ambient, true, tick.alpha);
     drawShards(ctx, tick.alpha);
   } else {
     drawWalls(ctx);
+    // Floor markings go down first: a bomber's death zone is paint on the arena
+    // floor, so nothing standing on the floor is ever drawn under it.
+    drawBlastZones(ctx, world.enemies, tick.alpha);
     drawShards(ctx, tick.alpha);
     drawSmoke(ctx, tick.alpha);
     drawRings(ctx);

@@ -12,7 +12,7 @@ import { polygon, shipPath } from './shapes.js';
 import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
-import { aimProgress, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { aimProgress, blastPressure, blastRadius, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -44,6 +44,25 @@ const DART_BLUR_LIGHT = 0.55;
 const DART_CHARGE = 8;         // px of light building at the nose while it aims
 const SPIT_CHARGE = 9;         // px of light filling a spitter's mouth
 const ENEMY_SHOT_HALO = 8;     // px of light past a shot's own reach
+
+// How a bomber's death zone is drawn (PLAN 3.3's "telegraphed circle"): a dashed
+// ring at exactly the reach of its blast, out of the same number the blast is done
+// by, so it cannot promise more or less than the explosion it stands for. The dash
+// crawls round and the ring pulses, both faster the less hull the bomber has left -
+// the whole warning is the same fact getting louder.
+const ZONE_DASH = [9, 8];        // px of dash, px of gap
+const ZONE_SOFT = 7;             // px, the wide faint pass under the ring
+const ZONE_THIN = 1.5;           // px, the ring itself
+const ZONE_ROOM = 30;            // px of slack on the cull test, for the wide pass
+const ZONE_CALM = 0.14;          // how a whole one is drawn ...
+const ZONE_SHOUT = 0.7;          // ... and how a nearly-dead one is
+const ZONE_SOFT_SHARE = 0.4;     // the wide pass sits this far under the thin one
+const ZONE_PULSE_CALM = 3;       // rad/s of breathing at rest ...
+const ZONE_PULSE_PANIC = 19;     // ... and this much more when it is about to go
+const FUSE_LIGHT = 9;            // px of light at a bomber's core, its lit fuse
+const FUSE_PULSE_CALM = 4;       // rad/s of breathing at full hull ...
+const FUSE_PULSE_PANIC = 16;     // ... and this much more when it is about to go
+const FUSE_CALM = 0.25;          // a whole bomber's fuse barely glows; a wounded one strobes
 
 /**
  * The enemy's shots, drawn over the crowd: this is the one thing on the arena that
@@ -138,6 +157,51 @@ export function drawTelegraphs(ctx, list, alpha) {
   }
 }
 
+/**
+ * The death zones: the circle every bomber in sight is standing in, drawn under the
+ * crowd so the ship and the bodies stay on top of it. See the ZONE_ constants above
+ * for what it looks like; what matters here is that it asks the simulation nothing
+ * but `blastRadius` and `blastPressure`, so a kind that does not go off is not drawn
+ * at all and one that does is drawn for exactly what it will do.
+ */
+export function drawBlastZones(ctx, list, alpha) {
+  for (let i = 0; i < list.length; i++) {
+    const enemy = list[i];
+    const radius = blastRadius(enemy);
+    if (radius === 0) continue;
+    if (!onScreen(enemy.x, enemy.y, radius + ZONE_ROOM)) continue;
+
+    const pressure = blastPressure(enemy);
+    const beat = 0.5 + 0.5 * Math.sin(world.time * (ZONE_PULSE_CALM + pressure * ZONE_PULSE_PANIC) + enemy.phase);
+    const light = ZONE_CALM + (ZONE_SHOUT - ZONE_CALM) * pressure * (0.55 + 0.45 * beat);
+    const x = paintX(enemy, alpha);
+    const y = paintY(enemy, alpha);
+
+    ctx.save();
+    const was = ctx.globalAlpha;
+    ctx.setLineDash(ZONE_DASH);
+    // The dash crawling round is the only moving part, and it is the part that says
+    // "this is a zone and not a decoration". It runs off the frame clock, so it
+    // cannot change with anything the simulation does.
+    ctx.lineDashOffset = -world.time * (12 + pressure * 40);
+
+    ctx.strokeStyle = PALETTE.blastZone;
+    ctx.lineWidth = ZONE_SOFT;
+    ctx.globalAlpha = was * light * ZONE_SOFT_SHARE;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = PALETTE.blastFlash;
+    ctx.lineWidth = ZONE_THIN;
+    ctx.globalAlpha = was * light;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawEnemy(ctx, enemy, dim, alpha) {
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
   // moves, this says what it is made of. A new kind that is not a plain polygon
@@ -174,6 +238,15 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // A spitter's whole warning: its mouth, pointed at you, filling with light over
     // the wind-up. It starts at nothing, so the change is the tell.
     paintGlow(ctx, glowFor(PALETTE.spitCharge, SPIT_CHARGE), enemy.r * 1.3, 0, aimProgress(enemy));
+  }
+  if (enemy.type === 'bomber') {
+    // A lit fuse: the light at its core breathes, and the less hull it has left the
+    // faster and brighter it breathes. The ring on the floor says how far the blast
+    // reaches; this says how close it is.
+    const pressure = blastPressure(enemy);
+    const beat = 0.5 + 0.5 * Math.sin(world.time * (FUSE_PULSE_CALM + pressure * FUSE_PULSE_PANIC) + enemy.phase);
+    paintGlow(ctx, glowFor(PALETTE.blastFlash, FUSE_LIGHT), 0, 0,
+      FUSE_CALM + (1 - FUSE_CALM) * beat * (0.4 + 0.6 * pressure));
   }
 
   if (enemy.type === 'tank') {
