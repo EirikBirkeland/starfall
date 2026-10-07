@@ -1058,3 +1058,123 @@ with the mean.
 2. Then milestone 3: enemy definitions as data, enemy bullets on their own pool, the wave director
    (the off-screen `arrivalSpot` rule from session 12 is the seed of it), elites, off-screen
    indicators - and the bot learning to dodge bullets, with `tools/balance-report.js` beside it.
+
+## Session 14 (2026-10-07) — Milestone 2: the nebula backdrop. Milestone 2 is done.
+
+### What landed
+PLAN section 4's "three parallax star layers, plus slow drifting nebula clouds drawn once to an
+offscreen canvas". The star layers already existed; the clouds are new, in **`src/render/nebula.js`**,
+and they close milestone 2. Released **v0.2.6**.
+
+- **One bake, two passes.** A 1024 px tile of sky is baked once, lazily, on the first frame that
+  draws it, and every frame stamps it twice: the *far* pass at 1.7× and alpha 0.5, the *near* pass at
+  its own size and alpha 0.8, each additively (`lighter`), each on its own depth (0.004 / 0.009) and
+  its own slow drift (1.1 / 2.4 px/s). Two passes because depth is the whole point of a sky; one bake
+  because the two differing only in how they are stamped is what keeps it cheap. The depths sit under
+  the shallowest star layer's and the drifts under its 5 px/s, which is what puts the clouds behind
+  the stars rather than among them.
+- **The tile is seamless**: `puffCopies(x, y, radius)` says where a puff that reaches past an edge is
+  painted again, so the tile wraps in both directions and the sky never runs out at the join. That is
+  also what lets the tile be a fixed size, independent of the window: **resizing never rebakes it**
+  (the star field, the sky gradient and the vignette all do; this one does not).
+- **Baked at half the size it is drawn at** (512 px source for a 1024 px tile, DPR-independent on
+  purpose): a cloud has no detail finer than a pixel to lose, so it is a quarter of the bake and of
+  the memory (1 MB) for something that reads the same. The bake is 310 gradient blobs over 1.6 Mpx,
+  which measured as a fraction of a frame, once, on the title screen.
+- **The clouds are scattered on a jittered grid** (`CLOUD_FIELD` 3×2, `DUST_FIELD` 6×5) and each cloud
+  gets a `strength` drawn from a wide range, which multiplies its alpha. Both of those matter: see the
+  tuning story below. A cloud is a chain of soft puffs along a random line, so it reads as a filament
+  and not a disc, and its colour is a random mix of the palette's two cloud colours
+  (`nebulaDeep` #1f3f9c, `nebulaTeal` #1a6f8f - blue, because warm means harm).
+- `stats()` reports `{ bakes, layers, tile, baked }` for the F3 overlay (M10). `updateNebula(dt)` is
+  called in the frame loop beside `updateStars`, on the frame's clock; the sky is the eye's.
+- **The harness can now see stamps.** `tools/headless/harness.js` records every `drawImage`
+  destination of the frame just drawn and exposes `stamps()` - the same trick `translates()` was, and
+  it is what makes a background's coverage testable at all.
+
+### How I judged the look without a browser, and it is worth keeping
+`/tmp/nebula-probe.mjs` (throwaway; rebuild it if you need it). It hands the module a `document` whose
+canvas **composites**: a float buffer per pixel, `fillRect` of a radial gradient evaluating the real
+colour stops and doing `acc[i] += alpha * colour`, `g.scale` honoured, `globalCompositeOperation`
+assumed additive. Then it calls the module's own `drawNebula` and reads the result. What it told me:
+
+- one tile adds 3.54 luminance on average, median 2.46, p90 8.1, p99 19.7, max 28.2;
+- over the palette's sky (luminance 21) both passes together give mean 25.6, median 24.2, p99 46.6,
+  **max 57.7** - and the scale that matters is: dimmest star ~60, energy wall line ~90, shard ~150,
+  ship 255. So the nebula's brightest possible point is under the dimmest star. That is where a
+  backdrop belongs.
+- where it is bright it is rgb(6,15,32) added: blue, a little green, no red. Cold, as intended.
+- and it printed the tile as ASCII in luminance bands, which is the closest thing to looking at it.
+
+Those numbers are written into the module's comment above `CLOUD_FIELD` so nobody has to derive them
+again. The knobs, in the order to reach for them: `strength`'s spread (contrast), then `alpha`, then
+`LAYERS[].alpha`.
+
+### The tuning story, since the first version was wrong twice
+1. Clouds placed at **random**: half the tile came out empty and the other half in a knot - and a knot
+   repeats every 1024 px. Fixed by the jittered grid (a repeating tile must dress evenly).
+2. Enough clouds to dress the tile evenly: came out as **fog**. Median and mean were nearly equal
+   (4.2 vs 4.7), i.e. no dark patches and no cores. Fixed by the wide `strength` range (0.12-1.8),
+   which is what makes some clouds nearly invisible and some bright, and by trimming `reach` so they
+   stop all overlapping. After: median 2.46 against mean 3.54, p99 19.7 against max 28.2. Contrast is
+   the whole difference between gas and fog.
+3. Then I tried going brighter still (variant D, sky max 71) and put it back: above the dimmest star is
+   the wrong place for a backdrop.
+
+### Draw cost, measured against a `git worktree` of HEAD, same run, same seed
+45-50 s into a bot run, 300 frames, per frame: **fills 249.37 both, strokes 36.41 both, stamps
+35.37 → 40.37, texts 10.97 both, gradients 0 both, blurs 0 both, bakes 0 both.** So the sky is exactly
+**five image stamps a frame and nothing else**. The honest caveat: five stamps of a screen-sized image
+is one screen of additive blending per pass - the fill rate is real (the game already fills the screen
+twice, for the sky gradient and the vignette). If M10's performance pass needs fill rate back, drop
+the far pass first; it is one entry in `LAYERS` and it is the dimmer of the two.
+
+### Proof it moved nothing
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte the session-13 reference run
+(1m07s, 825, level 3, 61 kills, 26 shards, every trace hash equal). The nebula reads `visual` only,
+and all of its randomness is spent in the single bake, which happens on the first frame before any run
+exists - so it could not have moved the run, and did not.
+
+### Tests: 168, all passing (was 161)
+`test/nebula.test.mjs` (7): baked once, on the first frame that shows it, and nothing after; a puff is
+painted again across every edge it reaches (including a 200-case sweep proving a copy is never asked
+for twice, is always painted where it stands, and is never asked for somewhere off the tile); every
+pass covers the window - corners, a grid of samples, *and* that the stamps' clipped area is exactly
+one window, so no gaps and no double painting - in the middle of the world and in both corners of it;
+still covered after five minutes of drift; the near pass always slides further than the far one and
+both slower than 5 px/s; a frame of sky blurs nothing, builds no gradient, strokes nothing (a frame is
+6 strokes: the ship, its hull pips, the XP bar - the same six `walls.test.mjs` and `controls.test.mjs`
+count), and tiles the window with 2-12 stamps; and a 2400×1500 window gets more tiles and **no more
+baking**.
+I mutation-checked the file: starting the stamp grid at 0 instead of `-ox`, making the far pass drift
+faster than the near one, `WRAP = [0]` (no wrap copies in the bake), and baking every frame - each one
+fails a test on its own. The sky's stamps are found among a frame's by size (`w >= 400`): nothing else
+in the game is stamped bigger than a ship and its light. If a future sprite ever is, that filter needs
+changing.
+
+### Decisions, so nobody relitigates them
+- **No `resetNebula()`.** The clock and the camera are reset between runs because a second run on one
+  boot must look like a fresh page; the sky is allowed to have drifted, it is the sky, and nothing a
+  run depends on reads it.
+- The tile size belongs to the bake, not to the window (see above), and the bake ignores `devicePixelRatio`.
+- `puffCopies` is exported for the test and says so in its comment. It is the one part of the bake no
+  headless test can otherwise see, because a seam is a line across the sky.
+- The nebula is drawn inside the shake translate, so it shakes with everything else behind the arena.
+
+### Watch out
+- The bake happens on the first frame that draws the sky. `test/draw-cost.test.mjs`'s "a steady frame
+  builds nothing" already covers it, and `particle-art`'s `first.canvases <= 1` still holds only
+  because something else always bakes on an earlier frame.
+- `LAYERS[].x/y` are mutable module state, wrapped to the tile width every frame so they never grow.
+- M9's settings: the "particle amount" knob has nothing to do with this, but a "background detail"
+  knob would be `LAYERS.length` (one pass, or none) and it is now a one-line change.
+
+### Next (Milestone 3: enemies and waves)
+1. Enemy definitions as data in one table with behaviours as small functions - `BALANCE.kinds` is
+   already half of it (colour, radius, hull, speed, score, drop, death spray, hit-stop), so this is
+   about the *behaviour* functions and moving the switch that picks between them into the table.
+2. Enemy bullets on their own pool, in warm colours (PLAN 3.3's Spitter is the first user).
+3. The wave director: a spawn budget that grows with time, spent on the types unlocked so far, using
+   the off-screen `arrivalSpot` rule from session 12 as the spawn primitive.
+4. Then elites, off-screen indicators, and the bot learning to dodge - with `tools/balance-report.js`
+   beside it, and the 128-seed measurement rule from session 13 in mind.
