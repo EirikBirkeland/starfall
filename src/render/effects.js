@@ -5,8 +5,9 @@ import { world } from '../game/world.js';
 
 export function drawParticles(ctx) {
   ctx.shadowBlur = 0;
-  for (let i = 0; i < world.particles.length; i++) {
-    const p = world.particles[i];
+  const particles = world.particles;
+  for (let i = 0; i < particles.count; i++) {
+    const p = particles.items[i];
     const t = clamp(p.life / p.max, 0, 1);
     ctx.globalAlpha = t;
     ctx.fillStyle = p.color;
@@ -17,8 +18,9 @@ export function drawParticles(ctx) {
 }
 
 export function drawRings(ctx) {
-  for (let i = 0; i < world.rings.length; i++) {
-    const r = world.rings[i];
+  const rings = world.rings;
+  for (let i = 0; i < rings.count; i++) {
+    const r = rings.items[i];
     const t = clamp(r.life / r.max, 0, 1);
     ctx.globalAlpha = t * 0.85;
     ctx.strokeStyle = r.color;
@@ -36,14 +38,15 @@ export function drawRings(ctx) {
 export function drawTexts(ctx) {
   ctx.textAlign = 'center';
   ctx.font = '700 14px "Segoe UI", system-ui, sans-serif';
-  for (let i = 0; i < world.texts.length; i++) {
-    const t = world.texts[i];
-    const fade = clamp(t.life / t.max, 0, 1);
+  const texts = world.texts;
+  for (let i = 0; i < texts.count; i++) {
+    const label = texts.items[i];
+    const fade = clamp(label.life / label.max, 0, 1);
     ctx.globalAlpha = fade;
-    ctx.fillStyle = t.color;
+    ctx.fillStyle = label.color;
     ctx.shadowBlur = 12;
-    ctx.shadowColor = t.color;
-    ctx.fillText(t.t, t.x, t.y);
+    ctx.shadowColor = label.color;
+    ctx.fillText(label.text, label.x, label.y);
   }
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;

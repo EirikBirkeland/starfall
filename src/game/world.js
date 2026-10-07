@@ -5,7 +5,8 @@
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { clamp } from '../core/math.js';
-import { updateEffects } from './effects.js';
+import { Pool } from '../core/pool.js';
+import { updateEffects, makeParticle, makeRing, makeLabel } from './effects.js';
 import { updatePlayer } from './player.js';
 import { updateBullets } from './bullets.js';
 import { updateEnemies, updateSpawning } from './enemies.js';
@@ -51,9 +52,11 @@ function createWorld() {
     bullets: [],
     enemies: [],
     shards: [],
-    particles: [],
-    rings: [],
-    texts: [],
+    // The effect lists live in pools: they are the most churn-heavy things in
+    // the game, and nothing reads them in order.
+    particles: new Pool(makeParticle),
+    rings: new Pool(makeRing),
+    texts: new Pool(makeLabel),
     ambient: [],
   };
 }

@@ -1,10 +1,29 @@
 // The stuff that sprays, flashes and floats: sparks, shockwave rings, and the
 // little score labels that drift upwards. They are simulated (they need the
 // seeded random stream) but they never touch anything back.
+//
+// All three lists live in pools, because they are the busiest things in the game
+// (a single death can spray 30 sparks) and they never care about their own order.
+// Each spawner below writes every field of its shape, so a recycled object can
+// never carry a leftover from its previous life.
 
 import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
+import { Pool } from '../core/pool.js';
 import { TAU } from '../core/math.js';
+
+/** The shapes of the three effect lists, one factory each. */
+export function makeParticle() {
+  return { x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, size: 0, color: '' };
+}
+
+export function makeRing() {
+  return { x: 0, y: 0, r: 0, vr: 0, life: 0, max: 1, color: '' };
+}
+
+export function makeLabel() {
+  return { x: 0, y: 0, text: '', color: '', life: 0, max: 1 };
+}
 
 /** Trauma, in the units the camera shake reads. */
 export function shakeIt(world, amount) {
@@ -16,37 +35,55 @@ export function burst(world, x, y, color, count, speed, life) {
   for (let i = 0; i < count; i++) {
     const angle = logic.range(0, TAU);
     const pSpeed = logic.range(speed * fx.particleSpeedFloor, speed);
-    world.particles.push({
-      x: x,
-      y: y,
-      vx: Math.cos(angle) * pSpeed,
-      vy: Math.sin(angle) * pSpeed,
-      life: logic.range(fx.particleLifeFloor, life),
-      max: life,
-      size: logic.range(fx.particleSizeMin, fx.particleSizeMax),
-      color: color,
-    });
+    const p = world.particles.spawn();
+    p.x = x;
+    p.y = y;
+    p.vx = Math.cos(angle) * pSpeed;
+    p.vy = Math.sin(angle) * pSpeed;
+    p.life = logic.range(fx.particleLifeFloor, life);
+    p.max = life;
+    p.size = logic.range(fx.particleSizeMin, fx.particleSizeMax);
+    p.color = color;
   }
-  const over = world.particles.length - fx.particleCap;
-  if (over > 0) world.particles.splice(0, over);
+  // Over the cap, some sparks have to go. The pool is unordered, so this drops
+  // an arbitrary handful rather than the oldest ones; at this crowd size no one
+  // can tell, and no run may depend on it.
+  const over = world.particles.count - fx.particleCap;
+  if (over > 0) world.particles.trim(over);
 }
 
 export function ring(world, x, y, color, radius, speed, life) {
-  world.rings.push({ x: x, y: y, r: radius, vr: speed, life: life, max: life, color: color });
+  const r = world.rings.spawn();
+  r.x = x;
+  r.y = y;
+  r.r = radius;
+  r.vr = speed;
+  r.life = life;
+  r.max = life;
+  r.color = color;
 }
 
 export function addText(world, x, y, string, color) {
-  world.texts.push({ x: x, y: y, t: string, color: color, life: BALANCE.effects.textLife, max: BALANCE.effects.textLife });
-  if (world.texts.length > BALANCE.effects.textCap) world.texts.shift();
+  const fx = BALANCE.effects;
+  const label = world.texts.spawn();
+  label.x = x;
+  label.y = y;
+  label.text = string;
+  label.color = color;
+  label.life = fx.textLife;
+  label.max = fx.textLife;
+  const over = world.texts.count - fx.textCap;
+  if (over > 0) world.texts.trim(over);
 }
 
 export function updateEffects(world, dt) {
   const drag = Math.pow(BALANCE.effects.particleDrag, dt);
-  for (let i = world.particles.length - 1; i >= 0; i--) {
-    const p = world.particles[i];
+  const particles = world.particles;
+  for (let i = particles.count - 1; i >= 0; i--) {
+    const p = particles.items[i];
     p.life -= dt;
     if (p.life <= 0) {
-      world.particles.splice(i, 1);
+      particles.killAt(i);
       continue;
     }
     p.x += p.vx * dt;
@@ -56,24 +93,26 @@ export function updateEffects(world, dt) {
   }
 
   const ringDrag = Math.pow(BALANCE.effects.ringDrag, dt);
-  for (let i = world.rings.length - 1; i >= 0; i--) {
-    const r = world.rings[i];
+  const rings = world.rings;
+  for (let i = rings.count - 1; i >= 0; i--) {
+    const r = rings.items[i];
     r.life -= dt;
     if (r.life <= 0) {
-      world.rings.splice(i, 1);
+      rings.killAt(i);
       continue;
     }
     r.r += r.vr * dt;
     r.vr *= ringDrag;
   }
 
-  for (let i = world.texts.length - 1; i >= 0; i--) {
-    const t = world.texts[i];
-    t.life -= dt;
-    if (t.life <= 0) {
-      world.texts.splice(i, 1);
+  const texts = world.texts;
+  for (let i = texts.count - 1; i >= 0; i--) {
+    const label = texts.items[i];
+    label.life -= dt;
+    if (label.life <= 0) {
+      texts.killAt(i);
       continue;
     }
-    t.y -= BALANCE.effects.textRise * dt;
+    label.y -= BALANCE.effects.textRise * dt;
   }
 }

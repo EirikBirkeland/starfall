@@ -195,3 +195,62 @@ spawn layout — not a balance change). Old numbers live in the session 3 note.
 2. Fixed 120 Hz step + accumulator in `main.js` (clamp long frames per PLAN; today `BALANCE.maxFrameDt`
    clamps the frame delta to 50 ms — decide 50 vs 100 there and note it). Rebaseline the reference run.
 3. Then release `0.1.0` (last item of M1). Not released this session: M1's release sits at its end.
+
+## Session 5 (2026-10-07) — Milestone 1: the object pool
+
+### What landed
+- **`src/core/pool.js`** — one class, `Pool`. It owns its live list (`items`) plus a
+  drawer of dead objects: `spawn()` recycles or (only when the drawer is empty) builds
+  one from the factory, `killAt(i)` removes by swapping the **last** live object into the
+  hole, `trim(n)` and `clear()` give objects back, `stats()` reports
+  `{ live, free, made, spawned }`. Removal is O(1) and a warm pool allocates nothing.
+  `killAt` throws `RangeError` on a fractional or out-of-range index, so an off-by-one is
+  a failing test rather than a silently corrupt list.
+- **The three effect lists now live in pools**: `world.particles`, `world.rings`,
+  `world.texts` (they are the busiest things in the game — one death sprays 30 sparks, and
+  the caps are 900 / none / 40). `game/effects.js` owns the shapes via `makeParticle` /
+  `makeRing` / `makeLabel`, and every spawner writes **every** field, which is what keeps a
+  recycled object from leaking a value from its previous life. `run.js` resets them with
+  `clear()` instead of `length = 0`, so a restart keeps the objects it already built.
+  The renderer reads `pool.count` / `pool.items`; the score labels' `t` field is now `text`.
+- **`test/pool.test.mjs`** — 11 tests: shape comes from the factory, killed objects come
+  back instead of new ones, the recycle contract that the spawner must overwrite everything,
+  the swap-remove ordering contract stated as a test, `killAt` rejections, `trim`, `clear`,
+  a backwards sweep visiting every live object exactly once, the `made === peak live`
+  invariant under 200 rounds of churn, `stats()` honesty, and one real run proving the
+  game reuses its fx objects. Suite is now **38 tests, all passing**.
+
+### Proof it changed nothing
+`node tools/simulate.js --seed 20261006 --trace` reproduces the session-4 reference run
+**byte for byte** (1m03s, score 783, level 3, 56 kills, 33 shards, every trace hash equal).
+That is the point of pooling only the three cosmetic lists: they never feed back into the
+simulation and the pool preserves how many are alive at any moment, so the logic stream is
+untouched. Bot average over seeds 1-4 is still 1m06s.
+
+### Why the pool is unordered, and what that blocks
+Swap-remove is what makes removal O(1), and any list that must keep its order (a queue, a
+back-to-front paint list, the enemy array whose separation pass walks pairs by index) does
+not belong in a pool. So:
+- **bullets, enemies and shards are still plain arrays with `splice`.** They join the pool in
+  the `core/grid.js` session, when the collision order changes anyway and the reference run
+  gets rebaselined on purpose — one deliberate rebaseline instead of two.
+- A loop that removes from a pool must count **downwards**; `updateEffects` does, and there
+  is a test for exactly that pattern.
+- `burst()` used to drop the *oldest* sparks over the cap and now drops an arbitrary handful
+  (the pool has no order). Same count, and nothing may depend on it. Noted in the code.
+
+### Numbers
+Throwaway benchmark (900 frames, 40 spawns/frame, cap 1200, ~72 000 lives): array with
+`splice` 42.8 ms, pool 2.2 ms — most of the win is not the allocation, it is that removal
+stopped shifting the tail of the array. In a real bot run the particle pool built **142**
+objects for **2 939** lives (~20x reuse), rings 3 for 66, labels 5 for 61. `stats()` is
+ready for the F3 debug overlay (M10).
+
+### Next (finish Milestone 1)
+1. `core/grid.js`: spatial grid with insert, clear, query-by-circle, with tests. Wire it into
+   `updateBullets` (today every bullet scans every enemy) and pool **bullets** with it;
+   rebaseline the reference run and say why.
+2. Fixed 120 Hz step + accumulator in `main.js`, interpolated rendering, clamp long frames
+   (PLAN says 100 ms; `BALANCE.maxFrameDt` is 0.05 — decide and note it). Rebaseline again.
+3. Then release `0.1.0` (last item of M1). Still nothing released: pooling is invisible to
+   the player and M1's release sits at its end.

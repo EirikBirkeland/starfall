@@ -133,7 +133,7 @@ window.STARFALL = {
       enemies: world.enemies.length,
       bullets: world.bullets.length,
       shards: world.shards.length,
-      parts: world.particles.length,
+      parts: world.particles.count,
       collected: world.shardsCollected,
       fireRate: world.player.fireRate,
       fps: fpsAvg,

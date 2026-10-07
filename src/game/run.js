@@ -29,9 +29,9 @@ export function resetRun(world) {
   world.bullets.length = 0;
   world.enemies.length = 0;
   world.shards.length = 0;
-  world.particles.length = 0;
-  world.rings.length = 0;
-  world.texts.length = 0;
+  world.particles.clear();
+  world.rings.clear();
+  world.texts.clear();
 
   world.elapsed = 0;
   world.difficulty = 0;
