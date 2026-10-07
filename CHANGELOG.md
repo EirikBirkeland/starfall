@@ -1,5 +1,25 @@
 # Starfall — changelog
 
+## 0.3.5 — 2026-10-07
+From eight minutes in, some of them come in gold.
+- Any enemy can arrive as an **elite**: four times the hull, a fifth faster, and
+  outlined in gold with a light of its own, so across a crowded screen you can pick
+  one out at a glance. As it takes damage a gold ring closes round it, because four
+  times the hull of a thing has to be seen going down.
+- A gold body is worth three of its kind to the game's spawn budget, so hunting them
+  down genuinely thins the crowd - and one is worth five times the score and twice the
+  shards, plus a **large shard**: one big mint pickup worth six of the ordinary ones,
+  drawn bigger and ringed when you collect it.
+- Kill one with hull missing and it may give a **hull back** - the first healing in the
+  game. It says so over your ship in mint, with a chord, and it never wastes the gift
+  on a ship that is already whole.
+- One wave carries at most one, and it arrives as part of a wave rather than dropped in
+  front of you: a crowd with a leader, standing somewhere unpredictable in the group.
+- An elite off the window is worth an arrow on the edge of the screen where its plain
+  self is not, which is what that arrow was always for.
+- None of it touches a run that ends before 8:00: the same 128 seeds play out byte for
+  byte the same as before.
+
 ## 0.3.4 — 2026-10-07
 The edge of the window now points at what is coming.
 - The arena is several times the size of the screen and a wave arrives off one side of
