@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.3.8",
+    "date": "2026-10-07",
+    "summary": "The swarm: up to twenty small fast bodies that arrive as one wave member and fly as one thing"
+  },
+  {
     "version": "0.3.7",
     "date": "2026-10-07",
     "summary": "The shielder: it armour-plates the crowd around it, and the crowd goes cheap when it dies"
