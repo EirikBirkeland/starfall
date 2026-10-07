@@ -3273,3 +3273,145 @@ right); whether a bouncing shot may come back for a body it has already been thr
 not, and `hits` says so for free); and that `life` is a fuse and not a range, so a shot that
 keeps turning can run out mid-column and vanish - fine as a decision, less fine as an
 accident. Then the block's release.
+
+## Session 30 (2026-10-07) — Ricochet: the sixth line, and a card that did not fire until I measured it. Released **v0.4.3**
+
+The fourth line of the owner's firepower block. PLAN's wording ("shots bounce to another
+enemy, one extra bounce per rank") is three words about the number and none about where the
+bounce happens, and the interesting half of the session was in that gap.
+
+### What landed
+**Ricochet (PLAN 3.5)** is a sixth line, five ranks, `BALANCE.upgrades.ricochet`: `step: 1`
+body per rank, `share: 0.65`, `reach: 220`, `ahead: 0.5`. A bullet grew one field, `bounce`
+(the turns it has left), and `bounceOf(world)` is the reading of the line - the third
+`countOf` reading after `volleyOf` and `pierceOf`. `shoot` hands every projectile of a pull
+both numbers, baked at fire time, so a card taken mid-flight never rewrites a shot in the
+air. `tools/headless/scripted.js`'s `bulletFlyingToward` writes `bounce` too: the pool's
+"every spawner writes every field" contract, again, one field later.
+
+**The turn is a change of heading and nothing else**: same place, same speed, `dmg *= share`.
+The alternative - repositioning the shot at its new target - would be a teleport with a
+trail on it. `life` stays a fuse, not a range, so a shot that keeps turning can run out of
+time in the middle of a crowd; that is written into `turnOnto`'s comment as the deal rather
+than left as a surprise.
+
+**`hits` did all the work for free.** Pierce needed a shot's memory of who it has been
+through; a turn needs exactly that memory and gets it from the same list, so a bounced shot
+cannot come back and shave a body it already spent itself on. That is a test, not a hope.
+
+**One hit, three answers**, all decided in `nextMoveFor`: go straight on (a pass), turn (a
+bounce), or be spent. It writes one module-level scratch object rather than allocating one
+per hit (PLAN section 2: nothing allocates in the per-frame loops), and the mode names are
+`PASS_ON` / `TURN_OFF` / `SPENT`.
+
+**The card**: sixth tint `PALETTE.teal` (`#25e6c0`) - the one cool hue nobody was wearing
+once white, cyan, mint, violet and sky blue were gone, so six cards are told apart by colour
+and not only by shape. The icon is a shot coming in low, kinking on a body, and running off
+to the next one, each leg thinner and dimmer than the last. `test/level-up.test.mjs` already
+paints every line's card, so the icon was exercised the moment it was added - I only had to
+teach the canvas stub about `lineCap`, which it throws on for anything it does not know.
+
+### The finding of the session: my first version was a card that never fired
+I built the obvious rule first - **spend the pierce passes, then the bounces** - and every
+test passed. Then I counted, in real fifteen-minute bot runs, how often a turn actually
+happened: **1,500-2,000 turns against ~100,000 hits, 2%**. The rule was almost dead code,
+because a run that takes both lines (which is every healthy run, since the bot maxes all
+six) has passes left over at the moment it hits its last nearby body, keeps flying straight
+out of the crowd with five bounces unspent, and dies in empty sky.
+
+So the rule became: **a pass is only worth taking if there is something ahead to take it
+through.** `nextMoveFor` walks the neighbourhood once and answers both questions from the
+same list - the nearest unhit body anywhere in `reach` is what a turn would aim at, and
+whether any of them lies inside `ahead` (a cosine cone, 60 degrees either side) is what
+makes going straight worth it. Nothing ahead and a body beside you: turn, even with passes
+left in the pocket. A shot with only one of the two lines is untouched by the whole
+question, which is what keeps each card selling exactly what it says. Turn rate: **13%** of
+hits. Cone measured at 0.2 -> 9%, 0.35 -> 11%, 0.5 -> 13%, 0.6 -> 16%, with kills flat
+across all of them (the arrival rate is the ceiling, not the gun - session 29), so the
+number is about spectacle and the honest angle is 60 degrees.
+
+Cost: one grid query per hit, and only for a shot that bought both lines - about one extra
+query per step where the loop already does ~60. Wall time for a 600 s simulated run: 12.08 s
+before, 11.99 s now. Nothing to see.
+
+### What the bounce costs, and why it is not pierce's number
+`share: 0.65`, chosen on a knot of bodies that cannot die (so a chain's fractional hits are
+counted as damage and not hidden by kills), 3 s of trigger, average of six seeds, plain pull
+= 1.00x: **damage 2.50x, split 2.57x, pierce 3.33x, ricochet 2.50x**. The ladder is the
+decision: a bounce needs one body anywhere nearby where a pierce pass needs the crowd
+arranged down the line you aimed, so at an equal share this is the easy version of that card
+and the two stop being a choice. 0.8 measured 3.44x (over pierce, for less geometry); 0.5
+measured 1.88x, under the plain damage card, which is a trap. 0.65 is a full chain worth
+2.64 shots - cheapest of the three lines that buy a second body - and the second body still
+takes two thirds of a shot rather than a chip of one.
+
+### The measurement: the median is still the window, and that is not this card's fault
+Same 24 seeds, `aware` bot, 900 s cap:
+
+| | median | mean | median kills | median score | at the cap |
+|---|---|---|---|---|---|
+| + pierce (s29) | 15m00s | 13m35s | 6517 | 116,247 | 20/24 |
+| **+ ricochet (this session)** | **15m00s** | **13m42s** | **6539** | **117,015** | **21/24** |
+
+Ricochet bought **nothing** in survival, exactly as session 29 predicted once damage per
+second passes arrival rate x hull: the crowd is refilled, not thinned. It is not a bad card -
+it is a 2.5x weight ladder entry, a knot test that reads 6 bodies touched against 18, and
+13% of hits visibly kinking - it is just not what sets this bot's clock. The block's 5:00
+goal was cleared through the weapons two releases ago (8m17s median at s28). **The honest
+remaining work on survival is on the crowd's side** - milestone 3's late kinds, milestone 6's
+bosses, or a spawn budget that grows with the run's measured power - and the hard rule only
+ever forbade making it easier, so that is allowed. Do it as its own item with its own
+measurement.
+
+Reference run, rebaselined on purpose: `node tools/simulate.js --seed 20261006 --trace` ->
+**alive at the cap 10m00s, score 71561, level 49, kills 4072, shards 3400, build 5/5/5/5/5/5**
+(was 70515 / level 48 / 4015 / 3105 / five lines). Like session 29's it is a fingerprint of a
+run still flying, since the default window no longer contains a death.
+
+### Three test traps I walked into, all of them mine
+1. **A level-up stops the arena, and a scripted measurement cannot see it.** My end-to-end
+   claim test fired into a knot of killable bodies, cleared `xp` after every step, and
+   reported 6 kills both with and without the line - because the fourth kill paid for a
+   level and the run spent the rest of the window paused. `field.xpNeed = Infinity` in the
+   helpers is the fix; a test that measures a gun must not be measuring the pause.
+2. **A bullet mutates.** `shootAtRow` read `shots[0].dmg` *after* the flight, so the
+   "weight" it asserted against was the shot's last, lightest value. Capture what a shot
+   left with before it spends itself.
+3. **Fractional damage does not kill.** The knot needed bodies that die to any touch, and
+   `hp: 1` is not that when a chain's second body takes 0.65: 1.0 vs 0.65 and the chain
+   kills nothing, so the measurement read "no difference" from a card that was working.
+   `hp: 0.2` and the count is of bodies *touched*, which is what the line actually buys.
+   (Check `test/pierce.test.mjs`'s similar test: it never trips this because its bodies take
+   3 hits and its run never earns a level. I verified rather than assumed.)
+
+### Tests: 475, all passing (was 462)
+`test/ricochet.test.mjs` (13, scripted world): the count (rank r turns r times and never
+reaches body r+2); a turn is a heading only (same speed, points at the body it chose, did
+not move sideways); a bounced shot never comes back for a spent body; every turned body
+takes exactly `share` of the one before, and the stack is worth more than one shot and less
+than six; the reach is a wall (found at `reach - 40`, not found at `reach + 60`); a bounce
+that finds nobody is not spent and the shot dies exactly when a plain one did; **a shot
+turns while it still has passes left once nothing is ahead** (the anti-pierce-first rule) and
+**keeps its straight line while a body stands ahead** (the anti-turn-first rule); a turned
+shot ends its flight lighter; every projectile of a fan carries the turns and an empty
+memory; a recycled shot does not inherit them; the line prints "+1 body turned onto"; and
+the knot claim, 6 bodies touched against 18. `test/level-up.test.mjs`'s game-over-card regex
+now comes from `LINES` instead of naming five lines by hand, so a seventh cannot slip past.
+
+### Notes for whoever is next
+- `world.bullets` items now carry `pierce`, `bounce` and `hits`. A seventh line that lets a
+  shot survive a hit needs a fourth mode in `nextMoveFor` and its own counter field; the
+  ordering question it will have to answer is the one this session was, i.e. **which line
+  wins when both are affordable**, and the answer is "whichever one the shot gets value from".
+- The bot maxes all six lines in 22 of 24 runs, so the appetite order only decides the shape
+  of the way up, not what is at the top. If a future item makes an order matter, that is when
+  it wants measuring.
+- **The card pool is thirty ranks deep and a healthy run spends all of it in about three
+  minutes** (session 29's finding, unchanged and now worse). Whatever the block's last item
+  does about the drip (`shards.xp` 14 / `progression` base 90) should be done together with
+  the arrival-rate question, because "where a median run ends" is what both of them are
+  written against.
+- Still on the table, none of them bugs: no upgrade icons on the HUD (milestone 4), Esc during
+  the card screen does nothing, and `simulate.js` prints no median - the block's survival-check
+  item wants one, and with 21 of 24 seeds at the cap it will also want the cap raised or the
+  median is just the window.
