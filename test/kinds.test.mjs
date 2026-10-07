@@ -9,8 +9,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { KINDS, kindOf, makeEnemy } from '../src/game/kinds.js';
-import { killEnemy, widestEnemyRadius } from '../src/game/enemies.js';
+import { KINDS, kindOf, makeEnemy, widestEnemyRadius } from '../src/game/kinds.js';
+import { killEnemy, damageEnemy } from '../src/game/enemies.js';
 import { logic } from '../src/core/rng.js';
 import { TAU } from '../src/core/math.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
@@ -83,6 +83,8 @@ test('an enemy carries the row it was built from', () => {
 test('the collision broad phase is wide enough for the fattest thing in the arena', () => {
   const fattest = Math.max(...Object.values(BALANCE.kinds).map((k) => k.radius));
   assert.equal(widestEnemyRadius(), fattest);
+  const split = Math.max(...Object.values(BALANCE.kinds).map((k) => (k.split ? k.split.radius : 0)));
+  assert.ok(widestEnemyRadius() >= split, 'a hatchling is thinner than the fattest body, or the grid misses it');
 });
 
 test('a drifter walks the straight line to the ship, nose first', () => {
@@ -181,6 +183,32 @@ test("a tank's death leaves its hatchlings; other kinds leave nothing", () => {
   const before = lone.field.enemies.length;
   killEnemy(lone.field, lone.enemy, true);
   assert.equal(lone.field.enemies.length, before - 1, 'a drifter leaves only its wreck');
+});
+
+test('a death effect belongs to dying, not to being shot', () => {
+  // A tank that came apart in somebody else's blast - a bomber's, once there is one
+  // - still hatches. What the payout is for is the other question, and it is asked
+  // separately.
+  const { field, enemy } = standing(23, 'tank', 600, 600);
+  const spec = BALANCE.kinds.tank.split;
+
+  killEnemy(field, enemy, false);
+
+  assert.equal(field.enemies.length, spec.into, 'the hatchlings came, whoever did the killing');
+  assert.equal(field.score, 0, 'and a death nobody shot is worth nothing to anybody');
+});
+
+test('wounding an enemy kills it exactly once, and says which it did', () => {
+  const { field, enemy } = standing(24, 'drifter', 1200, 1200);
+
+  assert.equal(damageEnemy(field, enemy, 1, true), false, 'a wound it survived');
+  assert.equal(enemy.hp, BALANCE.kinds.drifter.hull - 1);
+  assert.ok(enemy.flash > 0, 'and it shows the hit');
+
+  const kills = field.kills;
+  assert.equal(damageEnemy(field, enemy, 99, true), true, 'the last of it says so');
+  assert.equal(field.kills, kills + 1, 'once, and not again on the way out');
+  assert.equal(field.enemies.length, 0);
 });
 
 test('every kind there is can be killed, and pays out what its row says', () => {

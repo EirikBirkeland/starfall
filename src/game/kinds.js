@@ -8,7 +8,8 @@
 //
 //   walk(enemy, step)   moves one enemy for one step, and turns it: which way it
 //                       faces follows from how it moves, so the two are one thing.
-//   onDeath(world, e)   optional; whatever a corpse makes.
+//   onDeath(world, e, byPlayer) optional; whatever a corpse goes on to make,
+//                       whoever it was that did the killing.
 //
 // An enemy built by `makeEnemy` keeps a reference to its own row as `enemy.kind`,
 // so stepping a crowd asks the enemy what it does instead of looking its name up
@@ -72,7 +73,29 @@ export const KINDS = {
  *   drag   how much of a leftover shove survives one step
  */
 
-/** The row for a kind name. A name nobody defined is an error, not a silent no-op. */export function kindOf(type) {
+/**
+ * The widest enemy the arena can hold, hatchlings included. The collision broad
+ * phase queries with it, so no enemy is too fat to be found. The kinds never
+ * change while the game runs, so it is measured once rather than every step.
+ */
+function measureWidestEnemy() {
+  let widest = 0;
+  for (const name in KINDS) {
+    const stats = KINDS[name].stats;
+    if (stats.radius > widest) widest = stats.radius;
+    if (stats.split && stats.split.radius > widest) widest = stats.split.radius;
+  }
+  return widest;
+}
+
+const widestEnemy = measureWidestEnemy();
+
+export function widestEnemyRadius() {
+  return widestEnemy;
+}
+
+/** The row for a kind name. A name nobody defined is an error, not a silent no-op. */
+export function kindOf(type) {
   const kind = KINDS[type];
   if (!kind) throw new Error('no enemy kind is called ' + type);
   return kind;
@@ -419,7 +442,8 @@ function shattersAlongItsAxis(world, enemy) {
 /**
  * A tank comes apart into `split.into` of `split.type`, thrown outwards from where
  * it died. This is the one behaviour that spends `logic`: one draw per hatchling,
- * for the direction it flies.
+ * for the direction it flies. It does not care who killed the tank, so it ignores
+ * the `byPlayer` a death effect is handed.
  */
 function hatch(world, parent) {
   const spec = statsOf(parent).split;

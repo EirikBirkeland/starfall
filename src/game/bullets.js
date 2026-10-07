@@ -9,7 +9,8 @@
 import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
 import { dist2 } from '../core/math.js';
-import { rebuildEnemyGrid, killEnemy, widestEnemyRadius } from './enemies.js';
+import { damageEnemy, rebuildEnemyGrid } from './enemies.js';
+import { widestEnemyRadius } from './kinds.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 
@@ -63,18 +64,14 @@ export function updateBullets(world, dt) {
       const reach = enemy.r + spec.hitRadius;
       if (dist2(bullet.x, bullet.y, enemy.x, enemy.y) > reach * reach) continue;
 
-      enemy.hp -= bullet.dmg;
-      enemy.flash = BALANCE.enemies.hitFlash;
       enemy.ix += bullet.vx * spec.knockback;
       enemy.iy += bullet.vy * spec.knockback;
       burst(world, bullet.x, bullet.y, BALANCE.kinds[enemy.type].color, impact.count, impact.speed, impact.life);
       bullets.killAt(i);
 
-      if (enemy.hp <= 0) {
-        killEnemy(world, enemy, true);
-      } else {
-        cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
-      }
+      if (damageEnemy(world, enemy, bullet.dmg, true)) break;
+      // Only a shot that did not kill makes the impact sound; a kill plays its own.
+      cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
       break;
     }
   }

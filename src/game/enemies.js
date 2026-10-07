@@ -11,28 +11,6 @@ import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
-import { KINDS } from './kinds.js';
-
-/**
- * The widest enemy the arena can hold, tank hatchlings included. The collision
- * broad phase queries with it, so no enemy is too fat to be found. The kinds never
- * change while the game runs, so it is measured once rather than every step.
- */
-function measureWidestEnemy() {
-  let widest = 0;
-  for (const name in KINDS) {
-    const stats = KINDS[name].stats;
-    if (stats.radius > widest) widest = stats.radius;
-    if (stats.split && stats.split.radius > widest) widest = stats.split.radius;
-  }
-  return widest;
-}
-
-const widestEnemy = measureWidestEnemy();
-
-export function widestEnemyRadius() {
-  return widestEnemy;
-}
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -60,6 +38,22 @@ function chipsOf(stats, enemy) {
   return Math.max(1, Math.round(stats.death.debris * enemy.r / stats.radius));
 }
 
+/**
+ * Wound one enemy by `amount`, and let it die if that was the last of its hull.
+ * Answers whether it died, which is how a caller tells a hit from a kill: a shot
+ * that killed plays the death and one that bounced off plays the impact.
+ *
+ * `byPlayer` says whose doing the death is, and it carries through to whatever the
+ * corpse goes on to do - a chain reaction started by the player pays the player.
+ */
+export function damageEnemy(world, enemy, amount, byPlayer) {
+  enemy.hp -= amount;
+  enemy.flash = BALANCE.enemies.hitFlash;
+  if (enemy.hp > 0) return false;
+  killEnemy(world, enemy, byPlayer);
+  return true;
+}
+
 /** Remove one enemy and pay out whatever it is worth. */
 export function killEnemy(world, enemy, byPlayer) {
   removeEnemy(world, enemy);
@@ -72,18 +66,22 @@ export function killEnemy(world, enemy, byPlayer) {
   ring(world, enemy.x, enemy.y, stats.color, enemy.r * death.ringScale,
     stats.death.ringSpeed || death.ringSpeed, death.ringLife);
 
-  if (!byPlayer) return;
+  if (byPlayer) {
+    world.score += enemy.score;
+    world.kills++;
+    addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, stats.color);
+    cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
+    // A kill the kind calls big gets the run to hold its breath for a moment.
+    if (stats.death.shake) shakeIt(world, stats.death.shake);
+    if (stats.death.hitStop) hitStop(world, stats.death.hitStop);
+    dropShards(world, enemy.x, enemy.y, enemy.drop);
+  }
 
-  world.score += enemy.score;
-  world.kills++;
-  addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score, stats.color);
-  cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
-  // A kill the kind calls big gets the run to hold its breath for a moment.
-  if (stats.death.shake) shakeIt(world, stats.death.shake);
-  if (stats.death.hitStop) hitStop(world, stats.death.hitStop);
-  dropShards(world, enemy.x, enemy.y, enemy.drop);
-  // And whatever else this kind leaves behind - a tank leaves two hatchlings.
-  if (kind.onDeath) kind.onDeath(world, enemy);
+  // And whatever a corpse goes on to make - a tank leaves two hatchlings, a bomber
+  // leaves a blast. That belongs to dying and not to being shot, so it happens
+  // however the enemy came apart; `byPlayer` is passed on so a chain reaction the
+  // player lit still pays out like one.
+  if (kind.onDeath) kind.onDeath(world, enemy, byPlayer);
 }
 
 /**
