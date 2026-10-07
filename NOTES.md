@@ -3099,3 +3099,177 @@ never waits for one.**
 has to *not* kill its bullet - which means the loop's `break` and the grid's snapshot rules
 (session 6) both have to be reconsidered, and a pierce needs to remember who it has already
 hit or it will shave the same body every step. Then **ricochet**, then the block's release.
+
+---
+
+## Session 29 (2026-10-07) — Pierce: the fifth line, and the run stops fitting the window. Released **v0.4.2**
+
+The third item of the owner's block, and the second line that is not a multiplier. Session
+28 predicted it correctly: the interesting part was not the number on the card, it was that
+`updateBullets` had to stop killing its bullet on every hit.
+
+### What landed
+
+**Pierce (PLAN 3.5)** is a fifth line, five ranks, `BALANCE.upgrades.pierce`: `step: 1`
+body per rank, `share: 0.8` - what the next body takes of the weight the last one took -
+and `pass`, the sparks out of the far side of a body a shot has just gone through. A shot
+is handed its pierce when it leaves and spends one per body, so rank r lets a shot take
+**r + 1** bodies and no more.
+
+**A line of whole things is now counted generically.** `countOf(world, id)` is the reading
+(`step * rank`), and `volleyOf` and `pierceOf` are the two readings of it - the gun's own
+shot plus the split line's extras, and the bodies past the first. It throws for a line of
+shares, which is the mirror of `gainOf` throwing for a line of whole things: each kind of
+line can now only be asked for the kind of number it has.
+
+**The bullet grew two fields**: `pierce` (the passes it has left) and `hits` (the bodies it
+has already been through, held as object references in a list of at most six). `shoot`
+writes both, and so does `tools/headless/scripted.js`'s `bulletFlyingToward` - the pool's
+"every spawner writes every field" contract has teeth here and a recycled shot that forgot
+its memory would hand a plain shot a bought one. There is a test for exactly that.
+
+**The memory is on the shot, not on the body**, which is the design decision hiding in this
+line: a body must be able to be hit by many shots, and one shot must never shave the same
+body twice. A bullet at 620 px/s is inside a body for several steps, so a `hits`-less
+implementation would shave it once per step - there is a test that one shot's damage
+arrives exactly once, and it is the test that would catch this bug.
+
+**`updateBullets` can now take two bodies in one step.** The hit no longer ends the loop: a
+shot with a pass left spends one, drops its `dmg` by the share, sprays out of the far side,
+and keeps walking the candidate list. That exposed a rule that used to be an accident:
+`nearby` is the grid's answer held across the inner loop, and **nothing a death can trigger
+may ask the grid a question** while it is held or the list is refilled under the loop.
+Nothing does - `blast` walks the crowd directly, and it is the only thing a death goes on to
+do - and the comment at the loop says so, because with a rank-0 shot the old `break` made
+this impossible to violate and now it is only a rule.
+
+`fire()` gives **every** projectile of a pull the gun's pierce, the same way it gives every
+projectile its damage: baked at fire time, so a card taken between two frames never
+rewrites a shot already in the air. A fully split, fully piercing pull is six shots any of
+which can take six bodies, which is the "absurd power" half of PLAN's arc and the reason
+the numbers below are what they are.
+
+**The card**: fifth line, tint `PALETTE.wall` (the fifth cool colour), and the icon is one
+shot on its way through two bodies, getting thinner and dimmer as it climbs - the picture
+says "the body behind the one you aimed at gets what is left", which is the whole trade.
+The bot takes it third in appetite, after damage and split: it is the same purchase as
+split (coverage the bot needs) pointed down the column of bodies chasing it, which is
+exactly what the bot is aiming at.
+
+### The decision of the session: what the second body costs
+
+PLAN says "1 extra enemy per rank" and says nothing about their weight, so, as with split,
+the price had to be chosen:
+
+- **Every body at full weight.** A column of six is then six times the damage per pull: a
+  flat multiplier on the gun wearing the word "pierce", and strictly better than the damage
+  line whenever more than one body exists.
+- **A share, decaying.** Then a rank never multiplies the gun; it buys the body *behind*
+  the one you aimed at, and a run fighting one thing at a time gets nothing at all from it.
+
+I took the second, at **0.8**, which is PLAN's own convention for damage that passes on to
+a second target (the arc weapon loses 20% per jump, 3.2) - a number the plan already
+blesses for exactly this shape of trade. Measured on a column of fourteen bodies, three
+seconds of trigger, same seed both sides (kills, rank 0 → rank 5): **0.7** gave 4 → 7,
+**0.8** gave 4 → 8, **1.0** gave 4 → 14. Full weight is a different game; 0.7 left the
+fourth and fifth ranks buying crumbs (0.24 and 0.17 of a shot). A full stack of six bodies
+lands **3.69 shots worth**, against the damage line's 2.5 at five ranks and split's 2.75 at
+five - a little higher, because the geometry it needs is rarer: split wants a crowd wide,
+pierce wants one column deep.
+
+### The measurement, and the finding that matters more than the line
+
+Same 24 seeds as the last two releases, `aware` bot picking cards, 900 s cap:
+
+| | median | mean | median kills | median score | still flying at 15:00 |
+|---|---|---|---|---|---|
+| three lines, bot picks (s27) | 5m53s | 6m15s | 754 | 11,347 | – |
+| + split shot (s28) | 8m17s | 10m02s | 2,708 | 44,292 | 8 of 24 |
+| **+ pierce (this session)** | **15m00s** (the cap) | 13m35s | **6,517** | **116,247** | **20 of 24** |
+
+Only four of the twenty-four runs died at all, at 2m36s, 7m18s, 8m00s and 8m05s. Two
+probes say why, and they are the most useful thing in this note:
+
+1. **The firepower has saturated the arrival rate.** Seed 3, fifteen minutes: live enemies
+   median **35**, p90 48, max 75 - flat from minute three to minute fifteen. Bullets in
+   flight median 60, max 66. The hull was lost three times in fifteen minutes (416 s, 612 s,
+   625 s) and came back to three every time on an elite's gift; the run ended with three. The threat ceiling of this game
+   is not the player's gun, it is **how many bodies the director can keep on the arena at
+   once**: once damage per second exceeds arrival rate × hull, the crowd stops growing and
+   the run has no ending. Every remaining item in the firepower block (ricochet, orbitals,
+   nova, more primaries) buys spectacle, not difficulty. That is what the owner asked for,
+   and it should not be the last word: the answer is on the swarm's side - milestone 3's
+   late kinds, milestone 6's bosses, and a spawn budget that grows with the run's power. The
+   hard rule only ever forbade making it *easier*. Do it as its own item with its own
+   measurement, not as a side effect of the next card.
+2. **The card pool is spent at two and a half minutes in a healthy run.** Seed 3 again:
+   first rank at 6 s, fifteen ranks by 1:30, all twenty-five by 2:42, level 58 by 15:00 - so
+   twelve minutes of levels with nothing to buy and the chime every fifteen seconds. Session
+   27 tuned `shards.xp` and `progression.base` when a five-minute run collected ~250 shards;
+   the same window now collects thousands, and the reason is structural: **XP income is
+   proportional to kills, and every firepower line multiplies kills.** The pair is
+   `shards.xp` (14) and `progression` (base 90 / quad 0.9), and the target is unchanged from
+   session 27's: the last rank of the pool should land about where a median run ends. Do it
+   together with (1), because "where a median run ends" is the number the ramp decides.
+
+### Reference run, rebaselined on purpose
+
+`node tools/simulate.js --seed 20261006 --trace` → **alive at the cap: 10m00s, score 70515,
+level 48, 4015 kills, 3105 shards, build 5/5/5/5/5**. (Was 8m49s / 39141 / level 28 / 2396 /
+840.) Note what that means: the default 600 s window no longer contains a death, so the
+reference run is now a fingerprint of a run still flying. The trace is still byte-identical
+between two runs of a seed, which is the promise the test actually makes; a future session
+that wants a *dying* reference has to either raise `--seconds` or accept this.
+
+### Tests: 462, all passing (was 451)
+
+- `test/pierce.test.mjs` (11, on the scripted world): the count (rank r takes r+1 bodies of
+  a column of eight and never reaches the ninth, rank by rank); one shot's damage arrives
+  once and not once per step; two shots are two hits on a body the first went through; every
+  body past the first takes exactly `share` of the one before, and the whole stack is worth
+  more than one shot and less than six; a passed-through body is paid for exactly once,
+  scored once, and the last body in the column is untouched; a shot that goes through is
+  still flying, at the gun's speed and still going up; a shot ends its flight lighter than it
+  started; every projectile of a fan carries the pierce and an empty memory; a recycled shot
+  does not inherit the last one's pierce; the line is a count and prints "+1 body passed
+  through"; and the claim the card sells, measured on a column of fourteen - 3 seconds of
+  trigger kills at least half again as many bodies with the line as without.
+- `test/upgrades.test.mjs`: the offer test stopped being a photograph. It used to assert the
+  deal equalled "every line except damage", which only held while four lines competed for
+  three places; it now maxes every line but three and requires the deal to be exactly those
+  three, plus the `countOf`-throws-for-a-share-line half of the mirror.
+- `test/simulate.test.mjs`: **the same trap as session 28, one file later.** "A whole run
+  plays out with no browser" played until the bot died, and the bot stopped dying inside
+  900 s. It now arranges its own ending at 2:30 with `endingItAt`, which is the rule:
+  a test that needs a finished run arranges the finish, it never waits for one. And
+  `endingItAt` itself had a bug the moment it was used on a test that reads the hull back:
+  `playOneRun` calls `onFrame` *after* the step, so the finisher wrote `hull = 1` over the
+  frame the ship died on and the summary reported a dead ship with one hull. It now stops
+  when the game does.
+
+### Notes for whoever is next
+
+- `world.upgrades` has five keys and `describeRanks`, `simulate.js`'s build column and the
+  cards all read the line table, so a sixth line costs no tooling. The game-over card's
+  regex in `level-up.test.mjs` is the one place that names the lines by hand.
+- A piercing shot's `hits` list holds enemy objects until the shot dies, which is a handful of
+  dead bodies kept alive for a fraction of a second. It is not a leak: `shoot` clears it, and
+  a shot's life is 1.15 s. If a future line wants a longer-lived memory, put a cap on it.
+- Still on the table, none of them bugs: the HUD has no upgrade icons (milestone 4's item),
+  Esc during the card screen does nothing, and `simulate.js` still prints no median and no
+  game-seconds column - the block's survival-check item wants one, and with 20 of 24 seeds at
+  the cap it will also need the cap raised or the median is just the window.
+
+### Next
+
+**Ricochet** (PLAN 3.5), the block's fourth line: shots bounce to another enemy, one extra
+bounce per rank. It is the third line that has to live in `updateBullets` rather than in the
+gun, and it is the first thing in the game that changes a bullet's **velocity** after
+`shoot` wrote it: a bounce picks a body the shot has not been through (`hits` is already the
+memory for it, and the grid is already rebuilt for the step), turns the shot onto it, and
+spends one of the shot's bounces doing it. Three things to decide before writing it: what a
+bounce costs in weight (the same `share` question pierce had, and the same answer is probably
+right); whether a bouncing shot may come back for a body it has already been through (it may
+not, and `hits` says so for free); and that `life` is a fuse and not a range, so a shot that
+keeps turning can run out mid-column and vanish - fine as a decision, less fine as an
+accident. Then the block's release.
