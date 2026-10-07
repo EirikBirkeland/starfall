@@ -128,6 +128,10 @@ Also done because the split needed them: `tools/simulate.js` (whole headless run
   `tools/headless/` instead.
 - The harness canvas stub throws on any member it does not know. That is deliberate: it turns a typo in
   drawing code into a failing test. Add members to it as the renderer grows.
+- **The game now needs to be served, not double-clicked.** `index.html` loads ES modules, and Chrome
+  refuses module scripts over `file://`. That is what PLAN section 2 asks for and the release menu reads
+  `releases.json` with fetch anyway, so serving was already assumed - but if the game ever looks like a
+  blank page, check how it is being served before hunting for a code bug.
 
 ### Next (finish Milestone 1)
 1. `core/rng.js`: seeded generator with at least two streams (game, visual) + tests. Rewire `math.rand`
