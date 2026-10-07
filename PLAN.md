@@ -280,7 +280,7 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Release `0.1.0`.
 
 ### Milestone 2: feel
-- [ ] Player movement to the numbers in 3.1: acceleration, friction, small hit radius.
+- [x] Player movement to the numbers in 3.1: acceleration, friction, small hit radius.
 - [ ] Dash with invulnerability, cooldown ring, and streak.
 - [ ] Arena 3000 × 3000 with the following camera, cursor lean, and energy walls.
 - [ ] Pre-rendered glow sprites; remove per-frame `shadowBlur`.

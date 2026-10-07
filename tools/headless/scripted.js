@@ -46,10 +46,27 @@ export function bulletFlyingToward(x, y, vx, vy) {
   return bullet;
 }
 
-/** One step of the game's own fixed step, with the ship doing nothing. */
-export function stepTheWorld() {
-  return stepWorld(BALANCE.sim.step, {
+/** One step of the game's own fixed step. `input` says what the ship is doing. */
+export function stepTheWorld(input) {
+  return stepWorld(BALANCE.sim.step, Object.assign({
     moveX: 0, moveY: 0, moving: false,
     aimX: world.player.x, aimY: world.player.y - 100, firing: false,
-  });
+  }, input));
+}
+
+/**
+ * Hold the same controls for `seconds` of fixed steps and report the ship after
+ * every one of them: [{ t, vx, vy, x, y }]. Tests that care about how long a
+ * maneuver takes read the answer instead of guessing a number of frames.
+ */
+export function flyFor(seconds, input) {
+  const track = [];
+  let t = 0;
+  while (t < seconds - 1e-9) {
+    stepTheWorld(input);
+    t += BALANCE.sim.step;
+    const ship = world.player;
+    track.push({ t, vx: ship.vx, vy: ship.vy, x: ship.x, y: ship.y });
+  }
+  return track;
 }

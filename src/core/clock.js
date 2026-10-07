@@ -9,6 +9,13 @@
 
 import { clamp } from './math.js';
 
+// A frame's length is measured to the microsecond and no finer. `now - last` is a
+// difference of two timestamps that grow all session, so below about a microsecond
+// it stops reporting the frame and starts reporting how long the page has been
+// open - which would be enough to tip a frame over a step boundary and quietly
+// move a seeded run's inputs by one step. Nobody can tell two frames apart that
+// closely; a run must not be able to either.
+
 /**
  * `step` and `maxFrameDt` are in seconds. A frame gap longer than `maxFrameDt`
  * is counted as that much - a background tab, not a hard frame - which is also
@@ -27,7 +34,7 @@ export function createClock(step, maxFrameDt) {
      */
     frame(now) {
       if (!last) last = now;
-      const dt = clamp((now - last) / 1000, 0, maxFrameDt);
+      const dt = clamp(Math.round((now - last) * 1000) / 1e6, 0, maxFrameDt);
       last = now;
       if (dt > 0) fps += (1 / dt - fps) * clamp(dt * 2, 0, 1);
 

@@ -91,6 +91,28 @@ test('reset stands a fresh page load up again', () => {
   }
 });
 
+test('a frame is measured to the microsecond, not to the life of the page', () => {
+  // The same rhythm of frames arriving an hour into a page has to be handed the
+  // same steps as one arriving on a page that has never run a frame. Below about
+  // a microsecond a timestamp difference stops reporting the frame and starts
+  // reporting how long the page has been open - enough to tip a frame over a step
+  // boundary, which would make a seeded run depend on when the tab was opened.
+  const rhythm = (start, count) => {
+    const clock = createClock(STEP, GAP);
+    const seen = [];
+    let now = start;
+    for (let i = 0; i < count; i++) {
+      now += 16.7;
+      const tick = clock.frame(now);
+      seen.push(tick.steps + ':' + tick.alpha);
+    }
+    return seen;
+  };
+
+  assert.deepEqual(rhythm(3600000, 4000), rhythm(0, 4000),
+    'the same frames, an hour into a page, asked for a different simulation');
+});
+
 test('the frame readout counts frames, not steps', () => {
   assert.ok(Math.abs(play(many(300, 1000 / 60)).last.fps - 60) < 1, 'a 60 fps display reads 60');
   assert.ok(Math.abs(play(many(300, 1000 / 144)).last.fps - 144) < 2, 'and a 144 Hz one reads 144');

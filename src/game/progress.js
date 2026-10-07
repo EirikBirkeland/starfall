@@ -25,7 +25,8 @@ export function levelUp(world) {
   ship.fireRate = Math.min(BALANCE.player.fireRateMax,
     ship.fireRate * prog.fireRateGain + prog.fireRateFlat);
 
-  addText(world, ship.x, ship.y - ship.r - prog.labelOffset, 'LV ' + ship.level + '  ' + prog.label, PALETTE.shard);
+  // Above the ship as you see it, not above the much smaller hit radius.
+  addText(world, ship.x, ship.y - ship.drawR - prog.labelOffset, 'LV ' + ship.level + '  ' + prog.label, PALETTE.shard);
   burst(world, ship.x, ship.y, PALETTE.shard, burstSpec.count, burstSpec.speed, burstSpec.life);
   ring(world, ship.x, ship.y, PALETTE.shard, ringSpec.radius, ringSpec.speed, ringSpec.life);
   cueChord(sound.notes, sound.dur, sound.wave, sound.vol);

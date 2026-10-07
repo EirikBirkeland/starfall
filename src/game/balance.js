@@ -31,17 +31,21 @@ export const BALANCE = {
   },
 
   player: {
-    radius: 13,
-    speed: 258,
+    // PLAN 3.1. The ship is quick off the mark and stops almost as fast: both
+    // numbers are a rate of change of velocity, so game/player.js steers with one
+    // rule however the ship happens to be moving.
+    hitRadius: 6,           // what an enemy has to actually touch - deliberately far smaller than the drawing
+    drawRadius: 13,         // the ship you see; its nose sits 16 px out from the middle
+    maxSpeed: 320,          // px/s
+    accel: 2400,            // px/s^2 - full speed about 0.13 s after you lean
+    brake: 3200,            // px/s^2 - letting go stops it in about 0.10 s
     hull: 3,
     fireRate: 4.4,          // shots per second, before levels
     fireRateMax: 15,
     startInvulnerability: 1.2,
-    hitInvulnerability: 2.2,
-    contactRadiusFactor: 0.78,   // enemy r + player r x this is a hit
+    hitInvulnerability: 1.5,
     hitShoveRadius: 92,          // the crowd is pushed out after a hit
     hitShoveImpulse: 340,
-    steerSmoothing: 11,          // how fast velocity reaches the input direction
     thrustRamp: 6,               // how fast the thruster graphic fades in and out
     recoil: 14,                  // firing pushes the ship back
     spread: 0.045,               // radians of random aim error
@@ -124,10 +128,10 @@ export const BALANCE = {
   shards: {
     life: 12,
     drop: { speedMin: 40, speedMax: 150, jitter: 6, spinMax: 4 },
-    magnetRadius: 145,
+    magnetRadius: 145,      // further than PLAN 3.1's 70 on purpose: see NOTES
     pullNear: 900,
     pullFar: 120,
-    collectRadius: 12,      // added to the player radius
+    collectRadius: 25,      // a shard this close to the ship's centre is yours
     drag: 0.25,             // fraction of speed left after one second
     xp: 1,
     score: 2,

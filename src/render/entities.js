@@ -86,10 +86,10 @@ export function drawPlayer(ctx, alpha) {
   ctx.strokeStyle = PALETTE.playerLine;
   ctx.fillStyle = PALETTE.playerFill;
   ctx.beginPath();
-  ctx.moveTo(ship.r + 3, 0);
-  ctx.lineTo(-ship.r * 0.72, ship.r * 0.82);
-  ctx.lineTo(-ship.r * 0.35, 0);
-  ctx.lineTo(-ship.r * 0.72, -ship.r * 0.82);
+  ctx.moveTo(ship.drawR + 3, 0);
+  ctx.lineTo(-ship.drawR * 0.72, ship.drawR * 0.82);
+  ctx.lineTo(-ship.drawR * 0.35, 0);
+  ctx.lineTo(-ship.drawR * 0.72, -ship.drawR * 0.82);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -106,7 +106,7 @@ export function drawPlayer(ctx, alpha) {
   ctx.strokeStyle = 'rgba(94,247,255,0.16)';
   ctx.shadowBlur = 0;
   ctx.lineWidth = 1;
-  ctx.arc(0, 0, ship.r + 12 + Math.sin(world.time * 3) * 2, 0, TAU);
+  ctx.arc(0, 0, ship.drawR + 12 + Math.sin(world.time * 3) * 2, 0, TAU);
   ctx.stroke();
   ctx.restore();
 }

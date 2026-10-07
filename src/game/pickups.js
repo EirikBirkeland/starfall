@@ -38,7 +38,7 @@ export function updateShards(world, dt) {
   const sound = spec.sound;
   const drag = Math.pow(spec.drag, dt);
   const magnet2 = spec.magnetRadius * spec.magnetRadius;
-  const collectR = world.player.r + spec.collectRadius;
+  const collectR = spec.collectRadius;   // measured from the ship's centre, not its hit radius
   const collect2 = collectR * collectR;
   const shards = world.shards;
 

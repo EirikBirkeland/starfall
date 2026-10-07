@@ -242,7 +242,9 @@ export function updateEnemies(world, dt) {
     }
 
     if (world.state === STATE.PLAY && ship.invuln <= 0) {
-      const reach = enemy.r + ship.r * BALANCE.player.contactRadiusFactor;
+      // ship.r is the hit radius, deliberately far smaller than the ship you can
+      // see (PLAN 3.1): flying close to the crowd is the game, not a mistake.
+      const reach = enemy.r + ship.r;
       if (dist2(enemy.x, enemy.y, ship.x, ship.y) <= reach * reach) {
         hitPlayer(world, enemy);
         if (world.state !== STATE.PLAY) return false;

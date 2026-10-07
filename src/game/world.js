@@ -44,8 +44,9 @@ function createWorld() {
       // the world keeps a px/py of its own: the renderer paints between the two,
       // which is what makes a 120 Hz simulation look smooth on any display.
       px: 0, py: 0,
-      r: spec.radius,
-      speed: spec.speed,
+      r: spec.hitRadius,
+      drawR: spec.drawRadius,   // the ship on screen is bigger than the ship that gets hurt
+      maxSpeed: spec.maxSpeed,
       angle: -Math.PI / 2,
       thrust: 0,
       hull: spec.hull,

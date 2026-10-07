@@ -19,7 +19,7 @@ export function fire(world) {
   const spec = BALANCE.player;
 
   const angle = ship.angle + logic.range(-spec.spread, spec.spread);
-  const nose = ship.r + gun.noseOffset;
+  const nose = ship.drawR + gun.noseOffset;
   const nx = ship.x + Math.cos(ship.angle) * nose;
   const ny = ship.y + Math.sin(ship.angle) * nose;
 
@@ -42,17 +42,52 @@ export function fire(world) {
   cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
+/**
+ * One step of the engines (PLAN 3.1). The velocity is steered toward wherever the
+ * controls point - full speed that way while a direction is held, nothing at all
+ * when none is - and it can only get there at `accel` or `brake` px/s^2.
+ *
+ * Both are rates of change of velocity rather than a smoothing constant, so the
+ * ship answers the same way however it was moving: a lean from a standstill, a
+ * slide to a stop, and a turn that goes through the middle instead of teleporting
+ * across the speed. Nothing is smoothed per frame, which the fixed step needs.
+ */
+function steer(ship, spec, input, dt) {
+  const pushing = input.moveX !== 0 || input.moveY !== 0;
+  let targetX = input.moveX * ship.maxSpeed;
+  let targetY = input.moveY * ship.maxSpeed;
+
+  // The controls are meant to hand over a direction no longer than 1, and this is
+  // the one place that cares: a stick pushed twice as hard is still the ship's
+  // top speed, not twice the ship's top speed.
+  const wanted = Math.sqrt(targetX * targetX + targetY * targetY);
+  if (wanted > ship.maxSpeed) {
+    targetX *= ship.maxSpeed / wanted;
+    targetY *= ship.maxSpeed / wanted;
+  }
+
+  const dvx = targetX - ship.vx;
+  const dvy = targetY - ship.vy;
+  const gap = Math.sqrt(dvx * dvx + dvy * dvy);
+  if (gap === 0) return;
+
+  // Never past the target, so the ship settles instead of ringing around it.
+  const reach = Math.min(gap, (pushing ? spec.accel : spec.brake) * dt);
+  ship.vx += (dvx / gap) * reach;
+  ship.vy += (dvy / gap) * reach;
+}
+
 export function updatePlayer(world, dt, input) {
   const spec = BALANCE.player;
   const ship = world.player;
 
-  const steer = clamp(dt * spec.steerSmoothing, 0, 1);
-  ship.vx += (input.moveX * ship.speed - ship.vx) * steer;
-  ship.vy += (input.moveY * ship.speed - ship.vy) * steer;
+  steer(ship, spec, input, dt);
   ship.px = ship.x;
   ship.py = ship.y;
-  ship.x = clamp(ship.x + ship.vx * dt, ship.r, world.arena.w - ship.r);
-  ship.y = clamp(ship.y + ship.vy * dt, ship.r, world.arena.h - ship.r);
+  // The body is clamped by what you can see of it, not by the hit radius, or the
+  // nose would disappear into the wall.
+  ship.x = clamp(ship.x + ship.vx * dt, ship.drawR, world.arena.w - ship.drawR);
+  ship.y = clamp(ship.y + ship.vy * dt, ship.drawR, world.arena.h - ship.drawR);
   ship.angle = Math.atan2(input.aimY - ship.y, input.aimX - ship.x);
   ship.thrust = clamp(ship.thrust + (input.moving ? dt * spec.thrustRamp : -dt * spec.thrustRamp), 0, 1);
   if (ship.invuln > 0) ship.invuln -= dt;

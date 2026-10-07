@@ -423,3 +423,92 @@ Pick one per session. Suggested order and notes:
    `stepWorld` loop while a freeze timer runs, but *drain the accumulator* while frozen or the clock
    will hand back a burst of catch-up steps the moment it unfreezes. Put the timer on the world and
    step it in real time, not in step time.
+
+## Session 8 (2026-10-07) — Milestone 2: the ship flies like the plan says
+
+### What landed
+**Player movement to PLAN 3.1** (`accel`, `friction`, small hit radius). The old model smoothed the
+velocity toward the input direction (`steerSmoothing: 11`, a per-frame constant); the ship now steers
+its **velocity** toward wherever the controls point, at a rate in px/s²:
+
+- `maxSpeed 320` (was 258), `accel 2400` → full speed 0.133 s after you lean; `brake 3200` → a
+  standstill 0.100 s after you let go, and *exactly* zero, not an asymptotic creep.
+  One rule in `steer()` in `game/player.js`: find the gap between the current velocity and the target,
+  close at most `rate × dt` of it, never past the target. Same shape whether the ship was already
+  moving that way or the exact opposite, which is what makes a U-turn a slide (0.27 s) rather than a
+  pivot or a pole-vault. Because both numbers are accelerations and nothing is smoothed per frame,
+  the model is honest at a fixed 1/120 s (the old `dt * 11` was frame-rate maths the fixed step was
+  papering over).
+- **`hitRadius` 6, `drawRadius` 13** (the drawing is unchanged: its nose still sits 16 px out). The
+  world ship keeps `r` = the hit radius and gains `drawR`; everything that draws or measures the ship
+  by eye (the hull in `render/entities.js`, the LV label in `progress.js`, the muzzle in `fire()`,
+  the wall clamp in `updatePlayer`) reads `drawR`, and the only place `r` is used for anything is the
+  contact test in `updateEnemies` - `reach = enemy.r + ship.r`, `contactRadiusFactor` deleted with it.
+  You can now fly a chaser's shoulder and live. The wall clamp uses `drawR`, so the ship never sinks
+  into the edge of the screen by its nose.
+- `shards.collectRadius` is now measured **from the ship's centre** (25 px, which is exactly what
+  `r + collectRadius` used to be), because adding the hit radius to it would have quietly halved how
+  close you have to fly to be paid. `shards.magnetRadius` stays 145, not PLAN's 70: deliberate - the
+  hitbox shrink means leaning into a shard pile is now a thing you *can* do, and next session the
+  arena becomes 3000×3000, where a 12-second shard that is 70 px out of your way is a shard nobody sees.
+- `hitInvulnerability` 2.2 → **1.5** (PLAN's number). The small hitbox is a gift; this pays for it.
+- `steer()` also clamps the *target* to `maxSpeed`, so a control layer that hands over a direction
+  longer than 1 (a gamepad stick shoved twice as hard, a future touch pad) buys a normal-speed ship.
+  `input/index.js` normalises today; this is the one place that would care if it ever stopped.
+
+### The bug this found, and it is not a movement bug
+`test/seed.test.mjs` went red: the same seed, played twice in one process, drifted apart - at frame
+690 of seed 4031 one run had taken 1385 steps and the other 1384. **`core/clock.js` was measuring a
+frame too precisely.** `(now - last) / 1000` is a difference of two timestamps that grow all session,
+so two frames that are both "16.7 ms" come out differing in the 12th decimal depending on how long the
+page has been open. That noise is smaller than a step, but `carry` accumulates it, and about 34 seconds
+in it tipped one frame over a step boundary - one extra step, one different frame of bot input, a
+different run. It never showed up before because nothing had yet run long enough to notice.
+
+Fixed in the clock: a frame's length is rounded to the **microsecond** and no finer
+(`Math.round((now - last) * 1000) / 1e6`). Nobody can tell two frames apart below that, and a run must
+not be able to either. This was never only a test artifact: a shared `?seed=` played in a tab that has
+been open an hour was a different game from one played in a fresh tab. Test: `test/clock.test.mjs`
+"the same rhythm an hour into a page asks for the same simulation" (4000 frames, both sequences
+bit-identical). Cross-process determinism had held all along - `tools/simulate.js --seed N` twice was
+always byte-identical.
+
+### Tests: 79, all passing (was 71)
+- `test/movement.test.mjs` (7): the plan's numbers are still the code's numbers (start-up 0.13 s, stop
+  0.10 s, hit radius 6, hull 3); a lean reaches full speed when it should and settles on it without
+  ringing; letting go stops the ship dead and never past zero; nothing can be held above the top speed,
+  including a push of length 2; a U-turn is a 0.27 s slide; the arena holds the ship by its drawn body;
+  and an enemy overlapping the *drawing* does not cost hull while one on the core does.
+- `tools/headless/scripted.js`: `stepTheWorld(input)` takes what the ship is doing, and `flyFor(seconds,
+  input)` holds it and returns the whole path `[{ t, vx, vy, x, y }]` - a movement test should measure
+  seconds, not count frames.
+- `test/clock.test.mjs` +1 (above).
+
+### Reference run, rebaselined on purpose
+`node tools/simulate.js --seed 20261006 --trace` → **dies 1m14s, score 1108, level 4, 74 kills,
+64 shards** (was 1m19s / 1257 / level 5 / 82 / 78). Bot over seeds 1-4: **1m00s** average, score 726
+(was 1m06s / 865). The bigger hitbox gift and the shorter invulnerability nearly cancel out; the naive
+bot comes out 6 s down because it stands still and gets mobbed. Faster ship + a 6 px hitbox is a big
+gain for a player who moves, and the bot barely moves. That is the number M3's dodging bot will show.
+
+### Released **v0.2.0**.
+
+### Notes for future sessions
+- **Firing no longer shoves the ship.** `recoil: 14` px/s is eaten by the brake in a single step
+  (brake × step = 26.7 px/s). If recoil wants to be felt again it has to come back as a visible kick -
+  muzzle flash, a small trauma - not as velocity. Not touched this session; it is a feel call and it is
+  a small one.
+- The dash (next M2 item) wants a burst of velocity, and the brake will fight it: either the dash sets
+  the velocity and the ship keeps `moving: false` for its duration, or the dash is a position offset
+  applied after `steer()`. Think about which when it comes up; the fixed step makes either cheap.
+- `world.player.drawR` is a number, not the balance key's name - `BALANCE.player.drawRadius`. Ships
+  (M5) will want both plus a shape, and `resetRun` does not re-derive them from BALANCE, so a ship
+  select has to write them.
+
+### Next (Milestone 2)
+1. **Dash**: 220 px in 0.12 s, 2.5 s cooldown, invulnerable during it, cooldown ring around the ship,
+   Space or right mouse. It is PLAN 3.1's last movement row and it wants `input` to grow a `dash` edge.
+2. Pre-rendered glow sprites; drop per-frame `shadowBlur`.
+3. Arena 3000×3000 + camera (reading the interpolated position) + energy walls.
+4. Hit-stop (freeze 40 ms on big kills, 90 ms on a player hit) - the session-7 note says how to do it
+   without the clock biting back: drain the accumulator while frozen.
