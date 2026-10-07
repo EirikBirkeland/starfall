@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.3.1",
+    "date": "2026-10-07",
+    "summary": "The spitter: a telegraphed enemy shot"
+  },
+  {
     "version": "0.3.0",
     "date": "2026-10-07",
     "summary": "The darter: a telegraphed lunging enemy"
