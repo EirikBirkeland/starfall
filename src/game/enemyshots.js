@@ -16,17 +16,20 @@ import { STATE } from './state.js';
 import { dist2 } from '../core/math.js';
 import { burst } from './effects.js';
 import { hitPlayer, isInvulnerable } from './player.js';
+import { hurtByShot } from './tally.js';
 
 /** The shape of an enemy shot. Every spawner writes every one of these fields. */
 export function makeEnemyShot() {
-  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, r: 0, color: '' };
+  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, r: 0, color: '', from: '' };
 }
 
 /**
  * Send one enemy shot out of (x, y) along the unit vector (dx, dy). `spec` is the
- * firing kind's own `shot` numbers: `speed`, `radius`, `life`, `color`.
+ * firing kind's own `shot` numbers: `speed`, `radius`, `life`, `color`. `from` is
+ * the kind that fired it, which is the only way anybody can say afterwards who put a
+ * hole in the ship (game/tally.js); a shot nobody claims is blamed on nothing.
  */
-export function enemyShotAt(world, x, y, dx, dy, spec) {
+export function enemyShotAt(world, x, y, dx, dy, spec, from) {
   const shot = world.enemyShots.spawn();
   shot.x = x;
   shot.px = x;
@@ -37,6 +40,7 @@ export function enemyShotAt(world, x, y, dx, dy, spec) {
   shot.life = spec.life;
   shot.r = spec.radius;
   shot.color = spec.color;
+  shot.from = from || '';
   return shot;
 }
 
@@ -78,7 +82,7 @@ export function updateEnemyShots(world, dt) {
     shots.killAt(i);
     const impact = spec.impact;
     burst(world, shot.x, shot.y, shot.color, impact.count, impact.speed, impact.life);
-    hitPlayer(world);
+    hitPlayer(world, hurtByShot(shot));
     if (world.state !== STATE.PLAY) return false;
   }
   return true;

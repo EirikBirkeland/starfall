@@ -25,6 +25,7 @@ import { damageEnemy } from './enemies.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { burst, hitStop, ring, shakeIt } from './effects.js';
 import { cueBeep } from './cues.js';
+import { hurtByBlast } from './tally.js';
 
 /**
  * Let off one blast at (x, y). `spec` is the numbers of whatever went off: `radius`,
@@ -68,5 +69,5 @@ export function blast(world, x, y, spec, byPlayer) {
 
   const ship = world.player;
   if (world.state !== STATE.PLAY || isInvulnerable(ship)) return;
-  if (dist2(ship.x, ship.y, x, y) <= reach2) hitPlayer(world, null);
+  if (dist2(ship.x, ship.y, x, y) <= reach2) hitPlayer(world, hurtByBlast());
 }

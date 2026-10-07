@@ -8,6 +8,7 @@ import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
 import { burst, ring, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
+import { newTally } from './tally.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -58,6 +59,10 @@ export function resetRun(world) {
   world.kills = 0;
   world.shardsCollected = 0;
   world.newBest = false;
+  // A fresh sheet for the new run (game/tally.js). A new object rather than emptying
+  // the old one, so anything holding on to a finished run's tally keeps reading the
+  // run it belongs to - which is exactly what tools/balance-report.js does.
+  world.tally = newTally();
   clearCues();
 }
 

@@ -180,6 +180,9 @@ export function playOneRun(game, options) {
     died: died,
     policy: opts.policy === undefined ? DEFAULT_POLICY : opts.policy,
     seed: game.world.seed,
+    // What the run was made of, counted as it went (game/tally.js). The run keeps
+    // its own sheet, so this stays readable after the next run starts.
+    tally: game.world.tally,
     frames: frames,
     seconds: +(frames * FRAME_MS / 1000).toFixed(2),
     stats: game.stats(),

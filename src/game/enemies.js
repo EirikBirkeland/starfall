@@ -13,6 +13,7 @@ import { eliteSpoils } from './elite.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
+import { noteDeath, noteHit, hurtByBody } from './tally.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -51,6 +52,7 @@ function chipsOf(stats, enemy) {
 export function damageEnemy(world, enemy, amount, byPlayer) {
   enemy.hp -= amount;
   enemy.flash = BALANCE.enemies.hitFlash;
+  noteHit(world, enemy, amount);
   if (enemy.hp > 0) return false;
   killEnemy(world, enemy, byPlayer);
   return true;
@@ -59,6 +61,7 @@ export function damageEnemy(world, enemy, amount, byPlayer) {
 /** Remove one enemy and pay out whatever it is worth. */
 export function killEnemy(world, enemy, byPlayer) {
   removeEnemy(world, enemy);
+  noteDeath(world, enemy, byPlayer);
 
   const kind = enemy.kind;
   const stats = kind.stats;
@@ -148,7 +151,7 @@ export function updateEnemies(world, dt) {
       // see (PLAN 3.1): flying close to the crowd is the game, not a mistake.
       const reach = enemy.r + ship.r;
       if (dist2(enemy.x, enemy.y, ship.x, ship.y) <= reach * reach) {
-        hitPlayer(world, enemy);
+        hitPlayer(world, hurtByBody(enemy));
         if (world.state !== STATE.PLAY) return false;
       }
     }

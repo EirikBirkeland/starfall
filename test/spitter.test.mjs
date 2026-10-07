@@ -187,6 +187,8 @@ test('a shot that reaches the ship costs one hull and is spent', () => {
   assert.equal(field.enemyShots.count, 0, 'and the shot is gone');
   assert.ok(field.player.invuln > 0, 'and the grace after a hit began');
   assert.ok(spitter.hp > 0, 'nothing about that hurt the spitter');
+  assert.equal(field.tally.hurtBy['shot:spitter'], 1,
+    'and the run\'s sheet knows whose spit it was (game/tally.js)');
 });
 
 test('the grace after a hit lets a shot through instead of billing it twice', () => {

@@ -33,6 +33,7 @@ import { cueBeep } from './cues.js';
 import { spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
 import { blast } from './blast.js';
+import { noteArrival } from './tally.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -182,6 +183,18 @@ export function makeEnemy(world, type, x, y, opts) {
     ix: chosen(opts, 'ix', 0),
     iy: chosen(opts, 'iy', 0),
     ambient: false,
+    // The run's own notes on this body, which game/tally.js writes and reads back
+    // when it stops: when the world put it in play (`born`), the first time anything
+    // landed on it (`firstHit`), the time of the last hit that landed (`lastHit`), how
+    // many shots landed on it (`hits`), and how long it has spent being fired at
+    // (`fired`). The first three are -1 until somebody notes them, which is how a body
+    // that arrived some other way - a test, the title screen's crowd - stays out of
+    // the balance tables.
+    born: -1,
+    firstHit: -1,
+    lastHit: -1,
+    hits: 0,
+    fired: 0,
     vx: 0,   // only the slow title-screen crowd uses these
     vy: 0,
   };
@@ -408,7 +421,7 @@ function winding(enemy, step, spec) {
   enemyShotAt(step.world,
     enemy.x + enemy.dirX * enemy.r,
     enemy.y + enemy.dirY * enemy.r,
-    enemy.dirX, enemy.dirY, spec.shot);
+    enemy.dirX, enemy.dirY, spec.shot, enemy.type);
   enemy.stage = '';
   enemy.timer = spec.after;
   enemy.stageTime = spec.after;
@@ -536,5 +549,6 @@ function hatch(world, parent) {
     // The crowd grew after this step's grid was rebuilt, so a hatchling can be
     // shot from the next step. It is thrown clear as it appears; nobody notices.
     world.enemies.push(kid);
+    noteArrival(world, kid);
   }
 }

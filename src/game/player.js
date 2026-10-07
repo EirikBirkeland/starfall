@@ -11,6 +11,7 @@ import { clamp } from '../core/math.js';
 import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
+import { noteHullLoss } from './tally.js';
 
 /** One shot: a bullet, a shove backwards, a muzzle flash, and a cue. */
 export function fire(world) {
@@ -237,13 +238,20 @@ export function updatePlayer(world, dt, input) {
   }
 }
 
-/** The ship is hit once: one hull, a flash of feedback, and a moment of grace. */
-export function hitPlayer(world, enemy) {
+/**
+ * The ship is hit once: one hull, a flash of feedback, and a moment of grace.
+ *
+ * `cause` says what did it - a body, a shot, or a blast (see game/tally.js, which
+ * is where the three shapes are made). The tally needs it to say what the run died
+ * of, and a body that touched the ship gets flashed for its trouble.
+ */
+export function hitPlayer(world, cause) {
   const spec = BALANCE.player;
   const hit = BALANCE.playerHit;
   const ship = world.player;
 
   ship.hull--;
+  noteHullLoss(world, cause);
   ship.invuln = spec.hitInvulnerability;
   shakeIt(world, hit.shake);
   // The longest freeze in the game. For these milliseconds the ship is still
@@ -266,7 +274,7 @@ export function hitPlayer(world, enemy) {
     }
   }
 
-  if (enemy) enemy.flash = BALANCE.enemies.hitFlashShove;
+  if (cause.enemy) cause.enemy.flash = BALANCE.enemies.hitFlashShove;
   const sound = hit.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 

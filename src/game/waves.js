@@ -29,6 +29,7 @@ import { KINDS, kindOf, makeEnemy } from './kinds.js';
 import { rollElite } from './elite.js';
 import { logic } from '../core/rng.js';
 import { dist2, TAU } from '../core/math.js';
+import { noteArrival } from './tally.js';
 
 const EDGES = 4;   // an arrival with no bearing picks one of four sides
 
@@ -218,6 +219,7 @@ export function spawnEnemy(world, type, bearing, elite) {
   if (spot === null) return null;
   const enemy = makeEnemy(world, name, spot.x, spot.y, elite ? ELITE : null);
   world.enemies.push(enemy);
+  noteArrival(world, enemy);
   return enemy;
 }
 

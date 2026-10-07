@@ -14,6 +14,7 @@ import { updateEnemies } from './enemies.js';
 import { updateWaves } from './waves.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
+import { newTally } from './tally.js';
 
 function createWorld() {
   const spec = BALANCE.player;
@@ -40,6 +41,9 @@ function createWorld() {
     kills: 0,
     shardsCollected: 0,
     shake: 0,
+    // What this run is being made of, counted as it goes (game/tally.js). A mirror
+    // and never a cause: nothing here is read by the simulation itself.
+    tally: newTally(),
 
     // The world the run happens in, and the window it is watched through. The
     // arena is the size of the game; the view is the size of the screen, which is

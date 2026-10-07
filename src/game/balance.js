@@ -468,6 +468,23 @@ export const BALANCE = {
     shakeDecay: 34,
   },
 
+  tally: {
+    // The run counts what it is made of while it happens (game/tally.js) so that
+    // tools/balance-report.js can print honest per-kind tables. Times are counted
+    // into fixed histograms rather than collected into a list, so a half-hour run
+    // costs exactly what a thirty-second one does, and each histogram is deep enough
+    // that a whole run fits inside it: a body can live for minutes and still be
+    // killed in a second, so the two want different steps.
+    life: { bucket: 1, buckets: 256 },      // arrival -> death, to a little over 4m
+    fire: { bucket: 0.25, buckets: 128 },   // being shot -> dead, to 32s
+    // How many shots' worth of the ship's own fire rate may go by between two hits on
+    // one body before the shooting at it counts as having stopped. This is the whole
+    // definition of "a run of fire" behind the report's time-to-kill column, and it
+    // is written as shots rather than seconds so it means the same thing whatever
+    // weapon is doing the firing.
+    volley: 3,
+  },
+
   ambient: {
     // The slow, harmless crowd that drifts behind the title screen.
     kinds: ['drifter', 'weaver', 'tank', 'darter', 'spitter', 'drifter', 'weaver', 'bomber'],

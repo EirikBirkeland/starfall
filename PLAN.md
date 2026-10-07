@@ -301,7 +301,11 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - [x] Extend the simulation bot to dodge bullets - and the telegraphs, which turned out
   to be the same item: `tools/headless/threats.js`, `--bot aware` by default, the plain
   bot kept as `--bot naive`.
-- [ ] Add `tools/balance-report.js`.
+- [ ] Make an elite actually arrive: the seat in a wave is rolled over `waves.maxMembers`
+      while a wave is usually half that long, so a real run of eight minutes or more sees
+      almost no gold. Measured by the balance report: 0 gold bodies in 6 runs, one of them
+      11 minutes long.
+- [x] Add `tools/balance-report.js`.
 - [ ] Release.
 
 ### Milestone 4: upgrades
