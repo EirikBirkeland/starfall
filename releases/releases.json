@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.2.1",
+    "date": "2026-10-07",
+    "summary": "The dash: 220 px on rails, a 2.5 s wait, invulnerable through it"
+  },
+  {
     "version": "0.2.0",
     "date": "2026-10-07",
     "summary": "The ship flies like the plan says: acceleration, braking, a 6 px hitbox"
