@@ -11,6 +11,7 @@ import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
 import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawPlayer, drawShards, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
+import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
@@ -85,5 +86,9 @@ export function renderFrame(tick, input) {
   ctx.fillStyle = view.vignette;
   ctx.fillRect(0, 0, W, H);
 
+  // The arrows belong to the glass and not to the arena: out here they stay pinned to
+  // the edge they point along however hard the frame shakes, and the vignette cannot
+  // dim the one warning that has to be seen in a corner.
+  if (world.state === STATE.PLAY) drawIndicators(ctx, tick.dt, tick.alpha);
   if (world.state === STATE.PLAY || world.state === STATE.OVER) drawHUD(ctx, tick.fps);
 }

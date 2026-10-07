@@ -20,6 +20,29 @@ function makeGradient() {
 
 function makeContextStub(counters, drawLog) {
   const noop = () => {};
+  // The canvas keeps a current transform; so does the stub, well enough to answer
+  // where on the canvas a draw call actually landed. A draw call's own numbers are
+  // in whatever coordinate system the code was writing in - the arena, the glass, a
+  // rotated ship - and only the transform says what the player ends up seeing, so
+  // this is how a test can tell one from the other (see `translates()` below).
+  const identity = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const stack = [];
+  let matrix = identity;
+  const onward = (n) => {
+    matrix = {
+      a: matrix.a * n.a + matrix.c * n.b,
+      b: matrix.b * n.a + matrix.d * n.b,
+      c: matrix.a * n.c + matrix.c * n.d,
+      d: matrix.b * n.c + matrix.d * n.d,
+      e: matrix.a * n.e + matrix.c * n.f + matrix.e,
+      f: matrix.b * n.e + matrix.d * n.f + matrix.f,
+    };
+  };
+  /** Where a point of the current coordinate system lands on the canvas. */
+  const onto = (x, y) => ({
+    x: matrix.a * x + matrix.c * y + matrix.e,
+    y: matrix.b * x + matrix.d * y + matrix.f,
+  });
   const target = {
     createLinearGradient: () => { counters.gradients++; return makeGradient(); },
     createRadialGradient: () => { counters.gradients++; return makeGradient(); },
@@ -41,15 +64,20 @@ function makeContextStub(counters, drawLog) {
     strokeText: () => { counters.texts++; },
     drawImage: (image, x, y, w, h) => {
       counters.images++;
-      drawLog.images.push({ x: x, y: y, w: w, h: h });
+      drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
     },
     translate: (x, y) => {
       counters.translates++;
-      drawLog.translates.push({ x: x, y: y });
+      drawLog.translates.push({ x: x, y: y, at: onto(x, y) });
+      onward({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
     },
+    rotate: (r) => onward({ a: Math.cos(r), b: Math.sin(r), c: -Math.sin(r), d: Math.cos(r), e: 0, f: 0 }),
+    scale: (x, y) => onward({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }),
+    setTransform: (a, b, c, d, e, f) => { matrix = { a: a, b: b, c: c, d: d, e: e, f: f }; },
+    save: () => { stack.push(matrix); },
+    restore: () => { if (stack.length > 0) matrix = stack.pop(); },
     beginPath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop,
-    closePath: noop, save: noop, restore: noop, rotate: noop,
-    scale: noop, setTransform: noop,
+    closePath: noop,
     // A dash pattern is part of the drawing state, so it is saved and restored like a
     // colour. The bomber's death zone is dashed (render/entities.js) and the stub has
     // to at least agree to be told one.
@@ -227,9 +255,13 @@ export async function bootGame(options) {
     drawCalls() { return Object.assign({}, counters); },
     /** What it took to bake the glow sprites: offscreen canvases and gradients. */
     bakeCalls() { return Object.assign({}, bakes); },
-    /** Every translate the last frame made, in the order the frame drew them. */
+    /**
+     * Every translate the last frame made, in the order the frame drew them: the
+     * arguments it was given (`x`, `y`) and where that lands on the canvas once the
+     * transforms around it are applied (`at`, in device pixels).
+     */
     translates() { return drawLog.translates.slice(); },
-    /** Every sprite the last frame stamped, and where: { x, y, w, h }. */
+    /** Every sprite the last frame stamped, and where: { x, y, w, h, at }. */
     stamps() { return drawLog.images.slice(); },
     /** Where an arena point lands on the screen, now the arena is not the window. */
     screenOf: (x, y) => game.screenOf(x, y),
@@ -272,6 +304,8 @@ export async function bootGame(options) {
       // A fresh page's camera has never looked anywhere else, so a second run on
       // one boot has to say the same thing - after the ship has been put back.
       game.resetCamera();
+      // Nor has its edge ever had an arrow fading out over it.
+      game.resetIndicators();
       world.state = STATE.START;
       world.overTimer = 0;
       // startRun() reseeds from world.seed, so this is all it takes to set the

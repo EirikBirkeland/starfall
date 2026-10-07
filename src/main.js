@@ -14,6 +14,7 @@ import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camer
 import { buildStars, updateStars } from './render/background.js';
 import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
+import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
@@ -165,6 +166,11 @@ window.STARFALL = {
    * somewhere else.
    */
   resetCamera: function () { snapCamera(); },
+  /**
+   * Forget the arrows at the edge of the window. Same reasoning as resetCamera
+   * above: a new run is played by a view that has not been pointing anywhere.
+   */
+  resetIndicators: function () { resetIndicators(); },
   stats: function () {
     return {
       state: world.state,
@@ -181,6 +187,7 @@ window.STARFALL = {
       bullets: world.bullets.count,
       shots: world.enemyShots.count,
       wave: world.waveNumber,
+      arrows: arrowCount(),
       shards: world.shards.count,
       gridCells: world.grid.stats().filled,
       parts: world.particles.count,

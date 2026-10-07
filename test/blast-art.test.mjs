@@ -15,6 +15,7 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
+import { arrowCount } from '../src/render/indicators.js';
 import { fuseLight, zoneLight } from '../src/render/entities.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -53,7 +54,17 @@ function frameCost() {
     dashes: after.dashes - before.dashes,
     gradients: after.gradients - before.gradients,
     shadows: after.shadows - before.shadows,
+    arrows: arrowCount(),
   };
+}
+
+/**
+ * How many lights a frame stamped, not counting the arrows at the window edge:
+ * a bomber parked off the window is exactly the body those arrows exist for
+ * (render/indicators.js), and this file is about the ring and the fuse.
+ */
+function lights(cost) {
+  return cost.images - cost.arrows;
 }
 
 /** Put one enemy of `type` at (x, y) for the next frame only. */
@@ -121,13 +132,13 @@ test('the ring reaches the window from further off than the body does', () => {
   assert.ok(pastTheEdge(off.x) > off.r, 'its body is off the window by '
     + pastTheEdge(off.x).toFixed(0) + ' px');
   assert.equal(ringOnly.dashes, 1, 'and still the ring is drawn');
-  assert.equal(ringOnly.images, empty.images, 'with none of the body, and none of its fuse');
+  assert.equal(lights(ringOnly), lights(empty), 'with none of the body, and none of its fuse');
 
   clearTheSky();
   planted('bomber', game.camera.x + game.camera.w + RADIUS + 200, ship.y);
   const far = frameCost();
   assert.equal(far.dashes, empty.dashes, 'a circle that touches nothing is not drawn');
-  assert.equal(far.images, empty.images, 'and neither is anything else of it');
+  assert.equal(lights(far), lights(empty), 'and neither is anything else of it');
 });
 
 test('a wounded bomber is the same drawing, only louder', () => {
