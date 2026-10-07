@@ -28,15 +28,14 @@ import { eliteSpoils, rollElite } from '../src/game/elite.js';
 import { dropBigShard } from '../src/game/pickups.js';
 import { healPlayer } from '../src/game/player.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
+import { CHEAPEST, CHEAPEST_KIND, LAST_UNLOCK } from '../tools/headless/balance-tools.js';
 
 const STEP = BALANCE.sim.step;
 const E = BALANCE.elite;
 const W = BALANCE.waves;
 const SHARDS = BALANCE.shards;
-/** A run aged past every `from` in the game, so nothing is locked out. */
-const LATE = Math.max(...Object.values(BALANCE.kinds).map((kind) => kind.from), E.from) + 30;
-/** The cheapest body the director can buy. */
-const CHEAPEST = Math.min(...Object.values(BALANCE.kinds).map((kind) => kind.cost));
+/** A run aged past every `from` in the game, elites included, so nothing is locked out. */
+const LATE = Math.max(LAST_UNLOCK, E.from) + 30;
 
 /** A run parked `seconds` old with the director on a leash. */
 function runAged(seed, seconds) {
@@ -84,11 +83,19 @@ function seatInFan(field, wave, enemy) {
  * that is mostly standing there looks like. The dearest kind goes in first so that
  * the crowd that does it is small enough not to hit the ceiling on bodies.
  */
+/**
+ * The arena cleared, then crowded until the room left for the next wave is as small as
+ * the director will still spend a wave on - and not a point smaller than that. Three
+ * bodies of room, which is what a crowd that is mostly standing there looks like. The
+ * dearest kind goes in first so that the crowd that does it is small enough not to hit
+ * the ceiling on bodies; the cheapest one closes the last point or two, which is what
+ * makes the room exactly as tight as it is rather than nearly.
+ */
 function crowdTighteningRoomTo(field) {
   field.enemies.length = 0;
-  for (const kind of ['tank', 'drifter']) {
+  for (const kind of ['tank', 'drifter', CHEAPEST_KIND]) {
     const cost = BALANCE.kinds[kind].cost;
-    while (roomToSpare(field) >= W.waveMinPoints + cost) {
+    while (roomToSpare(field) - cost >= W.waveMinPoints) {
       field.enemies.push(makeEnemy(field, kind, 300 + field.enemies.length * 6, 300));
     }
   }

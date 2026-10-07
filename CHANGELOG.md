@@ -1,5 +1,29 @@
 # Starfall — changelog
 
+## 0.3.8 — 2026-10-07
+Twenty of them at once: the swarm arrives at nine minutes.
+- A **swarm** is one arrival made of up to twenty small, fast bodies. The wave director
+  rolls it like any other kind and pays for it one body at a time, but the whole pack
+  takes a single place in the wave's fan - it comes in off one side, together, as one
+  thing coming in. Too few bodies to be called a swarm and the swarm is not sent at all.
+- They **flock**. Every body pulls towards the ship, back towards the middle of its pack
+  when it strays, and along the heading its neighbours are flying; the pack has a middle,
+  a heading and a clock of its own, and a body that is cut off from them is just another
+  enemy.
+- Every few seconds the whole pack **bunches up and slows**, and then every body flies the
+  one line the pack locked when it stopped bunching, several times its walking speed. That
+  bunching is the telegraph - it is the same clock the drawing counts down, and one rising
+  buzz for the pack rather than twenty - so a dive is always something you were shown.
+- Individually a swarmling is the cheapest thing in the arena: seven pixels, one hull, and
+  scarlet, which nothing else in the game wears. Together they are the one crowd that has
+  to be read as a *thing*; a pack that reaches you and settles will cost you a hull every
+  time you let it touch you, and the only answer is to keep moving and let the pack come
+  apart behind you.
+- A run that ends before 9:00 is untouched: the reference run is byte for byte the same
+  3m17s it has been. In 24 measured runs four lived long enough to meet a swarm - the
+  first one landed at 10m11s, since a pack has to be affordable as well as unlocked - and
+  the swarm ended two of those four.
+
 ## 0.3.7 — 2026-10-07
 The shielder arrives at seven and a half minutes, and it changes what you shoot at.
 - A **shielder** walks in and stands off behind its own crowd with its face to you. Every

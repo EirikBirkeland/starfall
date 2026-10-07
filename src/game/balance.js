@@ -326,6 +326,56 @@ export const BALANCE = {
       death: { particles: 22, speed: 290, debris: 8, debrisSpeed: 200 },
       sound: { freq: 170, dur: 0.2 },
     },
+    // PLAN 3.3's "splitter swarm" (9:00): "8 each, 180, arrives in packs of 20, flocks".
+    // The row is one body of that swarm - the kind is called a swarmling because the
+    // pack is the arrival and this is what arrives - and the word "splitter" is taken:
+    // a tank already splits (see `split` above), and two kinds meaning "comes apart into
+    // more of me" would be one idea too many. What this one does instead is fly with its
+    // friends (game/flock.js).
+    swarmling: {
+      radius: 7, speed: 190, hull: 1, score: 10, drop: 1,
+      from: 540, cost: 1, weight: 1,
+      // `sides` is the fallback shape; the swarmling is drawn as a long thin dart
+      // (render/entities.js), because the only way twenty of them can be told apart
+      // from a drifter at seven pixels is the shape and the colour.
+      color: PALETTE.swarm, fill: PALETTE.swarmFill, sides: 3, glow: 11,
+      // The arrival (game/waves.js). A wave that rolls this kind buys a *pack*: one
+      // entry in the wave's fan that turns into `into` bodies standing in a `clump`
+      // px-wide clump on one side of the window. `min` is the smallest pack worth the
+      // name, and it is what the roll has to be able to pay for - so a swarm is never
+      // bought a body at a time and never arrives as three of them.
+      //
+      // `cost` is per body, like every other kind, and the two locksteps that keep the
+      // pack possible are asserted in test/swarm.test.mjs: `cost * min` has to fit in
+      // the smallest wave the director will spend, and `cost * into` in the biggest.
+      pack: { into: 20, min: 8, clump: 62 },
+      // The flock (game/flock.js). Every body of a pack pulls at the ship, back
+      // towards the pack's middle when it is further than `keep` px out of it, and
+      // along the way its neighbours are flying; `pull` and `align` are the weights of
+      // those three pulls, `sway` is the shimmer that stops the pack freezing into one
+      // shape, and `turn` is how fast one of them can change its mind, rad/s. All of
+      // it is arithmetic on the crowd, so a walk spends no randomness.
+      //
+      // Then the pack dives. Every `gather` seconds it bunches up for `brace` of them
+      // - `braceKeep` is how much narrower it tries to be while it does, and
+      // `braceSpeed` how much slower it crawls - and then every body flies the one
+      // line the pack locked when the brace ended, at `dive.mul` times its speed for
+      // `dive.time` seconds. The bunching is the telegraph: it is the same two numbers
+      // the drawing counts down, and the `sound` is one rising buzz per pack, not one
+      // per body.
+      flock: {
+        keep: 92, pull: 1.8, align: 0.45, turn: 5.2, loiter: 0.3,
+        sway: { rate: 3.4, amount: 0.55 },
+        gather: 3.4, brace: 0.7, braceKeep: 0.34, braceSpeed: 0.4,
+        dive: { time: 0.5, mul: 2.4 },
+        sound: { freq: 380, dur: 0.3, wave: 'sawtooth', vol: 0.03, slide: 620 },
+      },
+      // A small body makes a small mess, and its death beep is quiet on purpose:
+      // twenty of them can go off in the same frame, and the mix has no voice limiting
+      // yet (milestone 7).
+      death: { particles: 6, speed: 210, debris: 1, debrisSpeed: 150 },
+      sound: { freq: 660, dur: 0.06, vol: 0.045 },
+    },
   },
 
   death: {
@@ -371,9 +421,13 @@ export const BALANCE = {
   //              a test that says so.
   //   waveMaxPoints  the most one wave may spend, so a big gap in pressure arrives
   //              as three waves and not as one screenful
-  //   maxMembers     however cheap they are, one wave is not more bodies than this
+  //   maxMembers     however cheap they are, one wave is not more bodies than this -
+  //              counted in *members*, and one pack (kinds.swarmling.pack) is one
+  //              member however many bodies it turns into
   //   maxBodies      the hard ceiling, whatever the budget says: this many bodies is
-  //              what the frame budget was measured against, not a difficulty knob
+  //              what the frame budget was measured against, not a difficulty knob.
+  //              A pack is cut down to whatever room is left under it, and not sent at
+  //              all if that is fewer than its `min`.
   //   gap [s]        the beat between one wave and the next, so a wave stays a thing
   //              you can see arrive
   //   retry [s]      how soon to look again when there was nothing worth spending

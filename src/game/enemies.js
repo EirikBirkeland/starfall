@@ -85,7 +85,10 @@ export function killEnemy(world, enemy, byPlayer) {
     // The number that floats up is worth gold when the body that carried it was.
     addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
       enemy.elite ? PALETTE.elite : stats.color);
-    cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, death.sound.vol, death.sound.slide);
+    cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave,
+      // A kind can ask for a quieter death than the crowd's default: twenty swarmlings
+      // can come apart in one frame and the mix has no voice limiting yet (milestone 7).
+      stats.sound.vol || death.sound.vol, death.sound.slide);
     // A kill the kind calls big gets the run to hold its breath for a moment.
     if (stats.death.shake) shakeIt(world, stats.death.shake);
     if (stats.death.hitStop) hitStop(world, stats.death.hitStop);

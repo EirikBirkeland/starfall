@@ -13,6 +13,7 @@ import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, blastPressure, blastRadius, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { world } from '../game/world.js';
 
@@ -123,6 +124,15 @@ const BUBBLE_ROOM = 26;          // px of slack on the cull test, for the wide p
 const FACE_GLOW = 9;
 const FACE_LIGHT = 0.45;
 
+// The swarm (PLAN 3.3's pack of twenty). A swarmling is seven pixels across, so the
+// whole of its look is one long thin dart and one light at its nose: the dart so that
+// twenty of them read as a shoal and not as a crowd, the light because a pack that is
+// bunching up to dive has to say so out loud (game/flock.js).
+const SWARM_SPIKE = 2.1;          // how far the nose reaches out from a swarmling's body
+const SWARM_CHARGE = 6;           // px of light at its nose while its pack braces
+const SWARM_BLUR_LENGTH = 18;     // px of blur a diving swarmling drags behind it
+const SWARM_BLUR_WIDTH = 6;
+
 /**
  * How bright a bomber's death ring is right now, 0..1. It is a function of the
  * bomber's own `blastPressure` and of the frame clock and of nothing else, and it is
@@ -223,6 +233,13 @@ let dartBlur = null;
 function dartBlurSprite() {
   if (!dartBlur) dartBlur = makeStreak(PALETTE.telegraphHead, PALETTE.red, DART_BLUR_LENGTH, DART_BLUR_WIDTH);
   return dartBlur;
+}
+
+let swarmBlur = null;
+
+function swarmBlurSprite() {
+  if (!swarmBlur) swarmBlur = makeStreak(PALETTE.telegraphHead, PALETTE.swarm, SWARM_BLUR_LENGTH, SWARM_BLUR_WIDTH);
+  return swarmBlur;
 }
 
 /** One straight stroke, because the warning line is drawn twice. */
@@ -462,10 +479,12 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, halo), 0, 0, flash * FLASH_LIGHT);
   ctx.rotate(enemy.rot);
   if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
+  else if (isDiving(enemy)) paintStreak(ctx, swarmBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   ctx.fillStyle = look.fill;
   if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
   else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
   else if (enemy.type === 'shielder') bulwarkPath(ctx, enemy.r);
+  else if (enemy.type === 'swarmling') shipPath(ctx, 0, 0, enemy.r, 0, SWARM_SPIKE);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
   if (enemy.elite) {
@@ -488,6 +507,12 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // A spitter's whole warning: its mouth, pointed at you, filling with light over
     // the wind-up. It starts at nothing, so the change is the tell.
     paintGlow(ctx, glowFor(PALETTE.spitCharge, SPIT_CHARGE), enemy.r * 1.3, 0, aimProgress(enemy));
+  }
+  if (isBraced(enemy)) {
+    // Every body of a braced pack lights its nose on the same countdown, and the pack
+    // is drawing itself tighter at the same time (game/flock.js). Twenty small lights
+    // coming together is the read; the dive that follows is on the line they show.
+    paintGlow(ctx, glowFor(PALETTE.telegraphHead, SWARM_CHARGE), enemy.r * 1.5, 0, braceProgress(enemy));
   }
   if (enemy.type === 'bomber') {
     // A lit fuse: the light at its core breathes, and the less hull it has left the

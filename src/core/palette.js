@@ -78,6 +78,13 @@ export const PALETTE = {
   // killing" rather than as more of the crowd. The shards stayed mint, so nothing else
   // in the arena wears this.
   elite: '#ffd76a',
+  // The swarm. Twenty small bodies are the one crowd in the game that has to be read as
+  // a *thing* rather than as a crowd, so it wears the one warm hue nobody else asked
+  // for: a plain scarlet, deeper than the darter's coral and nowhere near the pink. At
+  // seven pixels across a hue is the only thing that can tell it from a drifter, and a
+  // clump of twenty of them has to look like weather coming, not like twenty enemies.
+  swarm: '#ff2d55',
+  swarmFill: 'rgba(255,45,85,0.20)',
   // The shielder is the magenta PLAN section 4 asks its enemies to be drawn from:
   // it sits on the far side of the pink, away from the weaver, and it is the only
   // thing in the arena wearing it, which is what lets a whole crowd be lit up by it

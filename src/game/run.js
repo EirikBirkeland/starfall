@@ -41,6 +41,7 @@ export function resetRun(world) {
   world.bullets.clear();
   world.enemyShots.clear();
   world.enemies.length = 0;
+  world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();
   world.grid.clear();
   world.particles.clear();

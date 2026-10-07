@@ -21,13 +21,15 @@
 //
 // A wave spends exactly one roll of the `logic` stream per member, however many
 // kinds have unlocked, so adding a kind to the roster cannot move a run that never
-// meets it. Once the run is eight minutes old a wave may want a gold body, which
-// costs two or three more rolls per wave - whether it carries a leader, what kind it
-// is, and where in the fan it stands - and none at all before then: see game/elite.js.
+// meets it, and two more rolls per body of a pack (see `aroundTheAnchor`). Once the
+// run is eight minutes old a wave may want a gold body, which costs two or three more
+// rolls per wave - whether it carries a leader, what kind it is, and where in the fan
+// it stands - and none at all before then: see game/elite.js.
 
 import { BALANCE } from './balance.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
 import { rollElite } from './elite.js';
+import { newPack } from './flock.js';
 import { logic } from '../core/rng.js';
 import { dist2, TAU } from '../core/math.js';
 import { noteArrival } from './tally.js';
@@ -43,12 +45,20 @@ const SECONDS_PER_MINUTE = 60;
  * change while the game is running, so the roster is built once here rather than
  * assembled for every wave.
  */
-const ROSTER = Object.keys(KINDS).map((name) => ({
-  type: name,
-  from: KINDS[name].stats.from,
-  cost: KINDS[name].stats.cost,
-  weight: KINDS[name].stats.weight,
-}));
+const ROSTER = Object.keys(KINDS).map((name) => {
+  const stats = KINDS[name].stats;
+  return {
+    type: name,
+    from: stats.from,
+    cost: stats.cost,
+    weight: stats.weight,
+    // What one *arrival* of this kind has to be paid for. A pack is not one body: the
+    // roll that wants one has to be able to buy the smallest one worth the name, or it
+    // would buy a swarm two bodies deep and call it a swarm.
+    price: stats.pack === undefined ? stats.cost : stats.cost * stats.pack.min,
+    pack: stats.pack === undefined ? null : stats.pack,
+  };
+});
 
 /**
  * The scratch list `pickMember` refills on every call. A wave is bought in the middle
@@ -56,8 +66,15 @@ const ROSTER = Object.keys(KINDS).map((name) => ({
  */
 const ELIGIBLE = [];
 
-/** The scratch slots `sendWave` buys its members into: { type, elite } for each. */
+/** The scratch slots `sendWave` buys its members into: { type, elite, count } each. */
 const BUY = [];
+
+/** `pickMember`'s third argument, spelled out: may a pack be rolled? */
+const WITH_PACKS = true;
+const NO_PACKS = false;
+
+/** A nudge that did not fit tries this much closer to the anchor before giving up. */
+const NUDGE_RETRY = 0.5;
 
 /** What the run may hold right now, in points of enemy. */
 export function crowdBudget(world) {
@@ -89,9 +106,16 @@ export function roomToSpare(world) {
  * can actually afford, weighted by what each is worth. Answers a kind name, or null
  * when nothing is affordable - which is how the buying loop knows to stop.
  *
+ * "Afford" is the whole trick of the roster: a body costs its kind's `cost` and a pack
+ * costs its smallest size (see `price` above), so a swarm is rolled when there is room
+ * for a swarm and never when there is room for a body.
+ *
+ * `packs` may be given as false to keep packs out of the roll - which is how an elite
+ * is chosen, and how a wave that has already bought its swarm buys the rest.
+ *
  * Exactly one number out of the logic stream, whatever the roster holds.
  */
-export function pickMember(world, points) {
+export function pickMember(world, points, packs) {
   // One pass decides who is eligible and the next one walks them. The same test must
   // not be written twice, or the two copies can drift apart and hand out a kind that
   // was never counted in the roll.
@@ -100,7 +124,8 @@ export function pickMember(world, points) {
   let total = 0;
   for (let i = 0; i < ROSTER.length; i++) {
     const row = ROSTER[i];
-    if (world.elapsed >= row.from && row.cost <= points) {
+    if (packs === NO_PACKS && row.pack !== null) continue;
+    if (world.elapsed >= row.from && row.price <= points) {
       eligible.push(row);
       total += row.weight;
     }
@@ -212,16 +237,105 @@ function arrivalSpot(world, radius, bearing) {
  * edge of what the player can see, optionally at a bearing from the ship, optionally
  * gold (game/elite.js). Answers the enemy, or null when there was nowhere to put it
  * or the crowd is full.
+ *
+ * This is a *single* body: asking for a swarmling by name brings one of them, not a
+ * pack. A pack arrives through a wave, which is the only thing that can pay for one.
  */
 export function spawnEnemy(world, type, bearing, elite) {
   if (world.enemies.length >= BALANCE.waves.maxBodies) return null;
   const name = type || pickMember(world, Infinity);
   const spot = arrivalSpot(world, kindOf(name).stats.radius, bearing);
-  if (spot === null) return null;
-  const enemy = makeEnemy(world, name, spot.x, spot.y, elite ? ELITE : null);
+  return placeEnemy(world, name, spot, elite === true, null);
+}
+
+/**
+ * The scratch `makeEnemy` is handed, refilled per arrival. Hoisted because a wave is
+ * bought in the middle of a step: `makeEnemy` reads what it is told and keeps nothing.
+ */
+const PLACE = { elite: false, flock: null };
+
+/**
+ * Put one body of `type` on a spot somebody already decided was allowed, flying with
+ * `pack` if it belongs to one. The last word on the ceiling of bodies, because every
+ * arrival comes through here.
+ */
+function placeEnemy(world, type, spot, elite, pack) {
+  if (spot === null || world.enemies.length >= BALANCE.waves.maxBodies) return null;
+  PLACE.elite = elite === true;
+  PLACE.flock = pack === undefined ? null : pack;
+  const enemy = makeEnemy(world, type, spot.x, spot.y, PLACE);
   world.enemies.push(enemy);
   noteArrival(world, enemy);
   return enemy;
+}
+
+/**
+ * Arrive a pack: `count` bodies of a swarming kind in a clump on one side of the
+ * window, all of them flying together from here on (game/flock.js). The clump takes
+ * one place in the wave's fan, so a swarm comes in off one side rather than smeared
+ * along all of them - which is the whole point of the kind: it is one arrival.
+ *
+ * Answers the bodies that got somewhere to stand, which is fewer than `count` only
+ * when the clump hangs over the edge of the world or the arena fills up mid-arrival.
+ */
+function spawnPack(world, type, count, bearing) {
+  const stats = kindOf(type).stats;
+  const anchor = arrivalSpot(world, stats.radius, bearing);
+  const arrived = [];
+  if (anchor === null) return arrived;
+
+  const pack = newPack(stats.flock, anchor.x, anchor.y);
+  world.flocks.push(pack);
+  for (let i = 0; i < count; i++) {
+    const spot = aroundTheAnchor(world, anchor, stats.pack.clump, stats.radius);
+    const body = placeEnemy(world, type, spot, false, pack);
+    if (body !== null) arrived.push(body);
+  }
+  return arrived;
+}
+
+/**
+ * Somewhere a body of a pack may stand: an allowed arrival, and still off the window.
+ * The anchor is both, but a clump reaches `clump` px in every direction and a body
+ * shoved back inside the player's view would be an enemy arriving in plain sight.
+ */
+function spotFits(world, spot, radius) {
+  if (!arrivalFits(world, spot, radius)) return false;
+  const ship = world.player;
+  return Math.abs(spot.x - ship.x) > world.view.w / 2
+    || Math.abs(spot.y - ship.y) > world.view.h / 2;
+}
+
+/**
+ * One body of a pack: the anchor, nudged off in a random direction by up to `clump`
+ * px. A nudge that goes outside the world, too near the ship, or back inside the
+ * player's view is not worth another roll - the anchor is somewhere every one of them
+ * is allowed to stand - so this spends two numbers of the stream per body, tries half
+ * as far in once, and never fails to arrive.
+ */
+function aroundTheAnchor(world, anchor, clump, radius) {
+  const angle = logic.range(0, TAU);
+  const reach = logic.range(0, clump);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  let spot = { x: anchor.x + cos * reach, y: anchor.y + sin * reach };
+  if (spotFits(world, spot, radius)) return spot;
+  spot = { x: anchor.x + cos * reach * NUDGE_RETRY, y: anchor.y + sin * reach * NUDGE_RETRY };
+  return spotFits(world, spot, radius) ? spot : anchor;
+}
+
+/**
+ * How many bodies of a pack fit in `room` points with `bodiesLeft` places left in the
+ * arena: as many as the kind ever brings, cut down by the room and by the ceiling, and
+ * none at all if fewer than its smallest worth the name would fit. 0 means "do not
+ * send this swarm", 1 means "this kind is not a pack at all".
+ */
+function packFits(stats, room, bodiesLeft) {
+  const pack = stats.pack;
+  if (pack === undefined) return 1;
+  const can = Math.min(pack.into, Math.floor(room / stats.cost), bodiesLeft);
+  return can >= pack.min ? can : 0;
 }
 
 /**
@@ -231,9 +345,6 @@ function acrossFan(from, to, i, count) {
   return count === 1 ? from : from + (to - from) * i / (count - 1);
 }
 
-/** What `makeEnemy` is told when a member arrives gold. Hoisted: a wave is bought mid-step. */
-const ELITE = { elite: true };
-
 /**
  * Send one wave with `points` of room to spend, and report what arrived.
  *
@@ -241,6 +352,11 @@ const ELITE = { elite: true };
  * many bodies as one wave is allowed, so a wave of tanks and a wave of drifters are
  * both a wave. Their bearings are spread evenly across the fan around the one the
  * wave picked, so a group reads as a group coming in.
+ *
+ * One member is not always one body. A kind that comes in a pack (swarmling) buys as
+ * many bodies as the room and the arena have room for, up to its own ceiling, and
+ * takes *one* place in the fan for all of them: a swarm is a wave spending itself on
+ * a crowd, in the same way an elite is a wave spending itself on one big body.
  *
  * One of them may be gold (game/elite.js), and up to three rolls decide it: whether
  * this wave carries a leader at all, what kind it is, and where in the fan it stands.
@@ -252,7 +368,8 @@ const ELITE = { elite: true };
  * room it costs is the same room that would otherwise have been two more bodies. It
  * also means the seat is always a place that exists, because it is rolled over the
  * members the wave actually bought - and since the leader is bought before any of
- * them, it is dealt into its seat afterwards rather than waiting at the front.
+ * them, it is dealt into its seat afterwards rather than waiting at the front. A gold
+ * body is always one body: a pack is excluded from that roll.
  *
  * The one way a wave wants a leader and does not get one is a room too small to pay
  * for a gold body of any kind that has unlocked; then the wave arrives plain and
@@ -268,28 +385,42 @@ function sendWave(world, points) {
   const spec = BALANCE.waves;
   const goldPrice = BALANCE.elite.costMul;
   const bearing = logic.range(0, TAU);
+  const bodyRoom = spec.maxBodies - world.enemies.length;
 
   const types = BUY;
   types.length = 0;
   let left = points;
-
+  let bodies = 0;
   let led = false;
+  let packed = false;
   if (rollElite(world)) {
     // The kind is rolled out of the room divided by the gold price, so the one that
     // comes back is a kind this wave can actually pay for gold.
-    const type = pickMember(world, left / goldPrice);
+    const type = pickMember(world, left / goldPrice, NO_PACKS);
     if (type !== null) {
-      types.push({ type: type, elite: true });
+      types.push({ type: type, elite: true, count: 1 });
       left -= kindOf(type).stats.cost * goldPrice;
+      bodies = 1;
       led = true;
     }
   }
 
   while (types.length < spec.maxMembers) {
-    const type = pickMember(world, left);
+    // One swarm per wave, for the same reason a wave carries one leader: two packs
+    // arriving at once is not one thing coming in, it is a screenful.
+    const type = pickMember(world, left, packed ? NO_PACKS : WITH_PACKS);
     if (type === null) break;
-    types.push({ type: type, elite: false });
-    left -= kindOf(type).stats.cost;
+    const stats = kindOf(type).stats;
+    const count = packFits(stats, left, bodyRoom - bodies);
+    // A swarm the arena has no room for is not worth rolling again, and nothing else
+    // can come after it: stop. For every other kind `count` is one and the room is the
+    // only limit, exactly as it always was - which is what keeps a wave bought before
+    // 9:00 rolling the same numbers it did before packs existed.
+    if (count === 0) break;
+    if (stats.pack !== undefined) packed = true;
+    types.push({ type: type, elite: false, count: count });
+    left -= stats.cost * count;
+    bodies += count;
   }
 
   // Which place in the fan the leader takes. A wave of one is that one, wherever it
@@ -302,8 +433,15 @@ function sendWave(world, points) {
     // and lets the escort wrap round behind it, keeping the order it was bought in.
     const slot = types.length === 1 ? 0 : (i + seat) % types.length;
     const across = acrossFan(-spec.fan / 2, spec.fan / 2, slot, types.length);
-    const enemy = spawnEnemy(world, types[i].type, bearing + across, types[i].elite);
-    if (enemy !== null) members.push(enemy);
+    if (types[i].count === 1) {
+      const enemy = spawnEnemy(world, types[i].type, bearing + across, types[i].elite);
+      if (enemy !== null) members.push(enemy);
+    } else {
+      // One member, many bodies, one bearing: the swarm takes the place it was bought
+      // in and stands all of them there (game/flock.js).
+      const pack = spawnPack(world, types[i].type, types[i].count, bearing + across);
+      for (let b = 0; b < pack.length; b++) members.push(pack[b]);
+    }
   }
   if (members.length === 0) return null;
 
@@ -312,6 +450,7 @@ function sendWave(world, points) {
     number: world.waveNumber,
     bearing: bearing,
     asked: types.length,
+    bodies: members.length,
     points: points - left,
     members: members,
   };

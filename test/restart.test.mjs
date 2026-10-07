@@ -14,19 +14,19 @@ import { makeEnemy } from '../src/game/kinds.js';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: null });
 
-/** How long the two runs are allowed to be played for before they are ended on purpose. */
+/** How long a run is played for before it is ended on purpose. */
 const RUN_SECONDS = 120;
 
 /**
  * From `RUN_SECONDS` in, hold the ship to one hull with no grace and put a body on it,
  * every frame until it stops: the way test/session.test.mjs ends a run.
  *
- * The runs here are ended rather than waited out because the bot dodges well and an
- * unpinned seed is a different seed every time the suite runs, so no window a test can
- * afford is a promise that a run is over inside it - one of them went the full fifteen
- * minutes and the file failed for the wrong reason. What this file proves is that a
- * restart takes and the next run is new, and that needs two finished runs, not two
- * accidents.
+ * The window is only a ceiling. An unpinned seed is a different seed every time the
+ * suite runs, and the bot dies whenever it dies, so no length a test can wait out is a
+ * promise that a run is still going when the window closes - one of them ended itself at
+ * 73 s and the file failed for the wrong reason (NOTES, session 25, about the same trap
+ * one window earlier). What this file proves is that a restart takes and the next run is
+ * new, and that needs two *finished* runs of whatever length they turned out to be.
  */
 function finishItWhenDue(game, frames) {
   if (frames * FRAME_MS < RUN_SECONDS * 1000) return;
@@ -44,8 +44,6 @@ test('a restart starts a fresh run, not a replay', () => {
 
   const first = playOneRun(game, options);
   assert.equal(first.died, true, 'the first run was never finished');
-  assert.ok(first.seconds >= RUN_SECONDS,
-    'the run was expected to be played a while before it was ended: ' + first.seconds + ' s');
 
   const second = playOneRun(game, options);
   assert.equal(second.died, true, 'the restart should have taken');

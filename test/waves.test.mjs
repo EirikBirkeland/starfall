@@ -24,14 +24,14 @@ import {
   crowdBudget, crowdCost, pickMember, roomToSpare, spawnEnemy, updateWaves,
 } from '../src/game/waves.js';
 import { scriptedRun } from '../tools/headless/scripted.js';
+import {
+  anyKindUnlockedAt, cheapestCostAt,
+} from '../tools/headless/balance-tools.js';
 
 const STEP = BALANCE.sim.step;
 const W = BALANCE.waves;
 const ARENA = BALANCE.arena;
 const SHIP = { x: ARENA.w / 2, y: ARENA.h / 2 };   // where a fresh run puts the ship
-
-/** The cheapest body the director can buy, however far the run has got. */
-const CHEAPEST = Math.min(...Object.values(BALANCE.kinds).map((kind) => kind.cost));
 
 /**
  * A moment of the run late enough that every kind in the table has unlocked. The
@@ -39,7 +39,10 @@ const CHEAPEST = Math.min(...Object.values(BALANCE.kinds).map((kind) => kind.cos
  * and saying it as the last `from` is the only way they stay true when a kind is
  * added - which is exactly when they would otherwise start lying quietly.
  */
-const ALL_UNLOCKED = Math.max(...Object.values(BALANCE.kinds).map((kind) => kind.from)) + 30;
+const ALL_UNLOCKED = anyKindUnlockedAt() + 30;
+
+/** The cheapest body there is at the minute these tests are sat at. */
+const CHEAPEST = cheapestCostAt(ALL_UNLOCKED);
 
 function angleDifference(a, b) {
   let diff = (a - b) % TAU;
@@ -86,6 +89,18 @@ function fillCrowd(field, points) {
     field.enemies.push(makeEnemy(field, 'drifter', SHIP.x + 60 + i * 8, SHIP.y + 60));
     i++;
     if (i > 4000) throw new Error('the crowd cannot be filled, so the costs are wrong');
+  }
+  return field.enemies.length;
+}
+
+/**
+ * Stand `n` bodies in the arena. A different thing from `fillCrowd` on purpose: the
+ * ceiling on bodies has nothing to do with what the crowd is worth, and a test that
+ * reaches for points to hit it is really testing the budget.
+ */
+function fillBodies(field, n) {
+  for (let i = 0; i < n; i++) {
+    field.enemies.push(makeEnemy(field, 'swarmling', SHIP.x + 60 + i * 8, SHIP.y + 60));
   }
   return field.enemies.length;
 }
@@ -172,9 +187,11 @@ test('killing opens the room and the next wave is no more than the gap away', ()
 test('the hard ceiling holds whatever the budget says', () => {
   const field = runAged(204, 600);          // a budget far bigger than the ceiling
   assert.ok(roomToSpare(field) > 100, 'there is room to spare by the budget alone');
-  fillCrowd(field, W.maxBodies * CHEAPEST);
+  fillBodies(field, W.maxBodies);
   const bodies = field.enemies.length;
   assert.ok(bodies >= W.maxBodies);
+  assert.ok(roomToSpare(field) >= W.waveMinPoints,
+    'and it is the bodies that are full, not the budget');
 
   assert.equal(tick(field), null, 'nothing arrives at the ceiling');
   assert.equal(field.enemies.length, bodies, 'not one body');
@@ -197,7 +214,9 @@ test('a wave spends the room it was given and never more', () => {
   // The room is spent to the last few points - the loop only stops when nothing
   // left fits, or when the wave is as many bodies as one wave is allowed.
   const leftOver = room - wave.points;
-  assert.ok(leftOver < CHEAPEST || wave.members.length === W.maxMembers,
+  // Which is the cheapest body *unlocked* at two minutes, not the cheapest in the table:
+  // a kind that has not arrived yet buys nothing however cheap it is.
+  assert.ok(leftOver < cheapestCostAt(120) || wave.members.length === W.maxMembers,
     'it left ' + leftOver + ' of ' + room + ' unspent');
 
   let cost = 0;
@@ -443,8 +462,9 @@ test('an arrival asked for by name is that kind, standing in the world', () => {
 });
 
 test('the ceiling on bodies holds an arrival asked for by name too', () => {
-  const field = runAged(219, 60);
-  fillCrowd(field, W.maxBodies * CHEAPEST);
+  const field = runAged(219, 600);          // again: it is not the budget that stops it
+  fillBodies(field, W.maxBodies);
+  assert.ok(roomToSpare(field) >= BALANCE.kinds.drifter.cost, 'the budget could afford one');
   assert.equal(spawnEnemy(field, 'drifter'), null, 'no room, no enemy');
 });
 

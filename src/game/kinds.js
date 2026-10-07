@@ -34,6 +34,7 @@ import { spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
 import { blast } from './blast.js';
 import { collapseField } from './shields.js';
+import { isBraced, isDiving, packOf } from './flock.js';
 import { noteArrival } from './tally.js';
 
 /**
@@ -74,6 +75,10 @@ export const KINDS = {
     // Its death is the field going out; the shields it held come down with it,
     // which game/shields.js finds out for itself on the next step.
     onDeath: collapseField,
+  },
+  swarmling: {
+    stats: BALANCE.kinds.swarmling,
+    walk: walksFlocking,
   },
 };
 
@@ -195,6 +200,12 @@ export function makeEnemy(world, type, x, y, opts) {
     guard: null,
     shield: 0,
     shieldWait: 0,
+    // The pack this body flies with (game/flock.js), or null for everything that flies
+    // alone. It is not derived: a pack is the group of bodies that arrived together, so
+    // it is given to the body when it is built and kept for its whole life. What is
+    // derived is what is *in* it - the middle, the heading, the beat - and those are
+    // worked out again every step.
+    flock: chosen(opts, 'flock', null),
     ix: chosen(opts, 'ix', 0),
     iy: chosen(opts, 'iy', 0),
     ambient: false,
@@ -471,6 +482,101 @@ function walksGuarding(enemy, step) {
   const spec = statsOf(enemy).guard;
   const toShip = holdTheBand(enemy, step, spec.stand, spec.drift);
   enemy.rot = Math.atan2(toShip.ny, toShip.nx);
+}
+
+/**
+ * The swarmling: one body of the pack that arrives in twenties (PLAN 3.3). Where it
+ * goes is three pulls added together - at the ship, back towards the middle of its
+ * pack when it is straying, and along the way its neighbours are flying - and none of
+ * them is its own: the middle, the heading and the beat belong to game/flock.js and are
+ * worked out from the crowd every step. What is left to this walk is the arithmetic of
+ * adding three pulls and turning slowly enough for the result to look like flight.
+ *
+ * Then the pack dives. Once a cycle every body in it bunches up for `brace` seconds -
+ * which is the telegraph, and is the bunching itself rather than anything drawn on top
+ * of it - and then they all fly the one line the pack locked when the brace ended. A
+ * body with no pack (a spawn asked for by name, a test) has no middle and no beat, so
+ * it chases and never commits.
+ */
+function walksFlocking(enemy, step) {
+  const spec = statsOf(enemy).flock;
+  const pack = packOf(enemy);
+  if (pack !== null && isDiving(enemy)) return committed(enemy, step, pack, spec);
+  return flying(enemy, step, pack, spec);
+}
+
+/** The dive: the line the pack locked, at several times its walking pace. */
+function committed(enemy, step, pack, spec) {
+  enemy.rot = Math.atan2(pack.dirY, pack.dirX);
+  glide(enemy, step, pack.dirX, pack.dirY, enemy.speed * spec.dive.mul);
+  // The arena ends a dive that runs into it. The pack's clock carries on, so the one
+  // that hit the wall stops pushing rather than sticking to it.
+  heldByTheWall(step.world, enemy);
+}
+
+/** The rest of the cycle: the three pulls, and a pace that drops while it bunches. */
+function flying(enemy, step, pack, spec) {
+  const braced = pack !== null && isBraced(enemy);
+  const pace = enemy.speed * (braced ? spec.braceSpeed : 1) * holdingStation(enemy, pack, spec);
+  turnToward(enemy, step, headingThePack(enemy, step, pack, spec), spec.turn);
+  glide(enemy, step, Math.cos(enemy.rot), Math.sin(enemy.rot), pace);
+  // A flock that is not chasing is walking sideways at a wall often enough to need it.
+  heldByTheWall(step.world, enemy);
+}
+
+/**
+ * How fast one body of a pack is allowed to go. A body already inside the pack has
+ * nothing to come back for, so it loiters: `loiter` is the share of its speed it gives
+ * up when it is at the middle of them. It is the only way a flock in which every body
+ * has the same top speed can *stay* a flock while it travels - the ones in front make
+ * room for the ones behind, which a straggler cannot do by turning, since turning is
+ * slower than going straight.
+ */
+function holdingStation(enemy, pack, spec) {
+  if (pack === null || spec.loiter === 0 || pack.n < 2) return 1;
+  const off = Math.hypot(pack.cx - enemy.x, pack.cy - enemy.y);
+  const inside = 1 - Math.min(1, off / spec.keep);
+  return 1 - spec.loiter * inside;
+}
+
+/**
+ * Which way one body of a pack wants to go, out of the pulls on it. The answer is an
+ * angle, and the walk turns towards it instead of jumping there, which is what makes a
+ * flock curve instead of twitching.
+ */
+function headingThePack(enemy, step, pack, spec) {
+  const ship = step.ship;
+  let vx = ship.x - enemy.x;
+  let vy = ship.y - enemy.y;
+  const away = Math.hypot(vx, vy) || 1;
+  vx /= away;
+  vy /= away;
+
+  if (pack !== null && pack.n > 1) {
+    // Home, but only once it is outside the pack: a body already inside the circle it
+    // is meant to be part of has nothing to come back for, and pulling on it anyway is
+    // how a flock collapses into one point.
+    const ox = pack.cx - enemy.x;
+    const oy = pack.cy - enemy.y;
+    const off = Math.hypot(ox, oy);
+    const keep = spec.keep * (isBraced(enemy) ? spec.braceKeep : 1);
+    if (off > keep && off > 0) {
+      const pull = spec.pull * Math.min(1, (off - keep) / keep);
+      vx += (ox / off) * pull;
+      vy += (oy / off) * pull;
+    }
+    // And the way its neighbours are going. The average of their noses is a short
+    // vector when they disagree, so a scattered pack is pulled less than a settled one
+    // without anybody having to say so.
+    vx += pack.hx * spec.align;
+    vy += pack.hy * spec.align;
+  }
+
+  // The shimmer every body carries on its own `phase`, so a pack is never one shape.
+  const sway = Math.sin(step.world.elapsed * spec.sway.rate + enemy.phase) * spec.sway.amount;
+  const cos = Math.cos(sway);
+  const sin = Math.sin(sway);
+  return Math.atan2(vy * cos + vx * sin, vx * cos - vy * sin);
 }
 
 /**

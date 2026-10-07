@@ -307,6 +307,14 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
       The wave now buys its leader first, out of the same room, and deals itself round it:
       20% of waves after 8:00 carry one, which is what the roll always meant.
 - [x] Add `tools/balance-report.js`.
+- [x] The swarm (PLAN 3.3's "splitter swarm", 9:00): up to twenty small fast bodies that
+      arrive as *one member of one wave* and fly as one thing. `game/flock.js` holds each
+      pack's middle, its heading and its beat; a body has no opinion of its own about
+      where the pack is going. Every few seconds the pack bunches up - which is the
+      telegraph, not a decoration on top of it - and then every body flies the one line
+      the pack locked when it stopped bunching. "Splitter" was taken by the tank, so this
+      kind's word is the flock; see NOTES session 26 for what "8 hull each, 180" became
+      and why.
 - [ ] Release.
 
 ### Milestone 4: upgrades
