@@ -102,6 +102,9 @@ export function drawRings(ctx) {
   const rings = world.rings;
   for (let i = 0; i < rings.count; i++) {
     const r = rings.items[i];
+    // A ring may be closing *in* - that is what a shielder's field going out looks
+    // like - and a circle with no radius in it is not something the canvas will draw.
+    if (r.r <= 0) continue;
     const t = clamp(r.life / r.max, 0, 1);
     ctx.strokeStyle = r.color;
     ctx.beginPath();

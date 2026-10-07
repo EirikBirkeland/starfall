@@ -265,6 +265,67 @@ export const BALANCE = {
       death: { particles: 20, speed: 280, debris: 6, debrisSpeed: 190 },
       sound: { freq: 150, dur: 0.2 },
     },
+    shielder: {
+      radius: 17, speed: 60, hull: 8, score: 40, drop: 4,
+      from: 450, cost: 8, weight: 1,
+      // `sides` is the fallback shape; the bulwark is drawn by its own silhouette
+      // (render/entities.js), flat side towards whatever it is standing between.
+      color: PALETTE.magenta, fill: PALETTE.magentaFill, sides: 6, glow: 20,
+      // The field (game/shields.js). Every other body standing `radius` px away is
+      // covered: it gets a shield of `cap` points over it, and anything aimed at it
+      // comes off the shield before it comes off the hull. Once a shield has soaked
+      // anything it waits `after` seconds of being left alone, then fills back at
+      // `rate` points a second.
+      //
+      // The two numbers that make "kill it first" the right answer are `cap` and the
+      // fact that a field going out takes its shields with it: hull you have already
+      // taken off a crowd stays off, so one shielder dying makes every body behind it
+      // cheap at the same moment. `cap` is a flat number of player shots rather than a
+      // share of a body's hull on purpose - a shield is three shots of armour whoever
+      // is wearing it, and it does not compound the run's hull scaling.
+      //
+      // `radius` is the number to be careful with, because it is an *area*: late in a
+      // run the whole crowd is packed into one window of ~1280x720 and six or seven
+      // circles that reach 210 px tile that window - measured, and it turned the kind
+      // from a decision into weather (93 bodies of 97 covered, the bot's killing cut
+      // nearly in half). At 150 two or three of them cover about half a crowd, which is
+      // what the whole idea asks for: a cluster is protected, and going and finding the
+      // thing doing it is the player's move. `weight` 1 keeps them rare for the same
+      // reason - one every couple of minutes, so each arrival is worth noticing.
+      //
+      // Two fields do not stack: a body in both is protected or it is not. A second
+      // shielder therefore buys a wider crowd to shoot through, not one more body to
+      // shoot at, and `cap` staying flat is what makes that one line of arithmetic.
+      //
+      // `stand` is the band it likes to hold, in px from the ship: it walks in from
+      // beyond `far`, backs off inside `near`, and shuffles sideways with `drift` so
+      // it is never a fixed point to shoot at. It never melees: a shielder that walks
+      // into your face is a shielder you kill by accident.
+      guard: {
+        radius: 150, cap: 3, after: 2.5, rate: 1.2,
+        stand: { near: 150, far: 250 },
+        drift: { speed: 46, rate: 1.1 },
+        // What a shield going out looks like. `pop` is one body's bubble, which
+        // happens a handful of times a minute as a crowd walks in and out of a field;
+        // `collapse` is the field itself, which happens once and is the loud one. Its
+        // `ring.speed` is negative - the circle closes in on the body that was holding
+        // it - and slow enough that it still has a radius left when its life runs out.
+        pop: {
+          ring: { radius: 5, speed: 200, life: 0.2 },
+          burst: { count: 5, speed: 190, life: 0.25 },
+        },
+        collapse: {
+          ring: { radius: 150, speed: -520, life: 0.3 },
+          burst: { count: 26, speed: 300, life: 0.5 },
+          shake: 4,
+          sound: { freq: 320, dur: 0.34, wave: 'triangle', vol: 0.06, slide: 70 },
+        },
+        // The sound of a hit that never reached the hull.
+        block: { freq: 880, dur: 0.05, wave: 'square', vol: 0.028, slide: 240 },
+      },
+      death: { particles: 22, speed: 290, debris: 8, debrisSpeed: 200 },
+      sound: { freq: 170, dur: 0.2 },
+    },
   },
 
   death: {

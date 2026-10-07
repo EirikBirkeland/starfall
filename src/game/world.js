@@ -11,6 +11,7 @@ import { updatePlayer } from './player.js';
 import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies } from './enemies.js';
+import { updateShields } from './shields.js';
 import { updateWaves } from './waves.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
@@ -152,6 +153,9 @@ function stepRun(dt, input) {
 
   updatePlayer(world, dt, input);
   updateWaves(world, dt);
+  // Who is covering whom, before anything is shot at: a shield is a relationship
+  // between two positions, so it is worked out again every step rather than kept.
+  updateShields(world, dt);
   updateBullets(world, dt);
   if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run

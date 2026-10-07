@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawPlayer, drawShards, drawTelegraphs } from './entities.js';
+import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -66,6 +66,7 @@ export function renderFrame(tick, input) {
     // Floor markings go down first: a bomber's death zone is paint on the arena
     // floor, so nothing standing on the floor is ever drawn under it.
     drawBlastZones(ctx, world.enemies, tick.alpha);
+    drawShieldFields(ctx, world.enemies, tick.alpha);
     drawShards(ctx, tick.alpha);
     drawSmoke(ctx, tick.alpha);
     drawRings(ctx);
@@ -73,6 +74,7 @@ export function renderFrame(tick, input) {
     // Under the crowd, so a darter sits on top of its own warning line.
     drawTelegraphs(ctx, world.enemies, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
+    drawShieldBubbles(ctx, world.enemies, tick.alpha);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
     if (world.state === STATE.PLAY) drawPlayer(ctx, tick.alpha);

@@ -78,6 +78,18 @@ export const PALETTE = {
   // killing" rather than as more of the crowd. The shards stayed mint, so nothing else
   // in the arena wears this.
   elite: '#ffd76a',
+  // The shielder is the magenta PLAN section 4 asks its enemies to be drawn from:
+  // it sits on the far side of the pink, away from the weaver, and it is the only
+  // thing in the arena wearing it, which is what lets a whole crowd be lit up by it
+  // without turning into a wall of colour (render/entities.js).
+  magenta: '#e04dff',
+  magentaFill: 'rgba(224,77,255,0.15)',
+  // The shield a shielder holds over its neighbours: the light of the bubble, and
+  // the faint track of the ring the bubble grows back along while it refills. Both of
+  // them warm, because a shield is harm standing between you and harm - it is not
+  // help, whatever it is doing for the enemy (PLAN section 4).
+  shieldLight: '#f2b6ff',
+  shieldTrack: 'rgba(224,77,255,0.4)',
   // A bomber's death zone: the ring it stands in while it lives, and the light of
   // the explosion itself. Both warm, and the flash nearly white so it reads as the
   // last frame of a thing rather than as a new one (PLAN section 4).

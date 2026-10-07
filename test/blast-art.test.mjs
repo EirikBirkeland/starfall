@@ -109,7 +109,7 @@ test('nothing else in the arena draws one', () => {
   }
   game.step();
 
-  assert.equal(game.drawCalls().dashes, empty, 'not one ring for the whole rest of the roster');
+  assert.equal(game.drawCalls().dashes, empty, 'not one dash from the plain kinds');
 });
 
 test('the ring reaches the window from further off than the body does', () => {

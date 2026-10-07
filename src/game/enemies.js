@@ -14,6 +14,7 @@ import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
 import { noteDeath, noteHit, hurtByBody } from './tally.js';
+import { shieldSoak } from './shields.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -50,9 +51,16 @@ function chipsOf(stats, enemy) {
  * corpse goes on to do - a chain reaction started by the player pays the player.
  */
 export function damageEnemy(world, enemy, amount, byPlayer) {
-  enemy.hp -= amount;
-  enemy.flash = BALANCE.enemies.hitFlash;
-  noteHit(world, enemy, amount);
+  // Whatever a shielder is holding over this body takes what it can of the hit first
+  // (game/shields.js). Everything that hurts a body comes through here - a bullet, a
+  // bomber's blast, whatever comes next - so there is no kind of damage that gets
+  // past a shield by forgetting to ask.
+  const hull = amount - shieldSoak(enemy, amount);
+  // Only a hit that reached the hull flashes it white: a shield eating a shot is the
+  // shield's news, and the shield is drawn with a light of its own.
+  if (hull > 0) enemy.flash = BALANCE.enemies.hitFlash;
+  enemy.hp -= hull;
+  noteHit(world, enemy, hull);
   if (enemy.hp > 0) return false;
   killEnemy(world, enemy, byPlayer);
   return true;

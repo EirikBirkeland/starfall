@@ -33,6 +33,7 @@ import { cueBeep } from './cues.js';
 import { spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
 import { blast } from './blast.js';
+import { collapseField } from './shields.js';
 import { noteArrival } from './tally.js';
 
 /**
@@ -66,6 +67,13 @@ export const KINDS = {
     stats: BALANCE.kinds.bomber,
     walk: walksBomber,
     onDeath: detonate,
+  },
+  shielder: {
+    stats: BALANCE.kinds.shielder,
+    walk: walksGuarding,
+    // Its death is the field going out; the shields it held come down with it,
+    // which game/shields.js finds out for itself on the next step.
+    onDeath: collapseField,
   },
 };
 
@@ -180,6 +188,13 @@ export function makeEnemy(world, type, x, y, opts) {
     stageTime: 0,
     dirX: 0,
     dirY: 0,
+    // The shield a shielder is holding over this body, if anything (game/shields.js):
+    // whose field reaches it, how many points of shield are up, and how long it still
+    // has to go unsoaked before they start to grow back. The shield pass rewrites all
+    // three from scratch every step of a run, so nothing may hold on to an answer.
+    guard: null,
+    shield: 0,
+    shieldWait: 0,
     ix: chosen(opts, 'ix', 0),
     iy: chosen(opts, 'iy', 0),
     ambient: false,
@@ -367,6 +382,41 @@ function shout(spec) {
 /** The one beat a spitter has, between holding its distance and holding it again. */
 const SPITTING = 'spit';
 
+/** The scratch answer `holdTheBand` refills: the line to the ship, and how far. */
+const band = { nx: 0, ny: 0, distance: 0 };
+
+/**
+ * Hold the band a stand-off kind likes to keep: walk in from beyond `range.far`, back
+ * off inside `range.near`, and shuffle sideways with `drift` in between so it is never
+ * a fixed point to shoot at. Refills and returns `band`.
+ *
+ * The spitter and the shielder are the same stand-off problem; only what they do once
+ * they are standing there is different.
+ */
+function holdTheBand(enemy, step, range, drift) {
+  const dx = step.ship.x - enemy.x;
+  const dy = step.ship.y - enemy.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const nx = dx / distance;
+  const ny = dy / distance;
+
+  const inOrOut = distance > range.far ? enemy.speed
+    : (distance < range.near ? -enemy.speed : 0);
+  const sideways = Math.sin(step.world.elapsed * drift.rate + enemy.phase) * drift.speed;
+  const vx = nx * inOrOut - ny * sideways;
+  const vy = ny * inOrOut + nx * sideways;
+  const pace = Math.hypot(vx, vy);
+  if (pace > 0) glide(enemy, step, vx / pace, vy / pace, pace);
+  else glide(enemy, step, 0, 0, 0);      // standing still, but a shove still moves it
+  // It walks backwards on purpose, so without this it would simply leave the world.
+  heldByTheWall(step.world, enemy);
+
+  band.nx = nx;
+  band.ny = ny;
+  band.distance = distance;
+  return band;
+}
+
 /**
  * The spitter: it keeps its distance and spits from there. It walks in from beyond
  * `far`, backs off inside `near`, and shuffles sideways in between so it is never a
@@ -384,28 +434,12 @@ function walksSpacing(enemy, step) {
 
 /** Hold the band it likes, and start a spit when the wait is up and the ship is in reach. */
 function holding(enemy, step, spec) {
-  const dx = step.ship.x - enemy.x;
-  const dy = step.ship.y - enemy.y;
-  const distance = Math.hypot(dx, dy) || 1;
-  const nx = dx / distance;
-  const ny = dy / distance;
+  const toShip = holdTheBand(enemy, step, spec.range, spec.drift);
+  enemy.rot = Math.atan2(toShip.ny, toShip.nx);   // its mouth points at the ship, always
+  if (enemy.timer > 0 || toShip.distance > spec.range.far) return;
 
-  const inOrOut = distance > spec.range.far ? enemy.speed
-    : (distance < spec.range.near ? -enemy.speed : 0);
-  const sideways = Math.sin(step.world.elapsed * spec.drift.rate + enemy.phase) * spec.drift.speed;
-  const vx = nx * inOrOut - ny * sideways;
-  const vy = ny * inOrOut + nx * sideways;
-  const pace = Math.hypot(vx, vy);
-  if (pace > 0) glide(enemy, step, vx / pace, vy / pace, pace);
-  else glide(enemy, step, 0, 0, 0);      // standing still, but a shove still moves it
-  // It walks backwards on purpose, so without this it would simply leave the world.
-  heldByTheWall(step.world, enemy);
-
-  enemy.rot = Math.atan2(ny, nx);         // its mouth points at the ship, always
-  if (enemy.timer > 0 || distance > spec.range.far) return;
-
-  enemy.dirX = nx;
-  enemy.dirY = ny;
+  enemy.dirX = toShip.nx;
+  enemy.dirY = toShip.ny;
   enemy.stage = SPITTING;
   enemy.timer = spec.wind.time;
   enemy.stageTime = spec.wind.time;
@@ -425,6 +459,18 @@ function winding(enemy, step, spec) {
   enemy.stage = '';
   enemy.timer = spec.after;
   enemy.stageTime = spec.after;
+}
+
+/**
+ * The shielder: the same stand-off walk a spitter walks, further out and with nothing
+ * to throw. The flat face of it is turned to the ship, because that is what it is
+ * standing between - and everything else about the kind happens in game/shields.js,
+ * which is where the field it holds is worked out.
+ */
+function walksGuarding(enemy, step) {
+  const spec = statsOf(enemy).guard;
+  const toShip = holdTheBand(enemy, step, spec.stand, spec.drift);
+  enemy.rot = Math.atan2(toShip.ny, toShip.nx);
 }
 
 /**

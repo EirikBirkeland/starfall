@@ -13,6 +13,7 @@ import { paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, blastPressure, blastRadius, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -84,6 +85,44 @@ const FUSE_PULSE_CALM = 4;       // rad/s of breathing at full hull ...
 const FUSE_PULSE_PANIC = 16;     // ... and this much more when it is about to go
 const FUSE_CALM = 0.25;          // a whole bomber's fuse barely glows; a wounded one strobes
 
+// The shielder's field (PLAN 3.3's "projects a shield onto nearby enemies"), in three
+// registers from the largest and faintest to the smallest and brightest: the circle a
+// field reaches, the line from a field to every body it is covering, and the bubble
+// over a covered body - filled up with how much shield is left in it.
+//
+// The order is deliberate. The circle is the biggest thing on the floor and says only
+// "stand here and my friends are armour", so it is the faintest; the lines are the
+// whole answer to "which one do I shoot", and they are drawn like the darter's warning
+// line - two passes and a crawl; the bubble is the one you are actually shooting at, so
+// it is the brightest of the three. All of it is warm, because a shield is harm standing
+// between you and harm, whatever it is doing for the enemy (PLAN section 4).
+const FIELD_DASH = [3, 13];      // px of dash, px of gap: a fence, not a wall
+const FIELD_CRAWL = 14;          // px/s the fence crawls at, so it is a zone
+const FIELD_LINE = 1.2;          // px, the circle itself
+const FIELD_SOFT = 5;            // px, the wide faint pass under it
+const FIELD_LIGHT = 0.13;        // how bright a field's own circle is
+const FIELD_SOFT_SHARE = 0.4;    // the wide pass sits this far under the thin one
+const FIELD_ROOM = 26;           // px of slack on the cull test, for the wide pass
+const LINK_DASH = [7, 6];        // px of dash, px of gap, on the line to a covered body
+const LINK_CRAWL = 46;           // px/s it crawls, and towards the body: the flow
+const LINK_SOFT = 5;
+const LINK_THIN = 1.2;
+const LINK_CALM = 0.12;          // a thin link for a body about to lose its cover ...
+const LINK_SHOUT = 0.42;         // ... and a loud one for a body standing behind a wall
+const BUBBLE_GAP = 7;            // px of air between a body and the shield over it
+const BUBBLE_SOFT = 6;           // px, the wide pass under the bubble
+const BUBBLE_THIN = 2;           // px, the bubble itself
+const BUBBLE_CALM = 0.16;        // how a shield that is waiting to refill looks ...
+const BUBBLE_SHOUT = 0.8;        // ... and how a whole one looks
+const BUBBLE_BEAT = 5;           // rad/s of breathing while it waits
+const BUBBLE_TRACK = 0.22;       // the ring the bubble grows back along, held this faint
+const BUBBLE_SOFT_SHARE = 0.4;   // the wide pass sits this far under the thin one
+const BUBBLE_ROOM = 26;          // px of slack on the cull test, for the wide pass
+// The shielder's own face: the arc it stands with, and the light of the field leaving
+// through it towards whoever is close enough to be covered.
+const FACE_GLOW = 9;
+const FACE_LIGHT = 0.45;
+
 /**
  * How bright a bomber's death ring is right now, 0..1. It is a function of the
  * bomber's own `blastPressure` and of the frame clock and of nothing else, and it is
@@ -101,6 +140,27 @@ export function fuseLight(enemy, at) {
   const pressure = blastPressure(enemy);
   const beat = 0.5 + 0.5 * Math.sin(at * (FUSE_PULSE_CALM + pressure * FUSE_PULSE_PANIC) + enemy.phase);
   return FUSE_CALM + (1 - FUSE_CALM) * beat * (0.4 + 0.6 * pressure);
+}
+
+/**
+ * How bright the bubble over a body is, 0..1: full and steady while the shield over it
+ * is whole, a breathing glimmer while it waits to fill back up, and nothing at all on
+ * a body no field is covering. It is built out of the simulation's own two numbers -
+ * how much shield is up, and how far through its wait it is - which is what makes the
+ * tell and the rule it tells you about one fact twice (test/shield-art.test.mjs).
+ */
+export function bubbleLight(enemy, at) {
+  if (!isGuarded(enemy)) return 0;
+  const charge = shieldShare(enemy);
+  if (charge >= 1) return BUBBLE_SHOUT;
+  const beat = 0.5 + 0.5 * Math.sin(at * BUBBLE_BEAT + enemy.phase);
+  return BUBBLE_CALM + (BUBBLE_SHOUT - BUBBLE_CALM) * Math.max(charge, shieldWaiting(enemy) * beat);
+}
+
+/** How loud the line to a covered body is, off the same light. */
+export function linkLight(enemy, at) {
+  const light = bubbleLight(enemy, at);
+  return light === 0 ? 0 : LINK_CALM + (LINK_SHOUT - LINK_CALM) * light / BUBBLE_SHOUT;
 }
 
 /**
@@ -139,6 +199,22 @@ function dartPath(ctx, r) {
   ctx.lineTo(-r * 0.5, 0);
   ctx.lineTo(-r * 1.1, -r * 0.34);
   ctx.lineTo(r * 0.3, -r * 0.6);
+  ctx.closePath();
+}
+
+/**
+ * The shielder's own silhouette: all face and no tail, flat side towards the ship,
+ * because a face is what a thing that stands between you and its friends is made of.
+ * It always points at the ship (game/kinds.js), so the flat side is never by accident.
+ */
+function bulwarkPath(ctx, r) {
+  ctx.beginPath();
+  ctx.moveTo(r * 0.86, r * 0.94);
+  ctx.lineTo(-r * 0.42, r * 0.7);
+  ctx.lineTo(-r * 0.86, 0);
+  ctx.lineTo(-r * 0.42, -r * 0.7);
+  ctx.lineTo(r * 0.86, -r * 0.94);
+  ctx.lineTo(r * 0.34, 0);
   ctx.closePath();
 }
 
@@ -240,6 +316,133 @@ export function drawBlastZones(ctx, list, alpha) {
   }
 }
 
+/**
+ * The fields: the circle every shielder in sight reaches, and the line from each of
+ * them to every body it is covering. Floor paint, like a bomber's death zone, so the
+ * bodies stay on top of their own cover. A shielder standing near nobody is a circle
+ * on its own, and that is the whole of what it has to say at that moment.
+ */
+export function drawShieldFields(ctx, list, alpha) {
+  const was = ctx.globalAlpha;
+  let open = false;
+
+  // The dash pattern is only put on the canvas when there is something to draw with
+  // it: a frame with no shielder in it asks for nothing at all (test/shield-art).
+  for (let i = 0; i < list.length; i++) {
+    const field = list[i];
+    const radius = fieldRadius(field);
+    if (radius === 0) continue;
+    if (!onScreen(field.x, field.y, radius + FIELD_ROOM)) continue;
+    if (!open) {
+      ctx.save();
+      ctx.setLineDash(FIELD_DASH);
+      // The only moving part, and the same trick the death zone plays: a fence that
+      // crawls is a zone, a static one is a decoration.
+      ctx.lineDashOffset = -world.time * FIELD_CRAWL;
+      open = true;
+    }
+
+    const x = paintX(field, alpha);
+    const y = paintY(field, alpha);
+    ctx.strokeStyle = PALETTE.magenta;
+    ctx.lineWidth = FIELD_SOFT;
+    ctx.globalAlpha = was * FIELD_LIGHT * FIELD_SOFT_SHARE;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = PALETTE.shieldLight;
+    ctx.lineWidth = FIELD_LINE;
+    ctx.globalAlpha = was * FIELD_LIGHT;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, TAU);
+    ctx.stroke();
+  }
+  if (open) ctx.restore();
+
+  open = false;
+  for (let i = 0; i < list.length; i++) {
+    const body = list[i];
+    const light = linkLight(body, world.time);
+    if (light === 0) continue;
+    if (!open) {
+      ctx.save();
+      ctx.setLineDash(LINK_DASH);
+      // The dash travels towards the body, which is the way the cover is flowing.
+      ctx.lineDashOffset = -world.time * LINK_CRAWL;
+      open = true;
+    }
+
+    const holder = guardOf(body);
+    if (!onScreen(body.x, body.y, BUBBLE_ROOM) && !onScreen(holder.x, holder.y, FIELD_ROOM)) continue;
+    // Both ends are interpolated, or a link would jitter one step out of phase with
+    // the two bodies it is bolted to.
+    const x0 = paintX(body, alpha);
+    const y0 = paintY(body, alpha);
+    const x1 = paintX(holder, alpha);
+    const y1 = paintY(holder, alpha);
+
+    ctx.strokeStyle = PALETTE.magenta;
+    ctx.lineWidth = LINK_SOFT;
+    ctx.globalAlpha = was * light * FIELD_SOFT_SHARE;
+    strokeBetween(ctx, x0, y0, x1, y1);
+
+    ctx.strokeStyle = PALETTE.shieldLight;
+    ctx.lineWidth = LINK_THIN;
+    ctx.globalAlpha = was * light;
+    strokeBetween(ctx, x0, y0, x1, y1);
+  }
+  if (open) ctx.restore();
+}
+
+/**
+ * The bubbles: one over every covered body, filled up with how much shield is left in
+ * it. Drawn over the crowd, because this is the thing you are shooting at and it must
+ * never be hidden by the body behind it.
+ */
+export function drawShieldBubbles(ctx, list, alpha) {
+  const was = ctx.globalAlpha;
+  for (let i = 0; i < list.length; i++) {
+    const enemy = list[i];
+    const light = bubbleLight(enemy, world.time);
+    if (light === 0) continue;
+    const radius = enemy.r + BUBBLE_GAP;
+    if (!onScreen(enemy.x, enemy.y, radius + BUBBLE_ROOM)) continue;
+
+    const x = paintX(enemy, alpha);
+    const y = paintY(enemy, alpha);
+    const left = shieldShare(enemy);
+
+    // The whole ring first, faint: it is the track the shield grows back along, so a
+    // soaked one still shows you how much is on its way back.
+    ctx.strokeStyle = PALETTE.shieldTrack;
+    ctx.lineWidth = BUBBLE_THIN;
+    ctx.globalAlpha = was * light * BUBBLE_TRACK;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, TAU);
+    ctx.stroke();
+
+    // Then what is left of it, from the top round clockwise, and wide-and-faint under
+    // thin-and-bright the way light is painted here (render/glow.js).
+    const sweep = TAU * left;
+    if (sweep > 0) {
+      ctx.strokeStyle = PALETTE.shieldLight;
+      ctx.lineWidth = BUBBLE_SOFT;
+      ctx.globalAlpha = was * light * BUBBLE_SOFT_SHARE;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + sweep);
+      ctx.stroke();
+
+      ctx.lineWidth = BUBBLE_THIN;
+      ctx.globalAlpha = was * light;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + sweep);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = was;
+}
+
 function drawEnemy(ctx, enemy, dim, alpha) {
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
   // moves, this says what it is made of. A new kind that is not a plain polygon
@@ -262,6 +465,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   ctx.fillStyle = look.fill;
   if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
   else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
+  else if (enemy.type === 'shielder') bulwarkPath(ctx, enemy.r);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
   if (enemy.elite) {
@@ -290,6 +494,16 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     // faster and brighter it breathes. The ring on the floor says how far the blast
     // reaches; this says how close it is.
     paintGlow(ctx, glowFor(PALETTE.blastFlash, FUSE_LIGHT), 0, 0, fuseLight(enemy, world.time));
+  }
+  if (enemy.type === 'shielder') {
+    // The face of the bulwark, and the light of the field leaving through it. This is
+    // the one body whose job is written on its own silhouette, so it is worth the two
+    // extra strokes and the one stamp; the circles and the links do the rest of the
+    // telling (drawShieldFields).
+    ctx.beginPath();
+    ctx.arc(0, 0, enemy.r * 0.55, -0.95, 0.95);
+    ctx.stroke();
+    paintGlow(ctx, glowFor(PALETTE.shieldLight, FACE_GLOW), enemy.r * 0.6, 0, FACE_LIGHT);
   }
 
   if (enemy.elite && enemy.hp < enemy.maxhp) {
