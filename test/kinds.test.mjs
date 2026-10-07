@@ -183,6 +183,45 @@ test("a tank's death leaves its hatchlings; other kinds leave nothing", () => {
   assert.equal(lone.field.enemies.length, before - 1, 'a drifter leaves only its wreck');
 });
 
+test('every kind there is can be killed, and pays out what its row says', () => {
+  // The one test a new kind cannot skip: a row of balance data that forgets a field
+  // only complains when something finally dies, which is never while you are looking.
+  for (const name of Object.keys(KINDS)) {
+    const stats = BALANCE.kinds[name];
+    const { field, enemy } = standing(21, name, 1200, 1200);
+    const sparks = field.particles.count;
+    const rings = field.rings.count;
+    const texts = field.texts.count;
+    const shards = field.shards.count;
+    const score = field.score;
+    const kills = field.kills;
+
+    killEnemy(field, enemy, true);
+
+    assert.ok(!field.enemies.includes(enemy), name + ': it is still in the crowd after dying');
+    assert.ok(field.particles.count > sparks, name + ': nothing burst out of it');
+    assert.ok(field.rings.count > rings, name + ': no shockwave came off it');
+    assert.equal(field.texts.count, texts + 1, name + ': no score label went up');
+    assert.equal(field.shards.count, shards + enemy.drop, name + ': it owes ' + enemy.drop + ' shards');
+    assert.equal(field.score, score + enemy.score, name + ': the score did not move by its worth');
+    assert.equal(field.kills, kills + 1, name + ': the kill was not counted');
+    assert.equal(field.texts.items[field.texts.count - 1].text, '+' + enemy.score,
+      name + ': the label says something else');
+    assert.ok(stats.death.particles > 0 && stats.death.debris > 0,
+      name + ': its row says it dies without making anything');
+  }
+});
+
+test('a kill that the player did not do pays nothing', () => {
+  const { field, enemy } = standing(22, 'drifter', 1200, 1200);
+  const score = field.score;
+
+  killEnemy(field, enemy, false);
+
+  assert.equal(field.score, score, 'a drifter that came apart on its own is not worth anything');
+  assert.equal(field.texts.count, 0, 'and nothing was announced about it');
+});
+
 test('walking the crowd spends no randomness, so a walk cannot move a run', () => {
   const field = scriptedRun(18);
   // Every kind there is, so a new one cannot slip a draw into its walk unnoticed.
