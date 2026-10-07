@@ -727,3 +727,87 @@ moved - it is worth remembering that the *numbers* in `render/` are free to chan
 4. M2's remaining checkboxes are partly done by earlier sessions: hit flash, trauma shake, pooled
    particle system and enemy knockback all exist. What is genuinely missing is hit-stop, the arena and
    the nebula. Put them right before releasing against that list.
+
+## Session 11 (2026-10-07) — Milestone 2: hit-stop
+### What landed
+PLAN section 4's "freeze the simulation for 40 ms on big kills and 90 ms when the player is hit".
+That was the last thing standing between M2's feedback checkbox and being done - the enemy hit flash
+(60-90 ms white) and the trauma shake were already in.
+
+- **`world.freeze`** (seconds left of hit-stop, 0 normally) is the whole feature's state.
+  `game/effects.js` gained `hitStop(world, seconds)` next to `shakeIt`: it takes the **max**, so a
+  small kill landing inside a player hit cannot cut the longer freeze short.
+- **Two things ask for a freeze.** `BALANCE.kinds.tank.death.hitStop = 0.04` (a kind says for how
+  long its own death stops the run; a kind that does not ask is simply not big enough) and
+  `BALANCE.playerHit.hitStop = 0.09` in `hitPlayer`. Death counts as a hit, so dying gets the 90 ms
+  too, with the game-over screen drawn over the top of it. M3 gives the bomber and the elites their
+  own numbers by filling in the same per-kind field - no other code will need touching.
+- **`stepWorld` spends the freeze, and now answers whether it simulated anything.** A frozen step
+  advances nothing but the two clocks that are not the run's, and returns false. `run.js` clears it
+  in `resetRun`; `STARFALL.stats()` reports it for the F3 overlay.
+- **`tickFrameClocks(world, dt)`** - the trauma decay and the after-death restart guard - is called
+  on both paths, so a freeze cannot steal shake from the frame or stretch the guard beyond what the
+  player's finger needs. `world.time` (the session clock the eye animates on: the breathing cooldown
+  ring, the invulnerability blink, the shard pulse) also keeps ticking. Order on the normal path is
+  unchanged from before, so nothing else moved.
+- **`main.js` only hands the controls over for a step that ran** (`if (heard) consumeInput()`), so a
+  dash pressed during a freeze is *kept* and answered on the first step after the thaw. That is the
+  behaviour that matters: 90 ms of being unable to move is exactly when you are mashing the escape key.
+  Without it the press vanished (verified: reverting that one line fails the new test).
+
+### The decision session 7's note asked me to make
+The note said to put the freeze timer on the world and "step it in real time, not in step time, and
+drain the accumulator while frozen". I did the opposite and it is better: **the timer is spent in
+steps.** With a fixed 1/120 s step, step time *is* real time, so the freeze lasts the seconds it
+asked for either way - but spending it inside `stepWorld` means the clock has already been paid for
+those steps (nothing can come back as a burst of catch-up steps), the freeze is deterministic, and
+the whole feature is testable through the scripted world with no frame loop involved at all.
+40 ms = 5 steps, 90 ms = 11 steps (a freeze always costs a whole number of steps, rounded up).
+
+### Tests: 129, all passing (was 119)
+- `test/hitstop.test.mjs` (7, scripted world): a big kill's freeze is exactly `ceil(0.04/step)` steps
+  and the run clock does not move during them; a drifter's death stops nothing; a hit is the longest
+  freeze in the game; overlapping freezes take the max; a fingerprint of every position in the world
+  (ship, crowd, shots, shards, sparks, rings, labels) is **byte-identical** across two frozen steps
+  while `world.time` and the trauma do move; the restart guard ticks through a freeze; `resetRun`
+  unfreezes.
+- `test/frozen-frame.test.mjs` (3, booted game): a frozen frame is still painted (the ship is found
+  among the frame's translates at its interpolated spot); the dash-that-waits-for-the-thaw case above;
+  and a death - the summary screen arrives, the death burst's first spark is still and not even fading
+  across two frames, then the freeze spends itself and a restart works as normal.
+- Both files learned the two traps the hard way: a booted game must be *launched* by the test that needs
+  it (Space launches one, so a later test "passed" off a run an earlier test had accidentally started),
+  and `isInvulnerable` includes a dash in progress, so a test that wants to be hit has to zero
+  `dashLeft` first.
+
+### Proof and numbers
+Reference run **rebaselined on purpose**: `node tools/simulate.js --seed 20261006 --trace` is now
+**1m04s, score 816, level 3, 57 kills, 36 shards** (was 1m14s / 1108 / level 4 / 74 / 64). Bot over
+seeds 1-4: **1m04s average, score 828** (was 1m00s / 726). Most of that swing is chaos, not the
+freeze: a reference run only contains **7 hit-stops = 43 frozen steps = 358 ms** of the run
+(4 player hits, 3 tank kills), but every one of them shifts when the bot's keys land on a step. The
+average went slightly *up*, so the naive bot is not being punished; a player who reads a freeze as
+"that mattered" is the point. Measured with a throwaway script (`world.steps - elapsed/step` is the
+count of frozen steps, which is a nice trick to remember).
+
+### Released **v0.2.3**.
+
+### Next (Milestone 2, what is left)
+1. **Arena 3000x3000 + camera + cursor lean + energy walls.** The big one, and the last real gap.
+   Session 8/9/10's warnings all still stand: the camera reads the *interpolated* position
+   (`render/interp.js`), `dashDirection` and `mouse.js` need the camera's inverse to turn screen pixels
+   into arena coords, and the draw calls bake the transform in today, so the camera wants a
+   `setTransform` at the top of a frame. `world.arena` is already the only thing the sim reads for its
+   bounds. Expect a deliberate rebaseline; consider the grid's cell size and the spawn margins while in
+   there (they are in `balance.js` already).
+2. **Nebula backdrop** (PLAN section 4's last missing visual): slow drifting clouds drawn once to an
+   offscreen canvas, behind the three star layers. `render/background.js` owns the stars; the nebula
+   belongs there and must be baked at device resolution like the glow sprites.
+3. Then look at M2's last two checkboxes honestly, in one short session:
+   - *Knockback on enemies when hit* is genuinely done (bullet impulse, the hit shove, the dash
+     shoulder) - tick it or say what is missing.
+   - *Particle system on a pool: sparks, debris, shockwave rings, thruster trail* - sparks, rings and
+     the pooled plumbing are in; **debris does not exist** (every death spark is the same 1.3-3.4 px
+     size range) and the thruster is a drawn flame, not a trail. Either add a real debris particle
+     (slower, bigger, longer-lived, spawned by the bigger kinds) and a couple of sparks out of the
+     thruster, or [skipped] the parts that are the same thing by another name.
