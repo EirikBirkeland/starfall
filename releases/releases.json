@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.16",
+    "date": "2026-10-08",
+    "summary": "Mines: the ship drops mines out of the way it was going, and a body that walks into the ring on the floor pays for the road"
+  },
+  {
     "version": "0.4.15",
     "date": "2026-10-08",
     "summary": "Magnetar: the shards you pick up charge the field round the ship, and when it is full it lets go"
