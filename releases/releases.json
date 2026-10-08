@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.18",
+    "date": "2026-10-08",
+    "summary": "Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see"
+  },
+  {
     "version": "0.4.17",
     "date": "2026-10-08",
     "summary": "Tether: a dash ties a line of light from where it started to wherever you get to, and everything standing on it burns"
