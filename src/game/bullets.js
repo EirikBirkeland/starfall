@@ -17,6 +17,7 @@ import { logic } from '../core/rng.js';
 import { dist2 } from '../core/math.js';
 import { PALETTE } from '../core/palette.js';
 import { damageEnemy, rebuildEnemyGrid } from './enemies.js';
+import { ignite } from './burn.js';
 import { widestEnemyRadius } from './kinds.js';
 import { burst, spray } from './effects.js';
 import { cueBeep } from './cues.js';
@@ -227,6 +228,9 @@ export function updateBullets(world, dt) {
       enemy.iy += bullet.vy * bullet.knock;
       burst(world, bullet.x, bullet.y, BALANCE.kinds[enemy.type].color, impact.count, impact.speed, impact.life);
       const killed = damageEnemy(world, enemy, bullet.dmg, true);
+      // Every hit the ship lands sets the body alight, and that includes the one that brought
+      // it down (game/burn.js): a body that died alight is what the third rank is for.
+      ignite(world, enemy);
       // Only a hit that did not kill makes the impact sound; a kill plays its own.
       if (!killed) cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
 

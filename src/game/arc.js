@@ -48,6 +48,7 @@ import { PALETTE } from '../core/palette.js';
 import { dist2 } from '../core/math.js';
 import { fx } from '../core/rng.js';
 import { damageEnemy } from './enemies.js';
+import { ignite } from './burn.js';
 import { spray } from './effects.js';
 import { gainOf } from './upgrades.js';
 
@@ -137,7 +138,11 @@ function land(world, spec, body, fromX, fromY, weight) {
   const hit = spec.hit;
   spray(world, body.x, body.y, PALETTE.spark, hit.count, hit.speed, hit.life,
     Math.atan2(dy, dx), hit.spread);
+  // A body the bolt touched is set alight whether or not the bolt finished it, same as a shot
+  // that landed (game/burn.js): the arc is the ship's own weapon and its fire is the same
+  // fire, and a kill is exactly when the third rank wants that fire to go sideways.
   damageEnemy(world, body, weight, true);
+  ignite(world, body);
 }
 
 /**

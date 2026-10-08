@@ -137,6 +137,13 @@ export const PALETTE = {
   // for longer than a bomber's flash, which is the whole point of the kind.
   beamEdge: '#ff5f86',
   beamCore: '#fff2f6',
+  // The ship's own fire (game/burn.js, PLAN 3.5's Burn). Hotter in hue than anything the
+  // crowd wears - a yellow above the tank's amber, nowhere near the bomber's red - because it
+  // is stamped *over* bodies of all of those colours with the light blend, which pushes
+  // whatever it covers toward white and reads as a body lit from inside. The core is nearly
+  // white for the same reason every hottest thing here is: the beam's axis, a bomber's flash.
+  burnFlame: '#ffc23a',
+  burnCore: '#fff4c9',
   // The darter's warning line (render/entities.js): the wide soft pass is the
   // enemy's own red, the thin one over it is paler, and the head of it is almost
   // white - the order your eye should read them in.

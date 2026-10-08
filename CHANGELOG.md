@@ -1,5 +1,69 @@
 # Starfall — changelog
 
+## 0.4.10 — 2026-10-08
+Burn: every hit the ship lands sets the crowd alight, and a body that dies alight passes it on.
+- **A new card on the rack - the first behaviour upgrade of milestone 4.** **BURN** is five ranks
+  of "a hit sets them alight". A burning body loses a *share of one shot of your own gun* every
+  second, in chunks on a half-second beat, for **3 s** after the last hit that lit it. That share
+  grows with the damage line exactly as a shot does, so the fire is worth more on a heavy gun and
+  nothing at all on a weak one - which is the right way for it to be.
+- **The tail is the card.** The fire keeps eating the body after you have turned to the next one,
+  and a body under fire keeps having its clock restarted, so what you are buying is the damage you
+  did not have to fire. Ranks 1 and 2 are about that bite getting heavier.
+- **Rank 3 is the bonfire.** A body that comes apart while alight hands the fire to everything
+  within **96 px**, for a share of what was still burning in it - and the shot that killed it is
+  what lit it, so killing a crowd is what sets a crowd alight. Each jump is shorter than the last,
+  so fire runs *down* through a crowd and dies out instead of setting the arena alight from one
+  match; measured, a chain walks about six bodies and stops.
+- **The third kind of number.** Every other line sells a multiplier (`+30%`) or a number of things
+  (`+1 bounce`). Burn sells a *rate*, which is neither: at rank 0 there is no fire at all, not fire
+  of strength zero, so the card prints `+40% burning damage` and the sim asks its own question of
+  it. That is a new `unit` in the upgrade data, with its own accessor.
+- **Fire is a thing in the world, not a number on the body.** `world.fires` holds one fire per
+  body that is alight, and a fire holds on to the body it is eating - which is what lets a corpse
+  outlive itself by the one step in which it spreads the fire. It costs no random numbers at all,
+  so a run that is on fire is exactly as reproducible from its seed as one that is not.
+- **What it looks like.** Two soft stamps over the body - a wide yellow and a smaller near-white
+  one above the middle, both blended additively, so a flame over a red body reads as a body lit
+  from inside rather than wearing a hat - breathing off two sines of the body's own phase, never
+  a re-roll. Over the crowd, under the ship. The whole of it is two baked sprites for the game,
+  whichever body is burning and however many there are.
+- Measured twice, and the two agree: one rank of burn is worth **0.30 ranks of the damage line** on
+  the power ladder (level with an orbital rank), and in a real fifteen-minute run at five ranks the
+  fire was **27-29% of all the damage the run dealt**, over a mean of eight bodies alight at a
+  time. Twenty bot runs with the card in the deck against twenty with it out: the bot takes it
+  every single time, and came out level to slightly better - 19 of 20 still flying at the cap
+  against 17 of 20, score median 115,814 against 112,578.
+- 23 new tests. The logic file proves one fire per body, that the tail is paid after the last hit,
+  that a chain decays and dies out, that a killing hit lights a corpse only from rank 3 and only
+  for the share it passes, and that fire spends no numbers out of the run's own random stream. The
+  art file proves the frame paints no fire for a ship that has taken the card and hit nothing, that
+  a flame is exactly two stamps and no strokes, that it is stamped on the body and buried under the
+  ship, and that a fire on a body that has come apart draws nothing at all.
+
+## 0.4.9 — 2026-10-08
+The game can be played by a coding agent: `node tools/agent-bridge.js`.
+- **No gameplay change.** What is new is a door in: the game boots headless, steps at about one frame
+  per 16.7 ms of real time, and offers itself as **twelve tools on stdin and stdout** - `observe`,
+  `move`, `aim`, `trigger`, `dash`, `choose`, `choose_weapon`, `start`, `step`, `autopilot`, `status`,
+  `run_result` - over JSON-RPC 2.0, one message per line. That is the shape the Model Context
+  Protocol uses for a subprocess server, so an agent can be pointed at this game with one config
+  line and no library: `claude mcp add starfall -- node tools/agent-bridge.js`.
+- **The agent plays by the same controls you do.** No tool moves the ship; they hold keys, point the
+  cursor and press buttons. `observe` reports only what is on screen - and reports a shot as *when it
+  arrives* and *how far off its line you are standing*, which is what a dodge is made of. `step` lets
+  half a minute of game go by while a slow player thinks, and stops early with the reason when the
+  game needs an answer. `autopilot` hands the flying to the headless bot so a thoughtful agent can
+  still play the decisions: the cards, the gun, when to start the next run.
+- **`node tools/agent-bridge.js --demo`** plays a whole four-minute run through the wire and prints
+  every line of the conversation, including the refusals. `tools/agent/README.md` is the manual.
+- The bridge says what happens while nobody is asking (`started`, `level-up`, `died`, and `wave` for
+  anyone who wants the chatter), refuses an order as an answer rather than a fault, and keeps the
+  world's clock honest: a bridge that was busy thinking makes up a few frames and forgives the rest,
+  the same rule the engine gives a backgrounded tab.
+- 31 new tests, all of them against the real game: the same keys a person presses are seen moving the
+  ship, a card taken through the wire is a rank in the build, a death is reported exactly once.
+
 ## 0.3.9 — 2026-10-08
 The sniper: the last body from the plan, bolted to the floor, drawing a laser across the whole arena.
 - **A new enemy at ten and a half minutes.** It never moves. An eye turns slowly onto your ship,
@@ -30,29 +94,6 @@ The sniper: the last body from the plan, bolted to the floor, drawing a laser ac
   damage is paid out at, and the headless bot is shown stepping off a band it cannot see the end of:
   forty seconds against two snipers, 0 hits for the ship that reads them and 9 for the one that
   stands still. Late-game survival is unchanged - 6 runs of 15 minutes, all still flying.
-
-## 0.4.9 — 2026-10-08
-The game can be played by a coding agent: `node tools/agent-bridge.js`.
-- **No gameplay change.** What is new is a door in: the game boots headless, steps at about one frame
-  per 16.7 ms of real time, and offers itself as **twelve tools on stdin and stdout** - `observe`,
-  `move`, `aim`, `trigger`, `dash`, `choose`, `choose_weapon`, `start`, `step`, `autopilot`, `status`,
-  `run_result` - over JSON-RPC 2.0, one message per line. That is the shape the Model Context
-  Protocol uses for a subprocess server, so an agent can be pointed at this game with one config
-  line and no library: `claude mcp add starfall -- node tools/agent-bridge.js`.
-- **The agent plays by the same controls you do.** No tool moves the ship; they hold keys, point the
-  cursor and press buttons. `observe` reports only what is on screen - and reports a shot as *when it
-  arrives* and *how far off its line you are standing*, which is what a dodge is made of. `step` lets
-  half a minute of game go by while a slow player thinks, and stops early with the reason when the
-  game needs an answer. `autopilot` hands the flying to the headless bot so a thoughtful agent can
-  still play the decisions: the cards, the gun, when to start the next run.
-- **`node tools/agent-bridge.js --demo`** plays a whole four-minute run through the wire and prints
-  every line of the conversation, including the refusals. `tools/agent/README.md` is the manual.
-- The bridge says what happens while nobody is asking (`started`, `level-up`, `died`, and `wave` for
-  anyone who wants the chatter), refuses an order as an answer rather than a fault, and keeps the
-  world's clock honest: a bridge that was busy thinking makes up a few frames and forgives the rest,
-  the same rule the engine gives a backgrounded tab.
-- 31 new tests, all of them against the real game: the same keys a person presses are seen moving the
-  ship, a card taken through the wire is a rank in the build, a death is reported exactly once.
 
 ## 0.4.8 — 2026-10-08
 Survival check: the firepower milestone is closed, and the number it was argued over is now a tool.

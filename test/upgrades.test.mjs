@@ -13,7 +13,7 @@ import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
 import {
   LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf,
-  countOf, pierceOf,
+  countOf, pierceOf, rateOf,
 } from '../src/game/upgrades.js';
 import { fire, shotsPerSecond, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
@@ -203,6 +203,17 @@ test('every line is five ranks deep and worth its step, in its own kind of numbe
 
     if (line.unit === 'percent') {
       assert.equal(gainOf(field, line.id), 1 + spec.step * spec.ranks);
+    } else if (line.unit === 'rate') {
+      // A rate line is neither multiplied nor counted. Its rank is a share of something, per
+      // second of its own, which is why the card prints a percentage and the sim reads a
+      // product - and why the first rank matters more than the arithmetic says: at rank 0
+      // there is no fire at all, not fire of strength zero.
+      assert.ok(spec.step < 1, line.id + ' sells a fraction and not a whole thing');
+      assert.equal(effectOf(line.id), '+' + Math.round(spec.step * 100) + '% ' + line.what);
+      assert.equal(rateOf(field, line.id), spec.step * spec.ranks);
+      field.upgrades[line.id] = 0;
+      assert.equal(rateOf(field, line.id), 0, line.id + ' is nothing at all at rank 0');
+      field.upgrades[line.id] = spec.ranks;
     } else {
       // A line of whole things is counted, not multiplied, and the card says so.
       assert.ok(Number.isInteger(spec.step), line.id + ' hands out whole things');
@@ -215,6 +226,7 @@ test('every line is five ranks deep and worth its step, in its own kind of numbe
   // says so out loud, instead of quietly multiplying by a plausible-looking six.
   assert.throws(() => gainOf(field, 'split'), /not a line of shares/);
   assert.throws(() => countOf(field, 'damage'), /not a line of whole things/);
+  assert.throws(() => rateOf(field, 'damage'), /does not sell a rate/);
   field.upgrades.split = 2;
   field.upgrades.pierce = 3;
   assert.equal(shotsPerPull(field), BALANCE.weapons.pulse.pellets + 2 * BALANCE.upgrades.split.step);

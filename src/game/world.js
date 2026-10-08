@@ -15,6 +15,7 @@ import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
 import { updateBeams, makeBeam } from './beams.js';
+import { updateBurn, makeFire } from './burn.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -129,6 +130,11 @@ function createWorld() {
     // and nothing cares about the order of them - a bolt is a record of a flash that has
     // already happened, and all that is left for it to do is fade.
     arc: { bolts: new Pool(makeBolt) },
+    // What is on fire (game/burn.js): one fire per body that is alight, each holding on to
+    // the body it is eating. Pooled and unordered like everything else that has to be many -
+    // and a fire is *not* a field on the enemy because a body that dies leaves the crowd, and
+    // the fire has to outlive it by the one step in which it spreads (game/burn.js).
+    fires: new Pool(makeFire),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -217,6 +223,10 @@ function stepRun(dt, input) {
   // And after the ring for the same reason: a nova front comes over the crowd where the
   // crowd now stands (game/nova.js).
   updateNova(world, dt);
+  // And after all of them, because a fire is the slowest thing here: it bites where every
+  // body ended up after the walking and the other damage, and the body it finishes is the
+  // one whose fire goes out sideways (game/burn.js).
+  if (!updateBurn(world, dt)) return;   // a fire ended the run
   updateShards(world, dt);
   // Last, because a bolt's only business is fading and a bolt thrown this step should be
   // seen at full brightness first (game/arc.js).

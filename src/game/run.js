@@ -15,6 +15,7 @@ import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
 import { resetBeams } from './beams.js';
+import { resetFires } from './burn.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -53,6 +54,9 @@ export function resetRun(world) {
   resetArc(world);
   // And every beam a sniper had still been glowing with (game/beams.js).
   resetBeams(world);
+  // And every body still alight when the last one ended (game/burn.js) - a fire left behind
+  // would be eating a body that no longer exists.
+  resetFires(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

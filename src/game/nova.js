@@ -44,6 +44,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
+import { ignite } from './burn.js';
 import { burst, shakeIt, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { gainOf, pulsesOf } from './upgrades.js';
@@ -116,7 +117,9 @@ function bite(world, front, enemy, spec) {
   spray(world, enemy.x, enemy.y, PALETTE.spark, sparks.count, sparks.speed, sparks.life,
     heading, sparks.spread);
 
+  // Whatever the front came over is alight afterwards, killed or not (game/burn.js).
   damageEnemy(world, enemy, front.weight, true);
+  ignite(world, enemy);
 }
 
 /**

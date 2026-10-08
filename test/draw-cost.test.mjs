@@ -74,7 +74,11 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(busy.stamps > 5000, 'glow sprites are doing the shining: ' + busy.stamps);
   assert.equal(busy.shadows, 0, 'nothing asked the canvas for a blur');
   assert.equal(busy.gradients, 0, 'nothing built a gradient this frame');
-  assert.ok(glowStats().holders < 30, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  assert.ok(glowStats().holders < 32, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  // (32, and the same run on the commit before the ship owned a fire stood at 27: two sprites
+  // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
+  // - and the ninth card tint asked for one more. The rest is one per kind's colour and halo,
+  // plus the ship, the shards and the cards.)
 });
 
 test('a steady frame builds nothing at all', () => {

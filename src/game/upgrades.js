@@ -7,11 +7,13 @@
 // - between two frames, in the middle of a step - and every system that cares simply
 // starts agreeing with it.
 //
-// There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
+// There are three kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
 // already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet, orbitals,
-// nova - hand out whole things instead, and a caller counts them: `countOf`. A card
-// prints either, which is why the printing lives here.
+// nova - hand out whole things instead, and a caller counts them: `countOf`. Burn sells
+// neither: it sells a *rate*, which is a third question and has its own accessor.
+// A card prints whichever of the three it is dealing with, which is why the printing
+// lives here.
 //
 // What a count is then worth is the reader's business: the split line's extras are added
 // to a pull by game/weapons.js, the pierce and ricochet ones are spent by
@@ -33,6 +35,15 @@ const PERCENT = 100;
  */
 const SHARE_UNIT = 'percent';
 const WHOLE_UNIT = 'each';
+/**
+ * The third kind: a line that is simply *off* until its first rank and then sells so much
+ * of something, per second of its own. `gainOf` cannot read it - `1 + step * 0` is one, and
+ * rank 0 has to mean no fire at all, not fire at the strength of nothing - and `countOf`
+ * cannot print it, because a rank buys a fraction and not a thing. So it gets asked its own
+ * question (`rateOf`) and printed as a share, because what one rank is worth really is a
+ * share of what the line was worth before it.
+ */
+const RATE_UNIT = 'rate';
 
 /**
  * The lines, in the order the cards are dealt from. `id` is the key into
@@ -106,6 +117,14 @@ export const LINES = [
     flavour: 'Every eight seconds the ship throws off a wave of damage, and one more per rank.',
     icon: 'nova',
   },
+  {
+    id: 'burn',
+    name: 'BURN',
+    unit: RATE_UNIT,
+    what: 'burning damage',
+    flavour: 'A hit sets them alight, and the fire keeps working after the shot has gone.',
+    icon: 'burn',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -116,6 +135,8 @@ const RICOCHET_LINE = 'ricochet';
 const ORBITALS_LINE = 'orbitals';
 /** The line that hands out nova fronts to throw off the ship. */
 const NOVA_LINE = 'nova';
+/** The line that sets what the ship hits on fire. */
+const BURN_LINE = 'burn';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -186,6 +207,17 @@ export function countOf(world, id) {
 }
 
 /**
+ * How much per second a line of `unit: rate` is worth right now: `step * rank`, which is
+ * nothing at all at rank 0 - that is the whole reason this is a third kind of number and
+ * not one of the two above. Asking a line that is not a rate for one says so.
+ */
+export function rateOf(world, id) {
+  const line = lineOf(id);
+  if (line.unit !== RATE_UNIT) throw new Error(id + ' does not sell a rate');
+  return stepOf(id) * rankOf(world, id);
+}
+
+/**
  * How many bodies past the first one a shot may go through (PLAN 3.5). A shot is
  * handed this when it leaves and spends one of it per body, so it is the count of
  * *extra* bodies, not of bodies in total.
@@ -225,6 +257,17 @@ export function dronesOf(world) {
  */
 export function pulsesOf(world) {
   return countOf(world, NOVA_LINE);
+}
+
+/**
+ * How hard the fire bites, as a share of one shot of the ship's own gun per second of
+ * burning (PLAN 3.5's Burn): `0` until the line is taken, and this much for every body that
+ * is alight. Read where the damage is paid out - game/burn.js - so a rank taken in the
+ * middle of a burning crowd is felt by the very next bite, and the fire is worth more on a
+ * heavy gun for exactly the reason a drone bite is (game/orbitals.js).
+ */
+export function flameOf(world) {
+  return rateOf(world, BURN_LINE);
 }
 
 /** Lines with a rank still to give. */

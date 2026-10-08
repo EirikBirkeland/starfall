@@ -162,6 +162,9 @@ Behaviour upgrades:
   aimed shot's damage, so the fan buys coverage across the crowd rather than multiplying
   the gun.
 - **Burn**: hits ignite for damage over time; burning enemies spread it on death at rank 3.
+  *Done in 0.4.10* (`src/game/burn.js`). The shot that kills a body is what lit it, and a dying
+  body is given the share a jump carries rather than a whole burn - that share is the only decay a
+  chain has, and what keeps a late run's kill rate from torching the arena.
 - **Chill**: hits slow by 8% per rank; frozen enemies shatter for area damage at rank 5.
 - **Leech**: every 60 kills heals 1 hull (fewer kills per rank).
 - **Overcharge**: standing still for 1 s doubles the next shot.

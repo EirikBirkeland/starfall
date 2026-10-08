@@ -146,6 +146,18 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
  */
 const DEFERRED = { orbitals: 2 };
 
+/*
+ * BURN is not in that table either, and is not going in it (NOTES session 38: twenty seeds with
+ * the line in the deal against twenty with it out of the deck, same window). The bot takes it
+ * in 20 of 20 runs and takes it to five, because it is the shallowest line in the game and an
+ * even spread reaches five ranks of it before five of anything else - and the batch came out
+ * level to slightly better with it: median 15m00s either way, 19 of 20 still flying at the cap
+ * against 17 of 20, score median 115,814 against 112,578. A line worth 0.3 ranks of the gun on
+ * the ladder, that costs the run nothing when a bot is free to grab it, does not need a
+ * handicap; putting one here would only hide the card from the measure that shows whether it
+ * belongs in the deck at all.
+ */
+
 /** How deep the bot thinks a line stands, handicaps and all. */
 function depthOf(ranks, id) {
   return ranks[id] + (DEFERRED[id] === undefined ? 0 : DEFERRED[id]);

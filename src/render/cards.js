@@ -39,6 +39,12 @@ const TINT = {
   ricochet: PALETTE.teal,
   orbitals: PALETTE.indigo,
   nova: PALETTE.spring,
+  // The one warm tint on the rack, and the exception is on purpose: seven cool hues were
+  // handed out before anything that is itself a flame came along, and a blue flame on a card
+  // called BURN would be a joke nobody in the arena would get. The panel around it is still
+  // the cool one (PALETTE.cardFace, cardEdge) and the rank pips are small, so the warmth is
+  // an icon and not a card.
+  burn: PALETTE.burnFlame,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -271,6 +277,7 @@ const ICONS = {
   ricochet: iconRicochet,
   orbitals: iconOrbitals,
   nova: iconNova,
+  burn: iconBurn,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -461,6 +468,44 @@ function iconBulletSpeed(ctx, size, tint) {
     ctx.lineTo(half, dy);
     ctx.stroke();
   }
+}
+
+/**
+ * A flame standing on a body: the fire is *on a thing*, which is the whole card - it is not
+ * another projectile to throw, it is what happens to whatever you have already hit. The body
+ * sits under it quiet, the way pierce's bodies do, and the flame leans a little so it is a
+ * live shape and not a teardrop.
+ */
+function iconBurn(ctx, size, tint) {
+  polygon(ctx, 0, size * 0.46, size * 0.26, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(tint, 0.16);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.45);
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  flamePath(ctx, 0, size * 0.36, size * 1.12, size * 0.6, size * 0.2);
+  ctx.fillStyle = withAlpha(tint, 0.92);
+  ctx.fill();
+
+  flamePath(ctx, size * 0.02, size * 0.3, size * 0.52, size * 0.26, 0);
+  ctx.fillStyle = withAlpha(PALETTE.burnCore, 0.9);
+  ctx.fill();
+}
+
+/**
+ * One flame: a round body of fire with a tip leaning `lean` px to the right, `width` px
+ * across and `height` px tall, sitting on `base`. Two quadratic curves on each side is all
+ * it is - a shape with no hard edges, which is what a flame is.
+ */
+function flamePath(ctx, cx, base, height, width, lean) {
+  const tip = cx + lean;
+  ctx.beginPath();
+  ctx.moveTo(tip, base - height);
+  ctx.quadraticCurveTo(cx + width, base - height * 0.42, cx + width * 0.6, base);
+  ctx.quadraticCurveTo(cx, base + height * 0.16, cx - width * 0.6, base);
+  ctx.quadraticCurveTo(cx - width, base - height * 0.42, tip, base - height);
+  ctx.closePath();
 }
 
 /**

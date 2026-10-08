@@ -1026,6 +1026,73 @@ export const BALANCE = {
       sound: { freq: 150, dur: 0.28, wave: 'triangle', vol: 0.1, slide: 48 },
       shake: 4,
     },
+    burn: {
+      ranks: 5,
+      // The first `rate` line (game/upgrades.js): its rank 0 means no fire at all, and every
+      // rank after it adds this much of one shot of the ship's gun, per second of burning.
+      // So a burning body loses `step x rank` shots' worth of hull every second, in shots of
+      // `bullets.damage` like every other thing that adds damage instead of multiplying the
+      // gun (session 31's lesson: a flat rate loses the race to a multiply as soon as the gun
+      // is twice what it was).
+      //
+      // Priced twice over, and the two agree, which is why it stayed at this number.
+      // `node tools/power-ladder.js --line burn`: 1.46x on all three knots at five ranks,
+      // so one rank is worth 0.30 ranks of the damage line - level with a rank of the orbital
+      // ring (0.32) and worth more than a rank of the split (0.21), which is where an added
+      // source belongs. And in a real run, where the fire is in a crowd rather than on a
+      // single body the knot can show: an aware bot forced to five ranks of burn took 27-29%
+      // of a fifteen-minute run's whole damage from the fire, over a mean of eight bodies
+      // alight at a time and a peak of thirty-four, with something burning in 99% of its
+      // frames (three seeds at the 900 s cap). A rank of the damage line there is worth about
+      // four times that share, so the ladder and the run say the same thing to within a fifth.
+      step: 0.4,
+      // How long a body stays alight after the last hit that lit it, in seconds. A hit that
+      // lands starts the clock again, so a body under fire is alight while it is being fired
+      // at and for `time` seconds afterwards - and that tail is the whole card: the damage
+      // the fire does after you have turned to the next body is damage you did not have to
+      // fire. It is also why the line is a `rate` and not a duration: a duration would be
+      // refreshed into nothing by the trigger and buy nothing after the first rank.
+      time: 3,
+      // s between two bites of the fire. The loss is paid out in chunks rather than spread
+      // thin over every step, which is what lets a body flash when the fire takes hold and
+      // lets a run see how badly it is burning; six bites a body, at these two numbers, and
+      // a floor of `step x rank / 6` shots each.
+      bite: 0.5,
+      // PLAN 3.5's second half: "burning enemies spread it on death at rank 3". A body that
+      // comes apart while alight passes the fire to every body within `radius`, for `share`
+      // of the time the corpse had left - so a chain runs down and dies out instead of
+      // setting the whole arena alight, and the first two ranks are about biting harder
+      // while the third is what turns a crowd into a bonfire.
+      //
+      // The shot that kills a body is what lit it, which is the other half of how this reads:
+      // a body that dies to a hit is alight when it dies, and so hands the fire to its
+      // neighbours from this rank (game/burn.js). What it hands is `share` of a whole burn
+      // and not a whole burn - a killing hit cannot light three seconds of fire in a body
+      // that is already coming apart, and if it could then every kill in a late run would
+      // torch everything near it and the crowd would burn forever off the rate the gun kills
+      // at. That share is the only decay a chain has, and it is what makes each hop shorter
+      // than the last.
+      spread: {
+        at: 3,
+        radius: 96,
+        share: 0.55,
+        // The light of a jump: a ring born exactly at the reach of the jump and creeping a
+        // little past it - so the light never claims less fire than was passed, which is the
+        // one thing a ring that follows damage may still do.
+        ring: { speed: 130, life: 0.32 },
+        burst: { count: 10, speed: 190, life: 0.4 },
+      },
+      // What a body that has just caught fire throws, and how quietly it says so: the fire is
+      // lit on every new body, which is a few times a second in a crowd, so the light is
+      // small and the sound is nearly nothing.
+      ignite: { count: 5, speed: 70, life: 0.34, spread: 1.1 },
+      // Embers off a bite, sprayed upwards: fire goes up in this game whatever else it does.
+      ember: { count: 2, speed: 60, life: 0.45, spread: 0.5 },
+      // The bite is silent on purpose - a crowd on fire would be a buzz and the mix has no
+      // voice limiting yet (milestone 7) - but the catching hold is not, because that is the
+      // moment the card is doing something and it has to be heard as well as seen.
+      sound: { freq: 300, dur: 0.09, wave: 'triangle', vol: 0.02, slide: 260 },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

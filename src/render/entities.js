@@ -680,6 +680,66 @@ export function drawEnemies(ctx, list, dim, alpha) {
   for (let i = 0; i < list.length; i++) drawEnemy(ctx, list[i], dim, alpha);
 }
 
+// The ship's own fire (game/burn.js, PLAN 3.5's Burn): a body that is alight is drawn with
+// a flame over it.
+//
+// Two stamps and nothing else - a wide one the colour of the fire and a smaller, hotter one
+// above the middle of the body - because this is the one light in the game that can be true
+// of forty bodies at once, and it is drawn over the crowd it is burning, which is the
+// blend's whole trick: a warm yellow stamped over a red body comes out looking lit from
+// inside rather than wearing a hat.
+//
+// The breathing is a sum of two sines out of the body's own `phase` and nothing else, so a
+// fire is a live shape without asking a random stream for a single number - a flame that
+// re-rolled every frame would be a strobe, and a strobe forty times over is the ugliest
+// thing this game could draw.
+const FIRE_REACH = 1.55;       // the flame reaches this far past the body it is burning
+const FIRE_CORE = 0.6;         // the hot part, as a share of the body's own width
+const FIRE_LICK = 0.35;        // how far above the middle the hot part sits: fire goes up
+const FIRE_LIGHT = 0.5;        // how bright the wide pass lands at its dimmest
+const FIRE_CORE_LIGHT = 0.75;
+const FIRE_BEAT = 9;           // rad/s of the main breath
+const FIRE_DANCE = 0.35;       // how much of the light the flicker takes away
+const FIRE_PAD = 8;            // px of slack on the cull test, for the flicker
+// Two sprites for the whole of the fire, whichever body it is eating: a bigger sprite
+// stamped smaller costs one more matrix multiply and buys back the eight or so that one
+// sprite per body radius would have baked (test/draw-cost.test.mjs keeps an eye on how many
+// sprites the game owns, and a crowd of every kind on fire used to add to it).
+const FIRE_SPRITE = 40;        // px of reach the wide sprite is baked at
+const FIRE_CORE_SPRITE = 16;   // ...and the hot one
+
+/** How brightly one fire is lit this instant, 1 - FIRE_DANCE .. 1. */
+function lickOf(target, time) {
+  const slow = Math.sin(time * FIRE_BEAT + target.phase) * 0.5 + 0.5;
+  const quick = Math.sin(time * FIRE_BEAT * 2.7 + target.phase * 1.7) * 0.5 + 0.5;
+  return 1 - FIRE_DANCE * (slow * 0.7 + quick * 0.3);
+}
+
+export function drawFire(ctx, alpha) {
+  const fires = world.fires;
+  const time = world.time;
+  const wide = glowFor(PALETTE.burnFlame, FIRE_SPRITE);
+  const hot = glowFor(PALETTE.burnCore, FIRE_CORE_SPRITE);
+
+  for (let i = 0; i < fires.count; i++) {
+    const fire = fires.items[i];
+    const body = fire.target;
+    // It came apart since the last step and the fire has one step left to go out in
+    // (game/burn.js). A flame hanging in the air where a body was is a lie about a wreck.
+    if (body.hp <= 0) continue;
+
+    const x = paintX(body, alpha);
+    const y = paintY(body, alpha);
+    const reach = body.r * FIRE_REACH;
+    if (!onScreen(x, y, reach + FIRE_PAD)) continue;
+
+    const lick = lickOf(body, time);
+    paintGlow(ctx, wide, x, y, FIRE_LIGHT * lick, reach / FIRE_SPRITE);
+    paintGlow(ctx, hot, x, y - body.r * FIRE_LICK,
+      FIRE_CORE_LIGHT * lick, (body.r * FIRE_CORE) / FIRE_CORE_SPRITE);
+  }
+}
+
 // The dash's own art. Visual constants, so they live here and not in balance.js.
 const STREAK_LENGTH = 46;      // how far the blur reaches behind the ship
 const STREAK_GHOSTS = 2;       // afterimages in it, and how far apart they sit

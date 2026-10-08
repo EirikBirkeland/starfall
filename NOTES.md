@@ -4603,3 +4603,102 @@ exactly that line. Every few seconds, forever, until somebody shoots it.
     and a dash straight off the axis is the flashy correct answer when two bands cross under you.
 - The old asks, unchanged: **the third bot** (dodging with a 0.2 s delay), and **a real agent
   playing a real run** through `node tools/agent-bridge.js`.
+## Session 38 (2026-10-08) — Burn: the first behaviour card, and a damage that is a state a body is in. Released **0.4.10**
+
+Milestone 4's behaviour lines started. PLAN's list puts the firepower ones first, so this
+session took **Burn**: hits ignite for damage over time, and at the third rank a body that dies
+alight passes it to the crowd. The `Each behaviour upgrade from 3.5` item stays unticked - six
+lines and the five secondaries are still to go - and PLAN 3.5's Burn line now says which release
+did it, which is the only edit the plan got.
+
+### What got built
+
+- `src/game/burn.js` (new) - the fifth thing that hurts the crowd and the only one that is a
+  *state* rather than an event. `ignite` (called by whatever landed a hit), `feed` (one fire per
+  body; a second hit buys time rather than a second fire), `biteWeight` (a share of one shot of
+  the ship's own gun, paid in chunks on a beat), `passFire` (the rank-3 jump, within 96 px, for a
+  share of what the corpse had left), `goOut`, `updateBurn` (runs after the crowd has walked and
+  after every other damage, and answers false when a fire ended the run), `resetFires`.
+- `world.fires` - a Pool of `{ target, left, due }`. **A fire is a world object holding a body,
+  not a field on the enemy**, and the reason is the whole design: a body that dies leaves
+  `world.enemies`, and a corpse still has one step of fire left to spend. Anything wearing a
+  field on the enemy would have lost the fire with the body. It also means the pass costs what is
+  burning rather than what is walking, and it spends no random numbers at all.
+- `upgrades.js`: a **third kind of number**, `unit: 'rate'`, with `rateOf` and `flameOf`. Burn is
+  not a multiplier (`gainOf` would read rank 0 as "one times", and rank 0 has to mean *no fire*)
+  and not a count (`countOf` would print "+0.4 burning damage" for what is really +40%). The card
+  prints `+40% burning damage`. `world.js` runs `updateBurn` after `updateNova`; `run.js` clears
+  the fires with everything else.
+- Ignite is wired in at the four places a hit lands - `bullets.js`, `arc.js`, `orbitals.js`,
+  `nova.js` - and deliberately **not** in `blast.js`, which is somebody else's death.
+- Render: `drawFire` in `entities.js` (two `paintGlow` stamps, over the crowd and under the ship,
+  flickering off two sines of the body's own `phase` and no random stream), `burnFlame`/`burnCore`
+  in the palette, and `iconBurn`/`flamePath` in `cards.js` - the one warm tint on the rack, with
+  the reason written next to it.
+- `test/burn.test.mjs` (16 tests) and `test/burn-art.test.mjs` (7). The `draw-cost` holder bound
+  went 30 → 32: two sprites for the whole of the fire, plus one for the ninth card tint.
+
+### The decisions, and why
+
+- **A killing hit sets the body alight too.** The first version of this only ignited a body that
+  survived the hit, on the reading that a corpse is not "a burning enemy". It measured badly: in a
+  fifteen-minute bot run *nothing was burning* (mean 1.0 bodies alight, a fire in 12% of frames),
+  because by the second minute the gun kills most bodies with the shot that touches them first,
+  so the card faded away exactly when the player had paid three ranks for it. Now the shot that
+  kills is what lit the body, and what a dying body is given is the share a jump carries and not a
+  whole burn - `spec.time * spread.share`. That share is the chain's only decay: measured, a chain
+  walks about six bodies down a row and dies out, each hop shorter than the last. The same change
+  made the fire real - mean eight bodies alight at a time, peak thirty-four, something burning in
+  99% of frames.
+- **`passFire` only lights what is still standing**, and a fire lit on a corpse makes no light or
+  sound of its own. A flame hanging in the air where a body was is a lie about a wreck, and the
+  frame may not claim damage the simulation is not doing. Both are asserted.
+- **A bite is a share of a shot, paid in chunks.** Same argument as orbital drones and nova fronts:
+  an additive flat rate loses the race to a multiply as soon as the gun is twice what it was
+  (session 31's measured mistake), and chunky is what lets a body visibly catch.
+- **Only the ship's fire burns.** Every ignite comes from a system hurting the crowd on the run's
+  behalf, so a body that burns down is the run's kill all the way down the chain and no fire ever
+  has to be asked who lit it. No `logic` draw anywhere in the file, tested by snapshotting the run
+  stream and stepping 400 frames of a burning crowd.
+
+### What surprised me
+
+- The two measuring instruments disagreed by an order of magnitude and I had to work out why.
+  `tools/power-ladder.js --line burn` says **1.46x at five ranks, one rank = 0.30 ranks of the
+  damage line** - but its knots plant bodies that never die, so it cannot see the rank-3 spread at
+  all, and it measures a *fire on a body*, never a fire in a crowd. The real run says the fire was
+  **27-29% of the whole run's damage** (`tally.kinds[*].damage` sums every `damageEnemy`, so the
+  share falls out of the sheet the game already keeps). 0.30 per rank and 27% at five ranks are
+  the same answer to within a fifth, which is why `step: 0.4` did not move. Both numbers are in
+  `balance.js` now.
+- The bot: 20 runs with burn in the deck against 20 with it out (`BALANCE.upgrades.burn.ranks = 0`,
+  which is how a line is removed rather than how a bot is told to ignore it). The bot takes burn in
+  **20 of 20 runs and takes it to five** - it is the shallowest line in the game, so an even spread
+  reaches it first - and came out level to slightly better: median 15m00s both ways, 19/20 vs 17/20
+  still flying at the cap, score median 115,814 vs 112,578. So burn gets **no `APPETITE` or
+  `DEFERRED` entry** in `tools/headless/bot.js`; a note in that file says so and why, because the
+  temptation to handicap a card the bot over-picks is exactly how a card stops being measurable.
+- The **reference run moved**, as it must when a card joins the deck: `--seed 20261006 --trace` is
+  now alive at the 10m cap, score 69794, level 41, kills 4090, shards 2061, hull 3, build
+  5/5/4/5/5/5/3/4/4 (nine lines now, burn last). Rebaselined on purpose, like sessions 12 and 33.
+- `releases/releases.json` and `CHANGELOG.md` had got out of order: session 37 released the sniper
+  as **0.3.9** after **0.4.9** had gone out (its milestone number, correctly taken, but later in
+  time), so `agent-bridge.js` was reporting 0.3.9 as the newest version in the tree. Both lists are
+  now newest-first again, with 0.3.9 sitting under 0.4.9; no release folder was touched, and this
+  release is **0.4.10**, which is both the newest and the biggest.
+
+### For the next session
+
+- Milestone 4, next behaviour line. PLAN's order says **Chill** next (hits slow by 8% per rank;
+  frozen enemies shatter for area damage at rank 5). Note for when it comes: `burn.js`'s shape - a
+  world Pool of objects holding bodies, a `rate`/`percent` line, a jump gated at a rank, ignite
+  called from the four places a hit lands - is the shape Chill wants, and the slow belongs to the
+  walk, not to a system, so read `kinds.js` first. And the Burn 3 + Chill 3 synergy is waiting on
+  both of them.
+- `tools/power-ladder.js` measures a knot of bodies that never die. Any behaviour line whose whole
+  point is what happens when a body *comes apart* will be invisible to it. Either the ladder grows
+  a knot where things die, or those lines get measured the way burn was - a probe against
+  `tally.kinds[*].damage`. Worth an hour before the third such line.
+- The bot has no way to *want* a synergy, and no card scoring for burn's tail. Not a bug; the A/B
+  above is what the bot is for.
+

@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -80,6 +80,9 @@ export function renderFrame(tick, input, pointer) {
     // nothing standing in the middle of it may be allowed to hide it (game/beams.js).
     drawLocks(ctx, world.enemies, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
+    // Over the crowd and under the ship: a fire is on the body it is eating, and the one
+    // thing it must never do is hide the ship behind somebody else's flames (game/burn.js).
+    drawFire(ctx, tick.alpha);
     drawShieldBubbles(ctx, world.enemies, tick.alpha);
     // Under the ship: a nova front is the ship's own reach going out, and the ship must
     // never be lost inside the ring it just threw (game/nova.js).

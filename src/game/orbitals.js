@@ -43,6 +43,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { TAU, dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
+import { ignite } from './burn.js';
 import { spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { dronesOf, gainOf } from './upgrades.js';
@@ -144,7 +145,9 @@ function bite(world, drone, prey, spec) {
   const sound = spec.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 
+  // A drone bite lights the body it bit, killed or not (game/burn.js).
   damageEnemy(world, prey, biteWeight(world, spec), true);
+  ignite(world, prey);
 }
 
 /**
