@@ -1,5 +1,27 @@
 # Starfall — changelog
 
+## 0.4.4 — 2026-10-08
+Orbitals: a ring of drones round the ship that chews whatever gets close.
+- **ORBITALS** is a seventh upgrade line. Every rank puts **two more drones** in orbit round
+  the ship - the pair of them at rank 1, ten of them at rank 5 - and each one bites whatever
+  stands in the ring once every 1.5 seconds.
+- A bite is worth **one shot of your own gun**, damage upgrades and all, so the ring keeps its
+  weight as your weapon grows instead of being left behind by it. A maxed ring measures at
+  **2.5x a plain pull** against a crowd that surrounds you - the same family as damage, split
+  and ricochet - and at nothing at all against a crowd standing a hundred and fifty pixels in
+  front of you, which is what a ring is.
+- It is a wall at a distance you can see, and the track is drawn for you: **what walks past it
+  is out of reach of it.** Ten drones will grind the crowd pressing in and not one of them
+  will save you from a body already in your face.
+- A bite shoves as it hits, so a press of bodies is held off where a thin stream of them gets
+  pushed clear of the ring.
+- The card has its own colour - indigo, the last cool hue left - and its own shape: three
+  drones on a track round a little ship.
+- Measured over 40 runs with the bot buying the line late rather than evenly: **37 of 40 runs
+  outlasted the fifteen-minute window** against 36 of 40 with the card taken out of the game,
+  and the kill average is up. An earlier, flat version of the bite cost the bot two and a half
+  minutes of mean survival, which is why a bite carries the gun's weight.
+
 ## 0.4.3 — 2026-10-07
 Ricochet: the sixth card, and your shots stop flying away from the crowd.
 - **RICOCHET** is a sixth upgrade line. Every rank lets one more body be *bounced* on to:
