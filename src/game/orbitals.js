@@ -44,6 +44,7 @@ import { PALETTE } from '../core/palette.js';
 import { TAU, dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
+import { chill } from './chill.js';
 import { spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { dronesOf, gainOf } from './upgrades.js';
@@ -146,6 +147,10 @@ function bite(world, drone, prey, spec) {
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 
   // A drone bite lights the body it bit, killed or not (game/burn.js).
+  // And a grind against the ring leaves a body slower than it came (game/chill.js) - which is
+  // what a bite that cannot miss is worth, since the ring decides who it touches. Before the
+  // hull comes off, like every other door: a drone can be the one that finishes a body.
+  chill(world, prey);
   damageEnemy(world, prey, biteWeight(world, spec), true);
   ignite(world, prey);
 }

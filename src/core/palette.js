@@ -144,6 +144,16 @@ export const PALETTE = {
   // white for the same reason every hottest thing here is: the beam's axis, a bomber's flash.
   burnFlame: '#ffc23a',
   burnCore: '#fff4c9',
+  // The ship's own cold (game/chill.js, PLAN 3.5's Chill). Cool because everything the run
+  // does is cool (PLAN section 4) - and deliberately not the ship's own cyan, because a
+  // frosted body is still one of the crowd and must never read as a friendly. The rime is the
+  // pale end of the wheel rather than another saturated hue: every card tint already taken is
+  // a colour, this one is frost, which is what lets it be the tenth tint and still be told
+  // from the nine. The shell is the same family nearly white, like every hottest thing here
+  // is - a beam's axis, a bomber's flash - because a body that has stopped is the loudest
+  // thing a chill card can draw.
+  chillFrost: '#a8dcff',
+  chillShell: '#eef9ff',
   // The darter's warning line (render/entities.js): the wide soft pass is the
   // enemy's own red, the thin one over it is paler, and the head of it is almost
   // white - the order your eye should read them in.

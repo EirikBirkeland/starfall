@@ -13,6 +13,7 @@ import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { frostOf, isFrozen } from '../game/chill.js';
 import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
@@ -565,6 +566,61 @@ export function drawShieldBubbles(ctx, list, alpha) {
   ctx.globalAlpha = was;
 }
 
+// How a chilled body is drawn (game/chill.js, PLAN 3.5's Chill): a wash of rime over the body
+// it is cold in, and for one that has frozen solid a shell of ice standing off it.
+//
+// The wash is one stamp, dimmed by how frozen the body is, which is what makes the same two
+// sprites serve a body a tenth chilled and a whole crowd locked up. The shell is one stamp
+// and one stroke more, and it is the only part of the picture that says "this one will
+// shatter": the fifth rank of the line is paid out when a frozen body comes apart, so the
+// frame has to say which bodies are frozen before that happens and not after.
+//
+// Neither of them is a blur or a gradient (render/glow.js), and the shell's breathing is two
+// sines of the body's own `phase` - the fire's trick, for the same reason: a frost that
+// re-rolled every frame would be a strobe, and a strobe over a whole crowd is the ugliest
+// thing this game could draw.
+const FROST_REACH = 1.3;     // the rime reaches this far past the body it is on
+const FROST_LIGHT = 0.5;     // ...at this brightest, dimmed by how cold the body is
+const FROST_SPRITE = 32;     // one sprite for every body, however wide it is
+const FROST_PAD = 6;         // px of slack on the cull test, for the rime's soft edge
+const SHELL_REACH = 1.62;    // the shell stands this far off a body that has stopped - well
+                             // past the rime, so a frozen body is visibly the bigger thing
+const SHELL_SPRITE = 24;     // ...with one glow of its own behind it
+const SHELL_GLOW = 0.4;      // how much of that glow lands
+const SHELL_LIGHT = 0.8;     // how the shell's own line lands
+const SHELL_LINE = 2;        // px, the shell's edge
+const SHELL_SIDES = 6;       // a hexagon: six straight faces, the shape ice is made of
+const SHELL_BEAT = 3.4;      // rad/s of the shell's breathing
+const SHELL_SHINE = 0.25;    // how much of the light the breathing takes away
+
+/** How brightly one frozen body's shell is shining this instant, 1 - SHELL_SHINE .. 1. */
+function shellShine(enemy, time) {
+  const slow = Math.sin(time * SHELL_BEAT + enemy.phase) * 0.5 + 0.5;
+  const quick = Math.sin(time * SHELL_BEAT * 2.3 + enemy.phase * 1.7) * 0.5 + 0.5;
+  return 1 - SHELL_SHINE * (slow * 0.7 + quick * 0.3);
+}
+
+/**
+ * The rime and, on a body that has frozen solid, the shell. Drawn in the body's own space - the
+ * caller has already moved the canvas to where it stands - and before the body is turned, so
+ * the ice stays put while whatever is inside it spins.
+ */
+function drawFrost(ctx, enemy) {
+  const reach = enemy.r * FROST_REACH;
+  paintGlow(ctx, glowFor(PALETTE.chillFrost, FROST_SPRITE), 0, 0,
+    FROST_LIGHT * frostOf(enemy), reach / FROST_SPRITE);
+  if (!isFrozen(enemy)) return;
+
+  const shine = shellShine(enemy, world.time);
+  const off = enemy.r * SHELL_REACH;
+  paintGlow(ctx, glowFor(PALETTE.chillShell, SHELL_SPRITE), 0, 0,
+    SHELL_GLOW * shine, off / SHELL_SPRITE);
+  polygon(ctx, 0, 0, off, SHELL_SIDES, 0);
+  ctx.lineWidth = SHELL_LINE;
+  ctx.strokeStyle = withAlpha(PALETTE.chillShell, SHELL_LIGHT * shine);
+  ctx.stroke();
+}
+
 function drawEnemy(ctx, enemy, dim, alpha) {
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
   // moves, this says what it is made of. A new kind that is not a plain polygon
@@ -574,7 +630,13 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   // A hatchling is the same kind as its parent with a smaller body, so the halo
   // follows the body it has and not the kind it is.
   const halo = enemy.r + look.glow * HALO_REACH;
-  if (!onScreen(enemy.x, enemy.y, halo + 4)) return;
+  // A chilled body wears its rime further out than its halo, and the shell of a frozen one
+  // further still, so the cull has to know about both or the ice would blink in and out at
+  // the edge of the window.
+  const rime = enemy.frost > 0
+    ? enemy.r * (isFrozen(enemy) ? SHELL_REACH : FROST_REACH) + FROST_PAD
+    : 0;
+  if (!onScreen(enemy.x, enemy.y, Math.max(halo, rime) + 4)) return;
 
   ctx.save();
   if (dim) ctx.globalAlpha = 0.45;
@@ -582,6 +644,13 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   paintGlow(ctx, glowFor(look.color, halo), 0, 0, HALO_LIGHT);
   if (enemy.elite) paintGlow(ctx, glowFor(PALETTE.elite, halo), 0, 0, ELITE_GLOW_LIGHT);
   if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, halo), 0, 0, flash * FLASH_LIGHT);
+  // The frost goes on before the body is turned: rime lies over a body wherever it is pointing,
+  // and a shell of ice does not spin with whatever the thing inside it is doing. It is under
+  // the body's own fill for the same reason every other glow here is, and further out than any
+  // of them, so nothing of it is hidden - and every light the body carries (a fuse, an eye, an
+  // aim) still goes on top of it, because the frame may not let the ice hide what a body is
+  // about to do.
+  if (enemy.frost > 0) drawFrost(ctx, enemy);
   ctx.rotate(enemy.rot);
   if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   else if (isDiving(enemy)) paintStreak(ctx, swarmBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);

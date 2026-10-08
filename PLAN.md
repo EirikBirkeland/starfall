@@ -166,6 +166,19 @@ Behaviour upgrades:
   body is given the share a jump carries rather than a whole burn - that share is the only decay a
   chain has, and what keeps a late run's kill rate from torching the arena.
 - **Chill**: hits slow by 8% per rank; frozen enemies shatter for area damage at rank 5.
+  *Done in 0.4.11* (`src/game/chill.js`). The frost a body carries **is** its slow: every hit
+  takes `step x rank` of that body's own walk away (PLAN's 8% is exactly one hit at one rank),
+  a shove is not a walk so bullets and neighbours still push a frozen body clear, and what is
+  not being hit melts back through in `melt` seconds - the cold is something a run keeps up
+  with aim, not a tax the crowd pays once.
+  The second half is the one place this departs from the plan's letter, and a measurement is why:
+  a shatter is scaled by how cold the body was (`weight x frost`, and `share x frost` of cold
+  thrown to what it catches) rather than paid out only by a body frozen solid. A strong gun
+  kills a body with about the first shot that touches it, so three hits to freeze meant one body
+  froze solid in a five minute run and the fifth rank bought nothing; now the killing hit's own
+  frost is what the corpse is worth, which is the same lesson Burn had in session 38. "Frozen"
+  is still what the shell and the full weight mean - only a body kept under fire gets that cold,
+  and a lock that has already been taken is never slowed, whatever is frozen.
 - **Leech**: every 60 kills heals 1 hull (fewer kills per rank).
 - **Overcharge**: standing still for 1 s doubles the next shot.
 - **Afterimage**: the dash leaves a decoy that enemies chase for 2 s.

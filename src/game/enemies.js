@@ -16,6 +16,7 @@ import { cueBeep } from './cues.js';
 import { noteDeath, noteHit, hurtByBody } from './tally.js';
 import { shieldSoak } from './shields.js';
 import { isRooted } from './kinds.js';
+import { melt, shatterOnDeath } from './chill.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -103,6 +104,10 @@ export function killEnemy(world, enemy, byPlayer) {
   // leaves a blast. That belongs to dying and not to being shot, so it happens
   // however the enemy came apart; `byPlayer` is passed on so a chain reaction the
   // player lit still pays out like one.
+  //
+  // The ice first, because it is the corpse's own doing and it spends itself on whatever was
+  // standing there when it came apart - before whatever the kind was carrying (game/chill.js).
+  shatterOnDeath(world, enemy, byPlayer);
   if (kind.onDeath) kind.onDeath(world, enemy, byPlayer);
 }
 
@@ -134,6 +139,10 @@ export function updateEnemies(world, dt) {
   for (let i = world.enemies.length - 1; i >= 0; i--) {
     const enemy = world.enemies[i];
     if (enemy.flash > 0) enemy.flash -= dt;
+    // The frost warming through, one step of it (game/chill.js). It rides along here because
+    // it is the body's own fading state, like the flash above, and the crowd is walked once a
+    // step anyway - a run that never chills anything pays one compare per body.
+    if (enemy.frost > 0) melt(world, enemy, dt);
 
     // How this one moves, and which way it points while doing it, is the kind's
     // business and nobody else's.

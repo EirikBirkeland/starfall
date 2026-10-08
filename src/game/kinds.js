@@ -214,6 +214,12 @@ export function makeEnemy(world, type, x, y, opts) {
     guard: null,
     shield: 0,
     shieldWait: 0,
+    // How frozen this body is, 0..1 (game/chill.js): the share of its own walk that has been
+    // taken off it by the hits landing on it, and what `glide` below subtracts from its pace.
+    // It lives here and not in a list of its own because it is the body's own state - a body
+    // that dies takes its frost with it, and the one thing frost does after a death is paid
+    // out at the death (game/enemies.js). Zero for every body until something chills it.
+    frost: 0,
     // The pack this body flies with (game/flock.js), or null for everything that flies
     // alone. It is not derived: a pack is the group of bodies that arrived together, so
     // it is given to the body when it is built and kept for its whole life. What is
@@ -246,10 +252,16 @@ export function makeEnemy(world, type, x, y, opts) {
  * Move one enemy along the unit vector (dx, dy) at `pace` px/s for one step,
  * carrying whatever shove is already in it (a bullet's kick, a dash's shoulder,
  * a neighbour making room), and let that shove die away on the way.
+ *
+ * The frost (game/chill.js) takes its share off the *walking* and none of the shove: what a
+ * chilled body cannot do under its own engines it can still be made to do by something
+ * hitting it, which is what keeps a knot of frozen bodies a thing you can push clear instead
+ * of a wall you have to fly around.
  */
 function glide(enemy, step, dx, dy, pace) {
-  enemy.x += (dx * pace + enemy.ix) * step.dt;
-  enemy.y += (dy * pace + enemy.iy) * step.dt;
+  const walk = pace * (1 - enemy.frost);
+  enemy.x += (dx * walk + enemy.ix) * step.dt;
+  enemy.y += (dy * walk + enemy.iy) * step.dt;
   enemy.ix *= step.drag;
   enemy.iy *= step.drag;
 }
@@ -266,12 +278,20 @@ function advance(enemy, step, swerve, pace) {
   return heading;
 }
 
-/** Turn toward `want` at up to `rate` rad/s, and never past it. */
+/**
+ * Turn toward `want` at up to `rate` rad/s, and never past it.
+ *
+ * The frost (game/chill.js) takes its share off a turn as well as a pace, because turning is
+ * how a body moves just as much as walking is: a chilled darter brings its nose around slower,
+ * and a chilled sniper cannot get its eye on to you. What it never does is slow a lock that has
+ * already been taken - that countdown is the telegraph and the telegraph is never stolen
+ * (`walksWatching` fires down its own timer, not this one).
+ */
 function turnToward(enemy, step, want, rate) {
   let diff = (want - enemy.rot) % TAU;
   if (diff > Math.PI) diff -= TAU;
   if (diff < -Math.PI) diff += TAU;
-  const reach = rate * step.dt;
+  const reach = rate * step.dt * (1 - enemy.frost);
   enemy.rot += clamp(diff, -reach, reach);
 }
 

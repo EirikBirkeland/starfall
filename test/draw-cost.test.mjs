@@ -77,8 +77,11 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(glowStats().holders < 32, 'and it came from a bounded few sprites: ' + glowStats().holders);
   // (32, and the same run on the commit before the ship owned a fire stood at 27: two sprites
   // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
-  // - and the ninth card tint asked for one more. The rest is one per kind's colour and halo,
-  // plus the ship, the shards and the cards.)
+  // - and the ninth card tint asked for one more. Chill is two more still - the rime, and the
+  // shell a frozen body stands in - which is why this bound is 32 and the window above measured
+  // 29: it had not met a body frozen solid yet, and two sprites are the whole of the ice
+  // however many bodies wear it. The rest is one per kind's colour and halo, plus the ship,
+  // the shards and the cards.)
 });
 
 test('a steady frame builds nothing at all', () => {

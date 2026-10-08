@@ -45,6 +45,12 @@ const TINT = {
   // the cool one (PALETTE.cardFace, cardEdge) and the rank pips are small, so the warmth is
   // an icon and not a card.
   burn: PALETTE.burnFlame,
+  // The tenth tint, and the pale end of the wheel. Every tint handed out before it is a
+  // saturated hue and this one is rime - the same colour a frozen body wears in the arena -
+  // which is what lets a tenth card still be told from the nine at a glance without inventing
+  // an eleventh hue nobody asked for. It goes across the wheel from BURN's warm one, which is
+  // the pair the cards were always going to be.
+  chill: PALETTE.chillFrost,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -278,6 +284,7 @@ const ICONS = {
   orbitals: iconOrbitals,
   nova: iconNova,
   burn: iconBurn,
+  chill: iconChill,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -492,6 +499,47 @@ function iconBurn(ctx, size, tint) {
   ctx.fillStyle = withAlpha(PALETTE.burnCore, 0.9);
   ctx.fill();
 }
+
+/**
+ * A body inside a shell of ice: the same quiet body the burn icon carries, because this card is
+ * also about what happens to a thing you have already hit and not about one more thing to throw.
+ * The hexagon is the shell the arena draws on a body that has frozen solid - the card and the
+ * ice are the same shape, so a player who has seen one has read the other - and the ticks off
+ * its faces are the cold going out, not a sparkle.
+ */
+function iconChill(ctx, size, tint) {
+  polygon(ctx, 0, 0, size * 0.26, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(tint, 0.14);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.4);
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  polygon(ctx, 0, 0, size * 0.56, 6, 0);
+  ctx.fillStyle = withAlpha(tint, 0.12);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.9);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < CHILL_TICKS; i++) {
+    const angle = -Math.PI / 2 + (i / CHILL_TICKS) * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    ctx.beginPath();
+    ctx.moveTo(cos * size * CHILL_TICK_NEAR, sin * size * CHILL_TICK_NEAR);
+    ctx.lineTo(cos * size * CHILL_TICK_FAR, sin * size * CHILL_TICK_FAR);
+    ctx.strokeStyle = withAlpha(tint, CHILL_TICK_LIGHT - i * 0.1);
+    ctx.stroke();
+  }
+}
+
+/** The shell's three ticks: where they start, where they stop, and how bright. */
+const CHILL_TICKS = 3;
+const CHILL_TICK_NEAR = 0.62;
+const CHILL_TICK_FAR = 0.9;
+const CHILL_TICK_LIGHT = 0.7;
 
 /**
  * One flame: a round body of fire with a tip leaning `lean` px to the right, `width` px

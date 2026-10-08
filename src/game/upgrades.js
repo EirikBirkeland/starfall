@@ -36,9 +36,10 @@ const PERCENT = 100;
 const SHARE_UNIT = 'percent';
 const WHOLE_UNIT = 'each';
 /**
- * The third kind: a line that is simply *off* until its first rank and then sells so much
- * of something, per second of its own. `gainOf` cannot read it - `1 + step * 0` is one, and
- * rank 0 has to mean no fire at all, not fire at the strength of nothing - and `countOf`
+ * The third kind: a line that is simply *off* until its first rank and then sells so much of
+ * something per rank - a share of one shot for every second of burning (burn), a share of a
+ * body's walk for every hit landed (chill). `gainOf` cannot read it - `1 + step * 0` is one,
+ * and rank 0 has to mean no fire at all, not fire at the strength of nothing - and `countOf`
  * cannot print it, because a rank buys a fraction and not a thing. So it gets asked its own
  * question (`rateOf`) and printed as a share, because what one rank is worth really is a
  * share of what the line was worth before it.
@@ -125,6 +126,14 @@ export const LINES = [
     flavour: 'A hit sets them alight, and the fire keeps working after the shot has gone.',
     icon: 'burn',
   },
+  {
+    id: 'chill',
+    name: 'CHILL',
+    unit: RATE_UNIT,
+    what: 'slower',
+    flavour: 'A hit takes the speed out of them, and what stops moving cannot reach you.',
+    icon: 'chill',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -137,6 +146,8 @@ const ORBITALS_LINE = 'orbitals';
 const NOVA_LINE = 'nova';
 /** The line that sets what the ship hits on fire. */
 const BURN_LINE = 'burn';
+/** The line that takes the speed out of what the ship hits. */
+const CHILL_LINE = 'chill';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -268,6 +279,17 @@ export function pulsesOf(world) {
  */
 export function flameOf(world) {
   return rateOf(world, BURN_LINE);
+}
+
+/**
+ * How much of a body's own walk one hit takes away (PLAN 3.5's Chill): `0` until the line is
+ * taken, and this much per rank after that. Read where a hit lands - game/chill.js - which is
+ * what makes the frost a thing a run builds up by hitting a body rather than a multiplier on
+ * something it never counts, and why rank 0 has to be *nothing is cold* and not one times
+ * nothing.
+ */
+export function chillOf(world) {
+  return rateOf(world, CHILL_LINE);
 }
 
 /** Lines with a rank still to give. */

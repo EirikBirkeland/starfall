@@ -45,6 +45,7 @@ import { PALETTE } from '../core/palette.js';
 import { dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
+import { chill } from './chill.js';
 import { burst, shakeIt, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { gainOf, pulsesOf } from './upgrades.js';
@@ -117,6 +118,10 @@ function bite(world, front, enemy, spec) {
   spray(world, enemy.x, enemy.y, PALETTE.spark, sparks.count, sparks.speed, sparks.life,
     heading, sparks.spread);
 
+  // And everything the front came over is left going slower than it was (game/chill.js), which
+  // is the part of the wave that lasts longer than the ring you watched. Before the hull comes
+  // off, like every other door: the front that kills a body is the cold it dies with.
+  chill(world, enemy);
   // Whatever the front came over is alight afterwards, killed or not (game/burn.js).
   damageEnemy(world, enemy, front.weight, true);
   ignite(world, enemy);

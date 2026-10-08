@@ -1093,6 +1093,80 @@ export const BALANCE = {
       // moment the card is doing something and it has to be heard as well as seen.
       sound: { freq: 300, dur: 0.09, wave: 'triangle', vol: 0.02, slide: 260 },
     },
+
+    // Chill (game/chill.js): PLAN 3.5's other temperature card, and the only line in the
+    // game that takes something away instead of adding damage. A hit buys frost, the frost
+    // is the slow, and the fifth rank is what a body that has stopped is worth.
+    chill: {
+      ranks: 5,
+      // The second `rate` line (game/upgrades.js): rank 0 means *nothing is cold*, and every
+      // rank after it is worth this much of a body's own walk per hit. PLAN's number is
+      // exactly this one - "hits slow by 8% per rank" - read off the first hit, with every
+      // hit after it worth the same until there is no walk left to take (so a body is frozen
+      // solid after 0.9/step/hits - twelve of them at rank 1, three at rank 5, and one of
+      // them for anything the killing shot reaches).
+      step: 0.08,
+      // s for a whole frost to warm through with nobody hitting it. A hit puts the clock back,
+      // so this is not how long a body under fire stays cold - it is how long one you have
+      // turned away from stays cold, and it is what makes the line something you keep up with
+      // aim rather than a tax the crowd pays once. Set against the crowd's own walk: at this
+      // number a frozen drifter thaws and comes back for you about the time it takes to cross
+      // the window.
+      melt: 3.2,
+      // What a chilled hit throws: three motes and no sound. The line lands on every hit the
+      // run ever makes, so the light of it has to be nearly nothing or the arena is a snowstorm.
+      dust: { count: 3, speed: 60, life: 0.3 },
+      // The body going solid - the one moment the line is loud without being asked, and the
+      // only tell a player gets that a shatter is now possible.
+      freeze: {
+        ring: { radius: 10, speed: 300, life: 0.3 },
+        burst: { count: 10, speed: 170, life: 0.4 },
+        // Up, not down: a body locking up is the good kind of ending, and a falling note is
+        // what everything else in the mix that ends sounds like.
+        sound: { freq: 520, dur: 0.14, wave: 'triangle', vol: 0.03, slide: 1400 },
+      },
+      // Letting go of a whole frost, quietly: the same motes as a hit, slower and longer, and
+      // no sound because a thaw is the absence of the card rather than the card.
+      thaw: { count: 4, speed: 40, life: 0.5 },
+      // PLAN's second half: "frozen enemies shatter for area damage at rank 5".
+      shatter: {
+        // The last rank of a five-rank line in a deck of eleven, which is later than it sounds:
+        // the bot's even spread never got one line past four ranks in twenty measured runs, so
+        // this is a payoff a player has to decide to build towards, and the fifth rank of
+        // CHILL is the reason to decide that.
+        at: 5,
+        // px. The same reach as a fire's jump on purpose: the two rank-5 cards are the same
+        // shape of payoff - a death that reaches the bodies standing next to it - and a body
+        // is only frozen where it was being shot at, which is where a fire is too.
+        radius: 96,
+        // What a body caught in a shatter loses, in shots of the ship's own gun (the same
+        // pricing as a drone bite, a nova front and a fire's bite - game/chill.js), times how
+        // cold the corpse was.
+        //
+        // Priced against what it is worth in a run and not against a nova front's number, which
+        // would have been the lazy read of it: a shatter goes off on nearly every kill (1410 of
+        // them in a five minute run at five ranks) where a nova front lands once every couple
+        // of seconds. Measured the way burn was - `tally.kinds[*].damage` over twelve 900 s
+        // aware runs with the fifth rank able to shatter and unable to - this weight is 16.9%
+        // of a run's whole damage against 0% with the shatter off, i.e. the fifth rank is worth
+        // about a nova front's share (18%, session 31) earned in many small goings-apart
+        // instead of a few big ones. At 2.2 it was 5.5%, which a score did not even notice.
+        weight: 4,
+        // What the ice passes on, as a share of a whole frost. A share cannot freeze anybody
+        // on its own, which is the decay that stops a shatter chain from walking a whole
+        // arena the way a burn's does: each hop needs a body that was already half cold.
+        share: 0.5,
+        // The light of one. The ring is born small and runs out past the reach it hurt - the
+        // one thing a light that follows damage may do (game/burn.js draws its jump the same
+        // way) - and it runs out *by the frost*, because a body that died of one cold shot must
+        // not claim as much room as one kept under fire. The chips and the glass are held back
+        // for a body that actually wore the shell: at the fifth rank nearly every kill in a late
+        // run is a cold one, and a shriek of breaking ice on each would be a hiss.
+        light: { ring: { radius: 14, speed: 620, life: 0.3 }, chips: { count: 12, speed: 260, life: 0.5 } },
+        // Glass, falling.
+        sound: { freq: 1700, dur: 0.1, wave: 'square', vol: 0.028, slide: 300 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

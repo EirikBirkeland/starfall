@@ -49,6 +49,7 @@ import { dist2 } from '../core/math.js';
 import { fx } from '../core/rng.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
+import { chill } from './chill.js';
 import { spray } from './effects.js';
 import { gainOf } from './upgrades.js';
 
@@ -138,6 +139,11 @@ function land(world, spec, body, fromX, fromY, weight) {
   const hit = spec.hit;
   spray(world, body.x, body.y, PALETTE.spark, hit.count, hit.speed, hit.life,
     Math.atan2(dy, dx), hit.spread);
+  // And a bolt leaves the body it landed on colder than it found it (game/chill.js) - the arc
+  // aims itself, so this is the one gun whose chill the player steers by flying rather than by
+  // pointing. Before the hull comes off, like every other door: the landing that kills is a
+  // landing.
+  chill(world, body);
   // A body the bolt touched is set alight whether or not the bolt finished it, same as a shot
   // that landed (game/burn.js): the arc is the ship's own weapon and its fire is the same
   // fire, and a kill is exactly when the third rank wants that fire to go sideways.
