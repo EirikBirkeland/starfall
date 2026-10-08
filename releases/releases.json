@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.15",
+    "date": "2026-10-08",
+    "summary": "Magnetar: the shards you pick up charge the field round the ship, and when it is full it lets go"
+  },
+  {
     "version": "0.4.14",
     "date": "2026-10-08",
     "summary": "Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds"
