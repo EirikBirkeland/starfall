@@ -5732,7 +5732,7 @@ design decisions hiding in it, and that nothing in the toolchain can price it.
   `game/mines.js` for the lifetime and the expiry light; the interesting questions are where it is placed
   (mines drop out of the way the ship was *going*, and a turret placed under the ship would be placed
   where the ship is not going to be) and what a run that never stops thinks of it. Then 3.2 is done and
-  milestone 4's remaining items are the_synergies and the HUD work below.
+  milestone 4's remaining items are the synergies and the HUD work below.
 - **A line that a bot cannot use needs its own bot, not a flag.** `--dash` is a habit I invented and it
   changes the answer (`--dash` makes the bot die younger, see above). A bot that dashes *away from*
   something, or that leads a chase around a loop, would price Turret, Tether and Mines on their own terms
