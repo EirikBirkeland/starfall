@@ -6,6 +6,7 @@
 //   node tools/simulate.js --runs 20          a batch of runs, and the middle one
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
+//   node tools/simulate.js --dash              let the bot dash when a body gets close
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc)
 //   node tools/simulate.js --need 300         exit non-zero unless the batch mediates
@@ -22,12 +23,14 @@
 //
 // The bot is tools/headless/bot.js. `aware`, the default, shoots the nearest thing
 // and steps out of whatever is on its way to the ship; `naive` shoots the nearest
-// thing and only backs away from whatever is already close. This script must always
+// thing and only backs away from whatever is already close. Neither of them dashes until
+// `--dash` is asked for, which is the only way a line that lives on the dash
+// (game/afterimage.js) can be measured at all. This script must always
 // finish without throwing; the one exit it may choose for itself is `--need`.
 
 import { pathToFileURL } from 'node:url';
 import { clock, int, dec } from './headless/tables.js';
-import { playRuns, POLICIES } from './headless/bot.js';
+import { playRuns, dashEscape, POLICIES } from './headless/bot.js';
 
 function readArgs(argv) {
   const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, weapon: undefined, need: undefined };
@@ -44,6 +47,7 @@ function readArgs(argv) {
     else if (arg === '--weapon') opts.weapon = next();
     else if (arg === '--need') opts.need = parseFloat(next());
     else if (arg === '--trace') opts.trace = true;
+    else if (arg === '--dash') opts.dash = true;
     else if (arg === '--audio') opts.audio = true;
     else {
       console.error('unknown option: ' + arg);
@@ -164,6 +168,7 @@ if (isMain) {
     every: opts.trace ? opts.every : 0,
     policy: opts.policy,
     weapon: opts.weapon,
+    onFrame: opts.dash ? dashEscape : undefined,
     // Printed as each run finishes: a batch of twenty long ones is minutes of work and
     // a silent terminal cannot be told apart from a stuck one.
     onRun: (summary) => {

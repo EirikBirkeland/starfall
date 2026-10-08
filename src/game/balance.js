@@ -1266,6 +1266,77 @@ export const BALANCE = {
         sound: { freq: 380, dur: 0.12, wave: 'square', vol: 0.05, slide: 260 },
       },
     },
+
+    // Afterimage (game/afterimage.js): PLAN 3.5's "the dash leaves a decoy that enemies chase
+    // for 2 s". The one line in the deck whose whole effect is on *where the crowd is walking*
+    // and none of it on damage, hull or the gun, which is why none of the usual instruments can
+    // price it and why the numbers below are argued from geometry instead (NOTES session 42).
+    afterimage: {
+      ranks: 5,
+      // A line of whole things (`each`, game/upgrades.js), and the whole things are images left
+      // behind by one dash: rank 1 is PLAN's single decoy and rank 5 is five of them, spread
+      // evenly down the whole length of the streak the ship just covered.
+      //
+      // Rank buys *more images* rather than longer-lived or wider-reaching ones, and the reason
+      // is the one that makes this card work at all: a body is only fooled by an image it is
+      // standing next to (`bait` below, and that is deliberately the near field and not the
+      // arena), so one image fools the bodies you left at one point and five fool the bodies
+      // along a whole line. Selling the rank as reach or as time would grow one disc, which is
+      // the same crowd fooled again; a rank here buys *length*, which is a different crowd every
+      // time. It is the nova's rule again - a rank buys another front, not a shorter cycle
+      // (BALANCE.upgrades.nova).
+      step: 1,
+      // s. PLAN's number, unchanged, and the whole of the second half of the sentence: an image
+      // is chased for two seconds and then the crowd looks up and finds the ship again. It is
+      // not a slow fade and not a hard pop either: the image thins over its last half-second and
+      // goes out with a ring closing in on it, so the crowd's reprieve has an end the player can
+      // see coming.
+      //
+      // Two seconds is also shorter than the dash's own cooldown (2.5 s, BALANCE.player.dash),
+      // which is not an accident: one dash's images are gone before the next dash is allowed, so
+      // the line is one trick per dash and not a permanent haze over the arena.
+      life: 2,
+      // px. How close a body has to be standing to an image to be taken in by it, measured from
+      // the image. This is the number that decides what the card is *for*, and it is the near
+      // field on purpose: it means "the bodies that were already on top of you turn aside", and not "the
+      // far side of the arena forgets where you are". A wider one is not a better card - a
+      // crowd that stops coming at all is a crowd that never forms, and the arena would be
+      // empty of danger in the two seconds the trick lasts.
+      //
+      // Measured, like everything else here, on a bot that dashes (the instrument is NOTES session
+      // 42's: an aware bot given `dashEscape`, eight seeds of two minutes, and the share of the
+      // bodies standing within 250 px of the ship that are walking at a ghost): 110 px takes 6%
+      // of that near crowd off a rank-1 ship and 30% off a rank-5 one, where 72 px - the first
+      // number, chosen for tidiness - managed 2% and 13%, which is a card that mostly does
+      // nothing, and 150 px managed 18% and 44%, which is a card that ends the fight for you.
+      //
+      // It is also the number the rank's value depends on, and that is the second half of why it
+      // sits here: images are 220/rank px apart, so at 110 the two of the second rank just touch
+      // and every rank after it lays the discs out into a line. At 150 they overlap so heavily
+      // that the fifth rank buys almost nothing over the first (54% of frames against 66%), which
+      // is what `step` above is not allowed to be.
+      //
+      // And what the deck says, which is the honest half: nothing moves. Ten seeds at the 900 s
+      // cap, the line dealt and taken against out of the deck, score medians 111,850 against
+      // 112,884 for the plain bot - which cannot dash, so for it the card is a card - and 107,937
+      // against 113,741 for the dash-habit one, which does dash and still does not gain: hand that
+      // one five free ranks and it mediates 113,657, i.e. the same again. None of it is outside
+      // the noise of a batch of ten, and none of it is a surprise. Both bots are runners, and a
+      // runner's near field is two or three bodies wide: diverting a third of three is nothing.
+      // What this card is for is the knot a player dashes *out of*, which no bot in tools/headless
+      // has ever been in, so the claim is made where it can be measured instead - the press in
+      // test/afterimage.test.mjs: twenty bodies coming up from behind, one dash away from them,
+      // and the nearest of them 1.7x further off with five ranks than without. NOTES session 42 is
+      // where the two instruments were compared.
+      bait: 110,
+      // An image going out: one ring closing in on the place it stood, and a note thin enough to
+      // be a hiss. No light when it is *born*, because the image itself is the light and a dash
+      // already throws a ring and a spray of its own.
+      gone: {
+        ring: { radius: 22, speed: -74, life: 0.28 },
+        sound: { freq: 1180, dur: 0.07, wave: 'triangle', vol: 0.016, slide: 640 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

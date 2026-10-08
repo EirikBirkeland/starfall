@@ -143,6 +143,14 @@ export const LINES = [
     icon: 'leech',
   },
   {
+    id: 'afterimage',
+    name: 'AFTERIMAGE',
+    unit: WHOLE_UNIT,
+    what: 'image left behind',
+    flavour: 'The dash leaves images of the ship standing where it was, and the bodies next to them chase those for a couple of seconds. One more image per rank, spread down the streak.',
+    icon: 'afterimage',
+  },
+  {
     id: 'overcharge',
     name: 'OVERCHARGE',
     unit: SHARE_UNIT,
@@ -168,6 +176,8 @@ const CHILL_LINE = 'chill';
 const LEECH_LINE = 'leech';
 /** The line that loads the ship's own gun while the ship stands still. */
 const OVERCHARGE_LINE = 'overcharge';
+/** The line that leaves images of the ship behind a dash. */
+const AFTERIMAGE_LINE = 'afterimage';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -335,6 +345,17 @@ export function leechCostOf(world) {
 export function pullBoostOf(world) {
   if (rankOf(world, OVERCHARGE_LINE) <= 0) return 1;
   return gainOf(world, OVERCHARGE_LINE);
+}
+
+/**
+ * How many images one dash leaves standing in the arena (PLAN 3.5's Afterimage): one at the
+ * first rank and one more for every rank after it, spread out over the length of the streak.
+ * Read where a dash is armed (game/afterimage.js), so a rank taken between two dashes is
+ * spent on the next one - and not on the images already standing there, which are the ship as
+ * it was and cannot be revised after the fact.
+ */
+export function imagesOf(world) {
+  return countOf(world, AFTERIMAGE_LINE);
 }
 
 /** Lines with a rank still to give. */

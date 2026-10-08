@@ -8,7 +8,9 @@
 //           bomber is standing in - and steps off it (see tools/headless/threats.js).
 //
 // Both of them answer the level-up choice when the run stops for one, with keys, the
-// way a player does (see `chooseCard` below).
+// way a player does (see `chooseCard` below). Neither of them dashes on its own: `--dash`
+// adds `dashEscape` below to whichever policy is running, which is what any line that lives
+// on the dash has to be measured with.
 //
 // The naive one is kept because it is the baseline every older note in NOTES.md was
 // measured with, and because a game that is hard for a bot that tries is a different
@@ -185,6 +187,33 @@ function chooseCard(game) {
   const number = offer.indexOf(preferredCard(game, offer)) + 1;
   game.key('Digit' + number, true);
   game.key('Digit' + number, false);
+}
+
+/**
+ * Press the dash when the crowd has got close and the dash is ready.
+ *
+ * This is the one habit that makes a bot able to use the lines that live on the dash -
+ * game/afterimage.js is the first of them - and it is written as what a player does with a dash:
+ * a get-out-of-jail press when something is within `PANIC_RANGE`, not a way of crossing the
+ * arena. It is opt-in (`tools/simulate.js --dash`) for an honest reason: every run measured in
+ * NOTES before it existed was measured with a bot that never touched the dash at all, and those
+ * numbers are that bot's. A card that lives on a press the bot will not make cannot be measured
+ * without it - and it cannot be measured *fairly* without saying so, because the plain bot pays
+ * for such a card in the deal and can never spend it.
+ *
+ * It goes on `onFrame`, after the step: a dash request is a tap kept until the next frame that
+ * actually simulated reads it (src/input/index.js), which is exactly how a key press works.
+ * The press lands on whatever the bot is already aiming at, so the one thing a dash must not do
+ * to the instrument is move the cursor and change where the gun is pointed.
+ */
+export function dashEscape(game) {
+  if (game.world.state !== game.STATE.PLAY) return;
+  const ship = game.player;
+  if (ship.dashCd > 0) return;
+  const near = nearestEnemy(game);
+  if (near === null || near.distance2 > PANIC_RANGE * PANIC_RANGE) return;
+  const on = game.screenOf(near.enemy.x, near.enemy.y);
+  game.pressMouse(on.x, on.y, 2);
 }
 
 /** Play one frame as `policy`. */

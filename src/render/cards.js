@@ -65,6 +65,13 @@ const TINT = {
   // the rack is out of cool hues and a thirteenth invented to keep them evenly spaced would be a
   // colour nobody could name.
   overcharge: PALETTE.chargeRingReady,
+  // The thirteenth tint, and - like the eleventh and the twelfth - not a thirteenth hue but the
+  // colour the thing itself wears: an image is the ship's own silhouette and nothing else, so the
+  // card wears the pale edge of the ship's own hull (render/entities.js strokes an image in it).
+  // It is a shade off FIRE RATE's cyan and the two shapes could not be less alike, which is the
+  // same bargain the last three tints made: the rack is out of hues and a fourteenth invented to
+  // keep them evenly spaced would be a colour nobody could name.
+  afterimage: PALETTE.playerLine,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -301,6 +308,7 @@ const ICONS = {
   chill: iconChill,
   leech: iconLeech,
   overcharge: iconOvercharge,
+  afterimage: iconAfterimage,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -639,6 +647,42 @@ function iconOvercharge(ctx, size, tint) {
   ctx.arc(0, 0, size * 0.14, 0, TAU);
   ctx.fillStyle = withAlpha(PALETTE.white, 0.95);
   ctx.fill();
+}
+
+/**
+ * Three of the ship in a row, going out: the streak a dash covers, told as the images it leaves
+ * standing in it. The bright one at the front is where the ship is and the two behind it are
+ * where it was - the same fade the arena paints them with (render/entities.js), and the same
+ * shape, because the card and the thing it sells are one thing.
+ */
+const GHOST_PLACES = [
+  { at: -0.68, light: 0.2 },
+  { at: -0.24, light: 0.46 },
+  { at: 0.3, light: 0.95 },
+];
+const GHOST_HULL = 0.3;     // the ship's own size, as a share of the icon
+const GHOST_SPIKE = 1.3;    // how pointed: an image is the ship caught mid-dash
+const GHOST_TRACK = 0.88;   // how far the streak runs out behind the last of them
+const GHOST_TRACK_WIDE = 0.1;
+
+function iconAfterimage(ctx, size, tint) {
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * GHOST_TRACK_WIDE;
+  ctx.strokeStyle = withAlpha(tint, 0.22);
+  ctx.beginPath();
+  ctx.moveTo(-size * GHOST_TRACK, 0);
+  ctx.lineTo(size * GHOST_TRACK, 0);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  ctx.lineWidth = size * 0.07;
+  for (const ghost of GHOST_PLACES) {
+    shipPath(ctx, size * ghost.at, 0, size * GHOST_HULL, -Math.PI / 2, GHOST_SPIKE);
+    ctx.fillStyle = withAlpha(tint, ghost.light * 0.34);
+    ctx.fill();
+    ctx.strokeStyle = withAlpha(tint, ghost.light);
+    ctx.stroke();
+  }
 }
 
 /**

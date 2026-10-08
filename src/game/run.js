@@ -18,6 +18,7 @@ import { resetBeams } from './beams.js';
 import { resetFires } from './burn.js';
 import { resetLeech } from './leech.js';
 import { resetOvercharge } from './overcharge.js';
+import { resetAfterimage } from './afterimage.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -65,6 +66,11 @@ export function resetRun(world) {
   // And however much of a charge the last run had loaded (game/overcharge.js). A gun loaded by a
   // second of standing is spent on the pull after it, not on the pull after a restart.
   resetOvercharge(world);
+  // And every image the last run's dashes left standing (game/afterimage.js). They are two
+  // seconds old at the oldest, so this is nearly always nothing - but a run that ends on the
+  // dash that threw them would otherwise leave them in the sky behind the title screen, and the
+  // next run's crowd would walk at somebody else's ghost.
+  resetAfterimage(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

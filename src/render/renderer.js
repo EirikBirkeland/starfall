@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -92,6 +92,9 @@ export function renderFrame(tick, input, pointer) {
     drawBeams(ctx);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
+    // Under the ship: an image is the ship as it was, and where the two overlap the real one is
+    // the one painted last (game/afterimage.js).
+    drawGhosts(ctx);
     if (world.state !== STATE.START) drawPlayer(ctx, tick.alpha);
     // Over the crowd and over the ship: the ring is the ship's own reach and it must never
     // be hidden by the bodies it is grinding (game/orbitals.js).

@@ -209,6 +209,22 @@ Behaviour upgrades:
   loaded pulls a minute for a bot that never meant to use the card): this is the one line in the
   deck that is a playstyle rather than a rate, and NOTES session 41 has both numbers.
 - **Afterimage**: the dash leaves a decoy that enemies chase for 2 s.
+  *Done in 0.4.14* (`src/game/afterimage.js`). PLAN's two numbers are the code's two - one decoy
+  at the first rank, chased for two seconds - and a rank buys another decoy laid along the streak
+  the dash covered, because that is what makes a rank a different crowd rather than the same crowd
+  again (the reach a body has to be inside to be taken in is the near field and not the arena, so
+  one decoy fools the bodies you left at a point and five fool the bodies along a line). Two things
+  the plan does not say, both decided and measured: **a decoy is a place and not a body** - it is
+  not in the crowd, nothing can shoot it, it cannot be hurt and cannot hurt, and it expires on its
+  own clock, which is what keeps a ghost from being a second gun that fires itself; and **who chases
+  what is worked out again every step** and held nowhere, so a body that walks into a ghost's reach
+  starts chasing it and goes back to the ship the moment it goes out, with nothing to remember and
+  nothing to clean up. A fooled body is not a stunned one - it walks at full pace, and a promise is
+  never broken: a darter mid-lunge and a sniper mid-lock finish what they started whatever walks
+  past them. Measured on the share of the near crowd it diverts (6% of it at one rank, 30% at five,
+  on a bot given the dash to press - `tools/simulate.js --dash` is new for this card and every
+  number in NOTES before it belongs to a bot that never dashed); the deck itself cannot see it, and
+  NOTES session 42 says why both bots are the wrong shape for it.
 - **Magnetar**: collected shards deal small area damage around the ship.
 - The five secondary systems from 3.2, each as its own upgrade line.
 

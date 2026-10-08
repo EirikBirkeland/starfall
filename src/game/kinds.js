@@ -98,7 +98,10 @@ export const KINDS = {
  * never keeps it:
  *
  *   world  the world, for anything beyond the one enemy
- *   ship   world.player, spelled out because every walk wants it
+ *   ship   whoever this body is chasing this step. Almost always world.player, spelled out
+ *          because every walk wants it - but a body standing next to one of the images a dash
+ *          left behind is chasing that instead (game/afterimage.js), and a walk never asks
+ *          which of the two it was handed: all it may ever read of it is x and y
  *   dt     the step, in seconds
  *   drag   how much of a leftover shove survives one step
  */

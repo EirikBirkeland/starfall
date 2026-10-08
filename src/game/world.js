@@ -18,6 +18,7 @@ import { updateBeams, makeBeam } from './beams.js';
 import { updateBurn, makeFire } from './burn.js';
 import { updateLeech, newLeech } from './leech.js';
 import { newOvercharge } from './overcharge.js';
+import { newAfterimage, updateAfterimage } from './afterimage.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -145,6 +146,11 @@ function createWorld() {
     // ring round the hull is drawn straight out of it. Nothing else is remembered, because a
     // charge is only ever worth the one pull that spends it.
     overcharge: newOvercharge(),
+    // What the dash has left standing in the arena (game/afterimage.js): the images themselves,
+    // and the three numbers the current dash is being paced by. Nothing is remembered about who
+    // is chasing what - that is asked of the crowd every step (game/enemies.js) - so this is the
+    // whole state of the line.
+    afterimage: newAfterimage(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -241,6 +247,10 @@ function stepRun(dt, input) {
   // the wound that was actually taken this step and not on one it took before the crowd had
   // finished walking (game/leech.js).
   updateLeech(world);
+  // The images go out last, after the crowd has already walked and decided what it was chasing:
+  // an image is chased for every step of its two seconds and not one step less, and what is left
+  // for it here is to be one step older (game/afterimage.js).
+  updateAfterimage(world, dt);
   updateShards(world, dt);
   // Last, because a bolt's only business is fading and a bolt thrown this step should be
   // seen at full brightness first (game/arc.js).

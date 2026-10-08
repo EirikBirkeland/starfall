@@ -18,6 +18,7 @@ import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
+import { fadingBy } from '../game/afterimage.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -1063,6 +1064,69 @@ export function drawPlayer(ctx, alpha) {
   drawDashRing(ctx, ship);
   drawChargeRing(ctx, ship);
   ctx.restore();
+}
+
+// The afterimage's images (game/afterimage.js): the ship as it was, left standing in the arena,
+// with the ring of air each one is believed by drawn at exactly `bait` - the reach the simulation
+// measures a chase from, so the circle you see is the circle a body has to be inside to turn
+// aside. It is the same bargain a bomber's zone and the orbital track make: the line is drawn out
+// of the number the sim reads.
+//
+// They are drawn in the ship's own colours, at the ship's own size and a long way under the
+// ship's own brightness - the lie the crowd falls for has to be a lie the player can see through
+// (PLAN section 4), and there is never more than one bright ship in the middle of the screen. The
+// glow is the house trick, a wide faint stroke under a thin bright one, so a frame with five of
+// them standing asks the canvas for nothing it has to build.
+const GHOST_GLOW = 6;            // px: the wide faint pass under the outline
+const GHOST_GLOW_LIGHT = 0.1;
+const GHOST_LINE_LIGHT = 0.45;
+const GHOST_CORE_LIGHT = 0.34;   // a good third of what the ship's own core wears
+const GHOST_REACH_LIGHT = 0.14;
+
+/**
+ * The images standing in the arena, painted under the ship - which is the one order in which a
+ * ghost passing under the real thing could never be mistaken for it.
+ */
+export function drawGhosts(ctx) {
+  const trail = world.afterimage.trail;
+  if (trail.count === 0) return;
+
+  const spec = BALANCE.upgrades.afterimage;
+  const ship = world.player;
+  for (let i = 0; i < trail.count; i++) {
+    const image = trail.items[i];
+    if (!onScreen(image.x, image.y, spec.bait)) continue;
+    // Fresh and whole for the first half of its life, then thinning out to nothing: the crowd's
+    // reprieve has an end, and the player is shown it rather than told it.
+    const lit = 1 - fadingBy(image);
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = withAlpha(PALETTE.player, GHOST_REACH_LIGHT * lit);
+    ctx.beginPath();
+    ctx.arc(image.x, image.y, spec.bait, 0, TAU);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(image.x, image.y);
+    ctx.rotate(image.angle);
+    ctx.globalAlpha = ctx.globalAlpha * lit;
+
+    shipOutline(ctx, ship.drawR);
+    ctx.lineWidth = GHOST_GLOW;
+    ctx.strokeStyle = withAlpha(PALETTE.player, GHOST_GLOW_LIGHT);
+    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = withAlpha(PALETTE.playerLine, GHOST_LINE_LIGHT);
+    ctx.stroke();
+    ctx.fillStyle = PALETTE.playerFill;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = withAlpha(PALETTE.playerCore, GHOST_CORE_LIGHT);
+    ctx.arc(0, 0, 3, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 // The orbital ring (game/orbitals.js). It wears the ship's own colours because it *is*

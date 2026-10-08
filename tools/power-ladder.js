@@ -45,6 +45,12 @@
 //   Every row is averaged over the same handful of seeds. The crowd here does not move
 //     and no wave arrives, but the split fan, the drone ring and the swarm's own jitter
 //     all spend the logic stream, so one seed is a coin toss and six is a number.
+//
+// And one thing this file cannot measure, said here because it prints a row for it anyway: a
+// line that adds no damage at all comes out at exactly 1.00x, which is a true answer to a
+// question nobody was asking. game/afterimage.js is the first of those lines - it buys where
+// the crowd walks, and nothing else - and what it is worth is measured instead in the share of
+// the near crowd it diverts, in the comment on BALANCE.upgrades.afterimage.bait (NOTES session 42).
 
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';

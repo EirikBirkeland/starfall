@@ -16,6 +16,7 @@ import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
 import { updateOvercharge } from './overcharge.js';
+import { armDash, trailImages } from './afterimage.js';
 import { fire, shotsPerSecond } from './weapons.js';
 
 /**
@@ -101,6 +102,10 @@ function beginDash(world, input) {
 
   const back = Math.atan2(-dir.y, -dir.x);
   const start = spec.start;
+  // A dash that was granted is a dash that will leave its images, if the run has bought the line
+  // (game/afterimage.js). Arming happens here and not in `dashStep` so that the number of images
+  // is settled once, at the moment the dash was allowed, by whatever ranks the ship has now.
+  armDash(world);
   ring(world, ship.x, ship.y, PALETTE.player, start.ring, start.ringSpeed, start.ringLife);
   spray(world, ship.x, ship.y, PALETTE.spark, start.burst, start.speed, start.life, back, spec.streak.spread);
   shakeIt(world, spec.shake);
@@ -173,6 +178,9 @@ function dashStep(world, ship, dt) {
 
   spray(world, ship.x, ship.y, PALETTE.player, spec.streak.count, spec.streak.speed,
     spec.streak.life, Math.atan2(-ship.dashDirY, -ship.dashDirX), spec.streak.spread);
+  // And whatever images this much of the streak has reached (game/afterimage.js). After the
+  // ship has moved, because an image is a copy of where the ship got to.
+  trailImages(world);
 
   if (ship.dashLeft <= 0) {
     // The burst handed the ship back to the engines moving fast, so it keeps the

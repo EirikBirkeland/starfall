@@ -18,6 +18,7 @@ import { shieldSoak } from './shields.js';
 import { isRooted } from './kinds.js';
 import { melt, shatterOnDeath } from './chill.js';
 import { feedLeech } from './leech.js';
+import { quarryFor } from './afterimage.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -121,6 +122,13 @@ export function killEnemy(world, enemy, byPlayer) {
 /**
  * The one `step` handed to every behaviour this step (see game/kinds.js). Refilled
  * and reused, so stepping a crowd of six hundred allocates nothing.
+ *
+ * `ship` is the body's *quarry* rather than the ship, and is re-asked for every single
+ * body just before it is walked: a body standing next to one of the images a dash left
+ * behind chases that instead (game/afterimage.js). Nothing else about a step changes for
+ * a body that has been fooled - the contact test below, the shoves, the separation and
+ * everything that can hurt it all still go by the ship - because a decoy steals a body's
+ * direction and none of its rest.
  */
 const step = { world: null, ship: null, dt: 0, drag: 1 };
 
@@ -152,7 +160,10 @@ export function updateEnemies(world, dt) {
     if (enemy.frost > 0) melt(world, enemy, dt);
 
     // How this one moves, and which way it points while doing it, is the kind's
-    // business and nobody else's.
+    // business and nobody else's - but first it is told what it is moving *at*, which is
+    // whatever it is standing nearest to out of the ship and the dash's images
+    // (game/afterimage.js).
+    step.ship = quarryFor(world, enemy);
     enemy.kind.walk(enemy, step);
 
     // Soft separation, so the crowd spreads out instead of stacking.
