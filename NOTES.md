@@ -5600,3 +5600,147 @@ this line at all and there was no reusable tool for measuring it on the run.
 - **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and
   chill's shatter fires on a body that wore both, and the special card frame that makes a synergy
   findable. Sessions 39-43 all said this.
+
+## Session 46 (2026-10-08) — Tether: the deck's only damage that is a line, and the first one you own by moving. Released **0.4.17**
+
+The second of PLAN 3.2's five secondary systems as its own line: **Tether** - "a damaging beam links
+the ship to its last dash position for 2 s". Session 45 recommended it as the interesting one and it
+was, but not for the reason it expected: it turned out not to be a restriction on the crowd at all. A
+thread is a *place* - it hurts bodies that stand on it and restricts nothing - so there was no
+derivation-not-state problem to solve, no collision-grid question, and nothing in `game/flock.js` or
+`game/shields.js` had to change. What was hard instead was that the plan's one-sentence system has four
+design decisions hiding in it, and that nothing in the toolchain can price it.
+
+### The four decisions, since nobody will remember them
+
+- **The far end is where the dash *began*, and the near end is the ship wherever it gets to.** Not two
+  fixed points, and not "the last dash position" as a single stored place: a dash knots `rank` threads
+  at even spacing down the streak it actually covered (`tieCords` is called from `dashStep`, after the
+  ship moves, so a dash into a wall ties the knots it got to - the afterimage rule), and then the far
+  ends stay in the floor while the near ends ride the hull. This is what makes it a line rather than a
+  circle and what makes the card pay for turning: fly straight and you drag one thread down your own
+  wake; turn and the fan sweeps a lane of ground you already paid for by being there.
+- **One tether at a time; a new dash reties it.** `armTie` cuts whatever was hanging and re-lights the
+  clock, with no light of its own for the cut threads because the dash is throwing a ring and a spray at
+  that very step. `life: 2` is shorter than the dash's own 2.5 s cooldown, so a run that dashes on
+  cooldown keeps a thread tied about half the time (measured: 54,452 of a run's 108,000 steps) and a run
+  that saves its dashes gets one when it needs it.
+- **A rank is another thread, never a heavier pulse.** `step: 1`, five ranks, five cords fanned along
+  the streak, all converging on the hull - and **the whole fan beats as one weapon** (`beat: 0.4`, one
+  `cool` for the tether and not one per cord), so a body with three threads across it pays once. Without
+  that the fifth rank would be a stack on whatever is already under the ship, which is the rank nobody
+  can feel (the nova's and afterimage's rule again). `hit / pulses` is the instrument for this and it
+  reads 1.07 bodies a pulse against a mine's 1.11 a blast, so ranks are buying ground and not crowd.
+- **A shove off the line, never a slow, and never the ship.** `shove: 200` px/s along the thread's own
+  perpendicular off the *foot* the body stands at (which is why a rider is an object and not a body: the
+  foot is what the throw is measured off). A body burned off a tether is still walking at you, it is
+  just not on the line - so the threads are a wall to steer around rather than a net, and the crowd is
+  not restricted in any way. The ships'-own-light contract from mines applies verbatim: a thread is a
+  place, nothing can cut it, nothing can shoot it, and there is nothing to clean up when it lets go.
+
+### What got built
+
+- `src/game/tether.js` (new, ~380 lines with its arguments) - `newTether`/`resetTether`/`hasTether`,
+  `armTie(world)` (called from `beginDash`, the same door `armDash` is armed through, so how many threads
+  a dash owes is settled when the dash is *granted*), `tieCords(world)` (from `dashStep`),
+  `updateTether(world, dt)` (the run's step, after `updateMines` and before `updateBurn`, so a pulse is
+  paid out where the crowd finished walking), and the two readings the painter is built out of:
+  `lettingGoOf` and `pulsingBy`. `world.tether` holds the cords (`Pool`, x/y only - a knot does not move
+  and there is nothing to interpolate), the riders (a `Pool` **rebuilt from the crowd every step**, like
+  the grid and the packs, with one spare `probe` so "are you on a thread?" costs no object when the
+  answer is no), the clock, and five counters: `tied`, `pulses`, `hit`, `held` over `steps`.
+- `upgrades.js`: the sixteenth line, `each`/`step: 1`, `what: 'thread tied'`, and `cordsOf(world)`.
+- `balance.js`: `upgrades.tether = { ranks: 5, step: 1, life: 2, fade: 0.4, reach: 34, beat: 0.4,
+  weight: 5, shove: 200 }` plus the tied / gone / bite specs, every one argued for in place.
+- `render/entities.js`: `drawTether`, under the ship and over the crowd. `bandPasses` - the sniper's
+  three-pass band - was generalised to take its own `edge` and `core` colours and is now shared by the
+  crowd's beams and the ship's threads, which is what the *band* means in this game: the crowd's is
+  warm, this one is cyan, the geometry is identical. A knot borrows the orbital drone's glow sprite, so
+  the sixteenth line asked the canvas to build **nothing**: no new sprite, no new holder, and
+  `test/draw-cost.test.mjs`'s bound did not move.
+- `render/cards.js`: `TINT.tether = PALETTE.player`, and the comment there says why out loud. The rack
+  is out of cool hues and has been since the tenth card; the tether wears the ship's cyan in the arena
+  because it *is* the ship's own light drawn as a line, and of the two cards now wearing cyan one is a
+  stack of bars and the other is a ship trailing threads, which is the only test a tint has to pass.
+  `iconTether` is a ship that has turned, three knots along the road it came, a thread from every knot
+  back to the hull, and the road itself painted faint behind them.
+- `main.js`: seven debug stats (`tether`, `tetherCords`, `tetherTied`, `tetherBites`, `tetherHit`,
+  `tetherHeld`, `tetherSteps`) and a `damageRanks` one, because a tool cannot work a line's own share of
+  a run's damage out without knowing what a shot of that run's gun is worth.
+- `test/tether.test.mjs` (22) and `test/tether-art.test.mjs` (10). The art file pins: nothing tied costs
+  a frame nothing at all, ranks included; the widest stroke in a tether frame is **exactly** `2 * reach`
+  px, so the road of light is the road the damage is paid out on edge for edge; a thread that has just
+  burned somebody and a thread with nobody on it cost a frame exactly the same and differ only in
+  brightness; a fan costs a band and a knot per thread and no sprite for any of them; and a thread is
+  drawn however far its knot was left, which is the last one because it started as a cull test and is
+  now a test that there cannot be a cull (below).
+
+### What the measuring said, and what surprised me
+
+- **Nothing in the toolchain can price this line, and the run had to be the instrument.**
+  `tools/power-ladder.js --line tether` reads **1.00x** on all three knots - a wall of bodies pinned to
+  the floor never dashes, never turns and never has a thread swept across it, which is the fourth kind of
+  1.00x and the same disease mines had. `tools/line-ab.js --line tether --dash` is the instrument, and
+  the first thing it said is that **the line is entirely gated on the dash**: without `--dash`, five free
+  ranks are worth *nothing at all* - six seeds read 116,141 score and 58,359 damage with the line out
+  and 116,141 and 58,359 with all five ranks handed, identical to the unit. The cleanest gate in the
+  deck: the card is the dash or it is nothing.
+- **The price, on a bot that presses dash**: seeds 1-6 at the 15:00 cap, out 61,000 score / 29,812
+  damage with 3 of 6 still flying; dealt (+2.5 ranks) 115,882 / 57,627; free 119,080 / 60,534. On two
+  groups of four seeds where the batch was *not* dying early and the score column had something left in
+  it to buy: seeds 7-10 **+2.1% score, +3.7% damage**, seeds 11-14 **+3.3% and +5.3%**. That is mines'
+  family (+1.1% / +4.9%) and a shade above it, which is where a line that costs a dash belongs. The
+  threads' own share is about **6% of a run's whole damage** (339 bodies a run at `weight 5` against
+  60,534 total), against mines' ~13%.
+- **My first `weight` was wrong by four times, and the run caught it.** I reasoned "high duty cycle, so
+  small per event" and put in 0.4, which measured as 0.4% of a run's damage and +1.1% on the score: a
+  cosmetic fifth system. The mistake was pricing per second a line whose *rate is set by how often the
+  player spends a dash*. Priced per event it is worth about a mine's blast per body (1.07 bodies a pulse
+  against 1.11 a blast) and happens a quarter as often (317 events a run against a minefield's 1,097),
+  so it has to be bigger per event than a mine by roughly that ratio: swept 0.4, 3, 6, settled at **5**,
+  at which a pulse one-hit-kills most of the crowd and the fan's share lands at 6%.
+- **`reach` is the whole game the line has, which is why 50 px was rejected on the drawing and not on the
+  numbers.** At 50 a mean of 0.13 bodies stood on the threads per live step against 0.06 at 30 - the width
+  is what the difference between those two is entirely made of, since a thread's length is free. But five
+  cords at 50 px each side is a wall of light over half the arena, and a card called TETHER that paints a
+  wall is lying about what it is. 34 it is, and the art test pins the drawn band to exactly `2 * reach`
+  so the lie cannot be told quietly.
+- **`--dash` is not free, and I did not know that.** The dash-habit bot is *worse* than the plain one:
+  mines' out-condition reads 52,720 with the habit against the 115,808 recorded without it. Every ratio
+  measured on the dash bot is therefore inflated by time-alive, which is why I ran the same three seeds
+  through both bots before quoting anything. Worth remembering for Turret, whose value will also be read
+  off a bot whose habits I invented.
+- **The oddity I kept.** On seeds 1-6 the line out of the deck mediates 8m30s with three of six dead, and
+  *any* amount of it in - one dealt rank or five free ones - takes the batch to the cap. Six and a half
+  minutes of survival for a source worth 6% of a run's damage is arithmetic the damage column cannot
+  show; it is what a wall of light across your own wake is worth to a ship running for its life. A floor
+  and not a ceiling, and the same trap as every dash line: no bot in `tools/headless` dashes *on purpose*.
+- **Two things the tests caught, one of them a whole feature I had invented.** My `drawTether` had an
+  off-screen cull on the thread's midpoint, and the art test that was supposed to prove the cull worked
+  failed - because one end of every thread is the ship, which is on the glass by definition, so the cull
+  could never fire for any thread that ever existed. Dead code that always passes is worse than none, so
+  the cull is gone and the test now asserts the opposite of what it set out to (a thread is drawn however
+  far its knot was left), with the argument in both files. The other: `1e-6` in the shove's
+  "dead on the axis" guard was reported by `test/structure.test.mjs` as a hard-coded tuning number, and
+  `off > 0` was both legal and more honest.
+
+### For the next session
+
+- **Turret**, the last of 3.2's secondary systems: "a stationary turret is placed every 12 s and lasts
+  10 s". The one of the three that is a *body* rather than a place - it has a position, it can be
+  surrounded, it aims. Steal from `game/orbitals.js` for the aiming and the fire loop and from
+  `game/mines.js` for the lifetime and the expiry light; the interesting questions are where it is placed
+  (mines drop out of the way the ship was *going*, and a turret placed under the ship would be placed
+  where the ship is not going to be) and what a run that never stops thinks of it. Then 3.2 is done and
+  milestone 4's remaining items are the_synergies and the HUD work below.
+- **A line that a bot cannot use needs its own bot, not a flag.** `--dash` is a habit I invented and it
+  changes the answer (`--dash` makes the bot die younger, see above). A bot that dashes *away from*
+  something, or that leads a chase around a loop, would price Turret, Tether and Mines on their own terms
+  instead of mine. `dashEscape` in `tools/headless/bot.js` is still the seed; it wants a reaction delay
+  and a threat test.
+- **Owned structures now want a place on the HUD.** Three lines put things in the arena that the player
+  owns and that expire on their own clock - orbitals, mines, and now threads - and the HUD names none of
+  them, nor any of the sixteen lines and seventy-five ranks. This has been owed since session 45.
+- **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and chill's
+  shatter fires on a body that wore both, and the special card frame that makes a synergy findable.
+  Sessions 39-43 all said this and I keep choosing the new system over it.
