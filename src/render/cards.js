@@ -79,6 +79,13 @@ const TINT = {
   // the exception BURN made (see above), and it means the same thing here as it does in the arena:
   // not a threat, a prize. The shape is nothing like the flame's either.
   magnetar: PALETTE.elite,
+  // The fifteenth tint, and - following the four before it - not a fifteenth hue. It is the colour the
+  // mine's own ring is drawn in on the arena floor (PALETTE.mineZone), which is the deepest saturated
+  // cut of the walls' sky that the rack had left: a mine is the ship's own ordnance, so it wears the
+  // ship's cool end of the wheel, and the one thing on this rack that is not like the others is that
+  // nothing about it is attached to the ship at all. It is a bluer, harder blue than PIERCE's powder
+  // blue and the two shapes could not be less alike.
+  mines: PALETTE.mineZone,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -317,6 +324,7 @@ const ICONS = {
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,
   magnetar: iconMagnetar,
+  mines: iconMines,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -811,4 +819,74 @@ function iconPierce(ctx, size, tint) {
     ctx.fillStyle = withAlpha(tint, s.at);
     ctx.fill();
   }
+}
+
+/**
+ * A ship at the top of the card and the three mines it has just dropped behind it, each still
+ * wearing its ring. The trail is the card and not the ship, which is why the ship is small and up at
+ * the top and what you read first is the line of things falling out of its wake (game/mines.js).
+ * Each mine is the hexagon-and-four-spikes shell the arena paints, with a lit eye; the rings get
+ * fainter going down the line because the ones further back have been waiting longer.
+ */
+const MINE_PLACES = [
+  { at: -0.36, ring: 0.3, light: 0.95 },
+  { at: 0.16, ring: 0.26, light: 0.66 },
+  { at: 0.66, ring: 0.22, light: 0.4 },
+];
+const MINE_SHELL = 0.13;    // the hexagon, as a share of the icon
+const MINE_SPIKE = 0.055;   // and how far its spikes stand off
+const MINE_DASH = 0.1;      // px of dash and px of gap on a ring, same share
+const MINE_WAKE = 0.09;     // how wide the drop line down the middle is drawn
+const MINE_SHIP = 0.22;     // the ship at the top of it, small, as always
+
+function iconMines(ctx, size, tint) {
+  // The wake: the way the ship was going, with the mines dropped out of it.
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * MINE_WAKE;
+  ctx.strokeStyle = withAlpha(tint, 0.18);
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.52);
+  ctx.lineTo(0, size * 0.82);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Every ring first, then every shell, so one dash setting serves them all and no shell is drawn
+  // under a ring it is supposed to be inside.
+  ctx.setLineDash([size * MINE_DASH, size * MINE_DASH]);
+  ctx.lineWidth = 1.4;
+  for (const place of MINE_PLACES) {
+    ctx.strokeStyle = withAlpha(tint, place.light * 0.55);
+    ctx.beginPath();
+    ctx.arc(0, place.at * size, size * place.ring, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  for (const place of MINE_PLACES) {
+    const y = place.at * size;
+    const r = size * MINE_SHELL;
+    // One path for the shell and its four spikes, then the house two passes: a wide faint stroke
+    // under a thin bright one, which is how anything here glows without a blur.
+    polygon(ctx, 0, y, r, 6, Math.PI / 6);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.moveTo(Math.cos(a) * r, y + Math.sin(a) * r);
+      ctx.lineTo(Math.cos(a) * (r + size * MINE_SPIKE), y + Math.sin(a) * (r + size * MINE_SPIKE));
+    }
+    ctx.strokeStyle = withAlpha(tint, place.light * 0.3);
+    ctx.lineWidth = size * 0.09;
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(tint, place.light * 0.9);
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, y, size * 0.05, 0, Math.PI * 2);
+    ctx.fillStyle = withAlpha(PALETTE.white, place.light);
+    ctx.fill();
+  }
+
+  shipPath(ctx, 0, -size * 0.72, size * MINE_SHIP, -Math.PI / 2, 1.6);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
 }

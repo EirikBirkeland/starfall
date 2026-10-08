@@ -166,6 +166,14 @@ export const LINES = [
     flavour: 'The shards you pick up charge the field round the ship, and when it is full it lets go. Everything standing in the field feels it.',
     icon: 'magnetar',
   },
+  {
+    id: 'mines',
+    name: 'MINES',
+    unit: WHOLE_UNIT,
+    what: 'mine per drop',
+    flavour: 'The ship drops mines out of the way it was going, and a body that walks into one pays for the road. One more mine per drop for every rank.',
+    icon: 'mines',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -188,6 +196,8 @@ const OVERCHARGE_LINE = 'overcharge';
 const AFTERIMAGE_LINE = 'afterimage';
 /** The line that spends collected shards as a discharge round the ship. */
 const MAGNETAR_LINE = 'magnetar';
+/** The line that leaves mines in the arena behind the ship. */
+const MINES_LINE = 'mines';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -379,6 +389,16 @@ export function imagesOf(world) {
  */
 export function crackShotsOf(world) {
   return countOf(world, MAGNETAR_LINE);
+}
+
+/**
+ * How many mines one drop lays (PLAN 3.2's "drops a mine every 3 s", as a line): one at the first
+ * rank and five at the fifth, on a beat that never changes - so a rank is a wider stretch of the
+ * road rather than a quicker one, which is the difference between owning ground and revving. Read
+ * where the drop happens (game/mines.js), so a rank taken between two drops is in the next one.
+ */
+export function minesPerDropOf(world) {
+  return countOf(world, MINES_LINE);
 }
 
 /** Lines with a rank still to give. */

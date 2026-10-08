@@ -5479,3 +5479,124 @@ arithmetic. Six seeds, medians:
 - Promote the throwaway batch runners into `tools/` for real (session 41, 42 and 43 each wrote a
   `/tmp/*.mjs` for the same three-condition A/B; `mag-run.mjs` is the fourth copy). The fifth session
   that needs one should read `tools/balance-report.js` instead of writing a sixth.
+
+## Session 45 (2026-10-08) — Mines: the first line that happens where the ship *was*. Released **0.4.16**
+
+The first of PLAN 3.2's five secondary systems as its own line: **Mines** - "drops a mine every 3 s;
+explodes when an enemy comes near". I picked it over Tether and Turret because it is the only one of
+the three that needs nothing new from the crowd: no restriction to derive, no structure to aim. It
+turned out to be the most instrument-heavy session of the milestone, because the ladder cannot see
+this line at all and there was no reusable tool for measuring it on the run.
+
+### What got built
+
+- `src/game/mines.js` (new, ~280 lines with its argument) - `newMines`/`resetMines`/`hasMines`,
+  `updateMines(world, dt)` (the run's step, after `updateNova` and before `updateBurn`, so a fuse
+  lights for where a body ended up), and three readings the painter is built out of: `armingOf`,
+  `fadingOf`, `fusingOf`. The field lives in `world.mines`: a `Pool` of mines (x, y, arm, life, fuse -
+  no velocity and no previous position, because a mine does not move and there is nothing to
+  interpolate), the wait until the next row, and three counters: `dropped`, `blown`, `hit`.
+- `upgrades.js`: the fifteenth line, an `each` line whose `step` is 1 and whose `what` is `mine per
+  drop`, so `minesPerDropOf(world)` is the rank and rank 0 is *no mines at all* rather than a
+  minefield that does nothing (the trap every conditional line gets its own test for).
+- `balance.js`: `upgrades.mines = { ranks: 5, step: 1, cycle: 3, gap: 56, arm: 0.6, life: 9, fade:
+  1.2, trigger: 62, fuse: 0.22, radius: 112, shove: 260, drifting: 40, weight: 3 }` plus the landed /
+  fused / gone / blast specs, every one of them argued for where it stands.
+- `render/entities.js`: `drawMines`, on the floor with the bomber's zones and the shielders' fields -
+  a mine is under whatever walks over it, which is exactly when it goes off. A dashed ring at
+  `trigger` and at nothing else, growing out to it while the mine winds; a hexagon-and-four-spikes
+  shell, stroked twice and never filled; one stamped eye, which is the clock (dim while it winds,
+  breathing while it waits, a strobe once a body is in the ring, gutting out over the last `fade`).
+- `render/cards.js`: the fifteenth tint (`PALETTE.mineZone`, the arena's own deep sky) and `iconMines`
+  - a small ship at the top and the three mines it has just dropped out of its wake, rings fainter
+  going down the line because the ones further back have been waiting longer.
+- `main.js`: four debug stats - `mines` standing, `minesLaid`, `minesBlown`, `minesHit`.
+- **`tools/line-ab.js` (new, and the thing NOTES has asked for three times)**: a real three-condition
+  line A/B instead of a fourth `/tmp` copy. `--line`, `--seeds`, `--seconds`, `--conditions
+  out,dealt,free`, `--stats minesLaid,minesBlown,minesHit` for whatever a line exposes, `--set
+  key=value` to price any number in its balance block without editing it, `--dash` for the dash bot.
+  One game per process, runs played back to back through `resetToTitle`, medians per condition against
+  the first one listed, and it prints `damage` (the run's whole damage off `tally.kinds`) as well as
+  score and time - which turned out to be the whole point, see below.
+- `test/mines.test.mjs` (23) and `test/mines-art.test.mjs` (9). The art file paints real frames
+  through the real painter and pins four things: an empty field costs a frame nothing; the ring drawn
+  at a mine is never wider than `trigger` whatever the mine is doing; a lit mine and a waiting one
+  cost a frame exactly the same and differ only in brightness; and a mine coming apart paints a circle
+  *bigger* than the ring it waited inside. `tools/power-ladder.js` got a fourth header paragraph for
+  the third kind of 1.00x, and `test/draw-cost.test.mjs`'s holder bound went up by the one new sprite.
+
+### What the measuring said, and what surprised me
+
+- **The ladder cannot price a trap.** `node tools/power-ladder.js --line mines` reads **1.00x** on the
+  column and on the near field and **16.46x** on the dense ring. Both ends are wrong in opposite
+  directions: a mine is paid for by a body walking into a ring on the floor, and every knot in that
+  tool is a body that has been pinned to the ground since the first step. Written up at the top of
+  `tools/power-ladder.js` as the third kind of 1.00x (after "the line is defensive" and "the knot
+  cannot die"), with the run A/B as its instrument instead.
+- **The six-seed, fifteen-minute A/B at `weight: 3`**: out 115,808 score / 57,186 damage; dealt
+  116,141 (+0.3%) / 58,359 (+2.1%) at 3 of 5 ranks taken; free 117,059 (+1.1%) / 59,963 (+4.9%) at
+  all five, laying 1,430 mines, blowing 1,097 of them and coming round 1,214 bodies. Half of what
+  five free ranks of magnetar were (+10.7%), so: in the added-source family and under its head, and
+  nowhere near a rank of the gun. I swept `weight` from 0.35 to 6 before settling; the damage column
+  scales with it about +2% per point of weight and the score column does not move at all, which is
+  the next bullet.
+- **Most of this card's damage replaces the gun's instead of adding to it.** Same window, one seed:
+  hits landed on bodies go *down* with the line in - 53,895 without it against 48,084 with five free
+  ranks - while the mines come round 978 of them, because a body a mine killed is a body the gun
+  stops spending three shots on. So `damage` moves and `score` hardly does, and a line that adds a
+  *source* to a run that already overkills everything in one hit is paid out in cheaper kills rather
+  than in more kills. This is why `line-ab.js` prints damage: score alone would have said "this card
+  is worth 1%", which is true and useless.
+- **It is front-loaded**, which is the shape of the card and not a mistake in it: at the five-minute
+  window the same five free ranks read **+15.2% damage and +11.7% score** against +4.9% and +1.1% by
+  the fifteenth. A mine needs a crowd that has not arrived yet; a late run kills the crowd before it
+  finishes walking into anything. Same asymmetry as nova and burn, and written down in `balance.js`.
+- **`minesHit` is the instrument that made the line legible.** Standing count and detonations told me
+  nothing; "bodies came round per blast" (1.07 at fifteen minutes, 1.2 at five) is the number that
+  says the bot presents each mine to about one body, and therefore that the weight is priced on the
+  bot's floor and not on the card's ceiling. Same lesson as afterimage's share-of-frames: a line whose
+  value is a *relation to the crowd* needs a stat that is a relation, and I should add one at the same
+  time as the module rather than three hours later.
+- **`arm: 1.5` is not better than `arm: 0.6`**, which I had expected it to be. Over the same five
+  minutes the longer wind-up does concentrate the blasts (403 detonations coming round 532 bodies,
+  against 439 coming round 525), but the score comes out a shade *lower*: the mines that never went
+  off at the short arm were not wasted so much as early, and a mine that lights a second after it
+  lands is a mine the chase is still inside. Kept PLAN's feel.
+- Two bugs the art test caught in one run each, both of them the classic kind: `fadingOf` was written
+  as a share and read as seconds in the painter's `goOut`, so a fading mine shrank its ring by 60%
+  three frames before the ring existed; and my first `drawMines` stamped a soft glow under every mine
+  *while it wound* as well as its eye, which the row test (stamps per mine) showed up immediately as
+  two sprites' worth of work per mine for something that is one dot of light. NOTES has said "the art
+  test is the one that finds the drawing bugs" since session 43 and it is still true.
+- The blast ring is the first explosion in the game whose light is **timed to stop at the reach it
+  hurt** (12 px born, 360 px/s for 0.3 s = 120 px against a 112 px `radius`). A bomber's flash is free
+  to overshoot its own radius because a death makes no promise about a number; a mine is all promise,
+  and this is the half of `radius > trigger` that is painted rather than asserted. The art test asserts
+  the painted half too.
+
+### For the next session
+
+- **Turret or Tether**, the last two of 3.2's secondary systems as lines. Tether is the interesting
+  one and the dangerous one - a *restriction* on the crowd, which wants the derivation-not-state
+  treatment afterimage got (read `game/afterimage.js`, `game/flock.js`, `game/shields.js` first). If
+  it restricts what a body can do, decide first what the collision grid does with a restricted body:
+  the flock and the chase derive their targets every step and a tether that only changes the drawing
+  is a lie.
+- **When the next line's value is a relation to the crowd, add the stat with the module and not after
+  it.** Mines' `minesHit` is the third time (afterimage's share of frames, magnetar's bank) and each
+  time the number that made the line legible was written an hour after the line was.
+- **A line whose damage displaces the gun's will not show up in `score`.** Say so when pricing Turret
+  if it comes to it: `damage` and the per-blast relation are the honest columns there, and the score
+  column on a bot that survives the whole window is a throughput measurement with almost nothing left
+  in it to buy.
+- **The third bot** is still the biggest instrument gap and this session made it plainer: a bot that
+  runs in a straight line away from the nearest body is the wrong customer for a trap, so everything
+  priced off `free` and `dealt` for Mines is a floor. `dashEscape` in `bot.js` is the seed; it needs a
+  reaction delay and a threat test, not a radius. A bot that *leads* a chase through its own wake would
+  be the one this line was priced for.
+- **Owned-upgrade icons on the HUD**: fifteen lines, seventy-five ranks, and the HUD names none of
+  them. Mines adds a new kind of thing to hide - ordnance standing in the arena that the player owns
+  and that expires on its own clock.
+- **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and
+  chill's shatter fires on a body that wore both, and the special card frame that makes a synergy
+  findable. Sessions 39-43 all said this.

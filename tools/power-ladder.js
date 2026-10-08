@@ -62,6 +62,16 @@
 // frozen body coming apart, which is the only way a shatter comes round - and the leech's hull
 // leans on it outright, so every one of those rows is a floor here and not a measure.
 
+// There is a third kind of 1.00x, and it is the one that took the longest to notice: a line that is
+// paid for by a body coming to a *place* it was told about rather than a place it was shot at. game
+// /mines.js is that line - a mine goes off when a body's skin touches a ring drawn on the floor - and
+// the knots here are pinned, so nothing ever walks into one: the column and the near field both read
+// 1.00x for a line that is worth about a twentieth of a run's damage. The same row on the dense ring
+// reads 16x, because one mine dropped in a knot of thirty goes off with thirty bodies in it, which
+// is also not what a run does. Both ends of that are wrong in opposite directions, which is the whole
+// point: a knot of bodies standing still cannot price a trap, and the line's instrument is the run
+// itself (`tools/line-ab.js --line mines`), as it was for magnetar above.
+
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';
 import { setWeapon } from '../src/game/weapons.js';

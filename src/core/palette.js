@@ -64,6 +64,21 @@ export const PALETTE = {
   wall: '#57b8ff',
   wallTick: '#9fdcff',
 
+  // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
+  // the floor, so it is cool-coloured like everything else the ship owns even though what it does
+  // is explode (PLAN section 4 spends warm on things that are out to get *you*, and a mine is not
+  // out to get you - the ship drives straight over its own). The ring is a deeper, more saturated
+  // cut of the wall's sky than the wall itself, which is also what makes it readable as floor paint
+  // that belongs to somebody: it sits on the same hue as the arena's boundary and is not the same
+  // colour as anything that hurts, and it is the fifteenth card tint because the rack ran out of
+  // hues three cards ago (see render/cards.js).
+  mineZone: '#1f9bff',
+  // The shell itself - a hard little object, so it wears a pale line and no fill of its own.
+  mineBody: '#a8d8ff',
+  // The eye: the only part of a mine that is alive. Dim while it winds, steady once it is live,
+  // and a strobe once a body has walked into the ring.
+  mineCore: '#dff2ff',
+
   // The sixth card tint (render/cards.js). The five already taken are white, the
   // player's cyan, the shard's mint, the drifter's violet and the wall's sky blue, and
   // the one cool hue nobody was wearing is a teal - so six cards can be told apart at a

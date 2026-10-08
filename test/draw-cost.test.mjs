@@ -85,16 +85,24 @@ test('a busy frame paints light without blurring and without gradients', () => {
   // XP bar does, with a wide stroke and no sprite of its own. Magnetar is the one after that, and
   // it is only the fourteenth card tint: an icon is stamped with a glow of its own hue, and the
   // crack in the arena itself asks a frame for nothing but strokes and sparks (game/magnetar.js).
-  // The rest is one per kind's colour and halo, plus the ship, the shards and the cards.)
+  // Mines is the one after that - two sprites, the same pair a card and a thing in the arena always
+  // cost: the icon's glow of its own hue, and the one lit eye a standing mine stamps however many
+  // of them are on screen (game/mines.js). The rest is one per kind's colour and halo, plus the
+  // ship, the shards and the cards.)
 });
 
 test('a steady frame builds nothing at all', () => {
-  const earlier = flyAndCount(300);
+  // The first window is long and the second short on purpose. A card can be taken at any moment in
+  // a run, and its sprite is baked the first time the thing it sells is drawn - so a two-second
+  // window can easily be the one that meets it, and a twenty-second one has met everything the
+  // short one could. What is being promised is still the short one: a steady frame builds nothing.
+  const earlier = flyAndCount(1200);
   const later = flyAndCount(300);
 
   assert.ok(later.alive, 'the ship is still there');
   assert.ok(later.stamps > 5000, 'still shining: ' + later.stamps);
-  assert.ok(earlier.baked <= 4, 'a window may still meet something new: ' + earlier.baked);
+  assert.ok(earlier.baked <= 6, 'a long window may still meet things it has never drawn: '
+    + earlier.baked);
   assert.equal(later.baked, 0, 'a steady frame bakes no new sprite');
   assert.equal(later.bakeGradients, 0, 'and builds no gradient to bake one with');
   assert.equal(later.shadows, 0, 'and never asks for a blur');

@@ -23,6 +23,7 @@ import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
 // are not the same thing (game/magnetar.js, game/overcharge.js).
 import { chargeOf as fieldChargeOf, hasMagnetar, isPrimed as fieldPrimed } from '../game/magnetar.js';
 import { fadingBy } from '../game/afterimage.js';
+import { armingOf, fadingOf, fusingOf } from '../game/mines.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -570,6 +571,122 @@ export function drawShieldBubbles(ctx, list, alpha) {
     }
   }
   ctx.globalAlpha = was;
+}
+
+// The minefield (game/mines.js) is floor paint, like a bomber's death zone and a shielder's field:
+// a mine lies *under* whatever walks over it, which is precisely the moment it goes off and stops
+// being there. Three parts, and each of them is one of the mine's three states.
+//
+//   The ring is the reach that sets it off - `trigger`, measured to a body's own skin, exactly as
+//     the simulation measures it - and it grows out to that reach while the mine winds up, so the
+//     circle a player is shown is never bigger than the reach the mine has yet. It is dashed and it
+//     crawls, like every other zone in the game, because a static circle reads as decoration.
+//   The shell is a hard hexagon with four spikes, stroked and never filled: a thing lying on the
+//     ground is not a pool of light, and the one thing on this floor that is a pool of light is
+//     the eye.
+//   The eye is the clock. Dim while it winds, breathing steadily once it is live, a fast strobe
+//     once a body has walked into the ring, and gutting out over the last `fade` seconds of a mine
+//     that nobody walked into - so the arena says which mines are still promised when it does not
+//     have to say it in words.
+const MINE_BODY = 6.5;          // px across the shell
+const MINE_SIDES = 6;           // a hexagon, the same face the ice wears
+const MINE_SPIKE = 4;           // px of spike standing off each of four corners
+const MINE_LINE = 1.6;          // px, the shell's own line
+const MINE_GLOW = 5;            // px, the wide faint pass under it
+const MINE_EYE = 7;             // px of light the eye is baked at
+const MINE_EYE_ARMING = 0.12;   // how dim an unwound mine is
+const MINE_EYE_CALM = 0.34;     // a live one, at the bottom of its breath
+const MINE_EYE_SHOUT = 1;       // and one that has somebody, at the top of its strobe
+const MINE_BREATH = 3.2;        // rad/s of breathing while it waits
+const MINE_STROBE = 26;         // rad/s once the fuse is lit
+const MINE_DASH = [6, 9];       // px of dash, px of gap, on the ring
+const MINE_CRAWL = 20;          // px/s the fence crawls at rest ...
+const MINE_CRAWL_FUSE = 130;    // ... and this much faster once it is lit
+const MINE_ZONE_SOFT = 5;       // px, the wide pass under the ring
+const MINE_ZONE_LINE = 1.4;     // px, the ring itself
+const MINE_ZONE_LIGHT = 0.15;   // how bright a waiting ring is ...
+const MINE_ZONE_SHOUT = 0.7;    // ... and how bright a lit one is
+const MINE_ROOM = 30;           // px of slack on the cull test, for the ring and its soft pass
+
+/**
+ * The mines standing in the arena. Nothing is drawn for a run that has not taken the line, because
+ * a run that has not taken it has no mines - the pool is the whole of the state.
+ */
+export function drawMines(ctx) {
+  const laid = world.mines.laid;
+  if (laid.count === 0) return;
+
+  const spec = BALANCE.upgrades.mines;
+  const was = ctx.globalAlpha;
+  let dashed = false;
+
+  for (let i = 0; i < laid.count; i++) {
+    const mine = laid.items[i];
+    if (!onScreen(mine.x, mine.y, spec.trigger + MINE_ROOM)) continue;
+
+    const arming = armingOf(mine);
+    const fuse = fusingOf(mine);
+    const lit = 1 - fadingOf(mine);
+    // The eye's own beat: a slow breath while it waits, and a hard strobe once the fuse is lit.
+    // The frame clock drives it, so a mine cannot be sped up by anything the simulation does.
+    const beat = Math.sin(world.time * (MINE_BREATH + fuse * MINE_STROBE)) * 0.5 + 0.5;
+    const eye = (MINE_EYE_ARMING + (MINE_EYE_CALM - MINE_EYE_ARMING) * (1 - arming))
+      + (MINE_EYE_SHOUT - MINE_EYE_ARMING) * fuse * beat;
+    const zone = (MINE_ZONE_LIGHT + (MINE_ZONE_SHOUT - MINE_ZONE_LIGHT) * fuse) * lit
+      * (1 - arming);
+
+    // The reach, grown out to its full size as the mine winds up. Never painted further out than
+    // the reach a body can be caught at - which is the whole reason the ring is drawn out of the
+    // same two numbers the simulation is (game/nova.js has the same rule for a ring that travels).
+    const radius = spec.trigger * (1 - arming);
+    if (radius > 1) {
+      if (!dashed) {
+        ctx.save();
+        ctx.setLineDash(MINE_DASH);
+        dashed = true;
+      }
+      ctx.lineDashOffset = -world.time * (MINE_CRAWL + fuse * MINE_CRAWL_FUSE);
+      ctx.strokeStyle = PALETTE.mineZone;
+      ctx.lineWidth = MINE_ZONE_SOFT;
+      ctx.globalAlpha = was * zone * 0.4;
+      ctx.beginPath();
+      ctx.arc(mine.x, mine.y, radius, 0, TAU);
+      ctx.stroke();
+
+      ctx.lineWidth = MINE_ZONE_LINE;
+      ctx.globalAlpha = was * zone;
+      ctx.beginPath();
+      ctx.arc(mine.x, mine.y, radius, 0, TAU);
+      ctx.stroke();
+    }
+
+    // The shell and its four spikes, one path and two strokes.
+    ctx.globalAlpha = was * lit;
+    minePath(ctx, mine.x, mine.y);
+    ctx.strokeStyle = withAlpha(PALETTE.mineBody, 0.3);
+    ctx.lineWidth = MINE_GLOW;
+    ctx.stroke();
+    ctx.strokeStyle = PALETTE.mineBody;
+    ctx.lineWidth = MINE_LINE;
+    ctx.stroke();
+
+    // The eye, baked once at full brightness and dimmed to whatever the mine's state says.
+    paintGlow(ctx, glowFor(PALETTE.mineCore, MINE_EYE), mine.x, mine.y, eye * lit);
+  }
+
+  ctx.globalAlpha = was;
+  if (dashed) ctx.restore();
+}
+
+/** The shell's outline: a hexagon, and a spike standing off it at four even bearings. `polygon` opens
+ * the path; the four spikes are added to it as four more sub-paths and stroked with it. */
+function minePath(ctx, x, y) {
+  polygon(ctx, x, y, MINE_BODY, MINE_SIDES, 0);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + Math.PI / 4;
+    ctx.moveTo(x + Math.cos(a) * MINE_BODY, y + Math.sin(a) * MINE_BODY);
+    ctx.lineTo(x + Math.cos(a) * (MINE_BODY + MINE_SPIKE), y + Math.sin(a) * (MINE_BODY + MINE_SPIKE));
+  }
 }
 
 // How a chilled body is drawn (game/chill.js, PLAN 3.5's Chill): a wash of rime over the body

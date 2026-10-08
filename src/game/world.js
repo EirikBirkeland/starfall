@@ -20,6 +20,7 @@ import { updateLeech, newLeech } from './leech.js';
 import { newOvercharge } from './overcharge.js';
 import { newAfterimage, updateAfterimage } from './afterimage.js';
 import { newMagnetar, updateMagnetar } from './magnetar.js';
+import { newMines, updateMines } from './mines.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -156,6 +157,11 @@ function createWorld() {
     // ring round the hull is drawn straight out of it. A crack is over in the step it happens, so
     // there is nothing else to keep - the field remembers who it came round for nobody.
     magnetar: newMagnetar(),
+    // What the ship has left lying on the arena behind it (game/mines.js): the mines standing in
+    // the road, the wait until the next row falls out, and three counters of what the line has been
+    // asked to do and what it got to do with it. Pooled and unordered like everything else that has
+    // to be many - a mine is a place, and no two of them care about each other.
+    mines: newMines(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -244,6 +250,9 @@ function stepRun(dt, input) {
   // And after the ring for the same reason: a nova front comes over the crowd where the
   // crowd now stands (game/nova.js).
   updateNova(world, dt);
+  // And after that for the same reason again: a mine lights for where a body ended up, and its
+  // blast is paid out there (game/mines.js).
+  updateMines(world, dt);
   // And after all of them, because a fire is the slowest thing here: it bites where every
   // body ended up after the walking and the other damage, and the body it finishes is the
   // one whose fire goes out sideways (game/burn.js).

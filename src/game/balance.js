@@ -1441,6 +1441,120 @@ export const BALANCE = {
       // and, like every defensive line before it, worth more to a player who walks back into the
       // field than to a bot whose whole policy is running away from it.
     },
+    mines: {
+      ranks: 5,
+      // A line of whole things (`each`, game/upgrades.js), and the whole things are mines: a drop
+      // lays `step x rank` of them, so rank 1 is PLAN's one mine on the beat and rank 5 is five.
+      // The beat never changes with the rank, which is the shape decision in this card: a rank buys
+      // a longer stretch of road rather than a quicker drum, and five mines in a row is ground the
+      // chase has to walk through where one mine is a point it can walk past.
+      step: 1,
+      // s between drops. PLAN's own number, and it is the rate the whole line is priced on: one
+      // row of mines every three seconds, however many ranks are in it.
+      cycle: 3,
+      // px between the mines of one drop. `radius` is 112, so consecutive mines of a rank-five row
+      // overlap their blasts a little and the row reads as one swept stretch of ground rather than
+      // as five separate firecrackers - which is the promise a rank is selling.
+      gap: 56,
+      // s a mine takes to wind up before it has any eyes. This is what makes the card a trap and not
+      // a rear-facing gun: a chase is sitting on the ship's tail when the mine falls out, and
+      // without this the line would be a turret on PLAN's beat and would be orbitals again.
+      arm: 0.6,
+      // s a mine that is never walked into waits for. The price of the line, and the reason its
+      // numbers can be generous: most mines go out unarmed and harmless. Nine seconds is three drops
+      // worth of the beat, so what stands behind a run is about three rows of mines and not a trail
+      // back to the start of the run - which is the difference between a field and a minefield.
+      life: 9,
+      // s of that life a mine spends visibly going out, so the arena says which mines are still
+      // promised without a meter for it (render/entities.js fades on it).
+      fade: 1.2,
+      // px a body has to come within to light the fuse, measured to the body's own skin - the ring
+      // on the floor is drawn at this and at nothing else (game/mines.js).
+      trigger: 62,
+      // s of tell once it is lit. Shorter than anything in the arena can back out of, so it is a
+      // warning and not an escape: the ring flashes and crawls fast and then the mine is gone.
+      fuse: 0.22,
+      // px of blast, measured from the mine's own centre exactly as the blast ring is drawn.
+      radius: 112,
+      // px/s of shove thrown outwards on everything it comes round.
+      shove: 260,
+      // px/s of ship speed under which "the way I was going" stops meaning anything, and the mines
+      // of a drop fall out behind the nose instead (game/mines.js `falloutOf`).
+      drifting: 40,
+      // What a body the blast comes round loses, as a multiple of one shot of the ship's own gun,
+      // with the damage line multiplied into it exactly as it multiplies a drone's bite, a nova front
+      // and the magnetar's crack (session 31's rule: an added source has to grow with the gun or it
+      // stops being worth taking), and read when the blast is paid out.
+      //
+      // MEASURED on the run, because the ladder cannot see this line at all - `tools/power-ladder.js
+      // --line mines` says 1.00x on the column and on the near field, where nothing on a pinned knot
+      // ever walks into a ring drawn on the floor, and 16.46x on the dense ring, where one mine lands
+      // inside thirty immortal bodies and goes off with all of them in it. Both ends are wrong in
+      // opposite directions and the note at the top of that tool says so. The instrument is
+      // `tools/line-ab.js --line mines --seeds 6 --seconds 900`, the same three-condition A/B
+      // magnetar was priced with, and at this weight it reads:
+      //
+      //   out    score 115,808   damage 57,186
+      //   dealt  score 116,141   damage 58,359   (+0.3%, +2.1%) at 3 of 5 ranks taken
+      //   free   score 117,059   damage 59,963   (+1.1%, +4.9%) at all five ranks
+      //
+      // with the line handing the arena 1,430 mines in a quarter hour, 1,097 of them going off and
+      // coming round 1,214 bodies. So: about half of what five free ranks of magnetar were (+10.7%),
+      // which is the family it belongs to and under its head, and comfortably not a rank of the gun.
+      // Three things about those numbers are why the share stays there:
+      //
+      //   **Most of the mine's damage replaces the gun's instead of adding to it.** On one seed at
+      //     the same window, the hits landed on bodies go *down* with the line in - 53,895 without it
+      //     against 48,084 with all five ranks, while the mines themselves come round 978 of them -
+      //     because a body a mine killed is a body the gun stops spending three shots on. So `damage`
+      //     is the column that moves and `score` barely does, and the honest reading of this card is
+      //     cheaper kills rather than more of them.
+      //   **It is front-loaded**, which is the shape of the card and not a mistake in it: at the
+      //     five-minute window those same five free ranks read +15.2% of a run's damage and +11.7%
+      //     of its score, against +4.9% and +1.1% by the fifteenth. A mine needs a crowd that has not
+      //     arrived yet, and a late run's crowd is killed before it finishes walking into anything. It
+      //     is the line that buys the early minutes.
+      //   **And the bot is the wrong customer for it.** It lays a mine every three seconds and lets
+      //     the chase walk into the wake behind it, which pays out about one body a blast - 978 bodies
+      //     came round 952 blasts on the seed above. The card is meant to be paid by *steering* a
+      //     crowd through a lane of them, and nothing in `tools/headless` steers like that - so what
+      //     is priced here is the floor of the line, and a player who uses it on purpose should clear
+      //     that floor by a long way.
+      weight: 3,
+      // A mine landing: one small light on the floor where it fell, and one quiet click for the
+      // whole row rather than one per mine (the mix has no voice limiting yet, milestone 7).
+      landed: {
+        ring: { radius: 6, speed: 120, life: 0.2 },
+        sound: { freq: 620, dur: 0.05, wave: 'square', vol: 0.016, slide: 300 },
+      },
+      // A fuse lit: a ring collapsing in on the mine, and a hard tick - the sound of something
+      // deciding.
+      fused: {
+        ring: { radius: 26, speed: -120, life: 0.18 },
+        sound: { freq: 1180, dur: 0.05, wave: 'square', vol: 0.03, slide: 700 },
+      },
+      // A mine that waited out its life: a dim ring going in and a sound quiet enough that the
+      // arena is not noisy about what the player did not get paid for.
+      gone: {
+        ring: { radius: 8, speed: -30, life: 0.3 },
+        sound: { freq: 300, dur: 0.07, wave: 'triangle', vol: 0.012, slide: 190 },
+      },
+      // The blast itself. Smaller and quieter than a bomber's (game/kinds.js `bomber.blast`),
+      // because a mine goes off several times a second at the top of the line and a bomber dies
+      // once. No hit-stop, for the same reason: five of these inside a second would stutter.
+      blast: {
+        // The light of it, and it is aimed: born at 12 px and growing to 12 + 360 x 0.3 = 120 px, so
+        // the ring a player watches stops at about the `radius` the damage was actually paid out at.
+        // A bomber's blast flash is allowed to overshoot its own reach - a death is not making a
+        // promise about a number - but a mine is, and this is the half of `radius > trigger` that is
+        // painted rather than asserted.
+        ring: { radius: 12, speed: 360, life: 0.3 },
+        flash: { count: 16, speed: 380, life: 0.34 },
+        bite: { count: 3, speed: 170, life: 0.2, spread: 0.8 },
+        shake: 6,
+        sound: { freq: 96, dur: 0.32, wave: 'sawtooth', vol: 0.14, slide: 40 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

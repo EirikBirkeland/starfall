@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -70,6 +70,9 @@ export function renderFrame(tick, input, pointer) {
     // floor, so nothing standing on the floor is ever drawn under it.
     drawBlastZones(ctx, world.enemies, tick.alpha);
     drawShieldFields(ctx, world.enemies, tick.alpha);
+    // Floor paint again, and for the same reason: a mine lies under whatever walks over it, which is
+    // the moment it goes off (game/mines.js).
+    drawMines(ctx);
     drawShards(ctx, tick.alpha);
     drawSmoke(ctx, tick.alpha);
     drawRings(ctx);

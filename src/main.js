@@ -266,6 +266,16 @@ window.STARFALL = {
       // run can see the bank fill and let go - divide it by BALANCE.upgrades.magnetar.cost, or just
       // watch it sawtooth.
       field: world.magnetar.charge,
+      // The minefield, as far as a headless run can see it (game/mines.js): how many mines are
+      // standing in the arena right now, and three counters over the run - every mine laid, the ones
+      // that went off rather than going out, and the bodies those blasts actually came round. The
+      // ratios between the last three are the line's whole story and none of them can be worked out
+      // from the arithmetic: a run that lays 1,430, blows 1,097 and touches 1,214 bodies is a line
+      // that catches about one body a blast, which is the number its weight was priced on.
+      mines: world.mines.laid.count,
+      minesBlown: world.mines.blown,
+      minesLaid: world.mines.dropped,
+      minesHit: world.mines.hit,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

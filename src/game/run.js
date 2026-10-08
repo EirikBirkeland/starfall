@@ -20,6 +20,7 @@ import { resetLeech } from './leech.js';
 import { resetOvercharge } from './overcharge.js';
 import { resetAfterimage } from './afterimage.js';
 import { resetMagnetar } from './magnetar.js';
+import { resetMines } from './mines.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -76,6 +77,9 @@ export function resetRun(world) {
   // last run is not this run's to let go with, and a field left full would crack on the first step
   // of the next run for a shard it never swallowed.
   resetMagnetar(world);
+  // And every mine the last run left lying in the road (game/mines.js). They wait nine seconds at
+  // the longest, so a restart would otherwise be chased by a trail it never laid.
+  resetMines(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

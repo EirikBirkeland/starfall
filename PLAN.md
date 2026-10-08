@@ -246,6 +246,28 @@ Behaviour upgrades:
   whole damage and +4.9% on its score, in burn's family and a shade under a rank of the gun
   (`BALANCE.upgrades.magnetar` has the three-condition A/B and the two surprises in it - the near
   field of a fleeing ship is nearly empty, and a better run empties it further).
+- **Mines**: drops a mine every 3 s; explodes when an enemy comes near.
+  *Done in 0.4.16* (`src/game/mines.js`). PLAN's sentence is the code: every three seconds a rank of
+  the line drops a mine out behind the ship and a body that comes inside the ring drawn on the floor
+  lights its fuse. Four things the plan does not say, each decided and measured. **A mine is a place
+  and not a body** - it is not in `world.enemies`, no body aims at it, nothing can shoot it and the
+  crowd walks over it as if it were paint on the floor, which is the contract the afterimage's ghosts
+  and the nova's ring already keep and the only way a field of a dozen costs a frame a dozen rings and
+  one sprite. **It may never hurt the ship that laid it**, so the card cannot kill its own owner and a
+  mine coming apart under your own hull is purely good news. **It winds up before it is live** (`arm`,
+  0.6 s), because a mine live the instant it lands is a gun that fires backwards and is paid for
+  standing still, which is the mistake the dash line had to be taught out of; and a live mine also
+  takes no body twice - it pays its damage the instant it lights and spends the rest of its fuse out
+  of the pool, because five mines on one drifter are five detonations and not one. **And the blast is
+  strictly wider than the ring on the floor**, which is what lets the ring be drawn at exactly its own
+  reach: the circle you are shown is never bigger than the reach the mine has yet, and the light of it
+  coming apart is what teaches you the circle was the small number. The mines fall out along the way
+  the ship was *going* and not the way it is pointed, so the card pays for running, and a rank buys a
+  mine per drop rather than a heavier one, so a rank-five run keeps a whole wake of them standing.
+  Measured on the run rather than the ladder, which cannot see a line paid for by a body walking into
+  a place: five free ranks are 4.9% of a run's whole damage and +1.1% on its score, and most of that
+  damage replaces the gun's instead of adding to it (`BALANCE.upgrades.mines` has the three-condition
+  A/B, the front-loading, and why the bot is the wrong customer for a trap).
 - The five secondary systems from 3.2, each as its own upgrade line.
 
 Synergies (give these a special card frame, and discover them in the codex):
@@ -536,9 +558,9 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [x] Each behaviour upgrade from 3.5, one per session, each with a test of its logic.
       (All nine are in, and each has its own module and its own test file: Ricochet, Pierce, Split
       shot (0.4.1-0.4.3), Burn 0.4.10, Chill 0.4.11, Leech 0.4.12, Overcharge 0.4.13, Afterimage
-      0.4.14 and Magnetar 0.4.15. The five secondary systems of 3.2 are the next bullet - Mines,
-      Turret and Tether are still to be built, and Orbitals and Nova went in as upgrade lines in
-      0.4.4 and 0.4.5.)
+      0.4.14 and Magnetar 0.4.15. Of the five secondary systems of 3.2, Mines went in as the
+      fifteenth line in 0.4.16; Turret and Tether are still to be built, and Orbitals and Nova went
+      in as upgrade lines in 0.4.4 and 0.4.5.)
 - [ ] Each secondary system from 3.2, one per session.
 - [ ] Card offer weighting, reroll, and banish.
 - [ ] Synergies, with their special card frame.
