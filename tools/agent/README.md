@@ -166,17 +166,17 @@ understand.
 
 ## Why this and not ACP
 
-PLAN asked for the Agent Client Protocol, and this is not it. ACP is for an editor
-that *embeds* an agent: the game would be the client, spawning an agent and
-streaming its thoughts into a pane. That is a fine idea - it is roughly milestone
-12's agent-assisted hints - but it is the wrong direction for "let an agent play
-the game". What that needs is a game that offers tools, which is what MCP calls a
-server: the game offers them, whatever agent the player has pointed at it calls
-them, and switching agent is a config line and nothing else.
+Somebody will ask why this is not the Agent Client Protocol, and the answer is that ACP
+is the wrong direction for "let an agent play the game". ACP is for an editor that
+*embeds* an agent: the game would be the client, spawning an agent and streaming its
+thoughts into a pane. That is a fine idea - it is roughly milestone 12's agent-assisted
+hints - but what playing from the outside needs is a game that offers tools, which is
+what MCP calls a server: the game offers them, whatever agent the player has pointed at
+it calls them, and switching agent is a config line and nothing else.
 
-There is no dependency in here either, which the plan's version assumed there
-would be. Nothing was downloaded to make this work, so nothing can fail to
-download, and the wire is short enough to read in one sitting.
+There is no dependency in here either, which any such bridge tends to assume there
+would be. Nothing was downloaded to make this work, so nothing can fail to download, and
+the wire is short enough to read in one sitting.
 
 Also not built: the part of the plan where the player picks which agent drives
 *from inside the game*. That needs the game to reach out to a process, and this
