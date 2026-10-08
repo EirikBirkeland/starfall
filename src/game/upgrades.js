@@ -158,6 +158,14 @@ export const LINES = [
     flavour: 'Stand still for a second and the gun loads. What it hands you is one heavy pull, and every rank makes that pull heavier.',
     icon: 'overcharge',
   },
+  {
+    id: 'magnetar',
+    name: 'MAGNETAR',
+    unit: WHOLE_UNIT,
+    what: 'shot off everything in reach',
+    flavour: 'The shards you pick up charge the field round the ship, and when it is full it lets go. Everything standing in the field feels it.',
+    icon: 'magnetar',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -178,6 +186,8 @@ const LEECH_LINE = 'leech';
 const OVERCHARGE_LINE = 'overcharge';
 /** The line that leaves images of the ship behind a dash. */
 const AFTERIMAGE_LINE = 'afterimage';
+/** The line that spends collected shards as a discharge round the ship. */
+const MAGNETAR_LINE = 'magnetar';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -356,6 +366,19 @@ export function pullBoostOf(world) {
  */
 export function imagesOf(world) {
   return countOf(world, AFTERIMAGE_LINE);
+}
+
+/**
+ * How many shots of the ship's own gun one discharge of the field is worth (PLAN 3.5's
+ * Magnetar): one at the first rank and five at the fifth, and `0` when the line has not been
+ * taken - which is not a crack that does nothing but the absence of the field, the same trap
+ * rank 0 has walked into on every conditional line since burn. Read where the crack is paid out
+ * (game/magnetar.js) and multiplied by `bullets.damage` and the damage line there, exactly as a
+ * drone's bite and a nova front are, so the field grows with the gun instead of falling behind
+ * it.
+ */
+export function crackShotsOf(world) {
+  return countOf(world, MAGNETAR_LINE);
 }
 
 /** Lines with a rank still to give. */

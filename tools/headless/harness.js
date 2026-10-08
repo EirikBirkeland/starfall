@@ -92,8 +92,12 @@ function makeContextStub(counters, drawLog) {
     quadraticCurveTo: (cx, cy, x, y) => { drawLog.points.push(onto(x, y)); },
     // Circles are logged too, radius and all: a ring is how the nova's front and a
     // shielder's field are drawn, and the only way to ask in here whether the picture is
-    // the size the simulation says it is.
-    arc: (x, y, r) => { drawLog.circles.push({ x: x, y: y, r: r, at: onto(x, y) }); },
+    // the size the simulation says it is. The sweep is logged as well, because three of
+    // the rings round the ship are meters drawn as a part of a circle (render/entities.js)
+    // and a test cannot tell a quarter-filled meter from a whole one on the radius alone.
+    arc: (x, y, r, from, to) => {
+      drawLog.circles.push({ x: x, y: y, r: r, from: from, to: to, at: onto(x, y) });
+    },
     arcTo: noop,
     closePath: noop,
     // A dash pattern is part of the drawing state, so it is saved and restored like a

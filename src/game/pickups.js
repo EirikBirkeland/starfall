@@ -7,6 +7,7 @@ import { lerp, TAU } from '../core/math.js';
 import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
 import { levelUp } from './progress.js';
+import { feedField } from './magnetar.js';
 
 /** The shape of a shard. `worth` is what makes a large one (PLAN 3.3's elite drop). */
 export function makeShard() {
@@ -93,6 +94,11 @@ export function updateShards(world, dt) {
       world.xp += spec.xp * worth;
       world.shardsCollected++;
       world.score += spec.score * worth;
+      // And it charges the field round the ship, if the run bought the line that spends it
+      // (game/magnetar.js). Here rather than there because this is the one door a shard comes in
+      // by - there is no other moment at which a shard is *collected* - and a large shard is worth
+      // six of them at once, which is what makes an elite's drop nearly a whole crack.
+      feedField(world, worth);
       if (worth > 1) {
         burst(world, shard.x, shard.y, PALETTE.shard, big.spark.count, big.spark.speed, big.spark.life);
         ring(world, shard.x, shard.y, PALETTE.shard, big.ring.radius, big.ring.speed, big.ring.life);

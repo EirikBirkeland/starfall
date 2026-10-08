@@ -46,6 +46,14 @@ export const PALETTE = {
   chargeRingSoft: 'rgba(234,255,255,0.22)',
   chargeRingFill: 'rgba(234,255,255,0.60)',
   chargeRingReady: '#eaffff',
+  // The field the shards are charging (game/magnetar.js, render/entities.js), one ring further
+  // out again. It wears the shard's own mint because the shards are what fill it - the same bargain
+  // the charge ring makes with a shot's colours - and the mint is the only cool hue in the arena
+  // that is not already a ring round the hull. Cool on purpose: this is the ship's own field,
+  // whatever colour the crowd it comes round happens to be (PLAN section 4).
+  fieldRingTrack: 'rgba(88,255,161,0.09)',
+  fieldRingSoft: 'rgba(88,255,161,0.22)',
+  fieldRingFill: 'rgba(157,255,203,0.55)',
 
   shard: '#58ffa1',
   shardLine: '#9dffcb',

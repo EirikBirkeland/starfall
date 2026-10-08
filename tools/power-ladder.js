@@ -51,6 +51,16 @@
 // question nobody was asking. game/afterimage.js is the first of those lines - it buys where
 // the crowd walks, and nothing else - and what it is worth is measured instead in the share of
 // the near crowd it diverts, in the comment on BALANCE.upgrades.afterimage.bait (NOTES session 42).
+//
+// There is a second kind of 1.00x and it is the trickier one, because the line *does* add damage:
+// a knot of bodies that cannot die never dies, so a line that is paid for by a body coming apart
+// never comes round anything here. game/magnetar.js is that line - it is triggered by picking up a
+// shard, and nothing drops a shard in a knot of immortal bodies - so its row says 1.00x while the
+// card is worth about a tenth of a run's whole damage. Its instrument is the run itself, dealt
+// against out of the deck against handed free on the same seeds, and the numbers are on
+// BALANCE.upgrades.magnetar (NOTES session 43). Chill's shatter leans on the same thing - a
+// frozen body coming apart, which is the only way a shatter comes round - and the leech's hull
+// leans on it outright, so every one of those rows is a floor here and not a measure.
 
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';

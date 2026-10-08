@@ -18,6 +18,10 @@ import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
+// The field's own two readings, under names that do not collide with the gun's charge above - both
+// are "how full is the thing round this ship", and the whole point of the two rings is that they
+// are not the same thing (game/magnetar.js, game/overcharge.js).
+import { chargeOf as fieldChargeOf, hasMagnetar, isPrimed as fieldPrimed } from '../game/magnetar.js';
 import { fadingBy } from '../game/afterimage.js';
 import { world } from '../game/world.js';
 
@@ -840,6 +844,19 @@ const CHARGED_CORE = 4.6;         // px, a loaded one's
 const CHARGED_BAND = 6;           // px of wide, faint glow under a loaded shot
 const CHARGED_SOFT = withAlpha(PALETTE.bulletCore, 0.3);
 
+// The magnetar's own art (game/magnetar.js). A third ring, one outside the charge's, and mint
+// where the charge is the white of a shot: this one fills up with shards instead of with waiting,
+// and the colour is the thing that pays for it. Same two passes as the other two - a wide faint
+// arc under a thin bright one, which is how every ring in this game glows without a blur - and the
+// same rule: nothing at all is drawn for a run that has not taken the card.
+const BANK_GAP = 30;            // px out from the ship's body - nine further out than the charge's
+const BANK_SOFT = 6;            // px, the wide pass under the thin one
+const BANK_LINE = 2;            // px, the ring itself
+const BANK_BREATHE = 9;         // rad/s of breathing when the bank is overfull - a little quicker
+                                 // than the gun's, because this one empties and refills a lot
+const BANK_BREATH_ROOM = 2;     // px the ready ring moves over while it breathes
+const BANK_READY_LIGHT = 0.85;  // how bright a ready field lands, at the top of its breath
+
 // The ship's halo, and its flame. The flame sprite is the longest it ever gets;
 // thrust stretches a shorter one out of the same sprite.
 const SHIP_HALO = BALANCE.player.drawRadius * 2.3;
@@ -1020,6 +1037,66 @@ function drawChargeRing(ctx, ship) {
   ctx.stroke();
 }
 
+/**
+ * How full the bank is (game/magnetar.js): the same two-pass arc as the dash's cooldown and the
+ * gun's charge, one ring out again and in the shards' own mint, because it is the shards that fill
+ * it. While it is filling it says how many more of them the next crack costs.
+ *
+ * It is a meter and not the field's size, and that is deliberate: the crack's own light is what
+ * says how far the field reaches (see `light` in BALANCE.upgrades.magnetar, and the rule there that
+ * it is born at exactly the reach the damage was paid out at), and a standing circle 210 px round
+ * the hull would be a third of the screen and a riddle the other two rings are not - the dash's is
+ * a cooldown and the charge's is the muzzle, and this is a wallet.
+ *
+ * The ordinary case is the fill, because the field spends itself the same step it fills
+ * (`updateMagnetar`): an ordinary shard leaves the ring a shard short of whole and never shows it
+ * any other way. The whole bright circle is the rarer thing - a magnet pile landing puts five
+ * cracks' worth in the bank at once, and one crack per step means the ring stays whole and bright
+ * for the few frames the rattle takes (game/magnetar.js has why one per step), which is the right
+ * emphasis for walking into a pile.
+ *
+ * Not drawn at all for a run that has not taken the line - a ring nothing can fill is a riddle too.
+ */
+function drawFieldRing(ctx, ship) {
+  if (!hasMagnetar(world)) return;
+  const radius = ship.drawR + BANK_GAP;
+  const charge = fieldChargeOf(world);
+
+  if (fieldPrimed(world)) {
+    const breath = 0.5 + 0.5 * Math.sin(world.time * BANK_BREATHE);
+    const lit = BANK_READY_LIGHT * (0.65 + 0.35 * breath);
+    ctx.strokeStyle = PALETTE.fieldRingSoft;
+    ctx.lineWidth = BANK_SOFT;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + breath * BANK_BREATH_ROOM, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(PALETTE.shardLine, lit);
+    ctx.lineWidth = BANK_LINE;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + breath * BANK_BREATH_ROOM, 0, TAU);
+    ctx.stroke();
+    return;
+  }
+
+  ctx.strokeStyle = PALETTE.fieldRingTrack;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, TAU);
+  ctx.stroke();
+
+  ctx.strokeStyle = PALETTE.fieldRingSoft;
+  ctx.lineWidth = BANK_SOFT;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + TAU * charge);
+  ctx.stroke();
+
+  ctx.strokeStyle = PALETTE.fieldRingFill;
+  ctx.lineWidth = BANK_LINE;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + TAU * charge);
+  ctx.stroke();
+}
+
 export function drawPlayer(ctx, alpha) {
   const ship = world.player;
   // Only the grace after a hit makes the ship blink. A dash is shown by its
@@ -1063,6 +1140,7 @@ export function drawPlayer(ctx, alpha) {
   ctx.rotate(-ship.angle);
   drawDashRing(ctx, ship);
   drawChargeRing(ctx, ship);
+  drawFieldRing(ctx, ship);
   ctx.restore();
 }
 

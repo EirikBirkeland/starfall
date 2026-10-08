@@ -1337,6 +1337,110 @@ export const BALANCE = {
         sound: { freq: 1180, dur: 0.07, wave: 'triangle', vol: 0.016, slide: 640 },
       },
     },
+
+    // Magnetar (game/magnetar.js): PLAN 3.5's "collected shards deal small area damage around
+    // the ship", and the last behaviour line of the four that add damage. The others are paid
+    // for by a hit (burn, chill) or by the ship standing somewhere (nova, orbitals); this is the
+    // one paid for by *picking up*, which makes it the only line in the deck whose rate is the
+    // run's own loot. The field fills as shards come in and lets go when it is full, and a crack
+    // takes rank shots off every body standing in the field.
+    magnetar: {
+      ranks: 5,
+      // A line of whole things (`each`, game/upgrades.js), and the whole things are shots of the
+      // ship's own gun: a crack takes `step x rank` shots off every body inside `reach`, with the
+      // damage line multiplied in exactly as it multiplies a drone's bite and a nova front
+      // (session 31's rule - an added source has to grow with the gun or it stops being worth
+      // taking). Rank 1 is one shot and rank 5 is five, and the card prints it.
+      //
+      // `step` and `cost` below are one product - what a rank is worth is
+      // `weight x bodies x income / cost` - so the choice between them is not a balance question
+      // but a shape one. Selling the rank as *weight* keeps the crack's rhythm at one crackle a
+      // second whatever the rank and makes a rank a heavier crack; selling it as a cheaper `cost`
+      // would make the field fire three times a second at the fifth rank, which is a hiss and not
+      // an event, and would make the fifth rank a different sound rather than a bigger one.
+      step: 1,
+      // Shards the field has to swallow before it lets go. A large shard (an elite's, worth six)
+      // is six of them at once, so one gold shard fills it and then some, which is the intended
+      // bargain: the loot you flew across the arena for pays for the crack that clears the way back.
+      //
+      // Four, because that is where the field lets go about once a second in a real run, and that
+      // is measured rather than picked for tidiness: six fifteen-minute aware-bot runs collected
+      // 200-285 shards a minute depending on the seed, and counting the bank letting go came out
+      // at 44-69 cracks a minute (medians 52 with the line dealt, 58 with five ranks handed), which
+      // agrees with `shards / cost` to within a shard. A line whose rate is the run's own loot
+      // scales with the killing and not with the ranks, and that is the whole point of it; a
+      // cheaper `cost` would be the same damage spread thinner and faster, which is why `step`
+      // above buys weight and this buys rhythm.
+      cost: 4,
+      // px of field round the ship, measured from its centre - the number that decides what the
+      // card is *for*, and measured rather than guessed, because the near field of a ship that is
+      // running is nearly empty. Over every frame of those same six runs a mean of 1.0-1.1 bodies
+      // stand within 210 px of the ship, 0.4 within 145 px (the magnet's own reach, and the obvious
+      // first guess for a card paid by the magnet) and 4.8 within 300. And the crack fires on the
+      // *quiet* of those frames - it lets go when a shard comes in, and a shard comes in while the
+      // ship is running over the field it dropped rather than while it is being chewed on - so what
+      // a crack really comes round is a median of 0.63 of a body with the line dealt as usual and
+      // 0.23 with five ranks handed free. Even at 210 px, then, about a crack in two crackles into
+      // empty air. At 145 there would be nobody to crack at at all.
+      //
+      // That last number is the line's own ceiling, and it is written here because it was not what
+      // I expected: hand the bot five ranks and it thins the crowd sooner, the crowd stops getting
+      // inside the field, and each crack finds *less* than the same crack found at two ranks
+      // (0.23 against 0.63). A rank of this line buys weight to spend on a field that empties out
+      // as the run gets better, which is the same self-limiting shape the nova has for the same
+      // reason and is why this card cannot run away with a run.
+      //
+      // 210 is also the nova's 220 minus a step, on purpose: the wide panic stays the wide one.
+      reach: 210,
+      // PLAN's second halves are all gated on a rank, and so is this one. From the third rank a
+      // body the field kills leaves a shard where it came apart, which is the line feeding
+      // itself: the crack that clears the pocket also pays for the next one, and the mint flying
+      // out of a corpse is the only tell a crack-kill has at all. It is deliberately small (one
+      // shard, and only on a kill the crack itself landed) - against the measured 3.6 shards a
+      // second this is worth a few per cent more income and a good deal more momentum, and the
+      // field is not meant to mint loot out of nothing the way the leech mints hull.
+      seed: { at: 3, count: 1 },
+      // The light of one crack. It is drawn *inwards*, which is the whole difference between this
+      // and a nova front: a nova is the ship letting go and the ring runs out, and a magnetar is
+      // the field collapsing back into the ship, so the rim the damage was paid out at is born on
+      // screen and runs in to nothing (game/nova.js has the other half of the rule - a light that
+      // follows damage may run out past it, but this one may not claim a smaller circle than it
+      // hurt, so it starts at exactly `reach`).
+      light: {
+        ring: { speed: -880, life: 0.24 },
+        // The rim, falling in. `turn` is rad/s of slow spin on the pattern, so a ship that cracks
+        // once a second never throws the motes from the same ten places twice.
+        infall: { points: 10, turn: 1.9, count: 2, speed: 620, life: 0.24, spread: 0.13 },
+        flash: {
+          radius: 9, speed: 300, life: 0.2,
+          burst: { count: 7, speed: 240, life: 0.2 },
+        },
+      },
+      // One crackle per crack, and quiet, because the line fires about once a second all run and
+      // the mix has no voice limiting yet (milestone 7). It falls rather than rises: the shard
+      // pickup above slides *up* with a streak, and this is the pickup spent.
+      sound: { freq: 1420, dur: 0.07, wave: 'triangle', vol: 0.02, slide: 430 },
+      // Barely a shake. A nova is one event every few seconds and gets four; this is a metronome.
+      shake: 1.2,
+      // And what the whole line is worth, which the ladder cannot say: `tools/power-ladder.js
+      // --line magnetar` prints 1.00x, not because the line is weak but because its knot is pinned
+      // in place and nothing in it ever dies, so nothing is ever dropped and nothing is ever
+      // collected. The instrument for a line paid for by picking things up is the run, so this is
+      // the run: six seeds at the 900 s cap, aware bot, the line out of the deck (`ranks: 0`, which
+      // is how a line is removed) against in the deal against five ranks handed for free - the same
+      // three-condition A/B burn was priced with in session 38.
+      //
+      // A run's whole damage (`tally.kinds[*].damage` summed, the sheet the game keeps itself)
+      // mediates 55,454 with the line out, 57,186 with it dealt and taken at the bot's own pace -
+      // it reaches two or three ranks that way - and 61,414 with five ranks handed: 10.7% of
+      // everything a run's damage is, and all six seeds up on it. Score medians 111,502 out,
+      // 115,808 dealt, 116,937 handed, so five free ranks are worth +4.9%, which is the same family
+      // as burn's +2.9% for the five ranks a bot takes by itself and a clear shade under a rank of
+      // the damage line. That is the honest size of this card: a second source in burn's family,
+      // paid for in flying over your own loot rather than in hitting something or standing still -
+      // and, like every defensive line before it, worth more to a player who walks back into the
+      // field than to a bot whose whole policy is running away from it.
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

@@ -72,6 +72,13 @@ const TINT = {
   // same bargain the last three tints made: the rack is out of hues and a fourteenth invented to
   // keep them evenly spaced would be a colour nobody could name.
   afterimage: PALETTE.playerLine,
+  // The fourteenth tint, and the second warm one on the rack after BURN. It is not a fourteenth
+  // hue: it is the gold of an elite's outline, which is the colour this card spends - PLAN section
+  // 4 asks for shards gold, this game made the shards mint and gave the gold to whatever is worth
+  // killing, and a card that turns loot into damage wears the colour of value. Warm on a card is
+  // the exception BURN made (see above), and it means the same thing here as it does in the arena:
+  // not a threat, a prize. The shape is nothing like the flame's either.
+  magnetar: PALETTE.elite,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -309,6 +316,7 @@ const ICONS = {
   leech: iconLeech,
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,
+  magnetar: iconMagnetar,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -683,6 +691,56 @@ function iconAfterimage(ctx, size, tint) {
     ctx.strokeStyle = withAlpha(tint, ghost.light);
     ctx.stroke();
   }
+}
+
+/**
+ * Six shards on the edge of the field, six short arrows falling in from them, and the ship at the
+ * middle of it all: the whole card is the direction, which is the one thing that tells this apart
+ * from the nova's two rings running out (game/nova.js). The shards are diamonds because a shard is
+ * a diamond, and the ring they stand on is not drawn - the shards *are* the ring, and a line under
+ * them would be the orbitals' track again.
+ */
+const FIELD_SHARDS = 6;
+const FIELD_RING = 0.84;      // where the shards stand, of the icon's own size
+const FIELD_SHARD = 0.14;     // how big one of them is
+const FIELD_FALL_FROM = 0.66; // where a falling arrow starts, and where it ends
+const FIELD_FALL_TO = 0.44;
+const FIELD_FALL_WIDE = 0.065;
+const FIELD_CORE = 0.33;      // the rim the field collapses to
+const FIELD_SHIP = 0.24;      // the ship in the middle, small, as always
+
+function iconMagnetar(ctx, size, tint) {
+  for (let i = 0; i < FIELD_SHARDS; i++) {
+    const a = -Math.PI / 2 + (i / FIELD_SHARDS) * Math.PI * 2;
+    polygon(ctx, Math.cos(a) * size * FIELD_RING, Math.sin(a) * size * FIELD_RING,
+      size * FIELD_SHARD, 4, Math.PI / 4);
+    ctx.fillStyle = withAlpha(tint, 0.92);
+    ctx.fill();
+  }
+
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * FIELD_FALL_WIDE;
+  ctx.strokeStyle = withAlpha(tint, 0.62);
+  for (let i = 0; i < FIELD_SHARDS; i++) {
+    // Half a step round from the shards, so every arrow falls between two of them and the two sets
+    // never pile on each other.
+    const a = -Math.PI / 2 + ((i + 0.5) / FIELD_SHARDS) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * size * FIELD_FALL_FROM, Math.sin(a) * size * FIELD_FALL_FROM);
+    ctx.lineTo(Math.cos(a) * size * FIELD_FALL_TO, Math.sin(a) * size * FIELD_FALL_TO);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  ctx.lineWidth = size * 0.08;
+  ctx.strokeStyle = withAlpha(tint, 0.95);
+  ctx.beginPath();
+  ctx.arc(0, 0, size * FIELD_CORE, 0, Math.PI * 2);
+  ctx.stroke();
+
+  shipPath(ctx, 0, 0, size * FIELD_SHIP, -Math.PI / 2, 1.7);
+  ctx.fillStyle = withAlpha(tint, 0.85);
+  ctx.fill();
 }
 
 /**

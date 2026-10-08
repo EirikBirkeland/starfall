@@ -226,6 +226,26 @@ Behaviour upgrades:
   number in NOTES before it belongs to a bot that never dashed); the deck itself cannot see it, and
   NOTES session 42 says why both bots are the wrong shape for it.
 - **Magnetar**: collected shards deal small area damage around the ship.
+  *Done in 0.4.15* (`src/game/magnetar.js`). PLAN's sentence is the code: a shard that comes in
+  charges the field round the ship and when the field has swallowed `cost` of them it lets go,
+  taking one shot of the ship's own gun off every body inside its reach for every rank. Two things
+  the plan does not say, both decided and measured. **The field is a bank and not a timer** -
+  nothing in the file counts seconds, so the line's rate is the run's own collection rate (measured
+  at about one crack a second, from 213-230 shards a minute) and a shard picked up in a quiet
+  moment is charged for the next crowded one, with the bank carrying its remainder so a gold shard
+  is worth six and not "one, rounded down"; and **the light runs inwards, born at exactly the
+  reach the damage was paid out at**, because a crack is instant and a nova front travels - the
+  ring you watch is the field collapsing back into the ship from the rim it hurt, never claiming a
+  wider circle than it came round and never a smaller one. The third rank is the second half: a
+  body the field kills leaves a shard, so the crack that clears the pocket pays for the next one,
+  and the mint off a corpse is the only tell a crack-kill has. It is deliberately *not* a hit: no
+  frost and no fire ride on it, which is the one place the deck's other damage systems stop short,
+  because a source that fires once a second would keep the whole near field frozen and alight for
+  free and do those two cards' work for them. Measured on the run rather than the ladder, which
+  cannot see a line whose trigger is picking something up: five free ranks are 10.7% of a run's
+  whole damage and +4.9% on its score, in burn's family and a shade under a rank of the gun
+  (`BALANCE.upgrades.magnetar` has the three-condition A/B and the two surprises in it - the near
+  field of a fleeing ship is nearly empty, and a better run empties it further).
 - The five secondary systems from 3.2, each as its own upgrade line.
 
 Synergies (give these a special card frame, and discover them in the codex):
@@ -513,7 +533,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
 ### Milestone 4: upgrades
 - [x] XP curve from 3.6, level-up pause, and the three-card choice screen.
 - [x] Upgrade definitions as data. Stat upgrades first.
-- [ ] Each behaviour upgrade from 3.5, one per session, each with a test of its logic.
+- [x] Each behaviour upgrade from 3.5, one per session, each with a test of its logic.
+      (All nine are in, and each has its own module and its own test file: Ricochet, Pierce, Split
+      shot (0.4.1-0.4.3), Burn 0.4.10, Chill 0.4.11, Leech 0.4.12, Overcharge 0.4.13, Afterimage
+      0.4.14 and Magnetar 0.4.15. The five secondary systems of 3.2 are the next bullet - Mines,
+      Turret and Tether are still to be built, and Orbitals and Nova went in as upgrade lines in
+      0.4.4 and 0.4.5.)
 - [ ] Each secondary system from 3.2, one per session.
 - [ ] Card offer weighting, reroll, and banish.
 - [ ] Synergies, with their special card frame.

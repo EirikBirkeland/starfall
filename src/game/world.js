@@ -19,6 +19,7 @@ import { updateBurn, makeFire } from './burn.js';
 import { updateLeech, newLeech } from './leech.js';
 import { newOvercharge } from './overcharge.js';
 import { newAfterimage, updateAfterimage } from './afterimage.js';
+import { newMagnetar, updateMagnetar } from './magnetar.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -151,6 +152,10 @@ function createWorld() {
     // is chasing what - that is asked of the crowd every step (game/enemies.js) - so this is the
     // whole state of the line.
     afterimage: newAfterimage(),
+    // How full the field round the ship is (game/magnetar.js): one number, shards' worth, and the
+    // ring round the hull is drawn straight out of it. A crack is over in the step it happens, so
+    // there is nothing else to keep - the field remembers who it came round for nobody.
+    magnetar: newMagnetar(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -252,6 +257,9 @@ function stepRun(dt, input) {
   // for it here is to be one step older (game/afterimage.js).
   updateAfterimage(world, dt);
   updateShards(world, dt);
+  // Right after the shards, because a shard picked up this step is charged for a crack this step -
+  // the mint flying in and the field letting go are one event to the eye (game/magnetar.js).
+  updateMagnetar(world);
   // Last, because a bolt's only business is fading and a bolt thrown this step should be
   // seen at full brightness first (game/arc.js).
   updateArc(world, dt);

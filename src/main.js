@@ -261,6 +261,11 @@ window.STARFALL = {
       // How many images the dash has left standing in the arena (game/afterimage.js). A ghost has
       // no hull and throws no shot, so this is the only way a headless run can see the trick is up.
       images: world.afterimage.trail.count,
+      // How many shards' worth the field round the ship is holding (game/magnetar.js). A crack is
+      // over in the step it happens and leaves no object behind, so this is the only way a headless
+      // run can see the bank fill and let go - divide it by BALANCE.upgrades.magnetar.cost, or just
+      // watch it sawtooth.
+      field: world.magnetar.charge,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

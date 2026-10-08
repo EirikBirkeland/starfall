@@ -19,6 +19,7 @@ import { resetFires } from './burn.js';
 import { resetLeech } from './leech.js';
 import { resetOvercharge } from './overcharge.js';
 import { resetAfterimage } from './afterimage.js';
+import { resetMagnetar } from './magnetar.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -71,6 +72,10 @@ export function resetRun(world) {
   // dash that threw them would otherwise leave them in the sky behind the title screen, and the
   // next run's crowd would walk at somebody else's ghost.
   resetAfterimage(world);
+  // And however much of a crack the last run had banked (game/magnetar.js). Loot picked up by the
+  // last run is not this run's to let go with, and a field left full would crack on the first step
+  // of the next run for a shard it never swallowed.
+  resetMagnetar(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

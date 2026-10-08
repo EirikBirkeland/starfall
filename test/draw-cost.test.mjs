@@ -74,16 +74,18 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(busy.stamps > 5000, 'glow sprites are doing the shining: ' + busy.stamps);
   assert.equal(busy.shadows, 0, 'nothing asked the canvas for a blur');
   assert.equal(busy.gradients, 0, 'nothing built a gradient this frame');
-  assert.ok(glowStats().holders < 33, 'and it came from a bounded few sprites: ' + glowStats().holders);
-  // (32, and the same run on the commit before the ship owned a fire stood at 27: two sprites
+  assert.ok(glowStats().holders < 35, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  // (34, and the same run on the commit before the ship owned a fire stood at 27: two sprites
   // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
   // - and the ninth card tint asked for one more. Chill is two more still - the rime, and the
   // shell a frozen body stands in - which is why this window measured 29 and the bound was 32:
   // it had not met a body frozen solid yet, and two sprites are the whole of the ice however
   // many bodies wear it. Leech is one more - the mint its card wears, which is the mint a hull
   // coming back already wears in the arena, and the meter under the hull pips glows the way the
-  // XP bar does, with a wide stroke and no sprite of its own. The rest is one per kind's colour
-  // and halo, plus the ship, the shards and the cards.)
+  // XP bar does, with a wide stroke and no sprite of its own. Magnetar is the one after that, and
+  // it is only the fourteenth card tint: an icon is stamped with a glow of its own hue, and the
+  // crack in the arena itself asks a frame for nothing but strokes and sparks (game/magnetar.js).
+  // The rest is one per kind's colour and halo, plus the ship, the shards and the cards.)
 });
 
 test('a steady frame builds nothing at all', () => {

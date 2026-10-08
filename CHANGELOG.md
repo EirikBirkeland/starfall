@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 0.4.15 — 2026-10-08
+Magnetar: the shards you pick up charge the field round the ship, and when it is full it lets go.
+- **The fourteenth card on the rack, and the only one paid for by picking something up.**
+  **MAGNETAR** is five ranks of "collected shards deal area damage around the ship": every shard that
+  comes in charges the field round you, and when it has swallowed four of them it cracks, taking one
+  shot of your own gun off every body standing in the field for every rank you have taken. A large
+  shard is worth six, so one gold drop fills the field and then some — the loot you flew across the
+  arena for pays for the crack that clears the way back.
+- **The field is a bank and not a timer.** Nothing in it counts seconds. Its rhythm is your own
+  collection rate — about one crack a second in a run that is killing — and a shard picked up in a
+  quiet minute is charged up for the next crowded one, with the bank keeping its remainder so a gold
+  shard is worth six and not "one, rounded down". Walking into a magnet pile pays out one crack per
+  step, which comes out as a rattle, which is what walking into a pile should look like.
+- **It is a nova turned inside out, in the light as well as the money.** A nova is the ship letting go
+  and its ring runs out; this is the field collapsing back into the ship, so the rim you see is born at
+  exactly the distance the crack hurt and falls in to nothing — never claiming a wider circle than the
+  crowd it came round, never a smaller one. The mint ring round the hull is the wallet and not the
+  field: it says what the next crack costs, and the light is what says how far the field reaches.
+- **A crack is not a hit, on purpose.** It takes hull and hands out nothing else: no frost and no fire
+  ride along with it. Burn and chill are wired to what the gun lands on a body, which is a few pulls a
+  second; the field cracks about once a second whatever the rank, so a crack that frosted and lit would
+  keep the whole near field frozen and alight for free and would be doing those two cards' work for
+  them. This is the one place in the deck where the ship's own damage stops short.
+- **From the third rank the field pays its own way**: a body the crack kills leaves a shard where it
+  came apart, so the crack that clears the pocket buys the next one — and the mint flying out of a
+  corpse is the only tell a crack-kill has at all.
+- Priced on the run rather than on the ladder, which cannot see a line whose trigger is picking
+  something up at all: five ranks came to a tenth of a fifteen-minute run's whole damage and +4.9% on
+  its score, every seed up on it — burn's family, and a shade under a rank of the gun.
+
 ## 0.4.14 — 2026-10-08
 Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds.
 - **A new card on the rack, and the first one that buys where the crowd is walking.** **AFTERIMAGE**
