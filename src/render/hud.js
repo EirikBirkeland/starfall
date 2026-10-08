@@ -4,8 +4,10 @@
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { clamp } from '../core/math.js';
 import { world } from '../game/world.js';
+import { hasLeech } from '../game/leech.js';
+import { leechCostOf } from '../game/upgrades.js';
 import { weaponName } from '../game/weapons.js';
-import { roundRect } from './shapes.js';
+import { polygon, roundRect } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { view } from './canvas.js';
 
@@ -21,6 +23,11 @@ const GLOW_MINT = 'rgba(88,255,161,0.85)';
 const TEXT_HALO = 0.22;
 const TEXT_HALO_WIDTH = 5;
 const PIP_HALO_RADIUS = 15;
+
+// The leech's meter (game/leech.js), pinned under the hull pips it is filling up.
+const LEECH_W = 96;         // px wide - about the width of the three pips above it
+const LEECH_H = 5;          // px tall
+const LEECH_DROP = 26;      // px of corner below the pips for the label
 
 /** The XP bar's gradient, built once per width instead of once per frame. */
 let xpGradient = null;
@@ -81,6 +88,54 @@ function drawHullPips(ctx, x, y) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/**
+ * How far the leech is from the next hull (game/leech.js). Nothing is drawn until the run has
+ * bought the line - an anonymous filling bar in the corner would be a riddle - and once it has,
+ * this is the one place a player can read the wait that `BALANCE.upgrades.leech` sets. A held
+ * charge is a full bar, breathing: the next hull the arena takes is coming back.
+ */
+function drawLeechMeter(ctx, x, y) {
+  if (!hasLeech(world)) return;
+
+  const leech = world.leech;
+  const held = leech.held > 0;
+  const cost = leechCostOf(world);
+  const frac = held ? 1 : clamp(cost > 0 ? leech.kills / cost : 0, 0, 1);
+  const breathe = held ? 0.7 + 0.3 * Math.sin(world.time * 5) : 1;
+
+  ctx.textAlign = 'right';
+  ctx.font = FONT_TINY;
+  ctx.fillStyle = held ? PALETTE.shardLine : PALETTE.uiFaint;
+  ctx.fillText('LEECH', x, y);
+  ctx.textAlign = 'left';
+
+  const left = x - LEECH_W;
+  const top = y + 6;
+  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  roundRect(ctx, left, top, LEECH_W, LEECH_H, 2.5);
+  ctx.fill();
+
+  const filled = Math.max(0, (LEECH_W - 2) * frac);
+  if (filled > 1) {
+    // The same glow the XP bar pays with: the bar itself, stroked wide and faint under
+    // itself, so a meter is not worth a sprite of its own (render/glow.js).
+    ctx.strokeStyle = withAlpha(PALETTE.shardLine, (held ? 0.45 : 0.22) * breathe);
+    ctx.lineWidth = 5;
+    roundRect(ctx, left + 1, top + 1, filled, LEECH_H - 2, 2);
+    ctx.stroke();
+
+    ctx.fillStyle = withAlpha(PALETTE.shardLine, (held ? 0.95 : 0.55) * breathe);
+    roundRect(ctx, left + 1, top + 1, filled, LEECH_H - 2, 2);
+    ctx.fill();
+  }
+
+  // One small hull pip at the end it is filling towards, so the bar cannot be read as XP.
+  polygon(ctx, left - 9, top + LEECH_H / 2, 3.4, 4, Math.PI / 4);
+  ctx.strokeStyle = withAlpha(PALETTE.shardLine, held ? breathe : 0.4);
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+}
+
 export function drawHUD(ctx, fps) {
   const W = view.W;
   const H = view.H;
@@ -109,6 +164,8 @@ export function drawHUD(ctx, fps) {
   ctx.font = FONT_LABEL;
   ctx.fillText('HULL', W - PAD, PAD + 12);
   drawHullPips(ctx, W - PAD, PAD + 34);
+  // And what it takes to get one back, when the run has bought a way to (game/leech.js).
+  drawLeechMeter(ctx, W - PAD, PAD + 34 + LEECH_DROP);
   ctx.textAlign = 'left';
 
   // XP bar, bottom.

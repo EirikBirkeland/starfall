@@ -51,6 +51,13 @@ const TINT = {
   // an eleventh hue nobody asked for. It goes across the wheel from BURN's warm one, which is
   // the pair the cards were always going to be.
   chill: PALETTE.chillFrost,
+  // The eleventh tint, and not an eleventh hue: it is the pale mint a hull coming back already
+  // wears on screen (the '+1 HULL' label, game/player.js `healPlayer`), so the card and the
+  // thing it sells are the same colour on purpose and a player who has seen one has read the
+  // other. The rack is out of cool hues by now - white, cyan, mint, violet, sky, teal, indigo,
+  // spring, and a flame and a rime - and inventing a greenier green to keep the tints all
+  // twelve degrees apart would be a colour nobody could name.
+  leech: PALETTE.shardLine,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -285,6 +292,7 @@ const ICONS = {
   nova: iconNova,
   burn: iconBurn,
   chill: iconChill,
+  leech: iconLeech,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -540,6 +548,53 @@ const CHILL_TICKS = 3;
 const CHILL_TICK_NEAR = 0.62;
 const CHILL_TICK_FAR = 0.9;
 const CHILL_TICK_LIGHT = 0.7;
+
+/**
+ * A hull pip with bodies coming back to it: the middle is the brightest thing on the card,
+ * because the middle is what the card gives you, and the six chevrons around it all point
+ * inwards - two deep, so the near ones are still arriving while the far ones have already
+ * turned. No ring and no orbit: this is not a thing that goes round the ship, it is a price
+ * that gets paid at every body that comes down (game/leech.js), and the chevrons are the
+ * same language the edge arrows speak - a direction, not a decoration.
+ */
+const LEECH_PIP = 0.34;
+const LEECH_TURNS = 3;
+const LEECH_SPIN = -Math.PI / 2;
+const LEECH_ROWS = [
+  { at: 0.6, arm: 0.15, light: 0.8 },
+  { at: 0.84, arm: 0.11, light: 0.34 },
+];
+
+function iconLeech(ctx, size, tint) {
+  polygon(ctx, 0, 0, size * LEECH_PIP, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(tint, 0.85);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(tint, 0.95);
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  ctx.lineCap = 'round';
+  for (const row of LEECH_ROWS) {
+    ctx.lineWidth = size * 0.07;
+    ctx.strokeStyle = withAlpha(tint, row.light);
+    for (let i = 0; i < LEECH_TURNS; i++) {
+      const a = LEECH_SPIN + i * (Math.PI * 2 / LEECH_TURNS);
+      ctx.save();
+      ctx.rotate(a);
+      // A V with its point nearest the middle: the wings are `arm` further out and `arm`
+      // off the axis, which is a chevron at any size without a second number to agree with.
+      const reach = size * row.at;
+      const arm = size * row.arm;
+      ctx.beginPath();
+      ctx.moveTo(reach + arm, -arm);
+      ctx.lineTo(reach, 0);
+      ctx.lineTo(reach + arm, arm);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.lineCap = 'butt';
+}
 
 /**
  * One flame: a round body of fire with a tip leaning `lean` px to the right, `width` px

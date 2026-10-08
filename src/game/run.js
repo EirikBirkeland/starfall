@@ -16,6 +16,7 @@ import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
 import { resetBeams } from './beams.js';
 import { resetFires } from './burn.js';
+import { resetLeech } from './leech.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -57,6 +58,9 @@ export function resetRun(world) {
   // And every body still alight when the last one ended (game/burn.js) - a fire left behind
   // would be eating a body that no longer exists.
   resetFires(world);
+  // And whatever the last run's leech had counted or was holding (game/leech.js). A charge
+  // earned by the last run's bodies is not this run's to spend.
+  resetLeech(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

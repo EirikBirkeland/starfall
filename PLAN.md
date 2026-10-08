@@ -180,6 +180,19 @@ Behaviour upgrades:
   is still what the shell and the full weight mean - only a body kept under fire gets that cold,
   and a lock that has already been taken is never slowed, whatever is frozen.
 - **Leech**: every 60 kills heals 1 hull (fewer kills per rank).
+  *Done in 0.4.12* (`src/game/leech.js`). The price is what a rank buys - sixty bodies at the
+  first rank and six fewer for every rank after it - and the second half is the one place this
+  departs from the plan's letter: PLAN's "fewer" cannot mean `60 / rank`, because a fifteen-minute
+  crowd comes down at eight bodies a second and at twelve kills a hull the ship would be paid
+  back faster than the arena could take hull off it. Flat is what keeps it a recovery and not a
+  second game: `60 - 54 - 48 - 42 - 36`. What is not in PLAN and was added because the plain
+  reading wastes the card: a charge that comes due while the ship is **whole** is held, one at a
+  time, and spent on the next hull the arena takes - so the hit that hurts you is refunded on
+  the step it landed rather than the card doing nothing until you are already bleeding.
+  Measured on the two bots that can see it (NOTES session 40): handed four ranks, the naive bot
+  went from dying on 4 seeds in 16 to dying on none, and its score median went up; paying its
+  own levels for it, it did worse, which is the same story every defensive line tells a bot
+  whose gun is the only thing keeping it alive.
 - **Overcharge**: standing still for 1 s doubles the next shot.
 - **Afterimage**: the dash leaves a decoy that enemies chase for 2 s.
 - **Magnetar**: collected shards deal small area damage around the ship.

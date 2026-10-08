@@ -1167,6 +1167,35 @@ export const BALANCE = {
         sound: { freq: 1700, dur: 0.1, wave: 'square', vol: 0.028, slide: 300 },
       },
     },
+
+    // Leech (game/leech.js): PLAN 3.5's "every 60 kills heals 1 hull (fewer kills per
+    // rank)", and the first thing in the whole game that gives a hull *back*. Everything
+    // else in the deck makes the ship hurt things more; this one is the thing the ship
+    // gets out of hurting them.
+    leech: {
+      ranks: 5,
+      // A line of whole things (`each`), and the whole things are kills taken off the price
+      // of a hull: `countOf` is the cut and the price is `base - cut`, so the first rank is
+      // PLAN's sixty kills and the fifth is thirty-six. Rank 0 is not a price of `base` - it
+      // is no leech at all, which is why game/leech.js asks the rank before it ever counts.
+      //
+      // The cut is flat rather than a share because a share makes the last ranks absurd: at
+      // `base / rank` the fifth rank costs twelve kills, and a run that is fifteen minutes
+      // deep brings down eight bodies a second, so a hull would come back every one and a
+      // half seconds - which is less an upgrade than a different game. Flat, the wait goes
+      // 60 - 54 - 48 - 42 - 36, and what a rank buys is a *quicker* recovery rather than a
+      // guarantee of one. What the wait really is in seconds depends entirely on how fast a
+      // run is killing, which is the honest thing about the card: it pays the player who is
+      // killing things, and it pays a run that is being pushed around more than one that is
+      // not, because a run that is not being pushed around has no hull to be given back.
+      step: 6,
+      base: 66,
+      // The one charge the leech may hold. A charge that comes due while the ship is whole is
+      // not thrown away and is not stacked: it is held, and spent on the next hull the arena
+      // takes off you (game/leech.js). One, because two would be a hull the run is carrying
+      // rather than a hull the run has earned, and the HUD has one meter to say it with.
+      held: 1,
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

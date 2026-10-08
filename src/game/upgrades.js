@@ -134,6 +134,14 @@ export const LINES = [
     flavour: 'A hit takes the speed out of them, and what stops moving cannot reach you.',
     icon: 'chill',
   },
+  {
+    id: 'leech',
+    name: 'LEECH',
+    unit: WHOLE_UNIT,
+    what: 'fewer kills per hull',
+    flavour: 'Bodies you bring down patch the ship. Sixty of them at the first rank, and the leech gets quicker from there.',
+    icon: 'leech',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -148,6 +156,8 @@ const NOVA_LINE = 'nova';
 const BURN_LINE = 'burn';
 /** The line that takes the speed out of what the ship hits. */
 const CHILL_LINE = 'chill';
+/** The line that trades bodies brought down for hull back. */
+const LEECH_LINE = 'leech';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -290,6 +300,18 @@ export function flameOf(world) {
  */
 export function chillOf(world) {
   return rateOf(world, CHILL_LINE);
+}
+
+/**
+ * How many bodies brought down feed one hull back (PLAN 3.5's Leech): `60` at the first rank,
+ * and six fewer for every rank after it - and `0` when the line has not been taken at all,
+ * which is not a price of sixty-six but the absence of the whole bargain. Read where a body
+ * comes down (game/leech.js), so a rank taken in the middle of a pile of kills is worth what
+ * it says the very next time something dies.
+ */
+export function leechCostOf(world) {
+  if (rankOf(world, LEECH_LINE) <= 0) return 0;
+  return BALANCE.upgrades[LEECH_LINE].base - countOf(world, LEECH_LINE);
 }
 
 /** Lines with a rank still to give. */

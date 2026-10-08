@@ -251,6 +251,9 @@ window.STARFALL = {
       // The beams still glowing (game/beams.js). A beam is a thing that already happened,
       // so this is how a headless run can see that one went off at all.
       beams: world.beams.count,
+      // The leech (game/leech.js): how far the next hull is, and whether one is being held.
+      leechKills: world.leech.kills,
+      leechHeld: world.leech.held,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

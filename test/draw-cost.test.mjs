@@ -74,14 +74,16 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(busy.stamps > 5000, 'glow sprites are doing the shining: ' + busy.stamps);
   assert.equal(busy.shadows, 0, 'nothing asked the canvas for a blur');
   assert.equal(busy.gradients, 0, 'nothing built a gradient this frame');
-  assert.ok(glowStats().holders < 32, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  assert.ok(glowStats().holders < 33, 'and it came from a bounded few sprites: ' + glowStats().holders);
   // (32, and the same run on the commit before the ship owned a fire stood at 27: two sprites
   // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
   // - and the ninth card tint asked for one more. Chill is two more still - the rime, and the
-  // shell a frozen body stands in - which is why this bound is 32 and the window above measured
-  // 29: it had not met a body frozen solid yet, and two sprites are the whole of the ice
-  // however many bodies wear it. The rest is one per kind's colour and halo, plus the ship,
-  // the shards and the cards.)
+  // shell a frozen body stands in - which is why this window measured 29 and the bound was 32:
+  // it had not met a body frozen solid yet, and two sprites are the whole of the ice however
+  // many bodies wear it. Leech is one more - the mint its card wears, which is the mint a hull
+  // coming back already wears in the arena, and the meter under the hull pips glows the way the
+  // XP bar does, with a wide stroke and no sprite of its own. The rest is one per kind's colour
+  // and halo, plus the ship, the shards and the cards.)
 });
 
 test('a steady frame builds nothing at all', () => {

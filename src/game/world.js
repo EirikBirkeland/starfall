@@ -16,6 +16,7 @@ import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
 import { updateBeams, makeBeam } from './beams.js';
 import { updateBurn, makeFire } from './burn.js';
+import { updateLeech, newLeech } from './leech.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -135,6 +136,10 @@ function createWorld() {
     // and a fire is *not* a field on the enemy because a body that dies leaves the crowd, and
     // the fire has to outlive it by the one step in which it spreads (game/burn.js).
     fires: new Pool(makeFire),
+    // What the leech has been paid and what it is holding (game/leech.js): how many bodies it
+    // has counted toward the next hull, and whether a hull is being held for the next wound.
+    // Two numbers, no list, because a hull is worth one hull whoever paid for it.
+    leech: newLeech(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -227,6 +232,10 @@ function stepRun(dt, input) {
   // body ended up after the walking and the other damage, and the body it finishes is the
   // one whose fire goes out sideways (game/burn.js).
   if (!updateBurn(world, dt)) return;   // a fire ended the run
+  // Last of the things that can change the ship, so a hull the leech is holding is spent on
+  // the wound that was actually taken this step and not on one it took before the crowd had
+  // finished walking (game/leech.js).
+  updateLeech(world);
   updateShards(world, dt);
   // Last, because a bolt's only business is fading and a bolt thrown this step should be
   // seen at full brightness first (game/arc.js).

@@ -17,6 +17,7 @@ import { noteDeath, noteHit, hurtByBody } from './tally.js';
 import { shieldSoak } from './shields.js';
 import { isRooted } from './kinds.js';
 import { melt, shatterOnDeath } from './chill.js';
+import { feedLeech } from './leech.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -98,6 +99,12 @@ export function killEnemy(world, enemy, byPlayer) {
     // And a gold one is worth more than its score: a large shard, and a chance of a
     // hull back (game/elite.js).
     if (enemy.elite) eliteSpoils(world, enemy);
+    // And a run that bought the leech is one body closer to a hull (game/leech.js). It comes
+    // in here, with the score and the shards, because this is the one door a credited kill
+    // comes through by: however the body came apart - a shot, a bolt, a drone, a nova front,
+    // a fire, a corpse that was cold - it counts exactly once, and a body that came apart in a
+    // blast nobody lit does not count at all.
+    feedLeech(world);
   }
 
   // And whatever a corpse goes on to make - a tank leaves two hatchlings, a bomber
