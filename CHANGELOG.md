@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 0.4.14 — 2026-10-08
+Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds.
+- **A new card on the rack, and the first one that buys where the crowd is walking.** **AFTERIMAGE**
+  is five ranks of "the dash leaves a decoy": one image at the first rank, and one more for every
+  rank after it, laid out along the streak the dash just covered — the bodies next to them chase
+  those for two seconds instead of chasing you.
+- **A decoy is a place, not a body.** It is not in the crowd, it has no hull, nothing can shoot it
+  and it cannot hurt you: a bullet flies through it and it expires on its own clock. That is what
+  keeps a ghost from being a second gun that fires itself, and it means the two seconds you bought
+  are the two seconds you get — nothing can shoot the decoy early.
+- **Who chases what is worked out again every step and held nowhere**, so a body that walks into a
+  ghost's reach starts chasing it and goes back to the ship the moment it goes out — and the ghost's
+  reach is the near field on purpose, about the width of the scrum you just left. One ghost fools
+  the bodies at a point; five fool the bodies along a line, which is what a rank is for.
+- **A fooled body is not a stunned one, and a promise is never broken.** It walks at full pace, it
+  still shoves its neighbours and it still hurts you if it arrives. A darter mid-lunge and a sniper
+  mid-lock finish what they started whatever walks past them, and a spitter that has been taken in
+  spits at the ghost — which is the shot that misses you.
+- **You can see it happening twice over.** The images are the ship's own silhouette in the ship's own
+  colours, painted a long way under the ship so there is never any question which one is real, each
+  with a faint circle round it that is exactly the reach the simulation measures. And the crowd tells
+  you the rest: which way a body points is which way it is walking, so the moment the ghosts go up the
+  noses of everything nearby turn aside to face them.
+- **`tools/simulate.js --dash` is new, and this card is why.** Neither bot used to touch the dash, so
+  a line that lives on it could only ever be a cost to them — a card taken out of the deal. Now either
+  bot can be given the habit (a press when something gets within arm's reach) and the share of the
+  nearby crowd that goes chasing a ghost is 6% at one rank and 30% at five. What the card does to a
+  run's score is nothing either way, and that is the honest finding: both bots are runners whose near
+  field is three bodies wide, and this card is for the knot a player dashes *out of*.
+
 ## 0.4.13 — 2026-10-08
 Overcharge: stand still for a second and the gun loads, and the next pull of the trigger is worth double.
 - **A new card on the rack, and the first one whose price is paid in place.** **OVERCHARGE** is
