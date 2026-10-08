@@ -62,6 +62,26 @@
     box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
     color: #d8fbff; font-weight: 600;
   }
+  .weapons {
+    margin-top: 30px;
+    display: grid;
+    gap: 9px;
+  }
+  .weapons-title {
+    font-size: 10px; letter-spacing: .42em; text-indent: .42em; color: #74b6dd;
+  }
+  .weapon-list { display: grid; gap: 9px; }
+  .weapon {
+    display: flex; align-items: center; gap: 14px; font-size: 12px; letter-spacing: .14em;
+    color: #6f9dc0; transition: color .15s ease;
+  }
+  .weapon .key { min-width: 42px; padding: 6px 0; text-align: center; }
+  .weapon.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
+  .weapon.picked .key {
+    border-color: rgba(94,247,255,.9);
+    background: rgba(94,247,255,.16);
+    box-shadow: 0 0 18px rgba(94,247,255,.35) inset, 0 0 16px rgba(94,247,255,.3);
+  }
   .hint {
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
@@ -101,7 +121,11 @@
     <div class="row"><span class="key">MOUSE</span><span>AIM</span></div>
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
-    <div class="row"><span class="key">1 2 3</span><span>PICK AN UPGRADE</span></div>
+    <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
+  </div>
+  <div class="weapons">
+    <div class="weapons-title">PRIMARY &#8212; PICK WITH A NUMBER</div>
+    <div class="weapon-list" id="weaponRow"></div>
   </div>
   <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
 </div>

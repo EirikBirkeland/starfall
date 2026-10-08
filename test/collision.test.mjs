@@ -103,7 +103,7 @@ test('a spent shot goes back to the pool, not to the garbage collector', () => {
 
   // Longer than a shot lives: in an arena this big the edge is not what usually
   // ends a shot, its life is.
-  const steps = Math.ceil(BALANCE.bullets.life / BALANCE.sim.step) + 1;
+  const steps = Math.ceil(BALANCE.weapons.pulse.life / BALANCE.sim.step) + 1;
   for (let i = 0; i < steps; i++) step();
 
   assert.equal(field.bullets.count, 0, 'every one of them ran out');

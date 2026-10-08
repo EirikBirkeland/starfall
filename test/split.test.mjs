@@ -9,13 +9,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { volleyOf } from '../src/game/upgrades.js';
-import { fire, shotsPerSecond } from '../src/game/player.js';
+import { fire, shotsPerSecond, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.js';
 
 const SPLIT = BALANCE.upgrades.split;
-const GUN = BALANCE.bullets;
-const SPREAD = BALANCE.player.spread;     // the aim error every shot is allowed
+const GUN = BALANCE.weapons.pulse;
+const SPREAD = GUN.spread;               // the aim error every shot is allowed
 const RANKS = SPLIT.ranks;
 
 /**
@@ -57,7 +56,7 @@ test('one pull fires one shot, and every rank of the line adds one', () => {
   for (let rank = 0; rank <= RANKS; rank++) {
     const shots = pull(field, rank);
     assert.equal(shots.length, 1 + rank * SPLIT.step, 'rank ' + rank + ' fires ' + shots.length);
-    assert.equal(shots.length, volleyOf(field), 'and the gun agrees with the line');
+    assert.equal(shots.length, shotsPerPull(field), 'and the gun agrees with the line');
   }
 });
 

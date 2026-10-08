@@ -5,6 +5,7 @@ import { world, stepWorld } from './game/world.js';
 import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks } from './game/upgrades.js';
+import { shotsPerSecond, setWeapon, setWeaponByIndex, weaponName } from './game/weapons.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
@@ -20,7 +21,7 @@ import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
-import { initScreens, hideScreens, showGameOver } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showWeapon } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -69,9 +70,19 @@ function onCanvasPressed() {
   if (world.state !== STATE.PLAY) pressAction();
 }
 
-/** A number key over one of the cards on the table, or nothing at all. */
+/** A number key: over one of the cards on the table, or over the weapon list. */
 function onPickCard(number) {
-  takeOffer(world, number - 1);
+  if (world.state === STATE.LEVEL) {
+    takeOffer(world, number - 1);
+    return;
+  }
+  // The same keys, on the two screens that are not a run: the title picks the primary to
+  // fly, because there is no hangar yet (PLAN 3.2, milestone 5). The game-over card takes
+  // it too, which is what "press 2, press Space, fly the scatter" means. Mid-run the keys
+  // are nobody's: a run does not get to swap its gun between two frames.
+  if (world.state === STATE.PLAY) return;
+  setWeaponByIndex(world, number - 1);
+  showWeapon(world.weapon);
 }
 
 function onResize() {
@@ -94,6 +105,7 @@ function describeRun() {
     shards: world.shardsCollected,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    weapon: weaponName(world),
     build: describeRanks(world),
   };
 }
@@ -138,6 +150,7 @@ function frame(now) {
 
 function boot() {
   initScreens();
+  showWeapon(world.weapon);
   initCanvas(document.getElementById('game'));
   onResize();
   // Whoever arrives first picks this visit's seed: the address bar, then the
@@ -196,6 +209,11 @@ window.STARFALL = {
    * above: a new run is played by a view that has not been pointing anywhere.
    */
   resetIndicators: function () { resetIndicators(); },
+  /**
+   * Choose the primary (game/weapons.js) the way the title screen's number keys do, for
+   * a headless tool that wants to say which gun a run flies. An unknown id throws.
+   */
+  chooseWeapon: function (id) { return setWeapon(world, id); },
   stats: function () {
     return {
       state: world.state,
@@ -219,7 +237,8 @@ window.STARFALL = {
       gridCells: world.grid.stats().filled,
       parts: world.particles.count,
       collected: world.shardsCollected,
-      fireRate: world.player.fireRate,
+      fireRate: shotsPerSecond(world),
+      weapon: world.weapon,
       // The nova (game/nova.js): how many fronts are in the air, and how long until the
       // next one. The F3 overlay wants both, and a test that cannot see a front can at
       // least see that the clock is running.

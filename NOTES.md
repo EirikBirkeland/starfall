@@ -3781,3 +3781,256 @@ the bug above (14, was 13).
   picked on the title screen with a key until the hangar exists. That is a bigger piece of
   work than a line: `game/player.js`'s `fire` is where the gun lives, and nothing yet has more
   than one shape of shot.
+
+## Session 33 (2026-10-08) — Scatter: the second primary, and the gun stopped living in `player.js`. Released **v0.4.6**
+
+### What this was
+
+PLAN's item is *"A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the
+hangar exists, let the player pick the weapon on the title screen with a key."* That is two
+weapons and a selection screen, so I split it and did the **scatter** and the **picking** here,
+and left the **arc** for next session. The item stays unticked until the arc lands.
+
+### The move first, then the gun
+
+A second weapon is not a bigger first one, so the gun had to stop being four constants in
+`game/player.js`. All of it is data now, in one row per primary:
+
+- **`BALANCE.weapons`** - `pulse` and `scatter`, each with `fireRate`, `pellets`, `gap`,
+  `damage`, `speed`, `life`, `spread`, `knockback`, `recoil`, `muzzle`, `sound`, plus `name`.
+  Two meta keys live beside them: `default` (what a run flies unpicked) and `rateMax` (the old
+  `player.fireRateMax` ceiling, which was always a gun number).
+- **`src/game/weapons.js`** is new and owns the reading: `WEAPONS` (the title's offer, id plus
+  a blurb - the name comes from the balance row and nowhere else), `defaultWeapon`,
+  `weaponOf`, `weaponName`, `setWeapon`, `setWeaponByIndex`, `shotsPerSecond`, `shotsPerPull`,
+  `fire`. `fire`, `shoot` and `shotFan` left `game/player.js`; `player.js` now imports `fire`
+  and `shotsPerSecond` and is 100 lines shorter. `volleyOf` left `game/upgrades.js` - the split
+  line's extras are now added to whatever the gun already throws, so it is `shotsPerPull` in
+  the weapon module and `upgrades.js` just hands out the count.
+- Out of `BALANCE.player` went `fireRate`, `spread`, `recoil`. Out of `BALANCE.bullets` went
+  `speed`, `life`, `spread`, `knockback`, `recoil`, `muzzle` and the firing sound. What is left
+  in `bullets` is what is true of every shot whoever fired it: the **damage unit**, `noseOffset`,
+  `despawnMargin`, `hitRadius`, the impact spray and impact sound. That turned out to be the
+  cleanest line to draw, and it settled a question the nova session left open - see below.
+- **A bullet grew `knock`**, the shove it gives a body for being in the way, and `bullets.js`
+  spends *that* instead of the spec's. Every other number a shot owns it already carried. A
+  scatter pellet and a pulse shot are not the same thing arriving, and now the sim knows it.
+- `world.weapon` is picked, not derived. It lives on the world, is deliberately **not** cleared
+  by `resetRun` (what you picked is what you fly on, the way the seed is what you get), and
+  nothing caches a gun into the ship, so `setWeapon` mid-run takes effect on the next pull.
+  That is a testing seam as much as a feature: `tools/headless/scripted.js` puts the default
+  gun back on the rack for every scripted run, so no test inherits another test's weapon.
+
+### The gun itself
+
+2.2 pulls a second, six pellets, 30° of cone (five gaps of `gap: 0.105` from first pellet to
+last, laid out *from the nose outwards* so the aim itself always keeps a pellet - which is what
+makes a shotgun aimable at all), 560 px/s with a `life` of 0.66 so it reaches ~370 px against
+the pulse's 700, one hull a pellet, `recoil: 55` once per pull (the ship is shoved by the gun,
+not by what it hit), one sawtooth thump per pull however many pellets came with it, and six
+muzzle sparks instead of two.
+
+The fan layout keeps the rule the split line established in session 28: shot zero goes exactly
+where the player pointed and the fan grows outwards one ring at a time, alternating sides. A
+weapon's own pellets and the split line's extras share that one fan; the gap is the wider of
+the gun's and the split line's, so neither may squeeze the other.
+
+### The measurement, which is most of this session
+
+**A cone spends most of itself on air.** That is the thing about a shotgun that is easy to get
+wrong on paper, and I got it wrong first. The first build was PLAN's number read as a share of a
+pull - half a hull a pellet - with the short reach and a knockback of 0.16 (more than twice the
+pulse's, "heavy"). Forty seeds of the aware bot, same seeds both sides:
+
+| gun | median | mean | at the cap | died before 5:00 | mean kills | mean score |
+|---|---|---|---|---|---|---|
+| pulse | 15m00s | 14m15s | 37/40 | 1 | 6175 | 110015 |
+| scatter, first attempt | **3m53s** | 4m07s | 0/40 | **34** | 832 | 12799 |
+
+A factor of four worse, and thirty-four of forty runs over before the five-minute mark. The
+reason was not the reach and not the knockback, it was the
+geometry: at 150 px a 30° fan is 78 px across and a drifter is thirty of them, so a lone body
+catches one or two of the six and the rest flies past. Nominal damage per second - which is
+what PLAN's table is - is 13.2 against the pulse's 4.4, and the *realised* number was the other
+way round. `tools/power-ladder.js --weapon scatter` agreed, once it was aimed at the right
+knot: the first attempt read **3.0 hull/s on the near-field knot against the pulse's 4.3** - a
+gun that was only heavier on paper. It read 6.1 and 6.5 on the two *dense* knots, which is a
+warning about knots rather than about the gun: a crowd thirty bodies deep catches every pellet
+however thin they are, so a dense knot cannot tell you a cone is starved. When the geometry is
+"this gun is aimed at one thing at a time", the knot that matches is the sparse one.
+
+Two changes fixed it, one of them an admission:
+
+1. **`knockback` 0.16 -> 0.07.** The heavy version was worse than useless: six pellets hand a
+   body ~540 px/s, faster than the ship can run, so a close pull flung its target clean out of
+   the range the next pull needed. The crowd turned into a cloud flying away from the player and
+   the gun could not spend the reach it had. A shove that outruns the fight is not a feature of
+   a short-range weapon. At 0.07 a whole fan is ~250 px/s, which is a nova front's worth of
+   shrug (`nova.shove` is 240) and still punches a hole in a press.
+2. **`damage` 0.5 -> 1**, and `life` 0.5 -> 0.66 so the cone is not dead at the distances the
+   fight happens at. One pulse shot per pellet is the sentence a player gets immediately, and it
+   is the number that makes a cone worth firing.
+
+What that leaves, measured on one lone drifter, six seeds, hull a second, pulse in brackets:
+
+| range | scatter | pulse | ratio |
+|---|---|---|---|
+| 60 px | 5.83 | 4.00 | **1.46x** |
+| 90 px | 5.06 | 4.00 | 1.26x |
+| 150 px | 3.72 | 4.00 | 0.93x |
+| 240 px | 2.39 | 3.67 | 0.65x |
+| 300 px | 2.22 | 3.67 | **0.61x** |
+
+and on the ladder's crowds (12 s, mean of six seeds, plain gun, no upgrades):
+
+| knot | scatter | pulse | ratio |
+|---|---|---|---|
+| the ring (dense, all around) | 12.2 | 4.3 | 2.8x |
+| the column (dense, ahead) | 13.0 | 4.3 | 3.0x |
+| the near field (three bodies, 90-200 px) | 5.9 | 4.3 | 1.37x |
+
+So: worse far off, better up close, much better against a press. That is the weapon PLAN's
+*behaviour* column asked for, even where it is not the number its *damage* column asked for -
+PLAN's ratio (7x6 at 2.2/s against 10 at 6/s = 1.55x the pulse's dps) cannot be met by a 30°
+cone at both ends of its range at once, because one pellet would then have to cost three pulse
+shots: 12x on a body in the fan, and still only a third of the fan on one outside it. I chose
+the shape over the ratio and wrote the reason beside the number.
+
+And the survival A/B, same forty seeds as session 32's pulse numbers, unchanged tree except
+the scatter:
+
+| gun | median | mean | at the cap | died before 5:00 | mean kills | mean score |
+|---|---|---|---|---|---|---|
+| pulse | 15m00s | 14m15s | 37/40 | 0 | 6175 | 110015 |
+| **scatter** | 15m00s | 14m49s | 39/40 | 0 | **6628** | **117896** |
+
++7% kills and score, one more run at the cap, three deaths in the pulse's forty (2m00s, 5m11s,
+7m42s) against one in the scatter's (7m53s). Inside
+PLAN's "no weapon more than 25% better" band, and the bot - which kites, which is the wrong way
+to fly a shotgun - still does not suffer with it. The command lines are in the tools section
+below; the aggregator is not in the repo yet, which is a standing PLAN item.
+
+### Found while measuring: the split line is a dud on a cone
+
+Maxing `split` is worth 2.75x / 2.75x / 1.82x a plain gun on the pulse, and **1.04x / 1.29x /
+1.00x** on the scatter, on the same three knots. Of course it is: the gun's own cone already
+covers the arc the extras would add, and the extras carry 0.35 of a shot, so on this gun the
+card buys air the scatter was going to sweep anyway. **SPLIT SHOT is a bad buy on a scatter.**
+Left alone deliberately - it is not a bug and there is no clean fix that is not a redesign (the
+alternatives are "for a cone weapon, split densifies the fan instead of widening it", which
+changes what the card means per gun, or "the deal knows the gun", which is milestone 5's
+synergy work). Written down so the next session meets it knowingly. The bot maxes every line so
+its survival is unaffected; a player on the scatter would find the card a let-down, and the
+honest fix is a card that *wants* a cone, which is what PLAN's synergy table is for.
+
+Same heading, smaller: the two **additive** lines are worth relatively less on a heavier gun,
+because a drone bite and a nova front cost a body what one shot of *the plain pulse* costs it
+whatever is being flown (`BALANCE.bullets.damage` is the unit, not the gun). A rank of orbitals
+is 1.03 ranks of the damage line on a pulse and 0.36 on a scatter, on the ring knot. That is
+the decision from session 32 kept honest rather than reversed: the alternative - scaling the
+additive lines off whichever gun is flying - would make a rank of orbitals worth double on a
+scatter for no reason a player could name. `tools/power-ladder.js --weapon scatter` is where
+that is visible.
+
+### The rest of it
+
+- **The title screen** now lists the primaries under the controls ("PRIMARY - PICK WITH A
+  NUMBER"), lights the picked one, and the same number keys that pick cards pick the gun: the
+  keys work on the title and on the game-over card and nowhere mid-run, so "press 2, press
+  space, fly the scatter" is the whole interaction. There is no hangar; the milestone 5 one
+  will take this over.
+- **The HUD** reads `GUN SCATTER` under the time, and the game-over card's build line names the
+  gun (`SCATTER   ·   BUILT FROM   ·   ...`), because a run's score means something different
+  depending on what was held.
+- **Render honesty**: a shot's trail was a fixed streak baked for 620 px/s. It is now stamped
+  stretched by the shot's own speed, and folded down over the last 0.12 s of its life, so a
+  pellet drags a shorter streak than a pulse shot because it has travelled less, a turned shot
+  drags along where it is actually going, and a short-ranged gun's reach can be *seen* running
+  out rather than remembered. `TRAIL_SPEED` is what the sprite is baked for, `TRAIL_RUNOUT` the
+  window it collapses over.
+- **F3's `fireRate`** is the effective rate now (`shotsPerSecond(world)`), not the ship's field,
+  which is gone.
+- The **reference run is unchanged**, byte for byte: `--seed 20261006 --trace`, alive at the cap
+  10m00s, score 71395, level 49, kills 4054, shards 3264, hull 3, build 5/5/5/5/5/5/5/5. That
+  is the regression proof for a refactor this wide - the pulse's numbers moved house and did not
+  move.
+
+### Tools
+
+- `node tools/simulate.js --weapon scatter`, and the run line now prints `gun scatter`.
+- `node tools/power-ladder.js --weapon scatter` puts another primary under the ladder, and the
+  header now says which gun the column was flown on. The lines are quoted on the pulse, because
+  that is what `BALANCE.upgrades` was priced against.
+- `tools/headless/bot.js` takes `{ weapon }`, and presses it through the game's own door
+  (`window.STARFALL.chooseWeapon`) before launching, because the bot does not reach into the
+  world for a title-screen choice.
+- The **harness grew a real element stub**: `document.createElement` returns something with a
+  class list, text and children for anything that is not a canvas, so a test can read what a
+  screen actually shows (`game.screen.weapons` is the title's gun list, picked and labelled).
+  `fillText` and `strokeText` now record their strings, so `game.words()` returns everything the
+  last frame put on the canvas - which is how a test can assert the HUD says `GUN SCATTER`
+  instead of asserting a constant.
+
+### Tests: 553, all passing (was 522)
+
+`test/weapons.test.mjs` (12) is the module's own contract: every offer has a row of numbers and
+a name; the plain gun is the unit enemy hull is counted in; a pick by id and by title position;
+the gun is not cached in the ship so a swap is instant; the fire-rate line multiplies whichever
+gun is flying; the split line adds to whatever a pull already was; the gun throws its whole
+weight at its own pellets and the extras carry a share; a shot carries its own speed, reach and
+shove; a pull writes every field a bullet has, whichever gun fired it (the recycled-shot trap,
+again); the ship is shoved by the gun and not by the crowd; a new run keeps the pick; the first
+shot leaves on the nose and the fan opens outwards from it.
+
+`test/scatter.test.mjs` (9) is the weapon: the cone is 30° with a pellet on the aim and rings
+evenly spaced; it reaches 300 and not 470 where the pulse reaches both; a whole pull costs a
+crowd a whole pull of the gun's weight; **a lone body is worth more up close and less far off**
+(the table above, as an assertion, averaged over six seeds because which pellets land is a coin
+toss); a pellet shoves; six pellets are one pull and one sound; a run may pull twice a second
+and still be a scatter; and the two additive lines bite the same whatever is being flown.
+
+`test/weapon-pick.test.mjs` (7) is the screen through the real `main.js`: the title offers every
+primary in key order and lights the default; a number key picks and re-lights; a picked gun
+survives a launch and a death; the HUD says it; the game-over card names it; mid-run the keys
+are nobody's.
+
+`test/bullet-art.test.mjs` (3): a trail is stretched by the shot's own speed and not by
+another gun's, it collapses at the end of a life and stands at full length in the middle of one,
+and a shot off the window costs nothing.
+
+`test/split.test.mjs`, `test/upgrades.test.mjs`, `test/orbitals.test.mjs`, `test/nova.test.mjs`,
+`test/collision.test.mjs`, `test/interp.test.mjs`, `test/particles.test.mjs`,
+`test/pierce.test.mjs`, `test/ricochet.test.mjs`, `test/tally.test.mjs` were re-aimed at the new
+homes (`BALANCE.weapons.pulse` where `BALANCE.bullets` was read, `shotsPerPull` for `volleyOf`)
+with no change to what they claim.
+
+### Notes for whoever is next
+- **The arc is next**, and it is a third of the same PLAN item. It is not a bullet with a
+  number: lightning that *chains to 3 nearby enemies, 20% less damage per jump* is a thing that
+  happens between bodies, like a nova front happens between bodies, so it wants its own module
+  and its own draw rather than another `fire` branch. `game/nova.js` and `game/orbitals.js` are
+  the pattern - a system with its own state on the world, its own `update`, its own art file, its
+  own tests. PLAN's 8 damage is 2x a pulse shot in this unit; the chain's decay is the part to
+  price, and the jump distances want measuring (what is a "nearby" body when the bot kites at
+  170 px?). Decide whether the arc's chain is fired per pull - at 4/s, a chain of four is a lot
+  of lines on screen - and whether it inherits pierce/ricochet at all (my guess: it should
+  inherit neither, and `pierce` and `ricochet` stay bullets' business, which is worth a line in
+  the card text).
+- **`tools/simulate.js` still prints no median**, which is why PLAN's "Survival check" item is
+  still open four releases after it was written. Everything since has been measured with a
+  throwaway aggregator: `for i in 0..7: node tools/simulate.js --seed $((1+i*5)) --runs 5
+  --seconds 900 --weapon X` in parallel, then a 20-line script over the run lines. Add the
+  median to the tool, print mean/median/at-cap in one line, and tick the item. It is small and
+  it is the number every future decision here wants.
+- **The split card on a cone gun** is written up above. If it bothers anyone, the milestone 5
+  synergy work ("each secondary has a card that only fires if the primary can exploit it") is
+  the right place to answer it, and the answer may as well be a synergy that *wants* a wide fan.
+- `world.weapon` is **not** reset by `resetRun` on purpose. If a later session wants a per-run
+  pick (a hangar would), the field is on the world for a reason: `run.js` is what would own it
+  then, and `scripted.js` already puts the default back for tests.
+- The additive lines being priced off the plain gun is now a written rule rather than an
+  accident (`BALANCE.bullets.damage` is the unit enemy hull is counted in). Any future weapon
+  inherits that for free, and any future *weapon-scaling* secondary should say so in its own
+  balance row rather than quietly reading the gun.
+- The pool is still forty ranks across eight lines and a healthy run still spends all of it in
+  about three minutes. Unchanged, still the biggest thing the plan owes.

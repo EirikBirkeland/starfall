@@ -12,10 +12,10 @@ import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
 import {
-  LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf, volleyOf,
+  LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf,
   countOf, pierceOf,
 } from '../src/game/upgrades.js';
-import { fire, shotsPerSecond } from '../src/game/player.js';
+import { fire, shotsPerSecond, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const PROGRESS = BALANCE.progression;
@@ -217,7 +217,7 @@ test('every line is five ranks deep and worth its step, in its own kind of numbe
   assert.throws(() => countOf(field, 'damage'), /not a line of whole things/);
   field.upgrades.split = 2;
   field.upgrades.pierce = 3;
-  assert.equal(volleyOf(field), 1 + 2 * BALANCE.upgrades.split.step);
+  assert.equal(shotsPerPull(field), BALANCE.weapons.pulse.pellets + 2 * BALANCE.upgrades.split.step);
   assert.equal(pierceOf(field), 3 * BALANCE.upgrades.pierce.step);
 });
 
@@ -229,7 +229,7 @@ test('a card prints the number its line is worth', () => {
 
 test('damage and shot speed come out of the gun, not just onto the ledger', () => {
   const field = scriptedRun(37);
-  const gun = BALANCE.bullets;
+  const gun = BALANCE.weapons.pulse;
 
   field.bullets.clear();
   fire(field);
@@ -248,13 +248,13 @@ test('damage and shot speed come out of the gun, not just onto the ledger', () =
 
 test('the fire rate line shortens the gap between two pulls, whatever a pull fires', () => {
   const field = scriptedRun(38);
-  const spec = BALANCE.player;
+  const spec = BALANCE.weapons.pulse;
   assert.equal(shotsPerSecond(field), spec.fireRate, 'a plain gun cycles at its own rate');
 
   field.upgrades.fireRate = BALANCE.upgrades.fireRate.ranks;
   const fast = shotsPerSecond(field);
   assert.ok(Math.abs(fast - spec.fireRate * gainOf(field, 'fireRate')) < 1e-9, 'a tuned one faster');
-  assert.ok(fast < spec.fireRateMax, 'and the ceiling sits above what the line can reach');
+  assert.ok(fast < BALANCE.weapons.rateMax, 'and the ceiling sits above what the line can reach');
 
   // And the wiring: the timer a shot leaves behind is the gap the line asked for.
   const ship = field.player;

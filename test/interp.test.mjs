@@ -11,7 +11,7 @@ import { resetRun } from '../src/game/run.js';
 import { resetAmbient } from '../src/game/ambient.js';
 import { burst } from '../src/game/effects.js';
 import { dropShards } from '../src/game/pickups.js';
-import { fire } from '../src/game/player.js';
+import { fire } from '../src/game/weapons.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { PALETTE } from '../src/core/palette.js';
 import {

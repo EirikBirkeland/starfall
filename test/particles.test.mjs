@@ -16,6 +16,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { DEBRIS, SMOKE, SPARK, burst, engineTrail, wreck } from '../src/game/effects.js';
 import { killEnemy } from '../src/game/enemies.js';
 import { fx } from '../src/core/rng.js';
+import { shotsPerSecond } from '../src/game/weapons.js';
 
 const SHAPES = [SPARK, DEBRIS, SMOKE];
 const STEP = 1 / 120;
@@ -224,6 +225,6 @@ function playScriptedSeed(seed, burn) {
     ship: [field.player.x, field.player.y, field.player.vx, field.player.vy],
     enemies: field.enemies.map((e) => [e.type, e.x, e.y, e.hp]),
     shards: field.shards.count,
-    fireRate: field.player.fireRate,
+    fireRate: shotsPerSecond(field),
   };
 }

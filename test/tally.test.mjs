@@ -23,6 +23,7 @@ import { damageEnemy, killEnemy } from '../src/game/enemies.js';
 import { spawnEnemy } from '../src/game/waves.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { hitPlayer } from '../src/game/player.js';
+import { shotsPerSecond } from '../src/game/weapons.js';
 import { hurtByBody, hurtByBlast, hurtByShot } from '../src/game/tally.js';
 import { scriptedRun, stepTheWorld, enemyAt } from '../tools/headless/scripted.js';
 import { bootGame } from '../tools/headless/harness.js';
@@ -132,7 +133,7 @@ test('a hit is damage on the kind and a stamp on the body', () => {
 test('a stretch of fire is one stretch, and a gap in it ends it', () => {
   const field = scriptedRun(7);
   const foe = toughAt(field, 'drifter', 900, 500);
-  const volley = BALANCE.tally.volley / field.player.fireRate;
+  const volley = BALANCE.tally.volley / shotsPerSecond(field);
 
   damageEnemy(field, foe, 1, true);
   steps(3);

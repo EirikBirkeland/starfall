@@ -10,9 +10,12 @@
 // There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
 // already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet, orbitals,
-// nova - hand out whole things instead, and a caller counts them: `countOf`, of which
-// `volleyOf`, `pierceOf`, `bounceOf`, `dronesOf` and `pulsesOf` are the five readings.
-// A card prints either, which is why the printing lives here.
+// nova - hand out whole things instead, and a caller counts them: `countOf`. A card
+// prints either, which is why the printing lives here.
+//
+// What a count is then worth is the reader's business: the split line's extras are added
+// to a pull by game/weapons.js, the pierce and ricochet ones are spent by
+// game/bullets.js, and the two secondary systems read themselves.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -105,9 +108,7 @@ export const LINES = [
   },
 ];
 
-/** The line that hands out extra projectiles alongside the one you aimed. */
-const SPLIT_LINE = 'split';
-/** The line that hands out extra bodies each projectile may go through. */
+/** The line that hands out extra projectiles alongside the gun's own. */
 const PIERCE_LINE = 'pierce';
 /** The line that hands out extra bodies each projectile may be turned onto. */
 const RICOCHET_LINE = 'ricochet';
@@ -182,15 +183,6 @@ export function countOf(world, id) {
   const line = lineOf(id);
   if (line.unit !== WHOLE_UNIT) throw new Error(id + ' is not a line of whole things');
   return stepOf(id) * rankOf(world, id);
-}
-
-/**
- * How many projectiles one pull of the trigger sends out: the gun's own shot, plus
- * every extra the split line has to give (PLAN 3.5). This is that line read as a
- * count rather than as words on a card; `fire` fans them out around the aim.
- */
-export function volleyOf(world) {
-  return 1 + countOf(world, SPLIT_LINE);
 }
 
 /**

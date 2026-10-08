@@ -27,6 +27,7 @@
 // numbers and lets a test plant a body without confusing the tally.
 
 import { BALANCE } from './balance.js';
+import { shotsPerSecond } from './weapons.js';
 
 /** The three ways the ship can lose a hull. */
 const BODY = 'body';
@@ -149,12 +150,12 @@ export function noteHit(world, enemy, amount) {
   enemy.hits++;
 
   // The body's `fired` is how long it has spent being fired at, and a hit only adds
-  // to it when the gap since the last one is shorter than a few shots' worth of the
-  // ship's own fire rate: that is what "still shooting at it" means whatever the
-  // weapon is (BALANCE.tally.volley). A body clipped once in passing has spent no
-  // time under fire at all, which is the honest answer.
+  // to it when the gap since the last one is shorter than a few pulls of the ship's own
+  // trigger: that is what "still shooting at it" means whatever the gun is
+  // (BALANCE.tally.volley). A body clipped once in passing has spent no time under fire
+  // at all, which is the honest answer.
   const now = world.elapsed;
-  const gap = BALANCE.tally.volley / world.player.fireRate;
+  const gap = BALANCE.tally.volley / shotsPerSecond(world);
   if (enemy.firstHit < 0) enemy.firstHit = now;
   else if (now - enemy.lastHit <= gap) enemy.fired += now - enemy.lastHit;
   enemy.lastHit = now;

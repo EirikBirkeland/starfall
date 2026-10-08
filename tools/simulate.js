@@ -6,6 +6,7 @@
 //   node tools/simulate.js --runs 5           several runs, with an average
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
+//   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js)
 //   node tools/simulate.js --trace            print a state fingerprint over time
 //   node tools/simulate.js --audio            boot with a fake audio device
 //
@@ -17,7 +18,7 @@
 import { playRuns, POLICIES } from './headless/bot.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, weapon: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -28,6 +29,7 @@ function readArgs(argv) {
     else if (arg === '--runs') opts.runs = parseInt(next(), 10);
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
+    else if (arg === '--weapon') opts.weapon = next();
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--audio') opts.audio = true;
     else {
@@ -57,6 +59,7 @@ function reportLine(summary) {
   const s = summary.stats;
   return 'seed ' + summary.seed
     + '  ' + summary.policy
+    + '  gun ' + summary.stats.weapon
     + '  ' + (summary.died ? 'died' : 'alive at the cap')
     + '  ' + clockText(summary.seconds)
     + '  score ' + s.score
@@ -80,6 +83,7 @@ const summaries = await playRuns({
   audio: opts.audio,
   every: opts.trace ? opts.every : 0,
   policy: opts.policy,
+  weapon: opts.weapon,
 });
 
 for (const summary of summaries) {

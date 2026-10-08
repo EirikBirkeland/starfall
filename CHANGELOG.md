@@ -1,5 +1,40 @@
 # Starfall — changelog
 
+## 0.4.6 — 2026-10-08
+Scatter: the second primary, and the gun itself became data.
+- **The title screen asks which gun you fly.** `1` is the PULSE, `2` is the SCATTER, then launch
+  as before. The HUD reads `GUN SCATTER` while you fly it and the game-over card names it, so
+  there is no guessing afterwards which gun did it. There is no hangar yet, so the choice lives
+  here until milestone 5 makes it a ship choice.
+- **SCATTER** is 2.2 pulls a second of **six pellets in a 30° cone**, a little slower than the
+  pulse and at about **half its reach** - 370 px against 700 - and each pellet costs a body what
+  a pulse shot costs it. One pull is one sound and one kick of the ship, and the kick is the
+  gun's own, not whatever it happened to hit.
+- It is a closer gun and a weaker one far off, which is the weapon PLAN asked for. Measured on
+  one lone drifter: **1.46x the pulse at 60 px**, level with it at 150, **0.61x at 300** - and
+  against a crowd standing in the cone, **two and a half to three times** a pulse. Forty bot
+  runs on each gun, same seeds: the scatter means 6628 kills and 117896 score against the
+  pulse's 6175 and 110015, and 39 of its runs outlasted the fifteen-minute window where the
+  pulse managed 37. Nothing is 25% better than anything else, which is the band PLAN set.
+- A whole fan landing on one body throws it for **about 250 px/s**, a nova front's worth of
+  shrug, and that is what punches a hole in a press. It started at more than twice that, which
+  was worse than useless: a close pull was flinging its target clear out of the range the next
+  pull needed, and the crowd turned into a cloud flying away.
+- **Weapons are data now** (`BALANCE.weapons`, read by one module, `src/game/weapons.js`):
+  rate, pellets, cone, weight, speed, reach, spread, shove, recoil, muzzle and sound sit on one
+  row, and there is no gun number left on the ship or in `BALANCE.bullets`. Every shot leaves
+  with its own speed, reach and shove, so the streak behind a shot is the distance it really
+  came, and a pellet that is about to die visibly runs out instead of winking.
+- The reference run is byte for byte what it was before that move - seed 20261006, score 71395,
+  level 49, 4054 kills - which is the proof that moving the pulse's numbers did not move the
+  pulse.
+- Found while measuring, and not a bug: **the split line is nearly worthless on a scatter**
+  (1.0x-1.3x a plain gun, against the pulse's 1.8x-2.8x), because the cone already covers the
+  arc a split extra would add to. SPLIT SHOT is a bad buy on this gun; what to do about that is
+  a design question and it is written up in NOTES.
+- `node tools/simulate.js --weapon scatter` and `node tools/power-ladder.js --weapon scatter`
+  put either gun under the bot and under the firepower ladder.
+
 ## 0.4.5 — 2026-10-08
 Nova: the eighth card, and the ship throws a wave of damage.
 - **NOVA** is an eighth upgrade line. Every rank buys **one more ring inside an eight-second

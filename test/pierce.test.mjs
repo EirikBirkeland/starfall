@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { countOf, effectOf, pierceOf } from '../src/game/upgrades.js';
-import { fire } from '../src/game/player.js';
+import { fire } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.js';
 
 const PIERCE = BALANCE.upgrades.pierce;

@@ -591,9 +591,18 @@ const FLAME_MIN = 10;          // px of flame when the engines are barely lit
 const FLAME_FLICKER = 10;      // px of random dance on top of that
 const FLAME_REACH = 12;        // px more the engines add at full thrust
 
-// A shot's trail shows this much of the second behind it.
+// A shot's trail shows this much of the second behind it. It is baked for a shot
+// travelling at TRAIL_SPEED and stamped stretched to the shot's own speed, so the streak
+// is always the distance the shot has really come: a scatter pellet drags a shorter trail
+// than a pulse shot because it has travelled less, and the game has more than one speed
+// of shot now (game/weapons.js).
 const TRAIL_SECONDS = 0.035;
+const TRAIL_SPEED = 620;      // px/s the sprite itself is baked for
 const TRAIL_WIDTH = 5;
+// The last of a shot's life its trail collapses over, in seconds: a shot that runs out
+// visibly runs out, which is how a short-ranged gun's reach can be seen rather than
+// remembered. The core dot is not part of it - the dot is where the shot is.
+const TRAIL_RUNOUT = 0.12;
 
 let flameSprite = null;        // built on the first frame that needs one, then kept
 let dashTrail = null;
@@ -615,9 +624,18 @@ function dashTrailFor(ship) {
 
 function bulletTrailSprite() {
   if (!bulletTrail) {
-    bulletTrail = makeStreak(PALETTE.bullet, PALETTE.bulletTrail, BALANCE.bullets.speed * TRAIL_SECONDS, TRAIL_WIDTH);
+    bulletTrail = makeStreak(PALETTE.bullet, PALETTE.bulletTrail, TRAIL_SECONDS * TRAIL_SPEED, TRAIL_WIDTH);
   }
   return bulletTrail;
+}
+
+/**
+ * How long a shot's trail is next to the sprite: its own speed, with the last stretch of
+ * its life folding it down to nothing. See TRAIL_SECONDS and TRAIL_RUNOUT above.
+ */
+function trailStretch(bullet) {
+  const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+  return (speed / TRAIL_SPEED) * clamp(bullet.life / TRAIL_RUNOUT, 0, 1);
 }
 
 /** The ship's silhouette, pointing along +x from the origin it is drawn around. */
@@ -842,7 +860,7 @@ export function drawBullets(ctx, alpha) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
     if (!onScreen(b.x, b.y, BULLET_REACH)) continue;
-    paintStreak(ctx, trail, paintX(b, alpha), paintY(b, alpha), Math.atan2(b.vy, b.vx));
+    paintStreak(ctx, trail, paintX(b, alpha), paintY(b, alpha), Math.atan2(b.vy, b.vx), trailStretch(b));
   }
 
   ctx.fillStyle = PALETTE.bulletCore;

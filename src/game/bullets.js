@@ -22,18 +22,24 @@ import { burst, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 
 /**
- * The shape of a bullet. `shoot` writes every field, so nothing leaks between shots.
+ * The shape of a bullet. `shoot` in game/weapons.js writes every field, so nothing leaks
+ * between shots.
  *
- * `pierce` is what the shot has left of the pierce line when it leaves: one body past
- * the first, per rank, and one of them is spent on every body it goes through. `bounce`
- * is the same for the ricochet line - the turns it has left - and a turn is only taken
- * when there is nothing left ahead of the shot to go through. `hits` is who it has
- * already touched - a shot at 620 px/s is inside a body for several steps and a
- * passed-through body it kept meeting would be shaved once per step otherwise - and it is
- * also what stops a turned shot coming back for a body it has already spent itself on.
+ * `speed`, `life` and `knock` are the weapon's, and `dmg` is the weapon's weight times
+ * whatever the damage line was worth as the shot left. `pierce` is what the shot has left
+ * of the pierce line when it leaves: one body past the first, per rank, and one of them
+ * is spent on every body it goes through. `bounce` is the same for the ricochet line -
+ * the turns it has left - and a turn is only taken when there is nothing left ahead of the
+ * shot to go through. `hits` is who it has already touched - a shot at 620 px/s is inside
+ * a body for several steps and a passed-through body it kept meeting would be shaved once
+ * per step otherwise - and it is also what stops a turned shot coming back for a body it
+ * has already spent itself on.
  */
 export function makeBullet() {
-  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, dmg: 0, pierce: 0, bounce: 0, hits: [] };
+  return {
+    x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
+    life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, hits: [],
+  };
 }
 
 /** The scratch list the grid fills, shared by every bullet in the step. */
@@ -214,8 +220,11 @@ export function updateBullets(world, dt) {
       if (dist2(bullet.x, bullet.y, enemy.x, enemy.y) > reach * reach) continue;
 
       bullet.hits.push(enemy);
-      enemy.ix += bullet.vx * spec.knockback;
-      enemy.iy += bullet.vy * spec.knockback;
+      // The shove is the shot's own, because a scatter pellet and a pulse shot are not
+      // the same thing arriving (BALANCE.weapons). `vx` rather than the speed: a shot
+      // that has been turned is still shoving the way it is going.
+      enemy.ix += bullet.vx * bullet.knock;
+      enemy.iy += bullet.vy * bullet.knock;
       burst(world, bullet.x, bullet.y, BALANCE.kinds[enemy.type].color, impact.count, impact.speed, impact.life);
       const killed = damageEnemy(world, enemy, bullet.dmg, true);
       // Only a hit that did not kill makes the impact sound; a kill plays its own.

@@ -9,12 +9,21 @@ import { STATE } from '../../src/game/state.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { resetRun } from '../../src/game/run.js';
 import { makeEnemy } from '../../src/game/kinds.js';
+import { defaultWeapon, setWeapon, weaponOf } from '../../src/game/weapons.js';
 import { setSeed } from '../../src/core/rng.js';
 
-/** Start a run with nothing in it but what the test adds. */
+/**
+ * Start a run with nothing in it but what the test adds.
+ *
+ * The primary is put back on the rack too: a scripted run flies the default gun whatever
+ * the last test in this file chose, because a test that inherits another test's weapon is
+ * a test that changes when the file is reordered. A test that wants a different gun says
+ * so with `setWeapon`.
+ */
 export function scriptedRun(seed) {
   setSeed(seed);
   resetRun(world);
+  setWeapon(world, defaultWeapon());
   world.state = STATE.PLAY;
   // The ship is not what these tests are about: it cannot be hurt, and no crowd
   // arrives unless the test calls for one.
@@ -32,8 +41,17 @@ export function enemyAt(type, x, y, hp) {
   return enemy;
 }
 
-/** A shot that is already in flight, written field by field like any spawner must. */
+/**
+ * A shot that is already in flight, written field by field like any spawner must.
+ *
+ * Its numbers are the ship's own weapon's, because that is what a shot in the air is:
+ * `speed`, `life` and `knock` came out of the gun, and a recycled shot that forgot one of
+ * them would hand a plain shot the last one's - which is the contract every spawner in
+ * the game signs, and the reason this is a function and not an object literal (the same
+ * trap caught `pierce` and `bounce` when they were new).
+ */
 export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
+  const gun = weaponOf(world);
   const bullet = world.bullets.spawn();
   bullet.x = x;
   bullet.y = y;
@@ -41,8 +59,9 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   bullet.py = y;
   bullet.vx = vx;
   bullet.vy = vy;
-  bullet.life = BALANCE.bullets.life;
-  bullet.dmg = BALANCE.bullets.damage;
+  bullet.life = gun.life;
+  bullet.dmg = gun.damage;
+  bullet.knock = gun.knockback;
   // Including what the gun had of the two lines that let a shot survive a hit, which a
   // recycled shot would otherwise bring with it from whatever the gun last fired.
   bullet.pierce = pierce === undefined ? 0 : pierce;

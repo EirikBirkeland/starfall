@@ -57,19 +57,11 @@ export const BALANCE = {
       labelOffset: 6,
       sound: { notes: [520, 780, 1040], dur: 0.16, wave: 'sine', vol: 0.09 },
     },
-    fireRate: 4.4,          // shots per second, before upgrades
-    // A ceiling on how many shots one ship may have in the air per second, mostly
-    // so that no combination of lines can turn the frame budget into confetti. It
-    // deliberately sits above everything the fire rate line can reach on its own
-    // (4.4 * 2.1 = 9.2), so what a player picks is never silently thrown away.
-    fireRateMax: 15,
     startInvulnerability: 1.2,
     hitInvulnerability: 1.5,
     hitShoveRadius: 92,          // the crowd is pushed out after a hit
     hitShoveImpulse: 340,
     thrustRamp: 6,               // how fast the thruster graphic fades in and out
-    recoil: 14,                  // firing pushes the ship back
-    spread: 0.045,               // radians of random aim error
 
     // The wake the engines drop (PLAN section 4): `rate` puffs a second out of the
     // nozzles while the engines are lit, thrown backwards at `speed` and carrying
@@ -103,21 +95,126 @@ export const BALANCE = {
     },
   },
 
+  // The primaries (PLAN 3.2). One is flown at a time. The pick is made on the title
+  // screen with a number key until the hangar exists (milestone 5), and `default` is
+  // what a run that has not picked anything flies.
+  //
+  // A weapon owns everything about one pull of the trigger: how often it cycles, how
+  // many projectiles it throws and where they point, what each one costs a body, how
+  // fast and how far it flies, how hard it shoves, what the ship is shoved back by,
+  // and what it sounds like. `game/weapons.js` is the code that reads them;
+  // `game/bullets.js` is what every shot has in common whatever fired it.
+  //
+  // `damage` is hull per projectile, in the one unit enemy hull is counted in
+  // (`bullets.damage` below - a drifter is three of them), so a weapon's weight at point
+  // blank is `fireRate x pellets x damage`:
+  //
+  //   pulse    4.4 pulls x 1 shot    x 1    =  4.4 hull/s, out to about 700 px
+  //   scatter  2.2 pulls x 6 pellets x 1    = 13.2 hull/s, out to about 370 px
+  //
+  // and the honest note about those two lines is that a cone spends most of itself on
+  // air: a lone body catches one or three of the six depending on how far off it is, which
+  // is why the paper ratio is a poor guide and why both weapons were measured instead - on
+  // three crowds, in NOTES session 33, and again any time with
+  // `node tools/power-ladder.js --weapon scatter`.
+  weapons: {
+    default: 'pulse',
+    // The most shots one ship may have in the air in a second, whatever the gun and
+    // whatever the lines: a frame-budget guard rather than a balance number. It sits
+    // above what the fire rate line can reach on any weapon in the game, so what a
+    // player picks is never silently thrown away. A maxed pulse is 9.2 pulls of six
+    // projectiles and a maxed scatter 4.6 pulls of eleven, which is the same order of
+    // shots a second and the reason one number serves them all.
+    rateMax: 15,
+    pulse: {
+      name: 'PULSE',
+      fireRate: 4.4,        // pulls a second, before upgrades
+      pellets: 1,           // projectiles in one pull, before the split line
+      gap: 0,               // radians between neighbours of the gun's own fan
+      damage: 1,            // hull per projectile
+      speed: 620,           // px/s
+      life: 1.15,           // s, so its reach is speed * life: about 700 px
+      spread: 0.045,        // radians of random aim error per projectile
+      knockback: 0.08,      // shot velocity transferred into the body it hits
+      recoil: 14,           // firing pushes the ship back
+      muzzle: { count: 2, speed: 60, life: 0.18 },
+      sound: { base: 720, jitter: 100, dur: 0.05, wave: 'square', vol: 0.045, slide: 300 },
+    },
+    scatter: {
+      name: 'SCATTER',
+      fireRate: 2.2,        // PLAN 3.2's pull rate: half as many pulls as the pulse
+      pellets: 6,           // PLAN's "7 x 6 pellets"
+      // Radians between two neighbours of the cone, so five gaps of it is PLAN's 30
+      // degrees from the first pellet to the last. The aim itself always keeps a
+      // pellet (game/weapons.js lays a fan out from the nose outwards), which is what
+      // makes a shotgun aimable at all.
+      gap: 0.105,
+      // One pulse shot per pellet - the sentence a player understands, and the number
+      // that makes the cone worth having. It is not PLAN's number, and the reason is the
+      // one thing about a shotgun that is easy to get wrong on paper: a lone body catches
+      // one or three of the six and the rest goes past it, so what arrives is a fraction of
+      // what left, and the fraction shrinks with distance. PLAN's table has the scatter at
+      // 1.55x the pulse's damage per second (7 x 6 at 2.2/s against 10 at 6/s), and a 30
+      // degree cone cannot meet that ratio at both ends of its range: one pellet would then
+      // have to cost three pulse shots, which is 12x the pulse on a body standing in the fan
+      // and still only a third of the fan on one standing off it. Measured on one lone
+      // drifter instead, six seeds, hull a second, with the same body under the pulse in
+      // brackets (test/scatter.test.mjs holds the shape of it):
+      //
+      //    60 px   5.8  (1.46x)     150 px  3.7  (0.93x)     300 px  2.2  (0.61x)
+      //    90 px   5.1  (1.26x)     240 px  2.4  (0.65x)
+      //
+      // so it is a closer gun and a weaker one far off, which is the weapon PLAN asked
+      // for - and against a crowd standing in the fan it is worth two and a half to three
+      // times a pulse (tools/power-ladder.js on the ring and column knots: 12.2 and 13.0
+      // hull a second against the pulse's 4.3). At half a hull a pellet - my first guess,
+      // reading PLAN's 7 as a share of a pull - the middle row read 1.75 against 4.00, and forty bot
+      // runs on the scatter medianed 3m53s against the pulse's 15m00s, which is not a
+      // second primary, it is a worse one. Where it is now, the near-field knot reads 5.9
+      // against 4.3 and the same forty seeds mean 6628 kills against the pulse's 6175.
+      damage: 1,
+      speed: 560,
+      // The reach: 370 px against the pulse's 700. It is not shorter just to be punishing;
+      // a cone that dies before the crowd chasing you never gets to be a cone, and the
+      // first attempt at 280 px spent its weight on air at exactly the distance a fleeing
+      // ship keeps its arrivals. It still wants flying *at* things, which is the different
+      // game.
+      life: 0.66,
+      // A touch wider than the pulse's: a shotgun is a fan of shots and not a grid of
+      // them, and at this gap the error is what stops the six of them being parallel.
+      spread: 0.05,
+      // PLAN's "heavy knockback", and it is heavy: a whole fan landing on one body is
+      // about 250 px/s of shove - a nova front's worth of shrug, and what punches a hole
+      // in a press.
+      //
+      // Not heavier, and 0.16 was tried first: six of those hand a body ~540 px/s, faster
+      // than the ship can run, so a close pull flung its target out of the very range the
+      // next pull needs. The crowd became a cloud flying away from the player and the gun
+      // could not spend the reach it had. A shove that outruns the fight is not a feature
+      // of a short-range weapon.
+      knockback: 0.07,
+      // One kick per pull, not per pellet - the ship is shoved by the gun, not by
+      // whatever it hit.
+      recoil: 55,
+      muzzle: { count: 6, speed: 150, life: 0.16 },
+      // One heavy thump, and still one per pull however many pellets came with it
+      // (the mix has no voice limiting until milestone 7).
+      sound: { base: 190, jitter: 34, dur: 0.09, wave: 'sawtooth', vol: 0.07, slide: 70 },
+    },
+  },
+
   bullets: {
-    speed: 620,
-    life: 1.15,
+    // The unit: one shot of the plain gun, and the unit every enemy's `hull` is
+    // counted in. It is deliberately not read off whatever weapon is being flown -
+    // game/orbitals.js and game/nova.js spend it as "one shot of the ship's gun" so
+    // that a drone bite and a nova front cost a body the same whatever was picked for
+    // the trigger, and why that is the honest reading is in NOTES session 33.
     damage: 1,
     noseOffset: 6,          // spawn distance in front of the ship
     despawnMargin: 30,      // this far outside the arena, it is gone
     hitRadius: 3.5,         // added to the enemy radius for a hit
-    knockback: 0.08,        // bullet velocity transferred into the enemy
-    muzzle: { count: 2, speed: 60, life: 0.18 },
     impact: { count: 4, speed: 130, life: 0.24 },
     impactSound: { min: 300, max: 360, dur: 0.03, wave: 'square', vol: 0.02, slide: 200 },
-  },
-
-  firing: {
-    sound: { base: 720, jitter: 100, dur: 0.05, wave: 'square', vol: 0.045, slide: 300 },
   },
 
   // What every enemy shot shares, whoever fired it. How fast and how big a
@@ -843,11 +940,11 @@ export const BALANCE = {
     // killed in a second, so the two want different steps.
     life: { bucket: 1, buckets: 256 },      // arrival -> death, to a little over 4m
     fire: { bucket: 0.25, buckets: 128 },   // being shot -> dead, to 32s
-    // How many shots' worth of the ship's own fire rate may go by between two hits on
-    // one body before the shooting at it counts as having stopped. This is the whole
-    // definition of "a run of fire" behind the report's time-to-kill column, and it
-    // is written as shots rather than seconds so it means the same thing whatever
-    // weapon is doing the firing.
+    // How many pulls of the trigger may go by between two hits on one body before the
+    // shooting at it counts as having stopped. This is the whole definition of "a run of
+    // fire" behind the report's time-to-kill column, and it is written in pulls rather
+    // than in seconds so it means the same thing whatever the gun's cycle is: a scatter
+    // pull and a pulse pull are different handfuls of shots, and both are one pull.
     volley: 3,
   },
 

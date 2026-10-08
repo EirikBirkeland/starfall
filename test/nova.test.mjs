@@ -35,6 +35,7 @@ import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.j
 
 const NOVA = BALANCE.upgrades.nova;
 const GUN = BALANCE.bullets;
+const PULSE = BALANCE.weapons.pulse;
 const RANKS = NOVA.ranks;
 const STEP = BALANCE.sim.step;
 const IMMORTAL = 1e9;
@@ -446,7 +447,10 @@ test('a rank of the nova is worth a rank of the damage line, at the crowd it rea
   // you are surrounded and worth leaving when you are not, which is the card.
   const CROWD = 2.33;
   const perRank = NOVA.step * NOVA.weight * GUN.damage * CROWD / NOVA.cycle;
-  const gunPerRank = GUN.damage * BALANCE.player.fireRate * BALANCE.upgrades.damage.step;
+  // What a rank of the damage line is worth a second on the plain gun - and the plain
+  // gun is the pulse (game/weapons.js), which is also the weapon the weight of a front
+  // was measured against.
+  const gunPerRank = PULSE.damage * PULSE.fireRate * BALANCE.upgrades.damage.step;
   assert.ok(Math.abs(perRank / gunPerRank - 1) < 0.15,
     'a rank of the nova is ' + perRank.toFixed(2) + ' a second against the damage line at '
     + gunPerRank.toFixed(2));

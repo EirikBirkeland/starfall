@@ -4,6 +4,7 @@
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { clamp } from '../core/math.js';
 import { world } from '../game/world.js';
+import { weaponName } from '../game/weapons.js';
 import { roundRect } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { view } from './canvas.js';
@@ -96,6 +97,11 @@ export function drawHUD(ctx, fps) {
   ctx.fillStyle = PALETTE.uiFaint;
   ctx.font = FONT_LABEL;
   ctx.fillText('TIME ' + Math.floor(world.elapsed) + 's   LV ' + world.player.level, PAD, PAD + 64);
+
+  // Which primary the run is flying (game/weapons.js). It is picked once, on the title,
+  // and this is the place it can still be read while it matters.
+  ctx.fillStyle = PALETTE.uiDim;
+  ctx.fillText('GUN  ' + weaponName(world), PAD, PAD + 82);
 
   // Hull, top-right.
   ctx.textAlign = 'right';

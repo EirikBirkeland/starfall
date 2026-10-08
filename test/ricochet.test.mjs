@@ -25,12 +25,12 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { bounceOf, countOf, effectOf } from '../src/game/upgrades.js';
-import { fire } from '../src/game/player.js';
+import { fire } from '../src/game/weapons.js';
 import { bulletFlyingToward, enemyAt, scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const RICOCHET = BALANCE.upgrades.ricochet;
 const PIERCE = BALANCE.upgrades.pierce;
-const GUN = BALANCE.bullets;
+const GUN = BALANCE.weapons.pulse;
 const DAMAGE = BALANCE.upgrades.damage;
 const RANKS = RICOCHET.ranks;
 

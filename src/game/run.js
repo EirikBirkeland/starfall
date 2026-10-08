@@ -35,7 +35,6 @@ export function resetRun(world) {
   ship.dashCd = 0;
   ship.dashDirX = 0;
   ship.dashDirY = 0;
-  ship.fireRate = spec.fireRate;
   ship.fireTimer = 0;
   ship.level = 1;
   ship.thrust = 0;

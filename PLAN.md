@@ -344,10 +344,19 @@ One item per session, as always:
       32.)
 - [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
       let the player pick the weapon on the title screen with a key.
+      **Scatter done** in 0.3.5: weapons are data (`BALANCE.weapons`) read by one module
+      (`game/weapons.js`), the title screen picks with a number key, and the HUD and the
+      game-over card say which gun was flown. Arc is the next one, and it is a third of the
+      item, not two thirds - the two systems after it (mine, emp, bay) are separate items.
+      The measurements that set its numbers are in NOTES session 33 and beside the numbers.
 - [ ] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`
       bot picking upgrades. The median must be 5:00 or more. If it is not, add firepower: stronger
       ranks, more ranks, another upgrade from 3.5. Never by weakening the enemies (see the hard rule).
       Write the numbers in `NOTES.md`. Release.
+      **Not done, and it is the median that is missing, not the firepower:** the number has been
+      measured by hand every release since (15m00s, the window, for both primaries), but
+      `tools/simulate.js` still prints a mean and no median, so the check has never been run by
+      the tool that is supposed to run it.
 
 How it should feel: by two minutes in, the screen is visibly full of the player's own shots, and
 every level-up changes what the weapon does, not only a number.

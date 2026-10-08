@@ -21,12 +21,17 @@ import { updateAmbient } from './ambient.js';
 import { newTally } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { newRanks } from './upgrades.js';
+import { defaultWeapon } from './weapons.js';
 
 function createWorld() {
   const spec = BALANCE.player;
   return {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
+    // Which primary the runs of this world are flying (game/weapons.js). Picked on the
+    // title screen until the hangar exists, and deliberately not cleared by a new run:
+    // what you picked is what you fly on, the same way the seed is what you get.
+    weapon: defaultWeapon(),
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
     steps: 0,         // how many fixed steps this run has been asked for (a hit-stop step counts)
@@ -90,7 +95,6 @@ function createWorld() {
       dashCd: 0,
       dashDirX: 0,
       dashDirY: 0,
-      fireRate: spec.fireRate,
       fireTimer: 0,
       level: 1,
     },

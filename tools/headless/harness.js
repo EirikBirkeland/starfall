@@ -64,8 +64,8 @@ function makeContextStub(counters, drawLog) {
     fillRect: () => { counters.fills++; },
     fill: () => { counters.fills++; },
     stroke: () => { counters.strokes++; },
-    fillText: () => { counters.texts++; },
-    strokeText: () => { counters.texts++; },
+    fillText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
+    strokeText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
     drawImage: (image, x, y, w, h) => {
       counters.images++;
       drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
@@ -138,7 +138,37 @@ function makeAudioContextStub(log) {
   };
 }
 
-const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild'];
+const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild', 'weaponRow'];
+
+/**
+ * One element of the stub DOM. Enough of an element for the screens that are written in
+ * the browser - a class list, text, and children - so a test can read what a screen is
+ * actually showing rather than hope the code that wrote it was right.
+ */
+function makeElement(tag, classes) {
+  const el = {
+    tag: tag,
+    width: 0,
+    height: 0,
+    style: {},
+    textContent: '',
+    children: [],
+    classList: {
+      _set: new Set(classes),
+      add(cls) { this._set.add(cls); },
+      remove(cls) { this._set.delete(cls); },
+      // The DOM's two-form toggle: with a force it is a plain set-or-clear.
+      toggle(cls, force) {
+        const on = force === undefined ? !this._set.has(cls) : !!force;
+        if (on) this._set.add(cls); else this._set.delete(cls);
+        return on;
+      },
+      contains(cls) { return this._set.has(cls); },
+    },
+    appendChild(child) { this.children.push(child); return child; },
+  };
+  return el;
+}
 
 /**
  * Boot the game with no browser.
@@ -163,25 +193,14 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
-    elements[id] = {
-      id: id,
-      width: 0,
-      height: 0,
-      style: {},
-      textContent: '',
-      classList: {
-        _set: new Set(id === 'overScreen' ? ['screen', 'hidden'] : ['screen']),
-        add(cls) { this._set.add(cls); },
-        remove(cls) { this._set.delete(cls); },
-        contains(cls) { return this._set.has(cls); },
-      },
-      getContext: () => ctx,
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: width, height: height }),
-    };
+    elements[id] = makeElement('div', ['screen', id === 'overScreen' ? 'hidden' : ''].filter(Boolean));
+    elements[id].id = id;
+    elements[id].getContext = () => ctx;
+    elements[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: width, height: height });
   }
 
   const listeners = {};
@@ -209,10 +228,14 @@ export async function bootGame(options) {
   globalThis.window = windowObj;
   globalThis.document = {
     getElementById: (id) => elements[id] || null,
-    /** The offscreen canvases the glow sprites are baked on. */
+    /**
+     * The offscreen canvases the glow sprites are baked on, and - for anything that is
+     * not a canvas - a plain element a screen can build its own rows out of.
+     */
     createElement(tag) {
+      if (tag !== 'canvas') return makeElement(tag, []);
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [], points: [], circles: [] });
+      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [], points: [], circles: [], words: [] });
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -236,6 +259,7 @@ export async function bootGame(options) {
       drawLog.dashes.length = 0;
       drawLog.points.length = 0;
       drawLog.circles.length = 0;
+      drawLog.words.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -286,8 +310,12 @@ export async function bootGame(options) {
     points() { return drawLog.points.slice(); },
     /** Every circle the last frame asked for, with its radius, in arena coordinates. */
     circles() { return drawLog.circles.slice(); },
+    /** Every string the last frame put on the canvas, in the order it put them there. */
+    words() { return drawLog.words.slice(); },
     /** Where an arena point lands on the screen, now the arena is not the window. */
     screenOf: (x, y) => game.screenOf(x, y),
+    /** Choose the primary this game flies, exactly as the title screen's keys do. */
+    chooseWeapon: (id) => game.chooseWeapon(id),
     stats() { return game.stats(); },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
@@ -304,6 +332,12 @@ export async function bootGame(options) {
         stats: elements.finalStats.textContent,
         build: elements.finalBuild.textContent,
         newBestShown: !elements.newBest.classList.contains('hidden'),
+        // The title's primaries, as the player reads them: one line each, and which one
+        // is lit up (game/weapons.js is what they are built from).
+        weapons: elements.weaponRow.children.map((row) => ({
+          label: row.children.map((part) => part.textContent).join(' '),
+          picked: row.classList.contains('picked'),
+        })),
       };
     },
     get audio() { return audioLog; },

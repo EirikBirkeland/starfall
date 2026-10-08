@@ -35,6 +35,7 @@ import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.j
 
 const RING = BALANCE.upgrades.orbitals;
 const GUN = BALANCE.bullets;
+const PULSE = BALANCE.weapons.pulse;
 const RANKS = RING.ranks;
 const STEP = BALANCE.sim.step;
 const IMMORTAL = 1e9;
@@ -338,7 +339,10 @@ test('a rank of the ring is worth a rank of the damage line', () => {
   // of you. And unlike a flat number it stays worth that much once the gun has grown, which
   // is what the test above is for. Whoever retunes either of these numbers retunes both.
   const perRank = RING.step * BITE / RING.beat;
-  const gunPerRank = GUN.damage * BALANCE.player.fireRate * BALANCE.upgrades.damage.step;
+  // What a rank of the damage line is worth a second on the plain gun - and the plain
+  // gun is the pulse (game/weapons.js), which is also the weapon the weight of a bite
+  // was measured against.
+  const gunPerRank = PULSE.damage * PULSE.fireRate * BALANCE.upgrades.damage.step;
   assert.ok(Math.abs(perRank / gunPerRank - 1) < 0.05,
     'a rank of the ring is ' + perRank.toFixed(2) + ' a second against the damage line at '
     + gunPerRank.toFixed(2));

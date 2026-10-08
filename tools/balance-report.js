@@ -21,6 +21,12 @@
 //
 // It prints and it does not judge. There is no threshold in this file and no run is
 // ever called good or bad by it - that is what the numbers are for later.
+//
+// One thing this cannot say: which gun was being flown. The weapon is not an upgrade line
+// (game/weapons.js, and BALANCE.weapons), so every column below is an average over runs
+// that happen to fly the plain pulse. For the numbers on the other guns see
+// `node tools/simulate.js --weapon scatter --runs 40` and `node tools/power-ladder.js
+// --weapon scatter`.
 
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

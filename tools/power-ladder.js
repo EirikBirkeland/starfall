@@ -4,6 +4,14 @@
 //   node tools/power-ladder.js                    both knots, twenty-four seconds
 //   node tools/power-ladder.js --seconds 12       a shorter window
 //   node tools/power-ladder.js --line nova        one line only
+//   node tools/power-ladder.js --weapon scatter   a different primary under it
+//
+// The lines are measured on the pulse, because that is the gun every number in
+// BALANCE.upgrades was priced against (NOTES sessions 30 to 32) - `--weapon` re-runs the
+// same ladder with another primary underneath, which is how a line's worth is checked to
+// scale with a gun that hits differently (the additive lines are the ones to look at
+// there: a bite and a nova front cost a body what the plain gun costs it, whatever is
+// being flown, so on a heavier gun they buy relatively less of a damage rank).
 //
 // Every line that makes the run hit harder is maxed, on a plain gun, and the answer is
 // written as a multiple of what the plain gun did over the same seconds against the same
@@ -40,19 +48,20 @@
 
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';
+import { setWeapon } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from './headless/scripted.js';
 
-const GUN = BALANCE.bullets;
 const STEP = BALANCE.sim.step;
 const IMMORTAL = 1e9;
 const SEEDS = [11, 12, 13, 14, 15, 16];
 
 function readArgs(argv) {
-  const opts = { seconds: 24, line: null };
+  const opts = { seconds: 24, line: null, weapon: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--seconds') opts.seconds = parseFloat(argv[++i]);
     else if (argv[i] === '--line') opts.line = argv[++i];
-    else { console.error('usage: power-ladder.js [--seconds N] [--line ID]'); process.exit(2); }
+    else if (argv[i] === '--weapon') opts.weapon = argv[++i];
+    else { console.error('usage: power-ladder.js [--seconds N] [--line ID] [--weapon ID]'); process.exit(2); }
   }
   if (!Number.isFinite(opts.seconds) || opts.seconds <= 0) {
     console.error('--seconds wants a number of seconds');
@@ -155,6 +164,7 @@ function measure(field, bodies, seconds, aim) {
 function setUp(id, rank, knotAt, seed) {
   const field = scriptedRun(seed);
   field.xpNeed = Infinity;
+  if (opts.weapon !== null) setWeapon(field, opts.weapon);
   if (rank > 0) field.upgrades[id] = rank;
   const knot = KNOTS[knotAt];
   return { field, bodies: knot.build(field), aim: knot.aim };
@@ -179,7 +189,7 @@ const lines = Object.keys(BALANCE.upgrades)
 // below is quoted against - and the reason the orbital ring and the nova are both built to
 // be worth exactly this much per rank on a plain gun (BALANCE.upgrades).
 console.log('a maxed line against the plain gun, ' + opts.seconds + 's of trigger, mean of '
-  + SEEDS.length + ' seeds');
+  + SEEDS.length + ' seeds, flying ' + (opts.weapon === null ? 'the pulse' : opts.weapon));
 
 for (let k = 0; k < KNOTS.length; k++) {
   const plain = rateFor('damage', 0, k, opts.seconds);
