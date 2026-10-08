@@ -5438,10 +5438,12 @@ arithmetic. Six seeds, medians:
   worth in one step, and one crack per step means the ring stays whole and bright for the ~3 frames
   the rattle takes), so I kept it and rewrote the comment: it is the overfull tell, not the ready tell.
 - **The shard→crack direction made an import cycle** (`pickups.js` feeds `magnetar.js`, which calls
-  `pickups.js` for the rank-3 drop). ESM handles it fine and the sim path proves it, but it is the
-  first cycle in `src/game/` and I checked it in all three of the harnesses before leaving it. The
-  alternative (world.js calling `feedField` itself) would have put the collection moment in a file
-  that does not know what a collection is.
+  `pickups.js` for the rank-3 drop). It is the sixth in `src/game/` - `enemies↔elite`, `player↔run`,
+  `tally↔weapons`, `kinds↔enemyshots` and `enemies↔chill` are the others, so the pattern is house
+  style rather than an accident - and ESM handles it, but I checked it in all three harnesses before
+  leaving it, because a cycle that is only exercised on an elite's death would sit unnoticed until a
+  release. The alternative (world.js calling `feedField` itself) would have put the collection moment
+  in a file that does not know what a collection is.
 - **`world.shardsCollected` counts shards, not worth**, so the first version of my income probe
   understated elite drops; the honest number needed `worth`, which is only visible at the moment of
   collection. `stats().field` (the bank) sidesteps all of it, which is why the debug stats exist.
@@ -5471,7 +5473,7 @@ arithmetic. Six seeds, medians:
 - **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and
   chill's shatter fires on a body that wore both, plus a way to make a synergy findable on the rack.
   Sessions 39-42 all said this. It is the natural first synergy and it is a *design* job, not a probe.
-- **Owned-upgrade icons on the HUD**: fourteen lines, sixty-eight ranks, and the HUD names none of
+- **Owned-upgrade icons on the HUD**: fourteen lines, seventy ranks, and the HUD names none of
   them. Magnetar makes it worse in a new way - the bank now has a ring on the ship and no label, and a
   player who has never seen the card has to guess which of the three rings round the hull is theirs.
 - Promote the throwaway batch runners into `tools/` for real (session 41, 42 and 43 each wrote a
