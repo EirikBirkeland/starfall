@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.7",
+    "date": "2026-10-08",
+    "summary": "Arc: the third primary - lightning that finds the nearest body and leaps four of them"
+  },
+  {
     "version": "0.4.6",
     "date": "2026-10-08",
     "summary": "Scatter: six pellets in a 30-degree cone at half the pulse's reach, and the title screen asks which gun you fly"
