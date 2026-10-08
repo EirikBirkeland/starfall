@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.6",
+    "date": "2026-10-08",
+    "summary": "Scatter: six pellets in a 30-degree cone at half the pulse's reach, and the title screen asks which gun you fly"
+  },
+  {
     "version": "0.4.5",
     "date": "2026-10-08",
     "summary": "Nova: a ring of damage leaves the ship every 8 s, and a rank buys one more inside the cycle"
