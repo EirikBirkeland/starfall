@@ -4838,3 +4838,141 @@ Everything below is 12-20 runs of the headless bot on one seed family, one proce
   that is a decision for PLAN, not something to slip in sideways. Write it down when it comes up.
 - Still open and untouched from earlier sessions: owned-upgrade icons on the HUD, the third bot
   (dodging with a delay), and a real agent playing a real run through `tools/agent-bridge.js`.
+
+## Session 40 (2026-10-08) — Leech: the first card that gives something back, and a hull that has to be earned twice. Released **0.4.12**
+
+Milestone 4's third behaviour line: PLAN 3.5's **Leech** - "every 60 kills heals 1 hull (fewer
+kills per rank)". The `Each behaviour upgrade from 3.5` item stays unticked (Overcharge,
+Afterimage and Magnetar are still to go). PLAN's Leech line is annotated with what was built,
+with the one place it departs from the plan's letter, and with the measurement that forced it.
+
+### What got built
+
+- `src/game/leech.js` (new) - two functions and one number each. `feedLeech` (called by
+  `killEnemy` in the credited-kill branch, next to the score and the shards, so every kind of
+  death the player lights counts exactly once and a bomber's blast counts not at all),
+  `updateLeech` (run at the end of `stepRun` in `game/world.js`, after everything that can hurt
+  the ship), `newLeech`/`resetLeech` (two numbers on the world: `kills` counted, `held` charges),
+  and `hasLeech` for the HUD.
+- `upgrades.js`: the eleventh line, and it needed no fourth kind of number - it is an `each` line
+  whose whole things are *kills taken off the price of a hull* (`countOf` is the cut, the price is
+  `base - cut`), so the card prints `+6 fewer kills per hull` with the existing machinery. New
+  accessor `leechCostOf(world)`: 60/54/48/42/36 for ranks 1-5 and **0 for rank 0**, which is not a
+  price of 66 but the absence of the bargain (same trap Burn and Chill walked into: rank 0 must be
+  "nothing at all", not "one times nothing").
+- `balance.js`: `upgrades.leech = { ranks: 5, step: 6, base: 66, held: 1 }`. `held` is read (by
+  `feedLeech`, which stops counting at that many charges) rather than decorated.
+- `render/hud.js`: the **leech meter** under the hull pips - the word LEECH, a 96 px track, the
+  fill by `kills / cost`, and one small hull pip at the end it fills towards so it cannot be read
+  as XP. It is not drawn at all until the run has bought the line (an anonymous filling bar would
+  be a riddle). A held charge is a full bar, breathing: the difference between held and filling is
+  alpha, not geometry, and that is a test.
+- `render/cards.js`: the eleventh tint is **not an eleventh hue** - it is `PALETTE.shardLine`, the
+  pale mint the `+1 HULL` label already wears, so the card and the heal are one colour on purpose
+  (the same argument Chill used for rime). `iconLeech` is a hull pip with two rows of chevrons
+  pointing in at it: the chevrons are the edge arrows' language, so the picture is "coming back",
+  not "orbiting". No new palette entry, one new glow holder.
+- `world.leech` is in `STARFALL.stats()` as `leechKills`/`leechHeld` for the headless tools.
+- `test/leech.test.mjs` (18) and `test/leech-art.test.mjs` (4): the price list, rank 0 being
+  nothing, paying at exactly the price and not one body sooner, a tank being one body and its
+  hatchlings two more, an uncredited death feeding nothing, a deeper rank paying from bodies
+  already in hand, the hold and the refund-on-the-step-it-was-lost, one charge at a time, one hull
+  per price and the cap, a crowd coming down in one step paying two hulls, a dead ship not being
+  owed a refund, the heal going through `healPlayer` (ring + word), a new run forgetting the last
+  one's count, the crowd being undisturbed, and a real naive run actually being healed. Suite is
+  now **720 tests, all passing**.
+
+### The decisions, and why
+
+- **PLAN's "fewer kills per rank" cannot mean `60 / rank`.** At the fifth rank that is twelve
+  kills, and a fifteen-minute crowd comes down at eight bodies a second - a hull every 1.5 s, with
+  1.5 s of invulnerability after each hit, which is not an upgrade but a game where hull does not
+  exist. The cut is flat instead: `60 - 54 - 48 - 42 - 36`, so a rank buys a *quicker* recovery
+  rather than a guarantee of one, and the last rank still costs four seconds of a late run. Written
+  into `balance.js` beside the numbers, as the plan's one departure on this line.
+- **Counting and paying are separate jobs.** The first draft paid inside `feedLeech`; that made a
+  rank taken in the middle of a pile wait for the next kill to notice the cheaper price, and put
+  the hull's changing hands in whatever loop happened to land the kill. Now `feedLeech` only
+  counts and `updateLeech` is the one door a hull comes out of, at one point in the step, after
+  everything that could have hurt the ship. Both halves are tested, including the wiring (a body
+  walks into the ship, and the held charge is gone and the hull is back in the same step).
+- **A charge that comes due at full hull is held, one at a time.** PLAN does not mention this. The
+  two alternatives are worse: only counting while wounded leaves a whole ship staring at a meter
+  that never moves, and healing at full hull throws away a level the run spent. Held means the hit
+  that hurts you is refunded on the step it landed - the pip goes down, the mint light goes up, the
+  pip comes back. One and not three because more is a hull you carry rather than one you earned,
+  and because the meter is one honest bar. `feedLeech` stops counting while one is held, which is
+  what "one at a time" means in arithmetic.
+- **The price is subtracted, not the count thrown away**, so sixty-one bodies is a hull and one
+  body towards the next, and a crowd that comes down between two steps (a nova front through a
+  knot) can pay for two hulls in one step if the ship has two holes in it. What it cannot do is
+  stack past one held charge.
+
+### What the numbers came out as
+
+All of it is the headless bot, one process per batch, 16-20 seeds.
+
+- **The aware bot, 900 s: the card is a wash, and here is exactly why.** In the deck: 20/20 at the
+  cap, score median **113,662**, hull lost **0 median, 10 across all twenty runs**. Out of the deck
+  (`BALANCE.upgrades.leech.ranks = 0`): 20/20, **113,789**, 7 hull lost. Handed five ranks: 20/20,
+  113,980. A bot that is never clipped has nothing for a leech to do, so the card is worth precisely
+  what the levels it costs were worth - which is the honest answer and the reason it is not
+  handicapped in `tools/headless/bot.js` (session 38's rule).
+- **The naive bot, 120 s, is the instrument that can see it.** Out of the deck: median 120 s, died
+  on 4 of 16, hull lost median 1, score median 3,287. **Handed four ranks: 16 of 16 still flying at
+  the cap, died on none, score median 3,727** - the best score of the three batches. In the deck,
+  picking its own cards, it took a median of 0 ranks of it and did worse than without the line
+  (107 s, died on 9) - the same "one more card dilutes a build whose gun is the only thing keeping
+  it alive" effect session 39 measured for Chill.
+- **What a run actually gets** (`/tmp/leech-heals.mjs`, naive, 120 s, four ranks, 8 seeds): the
+  arena took 18 hull and the leech handed back **17** (5 paid straight out, 12 spent from a held
+  charge), and it sat on a held charge in **54% of all frames**. So the hold is not a footnote, it
+  is most of the card: what a player who takes this line is buying is "the next one is free",
+  over and over, for four levels.
+- **Reference run rebaselined**, as it must be when a card joins the deck: `--seed 20261006
+  --trace` is alive at the 10m cap, score **59382**, level 37, kills 3479, shards 1597, hull 3,
+  build 5/4/4/1/4/4/1/2/3/4/4 (eleven lines, leech last at 4). The score is well below the old
+  70276 - the bot's even spread now spends four ranks on a line it cannot use - and that single
+  run is a worse instrument here than the twenty-seed medians above, which barely moved.
+
+### What surprised me
+
+- **The aware bot loses *zero* hull in a fifteen-minute run** (median 0, 7-10 across twenty whole
+  runs). Every defensive card in this deck is invisible to the best instrument the project has,
+  which is worth remembering before the next one: Leech, and anything like it, can only be
+  measured on the naive bot or on a bot that is deliberately made worse at dodging. That is a
+  real gap in the tooling, not a problem with the card.
+- The **draw-cost bound moved 32 → 33** for one holder, and the reason is the card's tint: the
+  meter was going to glow with a sprite of its own and I swapped that for the XP bar's trick (the
+  bar stroked wide and faint under itself), which is cheaper, matches the house style, and is now
+  a test ("a charge held costs exactly what a charge filling costs" - and both cost no blur, no
+  gradient, and no bake).
+- Two tests were wrong before they were right, both about what "one charge" means when a crowd
+  comes down in one step: `kills = 0` after a payment throws away real bodies, and `held = 1` in
+  a loop can hold twice. The final arithmetic (subtract the price, pay as many holes as the ship
+  has, hold at most `held`, throw the rest only once the ship is whole) is what the tests now pin.
+- `hitPlayer` is exported from `game/player.js` and not from `game/enemies.js`, which the test's
+  import found out immediately. Good, that is what the import system is for.
+
+### For the next session
+
+- Milestone 4, next behaviour line: **Overcharge** ("standing still for 1 s doubles the next
+  shot"). Read `game/player.js` `steer` first - "standing still" is a question about the input
+  and about the brake, and a ship that is being shoved by the crowd is not standing still, which
+  wants deciding before writing it. It is the first behaviour line whose trigger is about the
+  *player* rather than about the crowd, so it wants a world field like `leech` does and a HUD
+  tell like the dash's cooldown ring already is.
+- Then **Afterimage** (the dash leaves a decoy enemies chase for 2 s - read `kinds.js`, because
+  "chase" is every kind's own walk function and a decoy has to be legible to nine of them) and
+  **Magnetar** (collected shards deal area damage around the ship - closest in shape to Burn and
+  Nova, and the fourth of the four "damage systems" doors).
+- The deck is eleven lines and fifty-five ranks now, and a ten-minute run ends about level 40. The
+  fifth-rank problem from session 39 is unchanged: the bot never reaches a fifth rank of anything,
+  so every rank-5 payoff in PLAN is invisible except forced. Still a decision for PLAN, not
+  something to slip in sideways.
+- `tools/power-ladder.js` still cannot measure a line whose payoff is at a death. Leech did not
+  need it - hull lost on the naive bot is the instrument - but Burn 3 and Chill 3 (**Thermal
+  shock**, PLAN's first synergy) will, and a synergy also needs the "special card frame" and a way
+  to be *found*, which is its own milestone item.
+- Still open and untouched from earlier sessions: owned-upgrade icons on the HUD, the third bot
+  (dodging with a delay), and a real agent playing a real run through `tools/agent-bridge.js`.
