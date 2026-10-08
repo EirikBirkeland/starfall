@@ -4702,3 +4702,139 @@ did it, which is the only edit the plan got.
 - The bot has no way to *want* a synergy, and no card scoring for burn's tail. Not a bug; the A/B
   above is what the bot is for.
 
+
+## Session 39 (2026-10-08) — Chill: the first card that takes something away, and a death that throws ice. Released **0.4.11**
+
+Milestone 4's second behaviour line: PLAN 3.5's **Chill** - "hits slow by 8% per rank; frozen
+enemies shatter for area damage at rank 5". The `Each behaviour upgrade from 3.5` item stays
+unticked (Leach, Overcharge, Afterimage and Magnetar are still to go); PLAN's Chill line is now
+annotated with what was built and with the one place it departs from the plan's letter.
+
+### What got built
+
+- `src/game/chill.js` (new). Frost is **a field on the body** (`enemy.frost`, added in
+  `kinds.js makeEnemy`) and not a list in the world - a fire has to outlive the body it is eating
+  by one step, frost has no such errand, and the one thing it does after a death is paid out at
+  the death while the corpse is still in hand. `chill` (one door for every hit), `freeze` (the
+  crossing, and the only place the tell is played), `melt` (one step of warming, called from
+  `enemies.js updateEnemies` beside `flash`), `shatterOnDeath` (called by `killEnemy`, ahead of
+  the kind's own `onDeath`, so a tank's hatchlings escape the ice their parent came apart in).
+- **The frost *is* the slow**: `kinds.js glide` multiplies the walk by `(1 - enemy.frost)`, and
+  `turnToward` multiplies the turn rate by the same, because turning is how a body moves just as
+  much as walking is - a chilled sniper cannot get its eye on to you. What it never touches is
+  impulse: a bullet's kick, a darter's shoulder, a nova front and a neighbour making room all
+  still shove a frozen body around, which is what keeps a knot of ice pushable instead of a wall.
+  And a lock that has already been taken is never slowed: the telegraph is never stolen.
+- **It melts** (`melt: 3.2` s, hit clock restarts on every hit), so the line is kept up with fire
+  rather than paid once. **Frozen** is `frost >= 0.9` and not `== 1` (`SOLID`, in `chill.js`): a
+  frost wears away continuously, so "exactly a whole" is one step wide and a shell drawn there
+  would flicker once and vanish.
+- **Rank 5 is the shatter**: a body that comes apart cold throws a 96 px front - hull and frost to
+  everything inside it, scaled by how cold the corpse was, and passing on a `share` of its cold so
+  a chain runs down a crowd and dies out. It never hurts the ship.
+- `render/entities.js`: rime (one glow, dimmed by how cold) on every chilled body, and a shell of
+  ice on a frozen one that stands further out than the rime and breathes off the body's own
+  `phase`; the on-screen cull now knows about both. `render/cards.js`: the tenth tint (rime, the
+  pale end of the wheel, across the card table from BURN's warm one) and an icon of a body inside
+  the same hexagon the arena draws. `PALETTE.chillFrost` / `chillShell`.
+- `test/chill.test.mjs` (23 tests) and `test/chill-art.test.mjs`: rank 0 is nothing at all, the
+  frost is the slow measured in pixels, a frozen body cannot walk but is still shoved, turns are
+  slowed the same way, the cap and the one-time freeze tell, the melt and its thaw puff, the rank
+  gate, the reach, the scaling with the frost and with the damage line, the share, the chain dying
+  out, the ship never standing in its own ice, the killing hit being the cold the body dies with,
+  all four doors (bullets, bolts, drones, nova fronts) and Blast not chilling, no `logic` draw,
+  and the art's cost and sprite bounds.
+- No `logic`-stream number anywhere in `chill.js`: 698 tests pass, `tools/simulate.js` runs clean.
+
+### The one departure from the plan, and the measurement that forced it
+
+PLAN's "frozen enemies shatter" read literally - only a body `frost == 1` shatters - is worth
+nothing, because **a strong gun kills a body with about the shot that touches it**: a probe run at
+five ranks, 300 s, came apart 1932 bodies and **one** of them froze solid. So every door chills
+*before* it takes the hull away, which makes the killing hit the cold the body dies with, and a
+shatter is `weight x frost` of a shot instead of a flat payout gated on a state almost nothing
+survives to reach. Same lesson as session 38's Burn, arriving on its own: a card that only works
+on bodies that survived being shot stops working as the gun grows. PLAN says so where the line is
+annotated.
+
+### What the numbers came out as
+
+Everything below is 12-20 runs of the headless bot on one seed family, one process per batch.
+
+- **Shatter priced by what it is worth in a run**, the way burn was (difference in
+  `tally.kinds[*].damage` between the same twelve 900 s aware runs with the fifth rank able to
+  shatter and unable to, chill forced to 5 from outside): off 55,215 · w2.2 58,230 (**+5.5%**) ·
+  w4 64,567 (**+16.9%**) · w8 79,923 (+44.7%). **`weight: 4`** is the one shipped, so the fifth
+  rank is worth about a nova front's whole share (18%, session 31) earned in many small
+  goings-apart instead of a few big ones. At 2.2 a score did not notice it at all.
+- **Deck A/B, aware, 900 s, 20 seeds**: in the deck median 15m00s, mean 13m20s, 17/20 at cap, score
+  median 113,199; out of the deck 15m00s, 14m22s, 19/20, 115,262. So level to slightly negative
+  for the bot - and the `noshatter` batch came out **byte for byte identical** to the deck batch,
+  because the bot's even spread **never got one line past four ranks in twenty runs**. A fifth rank
+  in a deck of ten lines is deep endgame content; a player has to decide to build towards it. Left
+  as it is, and written into `balance.js` next to `at: 5`.
+- **The naive bot, 16 seeds, 120 s**, which is the instrument that can see a defensive card at
+  all: hull lost median **2 with the line out, 0 with four ranks handed for free**, deaths 6/16 →
+  1/16. The slow genuinely keeps the ship whole. Paying levels for it is not obviously worth it to
+  a bot that dies at 2m (deck median 2m17s against 2m55s out) - but see the next line before
+  reading that as "chill is bad".
+- **Removing any line from the deck helps the naive bot**, which is the confound in every number
+  above (deck-with-everything score median 2394; chill out 3134, burn out 3009, nova out 2528,
+  split out 2725, fireRate out 3311). An eleventh line dilutes every build by about as much as
+  chill does; fireRate dilutes it more. Chill is not specially bad, it is one more card.
+- **In a real run at five ranks**: 1410 shatters in 300 s, the crowd's mean walk taken down 24%,
+  and the frost a body dies with is usually exactly one hit's worth (0.4). So the shatter's damage
+  is spread thin over very many deaths, which is what the weight above is paying for.
+- The bot got **no `APPETITE` or `DEFERRED` entry**: same ruling as burn in session 38 - handicapping
+  a card because the bot's own dodging model cannot use it is how a card stops being measurable.
+- **Reference run rebaselined**, as it must be when a card joins the deck: `--seed 20261006
+  --trace` is alive at the 10m cap, score **70276**, level 41, kills 4118, shards 2036, hull 3,
+  build 5/4/5/4/5/4/3/4/2/4 (ten lines now, chill last at 2).
+
+### What surprised me
+
+- **Pinning ranks from outside breaks the bot when you pin them down.** `onFrame: (game) =>
+  game.world.upgrades.chill = 0` looked like a clean "line at rank zero" control and gave a median
+  of 3m44s with 0/12 at cap: the bot picks the *shallowest* line it is offered, so an artificially
+  empty line is picked forever and the level is spent on nothing the frame lets keep. Forcing
+  ranks **up** is fine (the bot just avoids the line and its other lines grow normally). Useful
+  instrument, one direction only.
+- **One `bootGame` per process**, again the hard way: a throwaway that called `playRuns` once per
+  config died on the second boot with "the game booted but did not expose window.STARFALL". One
+  process per batch, results appended.
+- **`BALANCE.upgrades.<line>.ranks = 0` is how a line is taken out of a deck.** Splicing it out of
+  `LINES` instead crashes `render/indicators.js`, which builds one slot per line.
+- Burn's table of "one shot costs `BALANCE.upgrades.baseDamage`" nearly misled me into pricing the
+  shatter ten times too strong: the unit every damage in the game actually pays in is
+  `BALANCE.bullets.damage` (= 1 hull, and a drifter's whole hull is single digits late). Burn,
+  nova and chill all quote `bullets.damage x gainOf(damage)`; `upgrades.baseDamage` is the old
+  abstract reference for the cost table, nothing more.
+- Making **turns** slow as well as paces turned out to be the difference between "frozen is a
+  mystery" and "frozen is legible": a chilled sniper whose eye cannot come round is obviously
+  locked down, and one that tracks you at full speed while wearing a shell of ice would have made
+  the shell a lie.
+- The light had to be re-taught mid-session: a shatter ring at full reach on every cold death was
+  five claims a second, and ice chips plus a glass shriek on each of them was a hiss. Now the ring
+  runs out *by the frost* (a body that died of one cold shot claims only the room its cold was
+  worth) and the chips and the sound belong to a body that actually wore the shell. A test holds
+  both halves.
+
+### For the next session
+
+- **Thermal shock is available now**: PLAN's synergy table has Burn 3 + Chill 3 - "enemies that are
+  both burning and chilled explode". Both halves exist (`burn.js isBurning`/`flameOf`, `chill.js
+  isFrozen`/`frostOf`), so this is the natural next item and the first synergy in the game. Two
+  things to watch: a body that both burns and chills currently pays out *two* area events on one
+  death (a fire pass and a shatter), so the synergy wants a rule about which of them fires rather
+  than a third on top; and a synergy needs a way to be *found* (PLAN 3.5's Codex/Challenges
+  sections are where that is paid off, later).
+- Then the behaviour lines left: **Leach**, **Overcharge**, **Afterimage**, **Magnetar**.
+- `tools/power-ladder.js` still cannot measure a line whose payoff is at a death - two sessions
+  have now worked around it with a `tally.kinds[*].damage` probe. Either the ladder grows a knot
+  where bodies die, or this keeps costing an hour a line.
+- The fifth-rank problem is real and shared: **the bot never reaches a fifth rank of anything
+  inside a 15 minute window**, so every "rank 5" payoff in PLAN is invisible to every instrument
+  except a forced one. Fewer lines in the deck, faster levels, or paying off at rank 4 instead -
+  that is a decision for PLAN, not something to slip in sideways. Write it down when it comes up.
+- Still open and untouched from earlier sessions: owned-upgrade icons on the HUD, the third bot
+  (dodging with a delay), and a real agent playing a real run through `tools/agent-bridge.js`.
