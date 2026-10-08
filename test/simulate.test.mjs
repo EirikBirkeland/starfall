@@ -11,20 +11,31 @@
 // One boot for the whole file, because the modules hold the world: a process plays
 // one game, and `resetToTitle` is what puts another run up. The command-line checks
 // spawn their own processes and are unaffected by that rule.
+//
+// The bottom of the file is the batch - the middle run of a set of them, which is the
+// number PLAN's survival check is written against. It is measured on numbers the test
+// made up, because a batch of real runs is not something a test can wait for.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun, endingItAt } from '../tools/headless/bot.js';
+import { median, aggregate, batchLine, batchStatsLine } from '../tools/simulate.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
+const SIMULATE = path.join(ROOT, 'tools', 'simulate.js');
 const game = await bootGame({ root: ROOT, seed: 11 });
 
 function simulate(args) {
-  return execFileSync(process.execPath, [path.join(ROOT, 'tools', 'simulate.js'), ...args],
-    { cwd: ROOT, encoding: 'utf8' });
+  return execFileSync(process.execPath, [SIMULATE, ...args], { cwd: ROOT, encoding: 'utf8' });
+}
+
+/** The same, but keeping the exit status instead of throwing on a non-zero one. */
+function runTool(args) {
+  const done = spawnSync(process.execPath, [SIMULATE, ...args], { cwd: ROOT, encoding: 'utf8' });
+  return { status: done.status, out: done.stdout, err: done.stderr };
 }
 
 /** One run on this boot, from a title screen that has never seen a frame. */
@@ -99,4 +110,83 @@ test('--bot picks which player sits down at the keyboard', () => {
   assert.ok(rejected, 'a player name nobody defined must not be accepted');
   assert.equal(rejected.status, 2);
   assert.match(String(rejected.stderr), /--bot wants one of/);
+});
+
+/** A finished run, as small as a test can make it and still be one. */
+function runOf(seconds, score, level, kills, died) {
+  return {
+    policy: 'aware',
+    seconds: seconds,
+    died: died,
+    stats: { weapon: 'pulse', score: score, level: level, kills: kills },
+  };
+}
+
+// One wreck, one middling run, one that outlasted the window: every column a batch
+// reports has a different answer in these three.
+const BATCH = [runOf(60, 100, 2, 10, true), runOf(300, 300, 5, 40, true), runOf(900, 900, 9, 90, false)];
+
+test('the median is the middle run, not the average of them', () => {
+  assert.equal(median([5]), 5);
+  assert.equal(median([5, 1, 3]), 3, 'sorted first, then the middle one');
+  assert.equal(median([4, 1, 3, 2]), 2.5, 'an even batch has nobody exactly in the middle');
+  assert.ok(Number.isNaN(median([])), 'an empty batch has no middle at all');
+
+  // The whole point of the number: two wrecks at the bottom of a batch of six drag the
+  // mean down to the floor and leave the middle standing.
+  const six = [900, 900, 900, 900, 30, 45];
+  assert.equal(median(six), 900);
+  assert.ok(median(six) > six.reduce((sum, value) => sum + value, 0) / six.length);
+});
+
+test('a batch is its middle, its mean, and how much of it was cut short', () => {
+  const batch = aggregate(BATCH, 900);
+  assert.equal(batch.runs, 3);
+  assert.equal(batch.policy, 'aware');
+  assert.equal(batch.weapon, 'pulse');
+  assert.equal(batch.atCap, 1, 'one of the three was still flying when the window shut');
+  assert.equal(batch.seconds.median, 300);
+  assert.equal(batch.seconds.mean, 420);
+  assert.equal(batch.seconds.worst, 60, 'the seed that went wrong early is printed too');
+  assert.equal(batch.score.median, 300);
+  assert.equal(batch.kills.median, 40);
+});
+
+test('the batch line names the middle run and the gun it was flown on', () => {
+  const line = batchLine(aggregate(BATCH, 900));
+  assert.match(line, /^batch of 3 runs, aware bot, gun pulse:/);
+  assert.match(line, /median 5m00s, mean 7m00s, worst 1m00s/);
+  assert.match(line, /1\/3 still flying at the 15m00s cap/);
+
+  const stats = batchStatsLine(aggregate(BATCH, 900));
+  assert.match(stats, /score median 300 mean 433\.3/);
+  assert.match(stats, /level median 5 mean 5\.3/);
+  assert.match(stats, /kills median 40 mean 46\.7/);
+});
+
+test('a batch of runs prints its middle after the runs', () => {
+  const out = simulate(['--runs', '3', '--seconds', '45', '--seed', '71']);
+  assert.equal(out.trim().split('\n').filter((line) => line.startsWith('seed ')).length, 3);
+  assert.match(out, /^batch of 3 runs, aware bot, gun pulse: median/m);
+  assert.match(out, /^ {2}score median /m);
+});
+
+test('--need makes the survival check an exit code', () => {
+  const under = runTool(['--runs', '2', '--seconds', '60', '--seed', '71', '--need', '90']);
+  assert.equal(under.status, 1, 'a batch that mediates a minute does not clear a minute and a half');
+  assert.match(under.out, /survival check: the median run lasted 1m00s against the 1m30s it needs - FAIL/);
+
+  const over = runTool(['--runs', '2', '--seconds', '60', '--seed', '71', '--need', '30']);
+  assert.equal(over.status, 0);
+  assert.match(over.out, /against the 0m30s it needs - pass/);
+
+  const lonely = runTool(['--need', '30']);
+  assert.equal(lonely.status, 2, 'one run is its own median and proves nothing');
+  assert.match(lonely.err, /--need wants a batch/);
+});
+
+test('--runs wants at least one run', () => {
+  const none = runTool(['--runs', '0']);
+  assert.equal(none.status, 2);
+  assert.match(none.err, /--runs wants at least one run/);
 });

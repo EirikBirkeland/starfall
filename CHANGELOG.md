@@ -1,5 +1,23 @@
 # Starfall — changelog
 
+## 0.4.8 — 2026-10-08
+Survival check: the firepower milestone is closed, and the number it was argued over is now a tool.
+- **No gameplay change.** What changed is the measuring: `node tools/simulate.js --runs 24`
+  reports the **median** run of the batch - the middle one, not the average - next to the mean,
+  with how many runs were still flying when the window shut. `--need 300` turns PLAN's own
+  bar (median survival of 5:00 or more) into an exit code instead of an eye test.
+- **The bar is cleared, by the whole width of the window.** Twenty-four seeds a gun, the dodging
+  bot picking its own upgrades, a fifteen-minute cap: **median 15m00s on all three primaries** -
+  22/24 pulse, 23/24 scatter and 23/24 arc were still flying when it shut, and at a thirty-minute
+  cap the pulse and the scatter runs were 8/8 still up. So that median is a floor and the tool
+  says so on the same line rather than pretending the run ended.
+- **What sits under the floor:** the plain bot, which does not dodge, mediates **2m43s** on the same
+  seeds and every one of the twenty-four died. The enemies were not softened to reach those
+  numbers - the hard rule of this milestone - the player's firepower grew to meet them.
+- The middle and the mean are the two numbers every decision here has been argued from since the
+  first weapon landed, and until now they have been recomputed by hand out of the run lines each
+  time. They are in the tool now, per gun, with the worst seed of the batch beside them.
+
 ## 0.4.7 — 2026-10-08
 Arc: the third primary - lightning that finds the nearest body itself and leaps four of them.
 - **`3` on the title screen is the ARC.** Three primaries on the rack now, and the third is not

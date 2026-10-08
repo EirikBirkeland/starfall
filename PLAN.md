@@ -360,14 +360,20 @@ One item per session, as always:
       where the two meet again - and the split line reads as extra *chains*, because on a gun
       that aims itself the only way to cover more ground is a second place to start from.
       The measurements are in NOTES session 34.
-- [ ] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`
+- [x] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`
       bot picking upgrades. The median must be 5:00 or more. If it is not, add firepower: stronger
       ranks, more ranks, another upgrade from 3.5. Never by weakening the enemies (see the hard rule).
       Write the numbers in `NOTES.md`. Release.
-      **Not done, and it is the median that is missing, not the firepower:** the number has been
-      measured by hand every release since (15m00s, the window, for both primaries), but
-      `tools/simulate.js` still prints a mean and no median, so the check has never been run by
-      the tool that is supposed to run it.
+      (Done in 0.4.8, and it passes by the whole width of the window, which is the one thing worth
+      reading carefully: `node tools/simulate.js --runs 24 --seconds 900 --need 300` now reports a
+      **median of 15m00s - the cap itself - on all three primaries**, with 22/24, 23/24 and 23/24 seeds
+      still flying when the window shuts, and at a thirty-minute cap the pulse and scatter batches
+      are 8/8 still up. The median is therefore a **floor**, and the tool prints the at-cap count on
+      the same line so nobody reads it as a survival time. Under the floor: the `naive` bot, same
+      seeds, mediating 2m43s with all 24 of them dying - so the ramp is intact and nothing was softened
+      to make the headline number look good. Full table in NOTES session 35.
+      *This closes the milestone: go back to the first unchecked item of milestone 3, which is the
+      sniper - the one body in PLAN 3.3 that has not been built.*)
 
 How it should feel: by two minutes in, the screen is visibly full of the player's own shots, and
 every level-up changes what the weapon does, not only a number.

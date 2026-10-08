@@ -3,23 +3,34 @@
 //
 //   node tools/simulate.js                    one run, default seed
 //   node tools/simulate.js --seed 7           a different run
-//   node tools/simulate.js --runs 5           several runs, with an average
+//   node tools/simulate.js --runs 20          a batch of runs, and the middle one
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc)
+//   node tools/simulate.js --need 300         exit non-zero unless the batch mediates
+//                                             this many seconds (PLAN's survival check)
 //   node tools/simulate.js --trace            print a state fingerprint over time
 //   node tools/simulate.js --audio            boot with a fake audio device
+//
+// One run prints what that run was. A batch adds a line for the set: how many were
+// still flying when the window shut, and the *middle* run of it, with the mean beside
+// it. The middle is what PLAN's survival check is written against and a mean is not
+// that number - a batch of runs is lopsided, two early wrecks drag the average down
+// and say nothing about the run in the middle of the set. `--need` is that check as an
+// exit code instead of an eye test.
 //
 // The bot is tools/headless/bot.js. `aware`, the default, shoots the nearest thing
 // and steps out of whatever is on its way to the ship; `naive` shoots the nearest
 // thing and only backs away from whatever is already close. This script must always
-// finish without throwing.
+// finish without throwing; the one exit it may choose for itself is `--need`.
 
+import { pathToFileURL } from 'node:url';
+import { clock, int, dec } from './headless/tables.js';
 import { playRuns, POLICIES } from './headless/bot.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, weapon: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, weapon: undefined, need: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -31,6 +42,7 @@ function readArgs(argv) {
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--weapon') opts.weapon = next();
+    else if (arg === '--need') opts.need = parseFloat(next());
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--audio') opts.audio = true;
     else {
@@ -46,14 +58,15 @@ function readArgs(argv) {
     console.error('--bot wants one of: ' + Object.keys(POLICIES).join(', '));
     process.exit(2);
   }
+  if (opts.runs < 1) {
+    console.error('--runs wants at least one run');
+    process.exit(2);
+  }
+  if (opts.need !== undefined && !Number.isFinite(opts.need)) {
+    console.error('--need wants a number of seconds');
+    process.exit(2);
+  }
   return opts;
-}
-
-function clockText(seconds) {
-  const whole = Math.round(seconds);
-  const minutes = Math.floor(whole / 60);
-  const rest = whole % 60;
-  return minutes + 'm' + (rest < 10 ? '0' : '') + rest + 's';
 }
 
 function reportLine(summary) {
@@ -62,7 +75,7 @@ function reportLine(summary) {
     + '  ' + summary.policy
     + '  gun ' + summary.stats.weapon
     + '  ' + (summary.died ? 'died' : 'alive at the cap')
-    + '  ' + clockText(summary.seconds)
+    + '  ' + clock(summary.seconds)
     + '  score ' + s.score
     + '  level ' + s.level
     + '  kills ' + s.kills
@@ -72,34 +85,113 @@ function reportLine(summary) {
     + '  build ' + Object.values(s.ranks).join('/');
 }
 
-function average(summaries, pick) {
-  return summaries.reduce((sum, item) => sum + pick(item), 0) / summaries.length;
+/**
+ * The middle of a set of numbers: the one in the middle of the sorted set, or the
+ * middle of the two that are when there is no single one. Exported so a test can put
+ * it on numbers it made up rather than on twenty bot runs.
+ */
+export function median(values) {
+  if (values.length === 0) return NaN;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[half] : (sorted[half - 1] + sorted[half]) / 2;
 }
 
-const opts = readArgs(process.argv.slice(2));
+/** The middle of a batch for one field of it, with the mean and the earliest run. */
+function spread(summaries, pick) {
+  const values = summaries.map(pick);
+  let sum = 0;
+  for (const value of values) sum += value;
+  const sorted = values.slice().sort((a, b) => a - b);
+  return {
+    mean: sum / values.length,
+    median: median(values),
+    // The shortest run of the set - the early wreck a median and a mean both hide.
+    // (The longest is not printed: in a capped batch it is the cap.)
+    worst: sorted[0],
+  };
+}
 
-const summaries = await playRuns({
-  seeds: Array.from({ length: opts.runs }, (unused, i) => opts.seed + i),
-  maxSeconds: opts.seconds,
-  audio: opts.audio,
-  every: opts.trace ? opts.every : 0,
-  policy: opts.policy,
-  weapon: opts.weapon,
-});
+/**
+ * A batch of finished runs, counted up. `cap` is the window every one of them was cut
+ * short at: when most of a batch is `atCap` its median is a floor and not a survival
+ * time, which is why the two are always printed together.
+ */
+export function aggregate(summaries, cap) {
+  return {
+    runs: summaries.length,
+    policy: summaries[0].policy,
+    weapon: summaries[0].stats.weapon,
+    cap: cap,
+    atCap: summaries.filter((summary) => !summary.died).length,
+    seconds: spread(summaries, (summary) => summary.seconds),
+    score: spread(summaries, (summary) => summary.stats.score),
+    level: spread(summaries, (summary) => summary.stats.level),
+    kills: spread(summaries, (summary) => summary.stats.kills),
+  };
+}
 
-for (const summary of summaries) {
-  console.log(reportLine(summary));
-  if (opts.trace) console.log('trace ' + summary.trace.join(' '));
-  if (!summary.died) console.log('note: the bot survived the whole ' + opts.seconds + 's window.');
-  if (summary.stats.score <= 0) {
-    throw new Error('the bot never scored: the game is not playable headless');
+/** A count whose middle can land between two whole numbers. */
+function count(value) {
+  return Number.isInteger(value) ? int(value) : dec(value, 1);
+}
+
+/** The set as one line: the middle run, the mean beside it, and how many never died. */
+export function batchLine(batch) {
+  return 'batch of ' + batch.runs + ' runs, ' + batch.policy + ' bot, gun ' + batch.weapon
+    + ': median ' + clock(batch.seconds.median)
+    + ', mean ' + clock(batch.seconds.mean)
+    + ', worst ' + clock(batch.seconds.worst)
+    + ', ' + batch.atCap + '/' + batch.runs + ' still flying at the ' + clock(batch.cap) + ' cap';
+}
+
+/** The same batch, in the columns that are not time. */
+export function batchStatsLine(batch) {
+  return '  score median ' + count(batch.score.median) + ' mean ' + count(batch.score.mean)
+    + '  |  level median ' + count(batch.level.median) + ' mean ' + count(batch.level.mean)
+    + '  |  kills median ' + count(batch.kills.median) + ' mean ' + count(batch.kills.mean);
+}
+
+/** Only run when called as a command, so the tests can import the parts above. */
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  const opts = readArgs(process.argv.slice(2));
+
+  const summaries = await playRuns({
+    seeds: Array.from({ length: opts.runs }, (unused, i) => opts.seed + i),
+    maxSeconds: opts.seconds,
+    audio: opts.audio,
+    every: opts.trace ? opts.every : 0,
+    policy: opts.policy,
+    weapon: opts.weapon,
+    // Printed as each run finishes: a batch of twenty long ones is minutes of work and
+    // a silent terminal cannot be told apart from a stuck one.
+    onRun: (summary) => {
+      console.log(reportLine(summary));
+      if (opts.trace) console.log('trace ' + summary.trace.join(' '));
+      if (!summary.died) console.log('note: the bot survived the whole ' + opts.seconds + 's window.');
+    },
+  });
+
+  for (const summary of summaries) {
+    if (summary.stats.score <= 0) {
+      throw new Error('the bot never scored: the game is not playable headless');
+    }
   }
-}
 
-if (summaries.length > 1) {
-  console.log('average over ' + summaries.length + ' runs: '
-    + clockText(average(summaries, (s) => s.seconds))
-    + ', score ' + Math.round(average(summaries, (s) => s.stats.score))
-    + ', level ' + average(summaries, (s) => s.stats.level).toFixed(1)
-    + ', kills ' + Math.round(average(summaries, (s) => s.stats.kills)));
+  if (summaries.length > 1) {
+    const batch = aggregate(summaries, opts.seconds);
+    console.log(batchLine(batch));
+    console.log(batchStatsLine(batch));
+    if (opts.need !== undefined) {
+      const reached = batch.seconds.median >= opts.need;
+      console.log('survival check: the median run lasted ' + clock(batch.seconds.median)
+        + ' against the ' + clock(opts.need) + ' it needs - ' + (reached ? 'pass' : 'FAIL'));
+      // The exit code, not a thrown Error: the runs all played, the batch is simply short.
+      process.exitCode = reached ? 0 : 1;
+    }
+  } else if (opts.need !== undefined) {
+    console.error('--need wants a batch: one run is its own median and proves nothing');
+    process.exit(2);
+  }
 }

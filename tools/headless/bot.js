@@ -325,7 +325,7 @@ export function endingItAt(seconds) {
 
 /**
  * Boot one game and play several runs on it, one per seed.
- * Options: { seeds: [..], maxSeconds, every, policy }
+ * Options: { seeds: [..], maxSeconds, every, policy, onRun }
  */
 export async function playRuns(options) {
   const opts = options || {};
@@ -334,7 +334,11 @@ export async function playRuns(options) {
   const summaries = [];
   for (let i = 0; i < seeds.length; i++) {
     if (i > 0) await game.resetToTitle(seeds[i]);
-    summaries.push(playOneRun(game, opts));
+    const summary = playOneRun(game, opts);
+    summaries.push(summary);
+    // A batch of long runs is minutes of silence without this, and whoever is watching
+    // it wants to know which seed is taking its time.
+    if (opts.onRun !== undefined) opts.onRun(summary);
   }
   game.stop();
   return summaries;
