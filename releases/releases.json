@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.8",
+    "date": "2026-10-08",
+    "summary": "Survival check: the median is in the tool, and the firepower milestone closes on it"
+  },
+  {
     "version": "0.4.7",
     "date": "2026-10-08",
     "summary": "Arc: the third primary - lightning that finds the nearest body and leaps four of them"
