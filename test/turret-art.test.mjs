@@ -119,14 +119,12 @@ function paintFrame(state) {
   if (hold !== null) hold();
   const after = game.drawCalls();
   const now = game.bakeCalls();
-  const widths = game.strokeWidths();
   return {
     strokes: after.strokes - before.strokes,
     stamps: after.images - before.images,
     gradients: after.gradients - before.gradients,
     shadows: after.shadows - before.shadows,
     baked: now.canvases - baked.canvases,
-    widest: widths.length ? Math.max(...widths) : 0,
     // The log holds the one frame that was just drawn (tools/headless/harness.js), so this is that
     // frame's own points and nothing older than it.
     points: game.points(),
