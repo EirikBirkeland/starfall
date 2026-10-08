@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.11",
+    "date": "2026-10-08",
+    "summary": "Chill: every hit the ship lands takes the speed out of them, and a cold body coming apart throws ice"
+  },
+  {
     "version": "0.4.10",
     "date": "2026-10-08",
     "summary": "Burn: every hit the ship lands sets the crowd alight, and a body that dies alight passes it on"
