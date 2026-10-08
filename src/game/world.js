@@ -21,6 +21,7 @@ import { newOvercharge } from './overcharge.js';
 import { newAfterimage, updateAfterimage } from './afterimage.js';
 import { newMagnetar, updateMagnetar } from './magnetar.js';
 import { newMines, updateMines } from './mines.js';
+import { newTether, updateTether } from './tether.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -162,6 +163,12 @@ function createWorld() {
     // asked to do and what it got to do with it. Pooled and unordered like everything else that has
     // to be many - a mine is a place, and no two of them care about each other.
     mines: newMines(),
+    // What a dash has tied to the arena (game/tether.js): the threads standing between the knots and
+    // the ship, how long the fan is still live for, who is standing on it *this step* (a list rebuilt
+    // from the crowd every step and held nowhere else, like the grid and the packs), and five counters
+    // of what the line was asked to do. Nothing is remembered about which bodies were on a thread -
+    // that is asked of the crowd every step (game/enemies.js) - so this is the whole state of the line.
+    tether: newTether(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -253,6 +260,9 @@ function stepRun(dt, input) {
   // And after that for the same reason again: a mine lights for where a body ended up, and its
   // blast is paid out there (game/mines.js).
   updateMines(world, dt);
+  // And after that one too: a thread burns where the crowd finished walking, and its near end is the
+  // ship as the engines and the dash left it (game/tether.js).
+  updateTether(world, dt);
   // And after all of them, because a fire is the slowest thing here: it bites where every
   // body ended up after the walking and the other damage, and the body it finishes is the
   // one whose fire goes out sideways (game/burn.js).

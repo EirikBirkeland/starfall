@@ -1555,6 +1555,141 @@ export const BALANCE = {
         sound: { freq: 96, dur: 0.32, wave: 'sawtooth', vol: 0.14, slide: 40 },
       },
     },
+
+    // Tether (game/tether.js): PLAN 3.2's "a damaging beam links the ship to its last dash position
+    // for 2 s", and the second of the two secondary systems left in that table. It is the only damage
+    // in the deck that is a *line*: everything else that adds damage is a circle round the hull (the
+    // orbital wall, the nova's front, the magnetar's field, a mine's ring), so everything else is
+    // worth what the crowd standing near you is worth, and this is worth the ground between where you
+    // were and where you are going. Which makes it the second line this milestone has had to price off
+    // the run rather than the ladder - a knot of immortal bodies pinned to the floor is the one crowd
+    // that never turns, never dashes and never sweeps anything across it.
+    tether: {
+      ranks: 5,
+      // A line of whole things (`each`, game/upgrades.js), and the whole things are threads: a dash
+      // ties `step x rank` of them, knotted evenly down the streak the dash covered and every one of
+      // them tied to the ship. Rank 1 is PLAN's single beam down the middle of the wake and rank 5 is
+      // a fan of five, so a rank buys *breadth* - a wider lane swept on the next turn - rather than a
+      // heavier pulse on the ground the first thread already covered. It is the nova's rule and
+      // afterimage's: the same crowd hit harder is a rank nobody can feel.
+      step: 1,
+      // s PLAN's number, unchanged: the tether is live for two seconds from the step the dash is
+      // granted and then lets go. Nothing here counts anything else - the threads have no other clock
+      // - and the ship's own speed is what caps how long a thread can be, because two seconds at
+      // 320 px/s is 640 px of tether and never a pixel more.
+      //
+      // Two seconds is also shorter than the dash's own cooldown (2.5 s, BALANCE.player.dash), which
+      // is the same bargain afterimage struck: one dash's tether is gone before the next dash is
+      // allowed, so a run that dashes on cooldown keeps a thread tied nearly all the time - measured at
+      // 54,452 of a run's 108,000 steps, just over half the run, on a bot that dashes whenever anything
+      // gets within arm's reach - and a run that saves its dashes gets one when it needs it.
+      life: 2,
+      // s of that life the threads spend visibly letting go, so the line says it is nearly done
+      // instead of stopping between two frames (game/mines.js fades its mines the same way).
+      fade: 0.4,
+      // px either side of the axis a body has to stand inside to be on the thread, measured to the
+      // body's own skin - and the band is drawn at exactly this width and no wider (render/
+      // entities.js), so the road of light is the road the damage is paid out on, edge for edge, the
+      // promise the sniper's beam and a mine's ring already keep.
+      //
+      // 34 px is a lane you can see and fly out of, and it is wide enough that a chasing crowd walks
+      // into it rather than having to be driven into it: a drifter is 11 px across, so the band catches
+      // anything whose middle comes within 45 px of the line. Swept on the run: at 50 px a mean of 0.13
+      // bodies stood on the threads per live step and at 30 px only 0.06, and the width is what the
+      // whole difference between those two is made of - the length of a thread is free, its width is
+      // the only thing the line has to be wide with. 34 was picked as the number that still reads as a
+      // *thread* rather than a beam across the glass: five of them at 50 px each side is a wall of
+      // light over half the arena, and a card called TETHER that paints a wall is lying about what it
+      // is. The band is drawn at exactly this, so the road you are shown is the road that burns you.
+      reach: 34,
+      // s between pulses of the whole fan. The threads are one weapon with one beat, so a body
+      // standing where three of them overlap pays once and not three times (game/tether.js) and the
+      // fifth rank buys ground rather than a stack on whatever is already under the ship.
+      //
+      // 0.4 s, which measured as the honest middle: at 0.3 s a thread that has a body on it paid out
+      // about 20% more often for exactly the same paint, which is the same damage spread thinner and
+      // faster - the magnetar's argument about `cost` again - and at 0.5 s the pulse starts arriving
+      // after a body has been dragged off the line rather than while it is on it. The beat is also
+      // what the threads' brightness is painted out of (render/entities.js), so 0.4 s is the fastest
+      // the line can flicker and still be read as one thing lighting up rather than as a strobe.
+      beat: 0.4,
+      // What one pulse takes off every body it comes round, as a multiple of one shot of the ship's
+      // own gun, with the damage line multiplied into it exactly as it multiplies a drone's bite, a
+      // nova front, a mine and the magnetar's crack (session 31's rule: an added source has to grow
+      // with the gun or it stops being worth taking).
+      //
+      // MEASURED on the run, because the ladder cannot see this line at all - `tools/power-ladder.js
+      // --line tether` prints 1.00x on all three knots, and a wall of immortal bodies pinned to the
+      // floor is exactly the crowd that never dashes, never turns and never has a thread swept across
+      // it. The instrument is `tools/line-ab.js --line tether --dash`, and the first thing it says is
+      // that the line is entirely gated on the dash: without `--dash`, five free ranks are worth
+      // nothing at all - the same six seeds read 116,141 score and 58,359 damage with the line out and
+      // 116,141 and 58,359 with all five ranks handed, identical to the unit, because a tether is only
+      // ever tied by a dash. Every number below is therefore measured on the bot that presses it.
+      //
+      //   out    score 61,000   damage 29,812   3 of 6 still flying at a quarter hour
+      //   dealt  score 115,882  damage 57,627   4 of 6, at 2.5 ranks taken by the bot itself
+      //   free   score 119,080  damage 60,534   6 of 6, five ranks handed
+      //
+      // and on two more groups of four seeds, where the same batch was *not* dying early and the score
+      // column therefore had something left in it to buy: seeds 7-10 read +2.1% score and +3.7% damage
+      // for five free ranks, and seeds 11-14 +3.3% and +5.3%. That is mines' family (+1.1% and +4.9%
+      // for its five free ranks) and a shade above it, which is where a line that costs a dash - and
+      // nothing at all if you never spend one - belongs.
+      //
+      // What the line actually did, rather than what the run scored: on the batch above five ranks tied
+      // 226 tethers, pulsed 317 times and came round 339 bodies, which at this weight and the run's own
+      // damage line is about 6% of everything the run took off. Two readings of that are worth writing
+      // down, because they disagree and both are true:
+      //
+      //   **Per event it is already in mines' family, and its events are four times rarer.** A pulse
+      //     came round 1.07 bodies (339 over 317), and a mine's blast comes round 1.11 (session 45) -
+      //     the near crowd is the near crowd, whoever sweeps through it. But the bot ties a tether once
+      //     every four seconds and the beat fires it about 1.4 times, so it pays out 317 events a run
+      //     where a minefield pays out 1,097. That is why the weight is 5 and not 3: a thread is worth
+      //     about a mine's blast per body and happens a quarter as often, and the two lines came out
+      //     the same size on the run at a weight that is bigger than a mine's by roughly that ratio.
+      //   **The first sweep of this number was 0.4, and it was wrong by an order of magnitude.** At
+      //     0.4 the threads took 0.4% of a run's damage and the score column moved by +1.1% at five
+      //     free ranks, which read as "a cosmetic fifth system" and was really the ladder's disease
+      //     caught in the run: a line whose rate is set by how often the player spends a dash has to be
+      //     priced per event, not per second, and per event 0.4 was a firecracker. Swept at 0.4, at 3,
+      //     at 6, and settled at 5: at 6 the threads' own share was 8.5% and a pulse was one-hit-killing
+      //     most of the crowd twice over, which is a beam-cannon and not a tether.
+      //
+      // And the honest oddity, kept in because it is the most useful thing the dash bot measured: on
+      // these six seeds the line out of the deck mediates 8m30s with three of six dead, and *any*
+      // amount of the line in - one dealt rank or five free ones - takes the batch to the cap. Six and
+      // a half minutes of survival for a source worth 6% of a run's damage is not arithmetic the damage
+      // column can show; it is what a wall of light across your own wake is worth to a ship that is
+      // running for its life, and it is a floor and not a ceiling - the same trap as every dash line,
+      // no bot in tools/headless ever dashes *on purpose*.
+      weight: 5,
+      // px/s thrown clear of the line, off the thread's own perpendicular. A shove and not a slow
+      // (game/chill.js): a body burned off a tether is still walking at you, it is just not on the
+      // line any more - which is also what makes the threads a wall to be steered around rather than
+      // a net, and the one place this card comes closest to restricting the crowd.
+      shove: 200,
+      // A dash tying a tether: one small light driven into the floor at every knot, and one note for
+      // the whole fan rather than one per knot (the mine row's rule, and the mix has no voice limiting
+      // yet - milestone 7). No ring at the ship, because the dash is throwing one at that very step.
+      tied: {
+        ring: { radius: 5, speed: 100, life: 0.2 },
+        sound: { freq: 880, dur: 0.05, wave: 'triangle', vol: 0.02, slide: 460 },
+      },
+      // The tether letting go on its own clock: a ring closing in on every knot it was tied at, and a
+      // note that falls - the sound of a string going slack.
+      gone: {
+        ring: { radius: 16, speed: -70, life: 0.26 },
+        sound: { freq: 420, dur: 0.1, wave: 'triangle', vol: 0.016, slide: 170 },
+      },
+      // One pulse landing: sparks thrown off the line, along the way the body is thrown, and one quiet
+      // tick for the whole pulse - the threads themselves are the shout.
+      bite: {
+        count: 3, speed: 210, life: 0.2, spread: 0.9,
+        sound: { freq: 1480, dur: 0.04, wave: 'square', vol: 0.016, slide: 520 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

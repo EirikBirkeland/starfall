@@ -21,6 +21,7 @@ import { resetOvercharge } from './overcharge.js';
 import { resetAfterimage } from './afterimage.js';
 import { resetMagnetar } from './magnetar.js';
 import { resetMines } from './mines.js';
+import { resetTether } from './tether.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -80,6 +81,10 @@ export function resetRun(world) {
   // And every mine the last run left lying in the road (game/mines.js). They wait nine seconds at
   // the longest, so a restart would otherwise be chased by a trail it never laid.
   resetMines(world);
+  // And whatever the last run's last dash had tied to the arena (game/tether.js). Two seconds of
+  // threads at the most, but a run can end on the dash that tied them, and a thread left hanging over
+  // the title screen would burn the next run's crowd on a road the last one drove down.
+  resetTether(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

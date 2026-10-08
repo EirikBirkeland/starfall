@@ -174,6 +174,14 @@ export const LINES = [
     flavour: 'The ship drops mines out of the way it was going, and a body that walks into one pays for the road. One more mine per drop for every rank.',
     icon: 'mines',
   },
+  {
+    id: 'tether',
+    name: 'TETHER',
+    unit: WHOLE_UNIT,
+    what: 'thread tied',
+    flavour: 'A dash ties a line of light from where it started to wherever you get to, and everything standing on it burns for two seconds. It pays for turning: one more thread per dash for every rank.',
+    icon: 'tether',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -198,6 +206,8 @@ const AFTERIMAGE_LINE = 'afterimage';
 const MAGNETAR_LINE = 'magnetar';
 /** The line that leaves mines in the arena behind the ship. */
 const MINES_LINE = 'mines';
+/** The line that ties a thread of light from a dash to the ship. */
+const TETHER_LINE = 'tether';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -399,6 +409,17 @@ export function crackShotsOf(world) {
  */
 export function minesPerDropOf(world) {
   return countOf(world, MINES_LINE);
+}
+
+/**
+ * How many threads one dash ties (PLAN 3.2's "a damaging beam links the ship to its last dash
+ * position", as a line): one at the first rank and five at the fifth, spread down the streak the dash
+ * covered and every one of them tied to the ship. Read where a dash is armed (game/tether.js), so a
+ * rank taken between two dashes is in the next one and not in the threads already hanging in the
+ * air, which are the places the ship has been and cannot be revised after the fact.
+ */
+export function cordsOf(world) {
+  return countOf(world, TETHER_LINE);
 }
 
 /** Lines with a rank still to give. */

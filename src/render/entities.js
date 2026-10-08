@@ -24,6 +24,7 @@ import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
 import { chargeOf as fieldChargeOf, hasMagnetar, isPrimed as fieldPrimed } from '../game/magnetar.js';
 import { fadingBy } from '../game/afterimage.js';
 import { armingOf, fadingOf, fusingOf } from '../game/mines.js';
+import { lettingGoOf, pulsingBy } from '../game/tether.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -351,11 +352,16 @@ const BEAM_HEAD = 16;          // px of light left at the eye once it has fired
 
 /**
  * One band of harm across the arena, from (x0, y0) to (x1, y1), `half` px each side of
- * the axis, at `light` of its full brightness.
+ * the axis, at `light` of its full brightness, in `edge` with `core` down the middle.
+ *
+ * Two callers own a band: the sniper's lock and beam, which are the crowd's, and the tether, which is
+ * the ship's (game/tether.js). The three passes are the same shape whatever colour they are - a band
+ * reads as a band and not as a line only if the full width is painted faint under a hot middle under a
+ * nearly white axis - which is why there is one function here and not two.
  */
-function bandPasses(ctx, x0, y0, x1, y1, half, light) {
+function bandPasses(ctx, x0, y0, x1, y1, half, light, edge, core) {
   const was = ctx.globalAlpha;
-  ctx.strokeStyle = PALETTE.beamEdge;
+  ctx.strokeStyle = edge;
   ctx.lineWidth = half * 2;
   ctx.globalAlpha = was * light * BAND_FILL;
   strokeBetween(ctx, x0, y0, x1, y1);
@@ -364,7 +370,7 @@ function bandPasses(ctx, x0, y0, x1, y1, half, light) {
   ctx.globalAlpha = was * light * BAND_HOT;
   strokeBetween(ctx, x0, y0, x1, y1);
 
-  ctx.strokeStyle = PALETTE.beamCore;
+  ctx.strokeStyle = core;
   ctx.lineWidth = BAND_AXIS;
   ctx.globalAlpha = was * light;
   strokeBetween(ctx, x0, y0, x1, y1);
@@ -397,7 +403,7 @@ export function drawLocks(ctx, list, alpha) {
     if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
 
     const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * aimProgress(enemy);
-    bandPasses(ctx, x0, y0, x1, y1, half, light);
+    bandPasses(ctx, x0, y0, x1, y1, half, light, PALETTE.beamEdge, PALETTE.beamCore);
     paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
   }
 }
@@ -1324,6 +1330,67 @@ export function drawGhosts(ctx) {
   }
 }
 
+// The tether (game/tether.js): the threads a dash ties between the places it left and the ship they
+// were left from. It is the only band of the ship's own light in the game, so it is drawn with the
+// sniper's three passes - a band reads as a band and not as a hairline only with the whole width
+// painted faint under a hot middle under a nearly white axis - and it wears the ship's own colours,
+// the way the orbital ring and the nova do, because the crowd is warm and this is not (PLAN section 4).
+//
+// The widest pass is `reach` px either side of the axis and nothing more, which is exactly how far off
+// the line a body has to stand to be burned: the road of light is the road the damage is paid out on,
+// edge for edge, the promise the sniper's beam and a mine's ring already keep. The strokes are
+// butt-capped for the same reason - a round cap would reach a whole `reach` past the end of a thread,
+// and the simulation clamps a body's foot to the thread itself, so the light would be claiming ground
+// the tether never touches.
+//
+// Brightness is the pulse and nothing else: the threads brighten *because* something standing on them
+// was just hurt, and dim back down as the next beat comes due. A tether with nobody on it burns steady
+// at TETHER_CALM - it is a thing you can see and fly by, not a strobe.
+const TETHER_CALM = 0.2;      // a thread with nothing on it ...
+const TETHER_SHOUT = 0.62;    // ... and one that has just burned somebody
+const TETHER_KNOT = 1.6;      // how much of the knot's light lands while the thread is calm
+const TETHER_KNOT_SCALE = 0.7;// the drone's own glow sprite, stamped smaller: no sprite of its own
+
+/**
+ * The threads standing in the arena. Painted under the ship, which is the one order in which a beam
+ * tied to the hull can never swallow the hull (PLAN section 1: the player must always be able to see
+ * their own ship), and over the crowd, which is the one order in which a thread is never hidden by the
+ * bodies it is burning.
+ *
+ * Nothing is drawn for a run that has not taken the line, and nothing is drawn between two dashes:
+ * the threads are the whole of the line's drawing state, and there are none when nothing is tied.
+ *
+ * There is no cull here, and there cannot be one: one end of every thread is the ship, which is by
+ * definition on the glass, so however far the knot has been left the thread still crosses the window
+ * to reach it. What bounds the drawing instead is the line's own geometry - five threads, each at most
+ * a dash plus two seconds of running long - which is five strokes-and-a-knot a frame and wants no
+ * test to skip any of it.
+ */
+export function drawTether(ctx, alpha) {
+  const line = world.tether;
+  if (line.live <= 0 || line.cords.count === 0) return;
+
+  const spec = BALANCE.upgrades.tether;
+  const ship = world.player;
+  // The near end is the ship as the frame is painting it, so the threads are tied to the ship you see
+  // and not to the one the last step left (render/interp.js).
+  const sx = paintX(ship, alpha);
+  const sy = paintY(ship, alpha);
+  const light = (1 - lettingGoOf(line))
+    * (TETHER_CALM + (TETHER_SHOUT - TETHER_CALM) * pulsingBy(line));
+  const knot = light * TETHER_KNOT;
+
+  for (let i = 0; i < line.cords.count; i++) {
+    const cord = line.cords.items[i];
+    bandPasses(ctx, cord.x, cord.y, sx, sy, spec.reach, light,
+      PALETTE.player, PALETTE.bulletCore);
+    // The knot is the only part of a thread that has a beginning, so it is the only part that keeps a
+    // light: the place the dash was standing when it tied this one. It is the drone's own sprite, and
+    // the whole tether costs a frame no sprite of its own.
+    paintGlow(ctx, glowFor(PALETTE.player, DRONE_HALO), cord.x, cord.y, knot, TETHER_KNOT_SCALE);
+  }
+}
+
 // The orbital ring (game/orbitals.js). It wears the ship's own colours because it *is*
 // the ship's own reach: nothing out there in the arena is cyan except you and your shots
 // (PLAN section 4). The track is drawn for the same reason a bomber's zone is - the
@@ -1560,7 +1627,8 @@ export function drawBeams(ctx) {
     const y1 = beam.y + beam.dirY * beam.fore;
     if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
 
-    bandPasses(ctx, x0, y0, x1, y1, beam.width, clamp(beam.life / beam.max, 0, 1));
+    bandPasses(ctx, x0, y0, x1, y1, beam.width, clamp(beam.life / beam.max, 0, 1),
+      PALETTE.beamEdge, PALETTE.beamCore);
     paintGlow(ctx, glowFor(PALETTE.beamCore, BEAM_HEAD), beam.x, beam.y,
       clamp(beam.life / beam.max, 0, 1));
   }

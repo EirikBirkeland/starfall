@@ -86,6 +86,15 @@ const TINT = {
   // nothing about it is attached to the ship at all. It is a bluer, harder blue than PIERCE's powder
   // blue and the two shapes could not be less alike.
   mines: PALETTE.mineZone,
+  // The sixteenth tint, and the first one that is not a sixteenth hue *or* the thing's own colour: it
+  // is the ship's own cyan, which FIRE RATE already wears. That is deliberate, and it is the rack
+  // admitting what NOTES has been saying since the tenth card - there are no cool hues left to hand
+  // out, and a sixteenth invented to keep them evenly spaced would be a colour nobody could name. The
+  // tether wears the ship's cyan in the arena because it *is* the ship's own light drawn as a line
+  // (render/entities.js), the same bargain the orbitals and the nova strike, and of the two cards now
+  // wearing cyan, one is a stack of bars and the other is a ship trailing threads: they cannot be
+  // mistaken for each other at any size, which is the only test a tint has to pass.
+  tether: PALETTE.player,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -325,6 +334,7 @@ const ICONS = {
   afterimage: iconAfterimage,
   magnetar: iconMagnetar,
   mines: iconMines,
+  tether: iconTether,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -887,6 +897,72 @@ function iconMines(ctx, size, tint) {
   }
 
   shipPath(ctx, 0, -size * 0.72, size * MINE_SHIP, -Math.PI / 2, 1.6);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+}
+
+/**
+ * A ship that has turned, the three knots its dash tied along the way it came, and a thread from every
+ * one of them back to the hull. The knots are spread across a turn and not down a straight line on
+ * purpose: a ship flying straight drags one thread along its own wake and a ship that turns sweeps a
+ * fan, and the fan is the card (game/tether.js). The threads are what you read first - bright, taut,
+ * all of them meeting at the ship - and the faint line behind the knots is only the road they were tied
+ * along.
+ */
+const TETHER_SHIP = [0.46, -0.52];
+const TETHER_KNOTS = [
+  { at: [-0.68, 0.02], light: 0.45 },
+  { at: [-0.44, 0.44], light: 0.7 },
+  { at: [-0.04, 0.74], light: 1 },
+];
+const TETHER_SOFT = 0.1;    // the wide faint pass under each thread, as a share of the icon
+const TETHER_LINE = 1.4;    // px, the thread itself
+const TETHER_DOT = 0.065;   // a knot, as a share of the icon
+const TETHER_SHIP_SIZE = 0.24;
+const TETHER_HEADING = -0.62;   // rad: off the road it came along, which is the whole story
+
+function iconTether(ctx, size, tint) {
+  const sx = size * TETHER_SHIP[0];
+  const sy = size * TETHER_SHIP[1];
+
+  // The road the knots were tied along, faint and wide, so the threads read as something tied to
+  // somewhere and not as three lines drawn at nothing.
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * TETHER_SOFT;
+  ctx.strokeStyle = withAlpha(tint, 0.16);
+  ctx.beginPath();
+  ctx.moveTo(size * -0.84, -size * 0.16);
+  for (const knot of TETHER_KNOTS) ctx.lineTo(size * knot.at[0], size * knot.at[1]);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Every thread first and every knot after it, so no thread is painted over the dot it ends at.
+  ctx.beginPath();
+  for (const knot of TETHER_KNOTS) {
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(size * knot.at[0], size * knot.at[1]);
+  }
+  ctx.strokeStyle = withAlpha(tint, 0.2);
+  ctx.lineWidth = size * 0.09;
+  ctx.stroke();
+
+  for (const knot of TETHER_KNOTS) {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(size * knot.at[0], size * knot.at[1]);
+    ctx.strokeStyle = withAlpha(tint, knot.light * 0.9);
+    ctx.lineWidth = TETHER_LINE;
+    ctx.stroke();
+  }
+
+  for (const knot of TETHER_KNOTS) {
+    ctx.beginPath();
+    ctx.arc(size * knot.at[0], size * knot.at[1], size * TETHER_DOT, 0, Math.PI * 2);
+    ctx.fillStyle = withAlpha(PALETTE.white, knot.light);
+    ctx.fill();
+  }
+
+  shipPath(ctx, sx, sy, size * TETHER_SHIP_SIZE, TETHER_HEADING, 1.6);
   ctx.fillStyle = withAlpha(tint, 0.9);
   ctx.fill();
 }

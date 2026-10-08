@@ -268,6 +268,30 @@ Behaviour upgrades:
   a place: five free ranks are 4.9% of a run's whole damage and +1.1% on its score, and most of that
   damage replaces the gun's instead of adding to it (`BALANCE.upgrades.mines` has the three-condition
   A/B, the front-loading, and why the bot is the wrong customer for a trap).
+- **Tether**: a damaging beam links the ship to its last dash position for 2 s.
+  *Done in 0.4.17* (`src/game/tether.js`). PLAN's two numbers are the code's two: a dash ties it and
+  it is live for two seconds. Four things the plan does not say, each decided and measured. **The far
+  end is the place the dash left and the near end is the ship, wherever it gets to** - so the tether is
+  born as the dash's own streak, a blade the length of the 220 px the ship threw itself through, and
+  then stretches and swings: the tether is the only damage in the deck that is a *line* rather than a
+  circle round the hull, and the only piece of ground a run owns by moving instead of by aiming. **It
+  pays for turning**: a ship flying straight drags one thread along its own wake and a ship that turns
+  sweeps a lane, which is the whole skill of the card and why `reach` is narrow (34 px: a thread, not a
+  beam) while its length is free - bounded by nothing but the ship's own speed, since two seconds at
+  320 px/s is 640 px of tether. **A rank is another thread, tied along the streak the dash covered**,
+  so five ranks are a fan of five cords converging on the ship and a rank buys breadth on the next turn
+  rather than the same crowd hit five times - and the whole fan pulses as one weapon, so a body under
+  two overlapping threads pays once (`hit / pulses` is the instrument that says whether a rank buys a
+  different crowd, and it reads 1.07 bodies a pulse against a mine's 1.11 a blast). **It is a shove off
+  the line and never a slowing of the body on it**, and it can never hurt the ship that tied it, which
+  is the mines contract and the afterimage contract: a thread is a place, not a body - nothing can cut
+  one, nothing can shoot one, and there is nothing to clean up when it lets go. Measured on the run and
+  on the dash bot only, because nothing else in the game can see it: the ladder reads 1.00x, and a run
+  that never presses dash is *bit-for-bit identical* with five free ranks in it (116,141 score against
+  116,141), which is the cleanest gate in the deck - the card is the dash, or it is nothing. On a bot
+  that does press it, five free ranks are +3 to 5% of a run's whole damage and about 6% of the damage
+  the run deals is the threads' own (`BALANCE.upgrades.tether` has the A/B, the weight sweep that found
+  it four times too small, and what the line did to a batch that was dying at eight and a half minutes).
 - The five secondary systems from 3.2, each as its own upgrade line.
 
 Synergies (give these a special card frame, and discover them in the codex):
@@ -558,10 +582,13 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [x] Each behaviour upgrade from 3.5, one per session, each with a test of its logic.
       (All nine are in, and each has its own module and its own test file: Ricochet, Pierce, Split
       shot (0.4.1-0.4.3), Burn 0.4.10, Chill 0.4.11, Leech 0.4.12, Overcharge 0.4.13, Afterimage
-      0.4.14 and Magnetar 0.4.15. Of the five secondary systems of 3.2, Mines went in as the
-      fifteenth line in 0.4.16; Turret and Tether are still to be built, and Orbitals and Nova went
-      in as upgrade lines in 0.4.4 and 0.4.5.)
+      0.4.14 and Magnetar 0.4.15. Of the five secondary systems of 3.2, Orbitals and Nova went in as
+      upgrade lines in 0.4.4 and 0.4.5, Mines in 0.4.16 and Tether in 0.4.17; Turret is the last one
+      still to be built.)
 - [ ] Each secondary system from 3.2, one per session.
+      (Four of the five are in as their own lines with their own tests: Orbitals 0.4.4, Nova 0.4.5,
+      Mines 0.4.16, Tether 0.4.17. Turret - "a stationary turret is placed every 12 s and lasts 10 s"
+      - is the one left.)
 - [ ] Card offer weighting, reroll, and banish.
 - [ ] Synergies, with their special card frame.
 - [ ] Owned-upgrade icons on the HUD.

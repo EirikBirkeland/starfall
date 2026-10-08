@@ -276,6 +276,19 @@ window.STARFALL = {
       minesBlown: world.mines.blown,
       minesLaid: world.mines.dropped,
       minesHit: world.mines.hit,
+      // The tether, as far as a headless run can see it (game/tether.js): how much life the threads
+      // have left and how many of them are standing, and four counters over the run. The last two are
+      // the line's whole story as a *relation to the crowd* - `tetherHeld / tetherSteps` is how many
+      // bodies were standing on the threads while it was live, and `tetherHit / tetherBites` is how
+      // many of them one pulse came round - which is the only way a line bought by turning can be read
+      // at all, and the reason they were counted from this line's first session.
+      tether: world.tether.live,
+      tetherCords: world.tether.cords.count,
+      tetherTied: world.tether.tied,
+      tetherBites: world.tether.pulses,
+      tetherHit: world.tether.hit,
+      tetherHeld: world.tether.held,
+      tetherSteps: world.tether.steps,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,
@@ -286,6 +299,11 @@ window.STARFALL = {
       pending: world.pendingLevels,
       offer: world.offer.slice(),
       ranks: Object.assign({}, world.upgrades),
+      // The damage line's rank on its own, because what a shot of this run's gun is worth - and so
+      // what a drone bite, a nova front, a mine and a thread on a tether are worth - is
+      // `BALANCE.bullets.damage x (1 + 0.3 x this)`, and a headless tool cannot work a line's own
+      // share of a run's damage out without it (tools/line-ab.js --stats damageRanks,tetherHit).
+      damageRanks: world.upgrades.damage,
     };
   },
 };
