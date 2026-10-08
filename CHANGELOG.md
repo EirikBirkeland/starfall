@@ -1,6 +1,6 @@
 # Starfall — changelog
 
-## 0.4.18 — 2026-10-09
+## 0.4.18 — 2026-10-08
 Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see.
 - **The last of the five secondary systems PLAN 3.2 asked for, and the seventeenth card on the rack.**
   **TURRET** plants a crew of guns every twelve seconds; each one stands for ten. It is the only damage
