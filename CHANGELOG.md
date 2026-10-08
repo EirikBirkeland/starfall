@@ -1,5 +1,28 @@
 # Starfall — changelog
 
+## 0.4.9 — 2026-10-08
+The game can be played by a coding agent: `node tools/agent-bridge.js`.
+- **No gameplay change.** What is new is a door in: the game boots headless, steps at about one frame
+  per 16.7 ms of real time, and offers itself as **twelve tools on stdin and stdout** - `observe`,
+  `move`, `aim`, `trigger`, `dash`, `choose`, `choose_weapon`, `start`, `step`, `autopilot`, `status`,
+  `run_result` - over JSON-RPC 2.0, one message per line. That is the shape the Model Context
+  Protocol uses for a subprocess server, so an agent can be pointed at this game with one config
+  line and no library: `claude mcp add starfall -- node tools/agent-bridge.js`.
+- **The agent plays by the same controls you do.** No tool moves the ship; they hold keys, point the
+  cursor and press buttons. `observe` reports only what is on screen - and reports a shot as *when it
+  arrives* and *how far off its line you are standing*, which is what a dodge is made of. `step` lets
+  half a minute of game go by while a slow player thinks, and stops early with the reason when the
+  game needs an answer. `autopilot` hands the flying to the headless bot so a thoughtful agent can
+  still play the decisions: the cards, the gun, when to start the next run.
+- **`node tools/agent-bridge.js --demo`** plays a whole four-minute run through the wire and prints
+  every line of the conversation, including the refusals. `tools/agent/README.md` is the manual.
+- The bridge says what happens while nobody is asking (`started`, `level-up`, `died`, and `wave` for
+  anyone who wants the chatter), refuses an order as an answer rather than a fault, and keeps the
+  world's clock honest: a bridge that was busy thinking makes up a few frames and forgives the rest,
+  the same rule the engine gives a backgrounded tab.
+- 31 new tests, all of them against the real game: the same keys a person presses are seen moving the
+  ship, a card taken through the wire is a rank in the build, a death is reported exactly once.
+
 ## 0.4.8 — 2026-10-08
 Survival check: the firepower milestone is closed, and the number it was argued over is now a tool.
 - **No gameplay change.** What changed is the measuring: `node tools/simulate.js --runs 24`

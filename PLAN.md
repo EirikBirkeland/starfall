@@ -505,3 +505,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
 Keep going with whatever makes the game better. Ideas: new enemies, a fourth boss, challenge modifiers
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
+
+- [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
+      player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
+      or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over
+      stdio rather than ACP. Shipped in 0.4.9.
