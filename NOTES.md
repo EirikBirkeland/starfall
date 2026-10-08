@@ -5744,3 +5744,121 @@ design decisions hiding in it, and that nothing in the toolchain can price it.
 - **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and chill's
   shatter fires on a body that wore both, and the special card frame that makes a synergy findable.
   Sessions 39-43 all said this and I keep choosing the new system over it.
+
+## Session 47 (2026-10-08) — Turret: the last of 3.2's five, and the only damage in the game that aims. Released **0.4.18**
+
+`src/game/turret.js` new (the line), `test/turret.test.mjs` new (24 tests), `test/turret-art.test.mjs`
+new (9), `BALANCE.upgrades.turret` new, `upgrades.js` gains the 17th line and `gunsPerCrewOf`,
+`bullets.js` gains `bullet.turret` and the one line that reads it back, `entities.js` gains
+`drawTurrets`, `cards.js` the tint and the icon, `main.js` seven debug stats, `world.js` and `run.js`
+the wiring. PLAN's "a stationary turret is placed every 12 s and lasts 10 s" is now a line with a beat of
+its own, and all five of 3.2's secondary systems are in.
+
+### The five decisions, since nobody will remember them
+
+- **A turret is a place with a nose, not a body.** Not in `world.enemies`, no hull, cannot be shot,
+  shoved or blocked on - the contract `mines.js`, `afterimage.js` and `tether.js` all signed. What is new
+  is the *facing*: it can only fire where it points. A thing in the arena that can be interacted with is a
+  second thing to aim and a second thing to lose, and the ten seconds are the player's own purchase.
+- **It is planted down the road, not under the ship.** `roadOf` is the ship's velocity, falling back to its
+  nose below `drifting` - `falloutOf` in `mines.js` read backwards - and a crew is laid *across* that
+  road, `stand` px down it and `gap` px apart. So **mines arm where you have been and turrets arm where
+  you are going**, which is the one sentence this whole line exists to say. A rank is another gun across
+  the lane: ground, never a heavier shell.
+- **It has to come round to shoot.** `turn` rad/s, and a shell leaves only inside `aim` of the line to its
+  lock, and only down the nose (at the lock's *last known place*, which is how it gets to miss). An idle
+  gun never spends its beat (`orbitals.js`'s rule), so a gun that was idle is hot the step somebody walks
+  into its sight. The swing is the wind-up and being surrounded is a different thing from being on one
+  side, because a swing has a price.
+- **Its shell is a shell of this run's gun.** A real bullet in `world.bullets`: `dmg = the gun's damage x
+  the damage line x weight`, so it frosts and lights and is the run's own kill and score; no pierce, no
+  ricochet (those are bought for the ship's trigger); it can *miss*. The hit is counted in `bullets.js`,
+  which is the only place that ever learns a shot landed - `bullet.turret` exists for that one line and
+  for no other reason.
+- **The sight line is the reach.** Drawn from the muzzle to exactly `reach` and no further, and `reach` is
+  what the lock test uses too, so a skin a pixel outside is neither lit nor shot at. The shell is given
+  `reach + widest + hitRadius` of flight, which is the difference between a range measured to a body's
+  centre and one measured to its skin, and the art test pins the drawn line to the balance number.
+
+### What the measuring said
+
+`tools/power-ladder.js --line turret` prices this line *the wrong way up*: 5.66x / 5.85x / 5.47x, one
+rank worth 3.24 ranks of the gun, because it stands a rank-five crew in a knot of thirty bodies that
+never leave, where every gun has a lock for ever and a rank is five more guns on the same pile. Mines and
+tether made the ladder read a flat 1.00x; this makes it love a line that is worth +9% of a run. Same tool,
+same failure: it is a rate on a crowd that stands still.
+
+So `tools/line-ab.js --line turret`, and the sweep over `weight` (1.6 / 2.4 / 3.4 / 4 / 5 / 6.5):
+
+- **The free-score column does not move at all** - +9.0%, +9.0%, +9.6%, +9.6%, +9.4%, +9.6% - while free
+  *damage* climbs +4.7% to +23.7% over the same range. The clearest case yet of what a floor line is: the
+  fence is worth the ground it holds and a heavier shell mostly buys damage on bodies the gun was going
+  to spend anyway. Mines' session found the same disagreement; this is the same thing with the volume knob
+  on it.
+- **`dealt` climbs with the weight and comes back to level at 5** (-0.8% on twelve seeds, -2.6% on six),
+  which is the best this column gives a floor line. The card costs a *slot*, so a fence that does nothing
+  is worse than no fence. Past 5 the shells stop paying for themselves: damage keeps climbing, score
+  refuses. Settled at **weight 5**, worth 2 shots of the ship's own gun a second per gun.
+- **`reach` and `gap` are flat where I expected opinions**: five free ranks read +14.3% / +17.1% / +16.6%
+  of a run's damage at reach 200 / 300 / 380, and +16.6% / +17.1% / +11.9% at gap 70 / 150 / 260. Only the
+  far end of each range is measured worse; the rest is the picture and the ship's own job deciding. I wrote
+  the honest version in the balance comments, including that the run cannot tell 70 from 150 and the card
+  can.
+- **What the guns themselves did** (12 seeds, five free ranks): 72 crews, 360 guns, 3,084 shells, 2,055
+  bodies come round - **0.67 of a body a shell**, i.e. a gun that misses a third of the time rather than
+  an aura with a muzzle - and 364,209 of 429,095 gun-steps with somebody in its sight, so **five guns in
+  six had a lock**. That last one is the assumption the whole card rests on (a fence planted down the road
+  of a run is standing in traffic) and the measurement says it holds.
+
+### What surprised me
+
+- **`stand` is a moment and not a place.** 150 px at 195 px/s means the ship has left its own fence behind
+  inside a second, so my first "planted down the road" test - fly east, then look for the fence east of
+  the ship - was asserting that a fence is still in front of a ship that drove 3,000 px away from it. The
+  test now captures the ship's position on the step the crew went down and measures against *that*.
+- **The harness's draw log is per frame.** `drawLog.points` is emptied at the start of every drawn frame,
+  so `game.points().slice(pointsBefore)` - which I wrote thinking it accumulated - returned almost
+  nothing, and the geometry test was measuring a HUD point while two of its assertions still passed. I
+  only found it by printing the numbers, and it is written up in the file: the frame's own points are the
+  frame's own points.
+- **`game.screenOf(x, y)` already existed** (`burn-art` uses it). My first reach test painted the gun facing
+  east and then west and intersected the two point sets to find the mount's centre without knowing the
+  camera - twenty lines of cleverness that one call replaces. The two-facing idea stayed, but only to prove
+  the *turned* gun is drawn turned.
+- **The frame's widest stroke is an animated meter.** `widest` came out 9.5999, then 9.3999, then 9.1999 -
+  a ring meter round the ship that shrinks every frame - so every `widest` comparison between two frames
+  in this file was comparing HUD animation. tether-art gets away with it because its band is 68 px wide.
+  The reach is now measured off points along the nose, and the fade test off the same marks.
+- **A body with 1e9 hp cannot resolve 2.4.** `hullGone / hit` came out 2.3999999 against 2.40000007,
+  because subtracting 2.4 from a billion loses the tail: `IMMORTAL` is 1e6 now and the tolerances are
+  1e-6, both of which are in the file with the reason.
+- **A shell that is fired while the barrel is still coming round really does miss**, and an art-test body
+  200 px away showed it: `aim` is an angle, and an angle at 200 px is wider than a shell. I kept the miss
+  (a tolerance that could not miss would be an aura) and the test now waits for the hit that comes once the
+  nose has settled.
+- **A leaked immortal body was the whole "why are there 6 stamps for 4 guns" mystery.** `field.enemies.length
+  = 0` at the end of an art test does not run when an assertion fails above it, and the next three tests
+  were paying for a bug that was walking toward the ship. `plant()` now clears the arena unless the test
+  asked for a body.
+- **There is exactly no room left in the glow cache.** The bound in `test/draw-cost.test.mjs` is
+  `holders < 35` and the game sits at 34, so the 17th tint had to be a reuse: the card wears
+  `PALETTE.playerLine` (afterimage's tint, because both *are* the ship) and the muzzle stamps
+  `glowFor(PALETTE.player, DRONE_HALO)` (the orbital drone's own light). Holders did not move. The 18th
+  tint is going to have to either reuse again or make the argument for raising that bound on purpose.
+
+### For the next session
+
+- **3.2 is done. Milestone 4's remaining items are the ones that have been waiting**: card offer
+  weighting, reroll and banish; synergies with their special frame (thermal shock still needs the rule
+  about which of burn's fire-pass and chill's shatter fires on a body that wore both - four sessions have
+  now said this); and **owned structures on the HUD**, owed since session 45 and now squarely due: four
+  lines put things in the arena that expire on their own clock (orbitals, mines, threads, guns) and the
+  HUD names none of them, nor any of the 17 lines and 85 ranks.
+- **A bot that fights for ground, not one that flees it.** Mines, Tether and now Turret are all priced off
+  a bot that runs in straight lines and never returns to a place, which is the customer none of the three
+  was written for. NOTES has been saying "a floor line needs its own bot" since session 46; if a fourth
+  floor line gets measured, write the bot first. It wants a threat test and a reaction delay, and possibly
+  a habit of coming back.
+- **If a fourth system on the arena floor is ever added**, `turret.js`'s `lockOn` is the one place in the
+  family of floor lines that asks the collision grid instead of walking the crowd - right for a 300 px
+  sight line over a capped crowd, wrong for a touch test, and the argument is in the function.
