@@ -258,6 +258,9 @@ window.STARFALL = {
       // hull is painted out of this number, and it is how a headless run can watch a charge come
       // up and be spent instead of having to guess it from the damage.
       charge: world.overcharge.charge,
+      // How many images the dash has left standing in the arena (game/afterimage.js). A ghost has
+      // no hull and throws no shot, so this is the only way a headless run can see the trick is up.
+      images: world.afterimage.trail.count,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,
