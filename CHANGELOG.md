@@ -1,5 +1,37 @@
 # Starfall — changelog
 
+## 0.4.18 — 2026-10-09
+Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see.
+- **The last of the five secondary systems PLAN 3.2 asked for, and the seventeenth card on the rack.**
+  **TURRET** plants a crew of guns every twelve seconds; each one stands for ten. It is the only damage
+  in the game that *aims*: the orbital wall, the nova's front, the magnetar's field, a mine's ring and a
+  tether's threads all pay out wherever the ship happens to be, and a turret looks at the crowd, picks a
+  body and shoots at it — which is the one thing a ship running for its life does not have the hands for.
+- **Mines arm the road behind you; this arms the road in front.** A crew is laid out *across* the way you
+  were travelling, a fence with the road in the middle of it, and it is born pointing down that road — so
+  the first thing every gun does is swing round to shoot the chase off your tail. That swing is the
+  wind-up, and it is why a gun planted in the open is not a gun that cannot be flanked: a shell only ever
+  leaves down the nose.
+- **A rank is a wider fence, never a heavier shell.** Rank one is a single picket; rank five is five guns
+  thrown across the lane, all on the same twelve-second beat. A shell is one shot of your own gun times
+  the line's weight, and it is a real bullet: it can miss, it frosts and lights what it lands on, and the
+  kill and the score are yours. It carries no pierce and no ricochet, because those are bought for your
+  trigger and this gun is not your trigger.
+- **The light is the promise.** Each gun draws its reach on the floor, out of the muzzle to exactly the
+  distance it will aim at and its shell can reach, bright when it has something in its sight and faint
+  when it has nothing, and its muzzle brightens as its next shot comes due. A gun is a place and not a
+  body: nothing can shoot it, shove it or block on it, and the ten seconds are yours because you bought
+  them, not because the arena allowed them.
+- **Measured, not guessed.** `tools/power-ladder.js` prices this line the wrong way up (it stands a
+  five-rank crew in a knot of bodies that never leave and reads 5.5x), so every number came off
+  `tools/line-ab.js --line turret`: five free ranks are worth +9% of a run's score and +17% of its
+  damage, and the sweep says the fence's worth is the ground it holds rather than what a shell costs —
+  the score column does not move at all between a weight of 1.6 and 6.5. What the same batch says about
+  the guns themselves: 3,084 shells, 2,055 bodies come round (so a gun that misses a third of the time,
+  which is a gun), and 364,209 of 429,095 gun-steps with somebody in its sight.
+- 33 new tests: 24 on the line (the fence's geometry, the swing, the reach as a hard edge for the eye and
+  the shell alike, the shell being your own gun's, and the counters) and 9 on how it is drawn and dealt.
+
 ## 0.4.17 — 2026-10-08
 Tether: a dash ties a line of light from where it started to wherever you get to, and everything standing on it burns.
 - **The sixteenth card on the rack, and the only damage in the game that is a line.** Everything else
