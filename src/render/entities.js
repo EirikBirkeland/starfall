@@ -736,6 +736,71 @@ export function drawPlayer(ctx, alpha) {
   ctx.restore();
 }
 
+// The orbital ring (game/orbitals.js). It wears the ship's own colours because it *is*
+// the ship's own reach: nothing out there in the arena is cyan except you and your shots
+// (PLAN section 4). The track is drawn for the same reason a bomber's zone is - the
+// simulation measures a bite from exactly this circle, so the line you see is the line a
+// body has to cross (the same deal as `blastRadius` in game/kinds.js).
+const ORBIT_TRACK_LIGHT = 0.12;   // how much of the track is visible
+const DRONE_HALO = 13;            // px of light around one drone
+const DRONE_LIGHT = 0.55;
+const DRONE_SIZE = 5;             // px across the little hull
+const DRONE_SPIKE = 1.8;          // how pointed it is - a drone is always moving
+const DRONE_REACH = 34;           // px of slack on the cull test, for halo and trail
+const DRONE_TRAIL = 12;           // px of blur a drone drags along the ring
+const DRONE_TRAIL_WIDTH = 6;
+const DRONE_TRAIL_LIGHT = 0.45;
+
+let droneTrail = null;
+
+function droneTrailSprite() {
+  if (!droneTrail) {
+    droneTrail = makeStreak(PALETTE.playerLine, PALETTE.player, DRONE_TRAIL, DRONE_TRAIL_WIDTH);
+  }
+  return droneTrail;
+}
+
+/**
+ * The ring and the drones standing on it, painted after the ship: the ship stays the
+ * brightest thing in the middle of the screen and everything on its ring is smaller than
+ * it (PLAN section 4). A drone's heading is the *tangent* and not the radius, which is the
+ * only way the direction the ring turns in is legible at five pixels across.
+ */
+export function drawOrbitals(ctx, alpha) {
+  const ring = world.orbit;
+  const count = ring.drones.length;
+  if (count === 0) return;
+
+  const spec = BALANCE.upgrades.orbitals;
+  const ship = world.player;
+  const cx = paintX(ship, alpha);
+  const cy = paintY(ship, alpha);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = withAlpha(PALETTE.player, ORBIT_TRACK_LIGHT);
+  ctx.beginPath();
+  ctx.arc(cx, cy, spec.radius, 0, TAU);
+  ctx.stroke();
+
+  const trail = droneTrailSprite();
+  for (let i = 0; i < count; i++) {
+    const drone = ring.drones[i];
+    if (!onScreen(drone.x, drone.y, DRONE_REACH)) continue;
+    const x = paintX(drone, alpha);
+    const y = paintY(drone, alpha);
+    const heading = Math.atan2(drone.y - ship.y, drone.x - ship.x) + Math.PI / 2;
+
+    paintStreak(ctx, trail, x, y, heading, 1, DRONE_TRAIL_LIGHT);
+    paintGlow(ctx, glowFor(PALETTE.player, DRONE_HALO), x, y, DRONE_LIGHT);
+    shipPath(ctx, x, y, DRONE_SIZE, heading, DRONE_SPIKE);
+    ctx.fillStyle = PALETTE.playerFill;
+    ctx.fill();
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = PALETTE.playerLine;
+    ctx.stroke();
+  }
+}
+
 export function drawBullets(ctx, alpha) {
   const bullets = world.bullets.items;
   const trail = bulletTrailSprite();

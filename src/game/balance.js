@@ -633,6 +633,61 @@ export const BALANCE = {
       // and the mix has no voice limiting yet (milestone 7).
       sound: { freq: 920, dur: 0.035, wave: 'triangle', vol: 0.015, slide: 380 },
     },
+    orbitals: {
+      ranks: 5,
+      step: 2,          // a pair of drones per rank; PLAN 3.2's "two drones" is rank 1
+      // The ring (game/orbitals.js). Every drone stands `radius` px out from the ship's
+      // middle on one circle, `count` of them evenly spaced, and the whole circle turns
+      // at `spin` rad/s - so a drone's place is derived from the ship's, which is what
+      // makes it an orbit and not a swarm with opinions. It is drawn as a track for the
+      // same reason (render/entities.js): the ring's edge is the line a body has to
+      // cross to reach you, and the player has to be able to see it.
+      //
+      // `radius` is the number that decides what this line is. At 64 a body walking in
+      // is chewed on for the last stretch of its approach and a body that has made it
+      // past the ring - pressed up against the hull - is out of reach of it, which is
+      // the whole argument for a ring instead of an aura: it is a wall at a known
+      // distance, not a bubble that forgives you for standing in it.
+      radius: 64,
+      // rad/s. A drone comes round every two seconds at this number, which is about how
+      // long a body takes to walk from the ring to the ship, so a walking body meets
+      // each drone about once on its way in.
+      spin: 3.2,
+      // How close a drone's middle has to come to a body's middle to bite it, on top of
+      // the body's own radius. It is a touch test and not a projectile: a drone has no
+      // speed of its own to give, so the reach is the drone's size and nothing more.
+      touch: 9,
+      // What a bite is worth, and how long a drone then waits before it may bite again,
+      // whoever it is touching. The beat is per drone and not per body, which is
+      // what keeps a drone in a knot of bodies worth exactly what a drone on the edge of
+      // one is: it grinds at its own tempo instead of once per neighbour per step.
+      //
+      // `weight` is a bite's weight as a multiple of one shot of the gun, and the damage
+      // line multiplies it exactly as it multiplies a shot - a drone hits as hard as you
+      // do, which is what keeps this line worth taking as the run grows. It has to be that
+      // way: measured over 40 seeds with the line in the pool and out of it, a flat bite
+      // made the bot *less* able to survive (at the cap 27 of 40 against 36, mean kills
+      // 4653 against 5964), because every rank of the ring is a rank not spent on a line
+      // that multiplies the gun, and a flat rate loses that race as soon as the gun is
+      // twice what it was. `weight: 1` at `beat: 1.5` with a pair per rank puts the line
+      // on the ladder: one rank of the ring is worth one rank of the damage line at the
+      // plain gun (1.33 shots a second against 1.32) and it keeps its share as the gun
+      // gets heavier. test/orbitals.test.mjs asserts both halves of that; whoever retunes
+      // either number has to retune both.
+      weight: 1,
+      beat: 1.5,
+      // A bitten body is thrown away from the ship at this, so the ring is felt as a
+      // shove as well as a loss of hull. Small, and it decays at once (see
+      // `enemies.separationDrag`): the ring is meant to keep its distance, not to build
+      // a wall of bodies outside itself.
+      shove: 120,
+      // Sparks off the bite, thrown along the line from the ship through the drone,
+      // which is outwards: the bite reads as a thing being pushed as well as hit.
+      bite: { count: 4, speed: 160, life: 0.18, spread: 0.6 },
+      // Very quiet, and it has to be: ten drones at this beat is six and a half ticks a
+      // second at the top of the line, and the mix has no voice limiting yet (milestone 7).
+      sound: { freq: 700, dur: 0.03, wave: 'square', vol: 0.014, slide: 420 },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

@@ -97,28 +97,53 @@ export const DEFAULT_POLICY = 'aware';
  * The level-up choice, taken the way a player takes one: a number key.
  *
  * The policy is written down rather than clever, because a bot that picks at random
- * measures nothing and a bot that picks perfectly overstates a human. So: take the
- * line with the fewest ranks already in it, and break a tie in the order below - the
- * share lines all multiply the same damage per second, so spreading them is the
- * strongest thing to do while they are all short, and damage is the one that matters
- * most when the crowd out-scales the gun. Split shot sits second because it is the one
- * line that buys coverage rather than weight, and it is the crowd that kills this bot;
- * pierce third, for the same reason in the other direction - it buys depth down the
- * column of bodies chasing the ship, which is exactly what this bot is aiming at.
- * Ricochet goes with the coverage lines, and just above pierce: a turn needs one body
- * anywhere nearby, where a pass needs the crowd arranged along the line being aimed, and
- * this bot is always in the middle of a knot rather than behind a column. It is a judgement
- * rather than a measurement - the bot maxes all six lines in a healthy run, so the order
- * only decides the shape of the way up, not what is standing at the top.
+ * measures nothing and a bot that picks perfectly overstates a human. So: take the line
+ * with the fewest ranks already in it, and break a tie in the order below - the share
+ * lines all multiply the same damage per second, so spreading them is the strongest thing
+ * to do while they are all short, and damage is the one that matters most when the crowd
+ * out-scales the gun. Split shot sits second because it is the one line that buys coverage
+ * rather than weight, and it is the crowd that kills this bot; pierce next, for the same
+ * reason in the other direction - it buys depth down the column of bodies chasing the
+ * ship, which is exactly what this bot is aiming at. Ricochet goes with the coverage lines,
+ * and just above pierce: a turn needs one body anywhere nearby, where a pass needs the
+ * crowd arranged along the line being aimed, and this bot is always in the middle of a knot
+ * rather than behind a column.
+ *
+ * Last comes the one line that is not a multiply on the gun, and `DEFERRED` below is why
+ * it sits there and is not even compared level.
  */
-const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSpeed'];
+const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSpeed', 'orbitals'];
+
+/**
+ * Ranks of these lines count as this much deeper than they are when the bot chooses, so it
+ * takes them late and rarely.
+ *
+ * This one is measured rather than a hunch (NOTES session 31: 40 seeds, aware bot, 900 s
+ * cap). Every line before it multiplies the gun - `fireRate` every shot, split shot every
+ * volley, damage every hit - so evening the build out across them is the best a picker can
+ * do. Orbitals is the first line that instead *adds* a second source, and its rate is
+ * capped by whatever is standing in the ring: a rank of it is worth a rank of the damage
+ * line on a plain gun and a fraction of one once the gun is what a build makes it. So a
+ * rank taken level with the gun's own ranks trades a multiply for an addition, and it
+ * measured as a loss - the bot died inside the window on 11 of 40 runs with the ring taken
+ * evenly and on 5 of 40 with the line in the pool but never chosen, a minute of mean
+ * survival between them. The ring is not a bad card; a player who buys two ranks of it on
+ * the way up a gun build is not paying much for it. It is the bot's even spread that cannot
+ * afford it, and delaying it is what a player who wants the gun first does anyway.
+ */
+const DEFERRED = { orbitals: 2 };
+
+/** How deep the bot thinks a line stands, handicaps and all. */
+function depthOf(ranks, id) {
+  return ranks[id] + (DEFERRED[id] === undefined ? 0 : DEFERRED[id]);
+}
 
 function preferredCard(game, offer) {
   const ranks = game.world.upgrades;
   let best = offer[0];
   for (const id of offer) {
-    if (ranks[id] > ranks[best]) continue;
-    if (ranks[id] < ranks[best] || appetiteOf(id) < appetiteOf(best)) best = id;
+    if (depthOf(ranks, id) > depthOf(ranks, best)) continue;
+    if (depthOf(ranks, id) < depthOf(ranks, best) || appetiteOf(id) < appetiteOf(best)) best = id;
   }
   return best;
 }

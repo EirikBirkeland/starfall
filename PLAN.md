@@ -99,7 +99,7 @@ Secondary systems (automatic, from upgrades):
 
 | System | Behaviour |
 |---|---|
-| Orbitals | 2 drones circle the ship and damage on touch |
+| Orbitals | drones circle the ship and bite whatever they touch: a pair per rank, so the two of them are rank 1 |
 | Mines | drops a mine every 3 s; explodes when an enemy comes near |
 | Nova | every 8 s, a ring of damage expands from the ship |
 | Turret | a stationary turret is placed every 12 s and lasts 10 s |
@@ -318,7 +318,15 @@ One item per session, as always:
       to pierce: the two lines divide the work - straight down the line you aimed while it
       lasts, sideways into the crowd the moment it does not - instead of one cancelling
       the other out.)
-- [ ] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.
+- [x] Orbitals (3.2): two drones circle the ship and damage on touch, as an upgrade line.
+      (Done. A pair per rank, five ranks, on a ring 64 px out that turns at 3.2 rad/s and
+      bites whatever stands in it once every 1.5 s - and a bite is one shot of the ship's
+      own gun, damage line and all, which is what keeps the line worth taking as the gun
+      grows (session 31 measured the flat version of that number and it cost the run a rank
+      of the gun every time it was picked). The middle of the ring is a dead zone on
+      purpose: it is a wall at a distance you can see, not an aura that forgives you for
+      standing in it. See `BALANCE.upgrades.orbitals`, `game/orbitals.js` and NOTES
+      session 31.)
 - [ ] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line. Release.
 - [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
       let the player pick the weapon on the title screen with a key.

@@ -52,6 +52,10 @@ export const PALETTE = {
   // the one cool hue nobody was wearing is a teal - so six cards can be told apart at a
   // glance by colour and not only by the shape on them.
   teal: '#25e6c0',
+  // The seventh card tint. Six cool hues are spoken for, and the one left that belongs to
+  // none of them is a blue indigo - bluer than the drifter's violet, deeper than the
+  // wall's sky - so seven cards can still be told apart at a glance.
+  indigo: '#5f7dff',
 
   white: '#ffffff',
   uiText: '#eafcff',

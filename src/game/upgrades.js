@@ -9,10 +9,10 @@
 //
 // There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
-// already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet - hand out
-// whole things instead, and a caller counts them: `countOf`, of which `volleyOf`,
-// `pierceOf` and `bounceOf` are the three readings. A card prints either, which is why
-// the printing lives here.
+// already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet, orbitals -
+// hand out whole things instead, and a caller counts them: `countOf`, of which
+// `volleyOf`, `pierceOf`, `bounceOf` and `dronesOf` are the four readings. A card
+// prints either, which is why the printing lives here.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -87,6 +87,14 @@ export const LINES = [
     flavour: 'A shot that would die turns on the next body and goes again.',
     icon: 'ricochet',
   },
+  {
+    id: 'orbitals',
+    name: 'ORBITALS',
+    unit: WHOLE_UNIT,
+    what: 'orbital drone',
+    flavour: 'Drones circle the ship and grind whatever they touch.',
+    icon: 'orbitals',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the one you aimed. */
@@ -95,6 +103,8 @@ const SPLIT_LINE = 'split';
 const PIERCE_LINE = 'pierce';
 /** The line that hands out extra bodies each projectile may be turned onto. */
 const RICOCHET_LINE = 'ricochet';
+/** The line that hands out drones to fly around the ship. */
+const ORBITALS_LINE = 'orbitals';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -190,6 +200,17 @@ export function pierceOf(world) {
  */
 export function bounceOf(world) {
   return countOf(world, RICOCHET_LINE);
+}
+
+/**
+ * How many drones are circling the ship right now (PLAN 3.2's orbitals, as a line):
+ * a pair per rank, so rank 1 is PLAN's two of them and rank five is ten. This is the
+ * ring's whole definition - game/orbitals.js sizes itself to this number every step and
+ * the renderer draws whatever is standing on it - so a rank taken between two frames
+ * puts two more drones on the ring on the very next step, with nothing to keep in step.
+ */
+export function dronesOf(world) {
+  return countOf(world, ORBITALS_LINE);
 }
 
 /** Lines with a rank still to give. */

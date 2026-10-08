@@ -11,6 +11,7 @@ import { cueChord, clearCues } from './cues.js';
 import { newTally } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks } from './upgrades.js';
+import { resetOrbitals } from './orbitals.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -42,6 +43,8 @@ export function resetRun(world) {
 
   world.bullets.clear();
   world.enemyShots.clear();
+  // The ring goes with the ranks it was built from (game/orbitals.js).
+  resetOrbitals(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

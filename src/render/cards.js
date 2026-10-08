@@ -13,7 +13,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { clamp } from '../core/math.js';
 import { world } from '../game/world.js';
 import { effectOf, lineOf, maxRanksOf, rankOf } from '../game/upgrades.js';
-import { polygon, roundRect } from './shapes.js';
+import { polygon, roundRect, shipPath } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { haloText } from './hud.js';
 import { view } from './canvas.js';
@@ -37,6 +37,7 @@ const TINT = {
   split: PALETTE.violet,
   pierce: PALETTE.wall,
   ricochet: PALETTE.teal,
+  orbitals: PALETTE.indigo,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -254,10 +255,10 @@ function drawKeyHint(ctx, number, x, y) {
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
  * cycle, a shot with its own wake for velocity, three of them for split shot, one going
- * through two bodies for pierce, one turning from one body to the next for ricochet.
- * Small, drawn from paths, and legible at a card's worth of pixels. Each line names one
- * of these in game/upgrades.js, and an icon with no shape is a bug that says so rather
- * than drawing the wrong thing.
+ * through two bodies for pierce, one turning from one body to the next for ricochet, and
+ * a ring of drones round a ship for the orbitals. Small, drawn from paths, and legible at
+ * a card's worth of pixels. Each line names one of these in game/upgrades.js, and an icon
+ * with no shape is a bug that says so rather than drawing the wrong thing.
  */
 const ICONS = {
   damage: iconDamage,
@@ -266,7 +267,14 @@ const ICONS = {
   split: iconSplit,
   pierce: iconPierce,
   ricochet: iconRicochet,
+  orbitals: iconOrbitals,
 };
+
+/** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
+const ORBIT_RING = 0.62;
+const ORBIT_BODY = 0.16;
+const ORBIT_THIRD = Math.PI * 2 / 3;
+const ORBIT_TRAIL_ARC = 0.55;    // rad of bright arc behind each drone: which way it turns
 
 /** The three lengths of the pierce icon's shot, brightest where it started. */
 const PIERCE_SHOT = [
@@ -300,6 +308,40 @@ function drawIcon(ctx, kind, cx, cy, size, tint) {
   ctx.globalCompositeOperation = 'source-over';
   shape(ctx, size, tint);
   ctx.restore();
+}
+
+/**
+ * Three drones on a track round a ship. The track is the whole card - a thing that goes
+ * round you and hurts whatever it touches - so it is drawn first and widest, with the
+ * drones on it and a ship in the middle small enough that the ring reads before the ship
+ * does. The short bright arc behind each drone is the direction the ring turns in.
+ */
+function iconOrbitals(ctx, size, tint) {
+  ctx.strokeStyle = withAlpha(tint, 0.36);
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * ORBIT_RING, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const a = -Math.PI / 2 + i * ORBIT_THIRD;
+    ctx.strokeStyle = withAlpha(tint, 0.7);
+    ctx.lineWidth = size * 0.09;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * ORBIT_RING, a - ORBIT_TRAIL_ARC, a);
+    ctx.stroke();
+
+    polygon(ctx, Math.cos(a) * size * ORBIT_RING, Math.sin(a) * size * ORBIT_RING,
+      size * ORBIT_BODY, 4, Math.PI / 4);
+    ctx.fillStyle = withAlpha(tint, 0.95);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+
+  shipPath(ctx, 0, size * 0.05, size * 0.3, -Math.PI / 2, 1.7);
+  ctx.fillStyle = withAlpha(tint, 0.8);
+  ctx.fill();
 }
 
 /**

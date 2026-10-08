@@ -11,6 +11,7 @@ import { updatePlayer } from './player.js';
 import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies } from './enemies.js';
+import { updateOrbitals } from './orbitals.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -102,6 +103,10 @@ function createWorld() {
     // look for the ship. See game/enemyshots.js.
     enemyShots: new Pool(makeEnemyShot),
     enemies: [],
+    // The orbital ring (game/orbitals.js): the angle it has turned to and the drones
+    // standing on it, kept exactly as long as the line's rank. A plain array and not a
+    // pool because a drone's place in the list *is* its place on the ring.
+    orbit: { angle: 0, drones: [] },
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -181,5 +186,8 @@ function stepRun(dt, input) {
   updateBullets(world, dt);
   if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run
+  // Last of the things that hurt the crowd, so a drone bites where a body ended up after
+  // walking rather than where the collision grid last saw it (game/orbitals.js).
+  updateOrbitals(world, dt);
   updateShards(world, dt);
 }
