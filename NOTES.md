@@ -4218,3 +4218,126 @@ arc, because the numbers it would copy do not exist.
   eight lines and a healthy run spends all of it in about three minutes, and the two primaries
   of 3.2 that are left (lance, swarm) are milestone 5's, along with the hangar that will want to
   own `world.weapon` one day.
+
+## Session 35 (2026-10-08) — Survival check: the median became a tool, and the firepower milestone closed on it. Released **0.4.8**
+
+### What this was
+
+The last open item of the "firepower first" milestone, and the one number every session since 0.4.0
+has been arguing with: `tools/simulate.js` printed a mean and no median, so PLAN's own bar - *median
+survival of 5:00 or more* - had never been measured by the tool that is supposed to measure it. Four
+sessions of hand-written aggregators later the number is in the tool, the check has been run on all
+three primaries, and the milestone is ticked.
+
+**No gameplay changed this session.** That is worth saying first, because the release is a milestone
+marker and not a new feature: what got better is the instrument, and what got settled is the question.
+
+### What the tool says now
+
+```
+$ node tools/simulate.js --runs 24 --seconds 900 --weapon arc --need 300
+seed 1  aware  gun arc  died  6m09s  score ...  build 5/5/5/5/5/5/2/4
+...
+batch of 24 runs, aware bot, gun arc: median 15m00s, mean 14m38s, worst 6m09s, 23/24 still flying at the 15m00s cap
+  score median 117,995.5 mean 114,825.9  |  level median 57 mean 55.6  |  kills median 6,624.5 mean 6,458
+survival check: the median run lasted 15m00s against the 5m00s it needs - pass
+```
+
+- `median()` finds the middle (sorted, one value for an odd batch, the middle of the two for an even
+  one), `spread()` does mean/middle/worst for one field, `aggregate()` does the batch, and
+  `batchLine()`/`batchStatsLine()` say it. Exported, and now guarded by the same `isMain` door
+  `tools/balance-report.js` uses, so a test can put them on numbers it made up instead of waiting
+  out twenty bot runs.
+- `--need SECONDS` is the check as an exit code (`process.exitCode`, not a thrown Error: every run
+  played, the batch is simply short). One run and `--need` is refused with 2 - a median of one is a
+  coin toss wearing a lab coat. `--runs 0` is refused the same way `balance-report.js` refuses it.
+- **The worst run of the batch is printed.** A median and a mean both hide the seed that died at two
+  minutes; that seed is the one a player talks about.
+- The duplicate `clockText` is gone, in favour of `clock`/`int`/`dec` from `tools/headless/tables.js`.
+- `playRuns` grew an `onRun` callback and the tool prints each run as it finishes. Twenty long runs
+  are eight minutes of work and a silent terminal cannot be told apart from a stuck one.
+
+### The measurement, and the caveat that matters more than the number
+
+Aware bot, picking its own cards, seeds 1-24, fifteen-minute window:
+
+| gun | median | mean | worst | still flying | score median | level median | kills median |
+|---|---|---|---|---|---|---|---|
+| pulse | **15m00s** | 14m09s | 2m00s | 22/24 | 116,703 | 57 | 6,542 |
+| scatter | **15m00s** | 14m42s | 7m53s | 23/24 | 119,633 | 57.5 | 6,721 |
+| arc | **15m00s** | 14m38s | 6m09s | 23/24 | 117,995 | 57 | 6,624 |
+
+All three clear PLAN's 5:00 by the entire width of the window - which is the caveat: **the median is
+censored by the cap, it is a floor and not a survival time.** The tool prints the at-cap count on the
+same line for exactly that reason, and a longer window says the same thing more plainly. Eight seeds,
+thirty-minute window, same start seeds:
+
+| gun | median | mean | worst | still flying | score median | level median |
+|---|---|---|---|---|---|---|
+| pulse | 30m00s | 30m00s | 30m00s | 8/8 | 257,580 | 76 |
+| scatter | 30m00s | 30m00s | 30m00s | 8/8 | 258,612 | 75.5 |
+| arc | 30m00s | 27m01s | 6m09s | 7/8 | 256,508 | 76 |
+
+Half an hour, and the only run that ended was the same arc seed 1 that ended at the same second in the
+fifteen-minute batch - the same seed, the same run, dying at 6m09s both times, which is a nice free
+proof that the window length does not bend the run.
+
+**Under the floor: the ramp is intact.** `--bot naive`, same seeds and gun, all twenty-four died:
+median **2m43s**, mean 2m30s, worst 0m50s, best 3m26s, score median 5,229. That is the honest bracket
+for what this milestone achieved - a player who never dodges is still dead inside four minutes with a
+full twelve lines of upgrades under them, and a player who dodges perfectly now outlasts a window that
+used to be a fight. Nothing was weakened to get there (the hard rule), the firepower rose to meet the
+crowd.
+
+**Three things this makes visible, none of them new, all of them sharper now they are measured:**
+
+- The aware bot is a superhuman dodger and its survival is **not** a proxy for a human's. The number
+  PLAN asked for is satisfied; the number the owner actually feels is somewhere between the naive
+  bot's 2m43s and "never", and no bot can tell me where. Do not quote 15m00s at anyone as if it were a
+  player's median.
+- **Milestone 10's balance item is now clearly false as written**: "the bot should usually die between
+  4:00 and 9:00 with no upgrades chosen wisely". The aware bot does not die at all, and the naive bot
+  dies before 4:00. When that item comes up it wants re-wording into something the game can actually
+  answer (probably: *the naive bot's median*, or a third bot that dodges but not perfectly), not a
+  change to the enemies.
+- Level median 57 at a fifteen-minute cap and 76 at a thirty-minute one, against **forty ranks in the
+  whole pool**. A run keeps earning levels long after there is nothing to buy - `refreshOffer` handles
+  it honestly (the level is earned, the chime is earned, the run does not stop for a card that cannot
+  be dealt) but the player is right that minute four to minute fifteen is a number going up. The pool
+  is still the biggest thing the plan owes, and it is now measured rather than suspected.
+
+### Tests: 583, all passing (was 577)
+
+Six in `test/simulate.test.mjs`. `median` on one, three, four and zero values plus the two-wrecks-in-a
+batch case that is the whole reason the number exists; `aggregate` on three made-up runs where every
+column has a different answer (a wreck at 60 s, a middle at 300 s, one still flying at the 900 s cap);
+both printed lines word-for-word, so a wording change has to be a decision; the tool printing its
+batch after its run lines; `--need` passing (exit 0), failing (exit 1) and refusing a single run
+(exit 2); and `--runs 0` refused. A `spawnSync` helper keeps the exit status instead of throwing on it.
+
+### Tools
+
+- `node tools/simulate.js --runs 24 --seconds 900 --weapon <gun> --need 300` is the survival check,
+  one line per gun.
+- It is **deliberately not wired into `tools/release.sh`**: eight minutes a gun is not a pre-release
+  check, and the release check must stay something every session runs.
+- A batch shares one booted game, so it is serial: about 20 s of wall clock per 15 minutes of game.
+  Three guns in three processes is how the table above was taken without waiting out half an hour.
+
+### Notes for whoever is next
+
+- **The firepower milestone is closed. Go to milestone 3's first unchecked item: "Add each enemy from
+  3.3, one per session, each with its telegraph and death effect."** Eight of the nine bodies in 3.3
+  are in (`BALANCE.kinds`: drifter, darter, spitter, tank, weaver, bomber, shielder, swarmling) and
+  the elites are in: **the sniper is the one that was never built** - stationary, 35 hull, appears at
+  10:30, a long telegraphed laser across the whole arena. PLAN's telegraph rule is at least 0.6 s, and
+  `tools/headless/threats.js` has to learn the beam or the aware bot will walk into it and every number
+  in this file will quietly stop meaning anything. `test/telegraph.test.mjs` and `test/dodge.test.mjs`
+  are where that gets caught.
+- Milestone 3 then only needs its `Release.` tick, and the plan is back on the main road: milestone 4's
+  behaviour upgrades (burn, chill, leech, overcharge, afterimage, magnetar are all still unwritten),
+  the two remaining primaries (lance, swarm), and the forty-rank pool.
+- If someone wants one more firepower number: the useful one is not a longer window, it is a **third
+  bot** that dodges like a person - reacts to threats with a delay, say 0.2 s, and only to threats
+  inside some radius. Every survival number here is written by a player nobody can be, and the owner's
+  own median is what the milestone was really for.
