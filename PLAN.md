@@ -228,10 +228,10 @@ Behaviour upgrades:
 - **Magnetar**: collected shards deal small area damage around the ship.
   *Done in 0.4.15* (`src/game/magnetar.js`). PLAN's sentence is the code: a shard that comes in
   charges the field round the ship and when the field has swallowed `cost` of them it lets go,
-  taking one shot of the ship's own gun off every body inside its reach for every rank. Two things
-  the plan does not say, both decided and measured. **The field is a bank and not a timer** -
+  taking one shot of the ship's own gun off every body inside its reach for every rank. Three things
+  the plan does not say, each decided and measured. **The field is a bank and not a timer** -
   nothing in the file counts seconds, so the line's rate is the run's own collection rate (measured
-  at about one crack a second, from 213-230 shards a minute) and a shard picked up in a quiet
+  at about one crack a second, from about 220 shards a minute) and a shard picked up in a quiet
   moment is charged for the next crowded one, with the bank carrying its remainder so a gold shard
   is worth six and not "one, rounded down"; and **the light runs inwards, born at exactly the
   reach the damage was paid out at**, because a crack is instant and a nova front travels - the
