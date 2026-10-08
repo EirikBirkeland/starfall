@@ -5296,3 +5296,184 @@ at a ghost**. That denominator is the honest one: the far crowd was never going 
 - If a **third** line needs a "% of frames the condition holds" instrument, promote
   `/tmp/ai-batch.mjs` into `tools/` for real. It is the third such script this milestone has needed
   and the fourth will not be the last.
+
+## Session 43 (2026-10-08) — Magnetar: the first card paid for by picking something up. Released **0.4.15**
+
+Milestone 4's ninth and last behaviour line of PLAN 3.5's set: **Magnetar** - "collected shards deal
+small area damage around the ship". The `Each behaviour upgrade from 3.5, one per session` item is
+**ticked** now (all nine are in, each with its own module and test file); what is left of 3.5 is the
+five secondary systems of 3.2 as their own lines, of which Mines, Turret and Tether are still
+unbuilt. PLAN's line is annotated with the two things PLAN does not say that had to be decided, and
+with the measurement the card was priced on.
+
+### What got built
+
+- `src/game/magnetar.js` (new, ~175 lines with its argument) - `newMagnetar`/`resetMagnetar`,
+  `hasMagnetar`, `chargeOf`, `isPrimed`, `feedField(world, worth)` (knocked on by `updateShards` at
+  the moment a shard is collected) and `updateMagnetar(world, dt)` (the run's step, right after
+  `updateShards`, so a shard that comes in this step is charged for a crack this step). There is no
+  pool and no object in the arena: the whole state of the line is one number, `world.magnetar.charge`,
+  in shards' worth, and a crack is an event inside one step like game/blast.js.
+- `upgrades.js`: the fourteenth line, an `each` line whose `step` is 1, so `crackShotsOf(world)` is
+  the rank and rank 0 is *no field* rather than a field that does nothing (the trap every
+  conditional line has to be tested for). Card prints `+1 shot off everything in reach`.
+- `balance.js`: `upgrades.magnetar = { ranks: 5, step: 1, cost: 4, reach: 210, seed: {at: 3, count:
+  1}, light: {ring, infall, flash}, sound, shake: 1.2 }`, every number with its measurement attached.
+- `render/entities.js`: `drawFieldRing`, the third ring round the hull (dash cooldown, gun charge,
+  and now the shard bank) at `drawR + 30`, in the shards' own mint, same two passes as the other
+  two. Nothing is drawn for a run that has not taken the card.
+- `render/cards.js`: the fourteenth tint is `PALETTE.elite` - the gold an elite's outline wears, i.e.
+  the colour of *value*, and the second warm tint on the rack after BURN's; `iconMagnetar` is six
+  shards on the rim, six short arrows falling in between them, and the ship at the middle. Two new
+  glow holders came from that tint and `test/draw-cost.test.mjs`'s bound went 33 → 35 (measured 34).
+- `src/core/palette.js`: `fieldRingTrack/Soft/Fill`. Cool on purpose: this is the ship's own field,
+  whatever colour the crowd it comes round happens to be (PLAN section 4).
+- `src/main.js`: `stats().field`, the bank, so a headless run can watch it sawtooth. A crack leaves no
+  object behind, so without this a headless run cannot see the line at all.
+- `tools/headless/harness.js`: the circle log now records an arc's `from`/`to` as well as its radius,
+  because three of the rings round the ship are *meters* drawn as part of a circle and a test cannot
+  tell a quarter-filled one from a whole one on the radius alone. Existing consumers unaffected.
+- `tools/power-ladder.js`: its "what this file cannot measure" paragraph now has the second kind of
+  1.00x in it - a line whose trigger is a body coming apart, which a knot of immortal bodies never
+  provides. `--line magnetar` prints 1.00x and the tool now says why instead of letting it look like
+  a weak card.
+- Tests: `test/magnetar.test.mjs` (17) and `test/magnetar-art.test.mjs` (7). **791 pass** (was 767).
+
+### Why the shape it has
+
+- **The field is a bank and not a timer.** Nothing in the file counts seconds. A crack happens when
+  the shards come in, at one crack per `cost` of them, which makes the line's rate the run's own
+  collection rate - the only line in the deck with that property - and means there is nothing to wait
+  for and nothing to waste: the bank carries its remainder, so a large shard is worth six and not
+  "one, rounded down". A timer version (a pulse every N seconds, boosted by shards) was the other
+  option and was rejected: it makes the card keep a beat whether or not the player is collecting,
+  which is the identity thrown away.
+- **One crack per step, however full the bank.** A magnet pile is twenty shards in one step; paying
+  all twenty out at once is twenty rings and twenty sounds in one frame. One per step at 120 Hz is
+  still a rattle over ~40 ms, which is what walking into a pile should look and sound like.
+- **A crack is not a *hit*.** It takes hull and hands out nothing: no fire (game/burn.js) and no
+  frost (game/chill.js) - the one place in the deck where the ship's own damage stops short, and it
+  had to be a decision rather than an accident, so there is a test that would fail the day someone
+  wires it up. The reason is the *rate*: burn and chill ride on what the gun lands, which is a few
+  pulls a second; the field cracks about once a second whatever the rank, so a crack that frosted and
+  lit would keep the whole near field frozen and alight for free and do those two cards' work for
+  them. (Everything else a damage source does give: it is the run's own kill through `damageEnemy`,
+  so score and tally and the elite's drop all land on the player, and a bomber that comes apart to a
+  crack still blasts.)
+- **The light runs inwards, born at exactly `reach`.** A nova front travels, so its ring is the
+  damage on its way out and may run past the crowd it hurt (game/nova.js has that half of the rule).
+  A crack is instant, so the only honest light is one born at the radius that was actually hurt and
+  collapsing back into the ship: never a wider circle than the crowd it came round, never a smaller.
+  The art test asserts the ring is never *out* past `reach` and is born one step inside it.
+- **The ring round the hull is a wallet, not the field.** The crack's light owns the distance; a
+  standing circle 210 px round the ship would be a third of the screen, and the two rings it joins
+  (dash cooldown, gun muzzle) are meters too. That is a decision I made twice: the first draft of
+  `drawFieldRing` drew a "ready" ring at the reach and it was both a lie and a mess.
+- **It never hurts the ship**, which sounds obvious and is a real test: the field is drawn round the
+  ship's own centre and the crowd list is not the only thing inside it.
+- Rank 3 is the second half, in PLAN's usual shape: a body the crack *itself* killed leaves one shard,
+  so the crack that clears the pocket buys the next one. One shard, only on a crack-kill - momentum,
+  not a mint (the leech mints hull; nothing here is supposed to print resources out of nothing).
+
+### What the numbers came out as
+
+The instrument is the run, for a line the ladder cannot see. `/tmp/mag-run.mjs <control|deck|free>
+<seed> 900` runs the aware bot three ways on the same seeds - `control` has the line out of the deck
+(`BALANCE.upgrades.magnetar.ranks = 0`, still how a line is removed), `deck` deals it normally,
+`free` hands all five ranks every frame - and counts cracks off the bank letting go, not off the
+arithmetic. Six seeds, medians:
+
+| | score | a run's whole damage | cracks/min | bodies found per crack |
+|---|---|---|---|---|
+| out of the deck | 111,502 | 55,454 | - | - |
+| in the deal (bot takes 2-3) | 115,808 | 57,186 | 52.1 | 0.63 |
+| five ranks handed | 116,937 | **61,414** (+10.7%) | 57.6 | 0.23 |
+
+- **+10.7% of everything a run's damage is for five free ranks, and all six seeds up on it**, at
+  +4.9% score: burn's family (session 38's same-style A/B was +2.9% for the five ranks a bot takes by
+  itself) and a clear shade under a rank of the damage line. That is the honest size of the card.
+- **The rhythm came out exactly as designed**: 200-285 shards a minute depending on the seed, and
+  44-69 cracks a minute (medians 52 and 58), which is `shards / cost` to within a shard. A separate
+  36-run minute-by-minute probe (`/tmp/mag-probe.mjs`) says income climbs from 79 shards/min in
+  minute 1 to a plateau of **218-245/min from minute 3 onward** - ~3.7 a second - so the card is
+  nearly dead in the first minute and alive after it, which is true of every added-damage line and is
+  worth knowing about a line whose rate is somebody else's.
+- **What a crack actually comes round is much less than what a frame contains**, and this is the
+  number that changed my mind mid-session. Bodies standing within 210 px of the ship average 1.0-1.1
+  over every frame (0.4 within 145 px, 4.8 within 300), but *on the frame a crack fires* the median is
+  0.63 with the line dealt and 0.23 with five ranks handed: **the crack fires on the quiet frames**.
+  It lets go when a shard arrives, and a shard arrives while the ship is running over the field it
+  dropped, not while it is being chewed on. My first pricing used the all-frame average and was
+  therefore ~3x too generous in its reasoning; `balance.js` now carries the crack-frame numbers and
+  says so. Two consequences written into the reach argument: at 145 px (the magnet's own reach, the
+  obvious first guess) there would be nobody to crack at, and the line is self-limiting in a way I had
+  not predicted - a better run empties its own near field, so the fifth rank finds *less* than the
+  second did.
+- **Step or cost is a shape choice, not a balance one**: what a rank is worth is `weight x bodies x
+  income / cost`, so `step: 1, cost: 4` and `step: 4, cost: 16` are the same card on paper. Selling
+  the rank as weight keeps one crackle a second at every rank and makes a rank heavier; selling it as
+  a cheaper bank would make the fifth rank a hiss and a different sound rather than a bigger one.
+- **Reference run rebaselined**, as it must be when a card joins the deck: `--seed 20261006` is alive
+  at the 10m cap, score **70296**, level 43, kills 4119, shards 2410, hull 3, build
+  4/3/3/4/3/4/1/2/4/3/3/3/3/**2** (fourteen lines, magnetar taken twice). Up from 69831, the same
+  deal spread over one more line. The bot does pick the card when it is dealt, which was not a given:
+  `APPETITE` in `bot.js` puts the added-damage lines last, so it only takes magnetar once the gun
+  lines are fed - and it still took two ranks of it in the reference run.
+
+### What surprised me
+
+- **I broke the arena ring and the test suite did not notice.** A stray newline in an edit joined
+  `const BANK_GAP = 30; // ...` and `const BANK_SOFT = 6; // ...` onto one line, so `BANK_SOFT` was
+  commented out and `drawFieldRing` threw - and the suite stayed green, because the art test at that
+  point drew only the *card icon*, and because `drawFieldRing` returns early for a run with no ranks,
+  so no painting test in the suite ever reached it. `node tools/simulate.js` caught it (it crashes on
+  the first level-up). NOTES has said "paint the state you changed, through the real painter, in both
+  of its states" since session 40 and I wrote an icon-only art test anyway. `test/magnetar-art.test.mjs`
+  is now a harness file (boots the game, paints real frames, counts arcs and strokes at the ship's
+  own origin) and would have failed.
+- **The overfull ring is rarer than I designed it for.** Writing the art test forced the question
+  "when does the ready ring actually get painted?" and the answer is: almost never in ordinary play,
+  because the field spends itself the same step it fills - `updateMagnetar` runs every step, so the
+  bank is never ≥ `cost` at a frame boundary. It *is* reachable when a magnet pile lands (five cracks'
+  worth in one step, and one crack per step means the ring stays whole and bright for the ~3 frames
+  the rattle takes), so I kept it and rewrote the comment: it is the overfull tell, not the ready tell.
+- **The shard→crack direction made an import cycle** (`pickups.js` feeds `magnetar.js`, which calls
+  `pickups.js` for the rank-3 drop). ESM handles it fine and the sim path proves it, but it is the
+  first cycle in `src/game/` and I checked it in all three of the harnesses before leaving it. The
+  alternative (world.js calling `feedField` itself) would have put the collection moment in a file
+  that does not know what a collection is.
+- **`world.shardsCollected` counts shards, not worth**, so the first version of my income probe
+  understated elite drops; the honest number needed `worth`, which is only visible at the moment of
+  collection. `stats().field` (the bank) sidesteps all of it, which is why the debug stats exist.
+- The tint hunt: the rack had run out of hues by the twelfth card and I needed a fourteenth anyway.
+  `PALETTE.elite` was sitting there doing a job (elite outlines) whose meaning - *this one is worth
+  something* - is exactly what a loot-to-damage card is selling, and `test/draw-cost.test.mjs` told me
+  within one run that a new tint costs two glow holders, which is the price of a colour here.
+- Session 42's warning about the bots held again: their whole policy is running away from the crowd,
+  which is precisely the behaviour this card taxes, so the `free` batch is the one that shows anything
+  and even it only moves +4.9%. A player who walks back into their own loot for a gold shard is buying
+  something no bot in `tools/headless` has ever wanted.
+
+### For the next session
+
+- **A secondary system of 3.2 as its own line** - **Mines**, **Turret** or **Tether** (orbitals and
+  nova went in in 0.4.4/0.4.5). Tether is the most interesting and the most dangerous: it is a
+  *restriction* on the crowd and it wants the same derivation-not-state treatment afterimage got, and
+  it is the third line this milestone will need a "share of frames the condition holds" instrument
+  for. Mines is the most self-contained (a placed thing with a trigger radius, i.e. a bomber's zone
+  with a fuse). Read `game/shields.js`, `game/flock.js` and `game/afterimage.js` before whichever it
+  is; all three derive their world from the crowd every step and that is the pattern to copy.
+- **The third bot** is still the biggest instrument gap, and two sessions' worth of notes now say so:
+  a policy that dodges with a reaction delay and dashes on a real threat. Until then, dash lines and
+  near-field lines cannot be quoted from the deck A/B at all, and I keep having to say "the bot cannot
+  see this card" in `balance.js`. `dashEscape` in `bot.js` is the seed; it needs a delay and a threat
+  test, not a radius.
+- **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and
+  chill's shatter fires on a body that wore both, plus a way to make a synergy findable on the rack.
+  Sessions 39-42 all said this. It is the natural first synergy and it is a *design* job, not a probe.
+- **Owned-upgrade icons on the HUD**: fourteen lines, sixty-eight ranks, and the HUD names none of
+  them. Magnetar makes it worse in a new way - the bank now has a ring on the ship and no label, and a
+  player who has never seen the card has to guess which of the three rings round the hull is theirs.
+- Promote the throwaway batch runners into `tools/` for real (session 41, 42 and 43 each wrote a
+  `/tmp/*.mjs` for the same three-condition A/B; `mag-run.mjs` is the fourth copy). The fifth session
+  that needs one should read `tools/balance-report.js` instead of writing a sixth.
