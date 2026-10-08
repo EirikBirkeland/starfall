@@ -5133,3 +5133,166 @@ All of it is the headless bot, one process per batch, 8-16 seeds. Throwaways liv
   lines and fifty-eight ranks now, and the HUD says none of them by name), the third bot (dodging with
   a delay - the one instrument that could tell a played card from a bot's own luck), and a real agent
   playing a real run through `tools/agent-bridge.js`.
+
+## Session 42 (2026-10-08) — Afterimage: the first card that buys where the crowd is walking. Released **0.4.14**
+
+Milestone 4's fifth behaviour line: PLAN 3.5's **Afterimage** - "the dash leaves a decoy that
+enemies chase for 2 s". The `Each behaviour upgrade from 3.5` item stays unticked (Magnetar is the
+last of them). PLAN's line is annotated with what was built, with the three things PLAN does not
+say that had to be decided, and with the finding that neither bot can see the card at all.
+
+### What got built
+
+- `src/game/afterimage.js` (new, ~180 lines with its argument) - `makeImage`/`newAfterimage`/
+  `resetAfterimage`, `hasAfterimage`, `armDash(world)` (called from `beginDash`, sets how many
+  images this dash leaves and how far apart they are), `trailImages(world)` (called from
+  `dashStep`, after the ship has moved, and drops whatever the streak has reached),
+  `updateAfterimage(world, dt)` (the run's step, last of the things that walk, so an image is
+  chased for every step of its two seconds), `quarryFor(world, enemy)` and `fadingBy(image)` for
+  the frame.
+- `world.afterimage` is the trail (a `Pool`) plus three pacing numbers (`gap`, `due`, `left`).
+  Nothing anywhere remembers who is chasing what.
+- `enemies.js`: **`step.ship` is now the body's quarry**, re-asked for every body just before it is
+  walked. That is the whole integration - three lines of code and one paragraph of comment.
+- `kinds.js`: documentation only. The walk interface did not change, because every walk already
+  read nothing off its quarry but `x` and `y`. Nine kinds needed no edits, including the one
+  bolted to the floor (its walk reads the quarry to *turn*, which is all it can do anyway).
+- `upgrades.js`: the thirteenth line, an `each` line whose `step` is 1, so `imagesOf(world)` is the
+  rank and rank 0 is no images at all rather than images that do nothing. Card prints
+  `+1 image left behind`.
+- `balance.js`: `upgrades.afterimage = { ranks: 5, step: 1, life: 2, bait: 110, gone }`. `life` is
+  PLAN's, `bait` is the measured number with the argument attached, `gone` is the light and the
+  sound of one going out.
+- `render/entities.js`: `drawGhosts` - the ship's own silhouette at the ship's own size in the
+  ship's own cyan, with a circle at exactly `bait` round each (the line drawn out of the number the
+  sim reads, like a bomber's zone), thinning over its last half-second, painted **under** the ship.
+  `render/cards.js`: the thirteenth tint is `PALETTE.playerLine` and `iconAfterimage` is three of
+  the ship down a streak. No new palette entry and no new glow holder: the glow is the house two
+  passes and the ink is `PALETTE.player`, which is the point of the card.
+- `tools/headless/bot.js`: **`dashEscape(game)`**, and `tools/simulate.js --dash` to put it on
+  either bot. This is the reason this session could measure the card at all.
+- `tools/power-ladder.js` now says out loud that a line which adds no damage measures 1.00x there,
+  which is a true answer to a question nobody was asking.
+- `src/main.js`: `stats().images`, so a headless run can see the trick is up. (Committed after the
+  tag, so it rides to the next release.)
+- Tests: `test/afterimage.test.mjs` (17) and `test/afterimage-art.test.mjs` (6). 767 pass.
+
+### Why the shape it has
+
+- **A decoy is a place, not a body.** The question a decoy has to answer before it can be built is
+  *who shoots it*, and the answer here is nobody: it is not in `world.enemies`, has no hull, cannot
+  be hurt and cannot hurt. A shot flies through it (there is a test with a bullet in it), and it
+  expires on its own clock. The alternative - a body in the crowd with a flag - would have made the
+  ghost a second gun that fires itself, and would have let a good shot cut the decoy short.
+- **Who chases what is derived every step** from the crowd and the images, like the packs in
+  game/flock.js and the guards in game/shields.js. Nothing to remember when an image goes out,
+  nothing to clean up when a rank is taken, and a body that wanders into a ghost's reach mid-life
+  simply starts chasing it.
+- **`bait` is the near field, and so a rank can buy *length*.** Images are spread over the dash's
+  whole 220 px, so rank 1 fools the bodies at a point and rank 5 fools the bodies along a line.
+  Selling the rank as reach or as time would grow one disc, which is the same crowd fooled again -
+  and the measurement says exactly that (below).
+- **A chase is not a stun, and a promise is never broken.** A fooled body walks at full pace and is
+  still a body. A darter mid-aim or mid-lunge, a swarm mid-dive and a sniper whose lock has been
+  taken keep the line they committed to, because those walks read what they locked and not the
+  quarry - which is the existing code doing the right thing on its own, and now tested.
+- **The tell is the crowd, and it is free**: which way a body points is which way it walks
+  (game/kinds.js), so the noses of everything nearby turn aside to face the ghosts the moment they
+  go up. The image's own circle is the only extra ink.
+
+### What the numbers came out as
+
+The instrument for a card like this did not exist, so it was built first. `/tmp/ai-batch.mjs` (this
+session's throwaway, in the tradition of session 41's `oc-use.mjs`) runs the aware bot with
+`dashEscape` and samples every frame: how many images stand, how many bodies are chasing one, and -
+the number that matters - **what share of the bodies standing within 250 px of the ship are walking
+at a ghost**. That denominator is the honest one: the far crowd was never going to reach you.
+
+- **The `bait` grid** (8 seeds of 120 s, ranks handed for free, near-crowd share diverted):
+
+  | `bait` | rank 1 | rank 5 | "something fooled" frames, 1 → 5 |
+  |---|---|---|---|
+  | 72 (first guess) | 2.0% | 13.4% | 12.6% → 38.2% |
+  | **110 (kept)** | 6.4% | 30.2% | 29.1% → 55.1% |
+  | 150 | 17.5% | 43.8% | 53.7% → 65.6% |
+
+  72 is a card that mostly does nothing; 150 ends the fight and, worse, makes the ranks redundant
+  (the discs overlap so heavily that the fifth buys 12 points over the first). 110 is where both
+  ends are alive: at the second rank the two discs just touch, and every rank after that lays them
+  out into a line. Peak bodies fooled at once: 8 at 72, 16 at 110, 17 at 150.
+- **What the deck says, which is nothing.** Ten seeds at the 900 s cap, score medians, in the deal
+  against out of the deck (`ranks: 0`, which is still how a line is taken out of a measurement):
+  - plain aware bot, no dash: **111,850 against 112,884**, both 0/10 dead - the dilution cost, the
+    same shape every defensive line has shown, and the bot cannot even dash so the card is pure cost.
+  - dash-habit aware bot: **107,937 (4/10 dead) against 113,741 (3/10)**, and **handed five free
+    ranks: 113,657 (3/10)** - i.e. five free ranks of afterimage are worth exactly nothing to it.
+    It dashes 20 times a minute and has an image standing in **half** its frames at the 900 s cap
+    (50.9%, with something fooled in 25.8% of them) - and the near crowd it gets to divert is two
+    bodies wide: at five free ranks, 20.4% of the 2.1 bodies standing within 250 px of it are
+    chasing a ghost, which is four fifths of one body.
+  - naive bot with the dash habit, 300 s, 16 seeds: 167.7 s median in the deck, 172.5 out, 174.9
+    handed four ranks - with 29.6% of its near crowd fooled and 39 bodies fooled at the worst frame.
+    Its death is not caused by what it is chasing, so the room buys it nothing.
+- **The claim the card actually makes** is measured where it can be, in `test/afterimage.test.mjs`:
+  twenty bodies coming up from behind, one dash straight away from them, a second and a half later -
+  the crowd's mean distance from the ship goes 152 px → 211 px and the nearest body 95 px → 158 px,
+  five ranks against none. That is the knot a player dashes out of, and it is repeatable.
+- **The step cost** is nothing: 1200 steps against a crowd of 200 took 61 ms with nothing standing
+  and 62 ms with five images (the crowd had moved differently by then, so even that is noise). The
+  quarry loop is `trail.count` distance tests per body and the trail never exceeds five.
+- **Reference run rebaselined**, as it must be when a card joins the deck: `--seed 20261006 --trace`
+  is alive at the 10m cap, score **69831**, level 42, kills 4091, shards 2228, hull 3, build
+  4/4/3/4/4/3/1/2/4/3/3/3/3 (thirteen lines, afterimage 3, overcharge last at 3). Up from 68934 -
+  the same deal spread over one more line, and the medians above barely moved, which is the point.
+
+### What surprised me
+
+- **The walk interface already carried the whole feature.** Because every kind reads nothing off
+  `step.ship` but `x` and `y`, handing each body a different quarry was three lines in the crowd
+  loop and zero lines in the nine kinds. The one thing that made this sure was reading `kinds.js`
+  end to end before writing anything, which is what AGENTS asks for and what made the design obvious
+  instead of guessed.
+- **The bots are blind to a misdirection card in a worse way than they were to the leech.** The
+  leech at least got paid by their kills. These two *flee*, so their near field is two or three
+  bodies wide and there is nothing to divert; and their survival instrument is saturated at the cap
+  so nothing that helps could show. This is the first card where the free-ranks batch and the
+  out-of-deck batch are the same number, which is the instrument saying "I cannot see this card"
+  rather than "this card is weak". The knot test in the test file is what the balance was actually
+  priced on, and it says so in `balance.js`.
+- **`dashEscape` made the aware bot *worse*** - 3-4 of 10 dead at the 900 s cap against 0 of 10
+  without it - which is a finding about the instrument and not about the game: a bot that dashes
+  whenever anything comes within 170 px throws the ship into the next body and spends the dash's
+  invulnerability on travelling rather than on surviving. Written into `bot.js`, and the habit is
+  opt-in, so nobody reads the dash batches as the game's difficulty by mistake. It is also the best
+  argument yet for the third bot (dodge *with a delay*), which would dash on a threat instead.
+- **The two-second boundary again refused to be exact.** The first version of the duration test
+  counted steps and failed by one, because 240 steps of a 1/120 s step do not add up to 2 (session
+  41's lesson, one file later). The test now reads the image's own `age` and promises one step of
+  slack at each end, which is the only thing about a clock that fine a test is allowed to ask.
+- **`bait` is not a tuning number, it is the card's identity**, and the rank's slope is a function of
+  it. First time I have had to pick a radius before I could tell what a rank was worth.
+- The art test's per-image promise landed on exactly 3 strokes (reach, wide faint pass, thin bright
+  one) with nothing baked, and still cannot promise anything about fills because the starfield
+  twinkles (session 41's note, honoured rather than rediscovered).
+
+### For the next session
+
+- **Magnetar** (PLAN 3.5: "collected shards deal small area damage around the ship") - the last
+  behaviour line of the four damage systems, and closest in shape to burn/nova/chill: it will want
+  the "a share of one shot of the ship's own gun" pricing (session 31's lesson), a `tally` read for
+  its share of a run's whole damage rather than a ladder number, and a decision about whether the
+  shard is spent by the hit or by the collection. Read `game/pickups.js` and `game/nova.js` first -
+  the reach geometry is nova's and the collection is the pickups' own door.
+- **The third bot** is now clearly worth doing: a policy that dodges with a reaction delay and dashes
+  on a real threat, which is the first instrument that could tell a played card from a bot's own
+  luck - and the only way lines that live on the dash (afterimage today, the Tether secondary and
+  the Railgun synergy tomorrow) get a fair number. `dashEscape` is the seed of it.
+- **Thermal shock** (Burn 3 + Chill 3) still needs the rule about which of burn's fire-pass and
+  chill's shatter fires on a body that wore both, and the special card frame that makes a synergy
+  findable. Sessions 39, 40 and 41 all said this; it is still the natural first synergy.
+- **Owned-upgrade icons on the HUD**: the deck is thirteen lines and sixty-three ranks and the HUD
+  names none of them. Afterimage makes it worse in a new way - a run can have five ghosts standing
+  in the arena and the HUD says nothing about the line that put them there.
+- If a **third** line needs a "% of frames the condition holds" instrument, promote
+  `/tmp/ai-batch.mjs` into `tools/` for real. It is the third such script this milestone has needed
+  and the fourth will not be the last.
