@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.14",
+    "date": "2026-10-08",
+    "summary": "Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds"
+  },
+  {
     "version": "0.4.13",
     "date": "2026-10-08",
     "summary": "Overcharge: stand still for a second and the next pull of the trigger is worth double"
