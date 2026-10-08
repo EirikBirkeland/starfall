@@ -86,7 +86,11 @@ function makeContextStub(counters, drawLog) {
     // drawn in a bigger colour when there is no pixel to look at.
     moveTo: (x, y) => { drawLog.points.push(onto(x, y)); },
     lineTo: (x, y) => { drawLog.points.push(onto(x, y)); },
-    arc: noop, arcTo: noop,
+    // Circles are logged too, radius and all: a ring is how the nova's front and a
+    // shielder's field are drawn, and the only way to ask in here whether the picture is
+    // the size the simulation says it is.
+    arc: (x, y, r) => { drawLog.circles.push({ x: x, y: y, r: r, at: onto(x, y) }); },
+    arcTo: noop,
     closePath: noop,
     // A dash pattern is part of the drawing state, so it is saved and restored like a
     // colour. The bomber's death zone is dashed (render/entities.js) and the stub has
@@ -159,7 +163,7 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -208,7 +212,7 @@ export async function bootGame(options) {
     /** The offscreen canvases the glow sprites are baked on. */
     createElement(tag) {
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [], points: [] });
+      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [], points: [], circles: [] });
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -231,6 +235,7 @@ export async function bootGame(options) {
       drawLog.images.length = 0;
       drawLog.dashes.length = 0;
       drawLog.points.length = 0;
+      drawLog.circles.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -279,6 +284,8 @@ export async function bootGame(options) {
      * after the transforms around it - which is how big a drawn shape is, measured.
      */
     points() { return drawLog.points.slice(); },
+    /** Every circle the last frame asked for, with its radius, in arena coordinates. */
+    circles() { return drawLog.circles.slice(); },
     /** Where an arena point lands on the screen, now the arena is not the window. */
     screenOf: (x, y) => game.screenOf(x, y),
     stats() { return game.stats(); },

@@ -110,6 +110,40 @@ test('a deal always has something the run has never taken (PLAN 3.5)', () => {
   }
 });
 
+test('a line with no ranks to give is never dealt, not even as the something new', () => {
+  // `ranks: 0` is how a line is taken out of the game - it is what a measurement does to
+  // get a baseline without it - and the guarantee above must not slip it in behind the
+  // door. It took exactly that to make a "the nova is not in this game" A/B measure one
+  // rank of the nova instead of none, because a line with no ranks in it is untouched
+  // forever and so was the first thing the guarantee reached for (NOTES session 32).
+  //
+  // The shape that makes the guarantee fire: every line with a rank left has been taken
+  // at least once, so there is nothing fresh in the deal and the guarantee goes looking.
+  const ghost = 'split';
+  const depth = BALANCE.upgrades[ghost].ranks;
+  BALANCE.upgrades[ghost].ranks = 0;
+  try {
+    for (let seed = 0; seed < 40; seed++) {
+      const field = scriptedRun(700 + seed);
+      for (const id of IDS) {
+        if (id !== ghost) field.upgrades[id] = BALANCE.upgrades[id].ranks - 1;
+      }
+      field.offer.length = 0;
+      earnLevel(field);
+
+      assert.equal(field.offer.length, BALANCE.cards.offer,
+        'there were three cards to deal, of the lines that have a rank left');
+      assert.ok(!field.offer.includes(ghost),
+        'seed ' + seed + ' dealt ' + field.offer.join(', ') + ', and ' + ghost + ' has no ranks');
+      assert.ok(field.offer.every((id) => field.upgrades[id] > 0),
+        'and every card in it was a line the run had already taken, which is the case the '
+        + 'guarantee is asked about');
+    }
+  } finally {
+    BALANCE.upgrades[ghost].ranks = depth;
+  }
+});
+
 test('taking a card banks the rank and hands the run back', () => {
   const field = scriptedRun(33);
   assert.equal(describeRanks(field), 'NO UPGRADES', 'a fresh run has no build to show');

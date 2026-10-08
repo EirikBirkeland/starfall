@@ -220,6 +220,12 @@ window.STARFALL = {
       parts: world.particles.count,
       collected: world.shardsCollected,
       fireRate: world.player.fireRate,
+      // The nova (game/nova.js): how many fronts are in the air, and how long until the
+      // next one. The F3 overlay wants both, and a test that cannot see a front can at
+      // least see that the clock is running.
+      fronts: world.nova.fronts.count,
+      novaIn: world.nova.wait,
+      novaEvery: world.nova.beat,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

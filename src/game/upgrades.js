@@ -9,10 +9,10 @@
 //
 // There are two kinds of number, and a line is one of them (`unit`). Most lines sell a
 // *share* of something, which is a multiplier a caller multiplies with the number it
-// already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet, orbitals -
-// hand out whole things instead, and a caller counts them: `countOf`, of which
-// `volleyOf`, `pierceOf`, `bounceOf` and `dronesOf` are the four readings. A card
-// prints either, which is why the printing lives here.
+// already has: `gainOf`. The behaviour lines - split shot, pierce, ricochet, orbitals,
+// nova - hand out whole things instead, and a caller counts them: `countOf`, of which
+// `volleyOf`, `pierceOf`, `bounceOf`, `dronesOf` and `pulsesOf` are the five readings.
+// A card prints either, which is why the printing lives here.
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
@@ -95,6 +95,14 @@ export const LINES = [
     flavour: 'Drones circle the ship and grind whatever they touch.',
     icon: 'orbitals',
   },
+  {
+    id: 'nova',
+    name: 'NOVA',
+    unit: WHOLE_UNIT,
+    what: 'nova ring',
+    flavour: 'Every eight seconds the ship throws off a wave of damage, and one more per rank.',
+    icon: 'nova',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the one you aimed. */
@@ -105,6 +113,8 @@ const PIERCE_LINE = 'pierce';
 const RICOCHET_LINE = 'ricochet';
 /** The line that hands out drones to fly around the ship. */
 const ORBITALS_LINE = 'orbitals';
+/** The line that hands out nova fronts to throw off the ship. */
+const NOVA_LINE = 'nova';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -213,6 +223,18 @@ export function dronesOf(world) {
   return countOf(world, ORBITALS_LINE);
 }
 
+/**
+ * How many nova fronts the ship throws off per cycle (PLAN 3.2's "every 8 s", as a
+ * line): one per rank, so rank 1 is PLAN's single ring every eight seconds and rank
+ * five is five of them spread across the same eight seconds. The wait itself is
+ * `cycle / this`, worked out where the next one is counted down - a rank taken part way
+ * through a wait shortens the one after it rather than reaching back into the wait the
+ * run has already spent.
+ */
+export function pulsesOf(world) {
+  return countOf(world, NOVA_LINE);
+}
+
 /** Lines with a rank still to give. */
 function linesWithRoom(world) {
   const room = [];
@@ -231,12 +253,20 @@ function weightOf(world, line) {
  * PLAN 3.5's other half: while any line is untouched, at least one of the cards must
  * be one. Without this a build that has been going a while stops ever seeing a new
  * line, which is how a game of choices quietly stops offering choices.
+ *
+ * "Untouched" and "has a rank to give" are not the same thing, and both are needed: a
+ * line with no ranks in it (`ranks: 0`, which is how a line is taken out of the game)
+ * is untouched forever and would otherwise be dealt every time this fires - and taking
+ * it would hand out a rank of a line that has no ranks, which is how a measurement that
+ * removed a line ended up measuring one rank of it instead (NOTES session 32).
  */
 function guaranteeSomethingNew(world, offer) {
   if (offer.length === 0) return;
   for (const id of offer) if (rankOf(world, id) === 0) return;
   const fresh = [];
-  for (const line of LINES) if (rankOf(world, line.id) === 0) fresh.push(line.id);
+  for (const line of LINES) {
+    if (rankOf(world, line.id) === 0 && maxRanksOf(line.id) > 0) fresh.push(line.id);
+  }
   if (fresh.length === 0) return;
   offer[offer.length - 1] = logic.pick(fresh);
 }

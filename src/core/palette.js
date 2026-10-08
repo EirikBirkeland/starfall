@@ -56,6 +56,12 @@ export const PALETTE = {
   // none of them is a blue indigo - bluer than the drifter's violet, deeper than the
   // wall's sky - so seven cards can still be told apart at a glance.
   indigo: '#5f7dff',
+  // The eighth card tint, and the last cool hue with any room in it: a spring green, a
+  // good thirty degrees round the wheel from the shard's mint so the two do not read as
+  // each other. PLAN section 4 counts green as helpful alongside cyan and white, and the
+  // nova's own ring in the arena wears the ship's cyan rather than this - the tint is
+  // how a card is told from the other seven, not what the thing it sells is coloured.
+  spring: '#7dff5e',
 
   white: '#ffffff',
   uiText: '#eafcff',

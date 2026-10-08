@@ -12,6 +12,7 @@ import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies } from './enemies.js';
 import { updateOrbitals } from './orbitals.js';
+import { updateNova, makeFront } from './nova.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -107,6 +108,11 @@ function createWorld() {
     // standing on it, kept exactly as long as the line's rank. A plain array and not a
     // pool because a drone's place in the list *is* its place on the ring.
     orbit: { angle: 0, drones: [] },
+    // The nova (game/nova.js): the fronts in the air, the wait until the next one, and
+    // the wait it was armed with (which is what the frame paints the tell from). Pooled,
+    // because a front is thrown thousands of times over a long run and nothing cares
+    // about the order of them.
+    nova: { wait: 0, beat: 0, fronts: new Pool(makeFront) },
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -189,5 +195,8 @@ function stepRun(dt, input) {
   // Last of the things that hurt the crowd, so a drone bites where a body ended up after
   // walking rather than where the collision grid last saw it (game/orbitals.js).
   updateOrbitals(world, dt);
+  // And after the ring for the same reason: a nova front comes over the crowd where the
+  // crowd now stands (game/nova.js).
+  updateNova(world, dt);
   updateShards(world, dt);
 }

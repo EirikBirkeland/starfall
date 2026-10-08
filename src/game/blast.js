@@ -1,10 +1,14 @@
 // A blast: one round of damage in a circle, and the light of it.
 //
-// A bomber's death is the first thing that uses this, and the nova and the mines of
-// milestone 4 will want it too, so it is a system of its own rather than a few lines
-// inside a kind. It is not a thing that lives in the world - there is no list of
-// blasts, and nothing steps them - it is an event that happens inside one step: the
-// ring and the sparks are left behind as effects, the damage is done on the way out.
+// A bomber's death is the first thing that uses this, and the mines of milestone 4 will
+// want it too, so it is a system of its own rather than a few lines inside a kind. It is
+// not a thing that lives in the world - there is no list of blasts, and nothing steps
+// them - it is an event that happens inside one step: the ring and the sparks are left
+// behind as effects, the damage is done on the way out.
+//
+// Note what it is *not*: a blast is one instant, and it hurts the ship along with the
+// crowd. The nova (game/nova.js) is a ring that travels and never touches the ship, so it
+// has its own file rather than a flag on this one - the two only look alike.
 //
 // Two rules make it what it is:
 //

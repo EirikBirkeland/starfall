@@ -9,7 +9,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { polygon, shipPath } from './shapes.js';
-import { paintX, paintY } from './interp.js';
+import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, blastPressure, blastRadius, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
@@ -799,6 +799,41 @@ export function drawOrbitals(ctx, alpha) {
     ctx.strokeStyle = PALETTE.playerLine;
     ctx.stroke();
   }
+}
+
+// The nova front (game/nova.js): the ring itself, painted as the edge of the damage and
+// nothing more. Two strokes - a wide faint one under a thin bright one, which is how
+// every ring in this game glows without a blur - and both of them at the radius the
+// simulation has actually come round, so the line the player is shown is never further
+// out than the bodies the front has already hurt. It fades as it goes because it is
+// spent when it reaches its rim, and it is drawn under the ship so the brightest thing in
+// the middle of the frame stays the ship (PLAN pillar 2).
+const FRONT_GLOW = 0.2;        // the wide faint pass under the front
+const FRONT_GLOW_MIN = 4;      // ...and how wide it is, narrowing as the front weakens
+const FRONT_GLOW_SPAN = 9;
+
+export function drawNova(ctx, alpha) {
+  const fronts = world.nova.fronts;
+  const spec = BALANCE.upgrades.nova;
+
+  for (let i = 0; i < fronts.count; i++) {
+    const front = fronts.items[i];
+    const r = paintR(front, alpha);
+    if (r <= 0 || !onScreen(front.x, front.y, r + FRONT_GLOW_SPAN + 4)) continue;
+
+    // The front's own life is its radius: born at the ship, spent at the rim.
+    const t = clamp(1 - r / spec.reach, 0, 1);
+    ctx.strokeStyle = PALETTE.player;
+    ctx.beginPath();
+    ctx.arc(front.x, front.y, r, 0, TAU);
+    ctx.globalAlpha = t * FRONT_GLOW;
+    ctx.lineWidth = FRONT_GLOW_MIN + t * FRONT_GLOW_SPAN;
+    ctx.stroke();
+    ctx.globalAlpha = t * 0.85;
+    ctx.lineWidth = 1 + t * 2.5;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 }
 
 export function drawBullets(ctx, alpha) {

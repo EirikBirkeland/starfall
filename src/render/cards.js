@@ -38,6 +38,7 @@ const TINT = {
   pierce: PALETTE.wall,
   ricochet: PALETTE.teal,
   orbitals: PALETTE.indigo,
+  nova: PALETTE.spring,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -255,8 +256,9 @@ function drawKeyHint(ctx, number, x, y) {
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
  * cycle, a shot with its own wake for velocity, three of them for split shot, one going
- * through two bodies for pierce, one turning from one body to the next for ricochet, and
- * a ring of drones round a ship for the orbitals. Small, drawn from paths, and legible at
+ * through two bodies for pierce, one turning from one body to the next for ricochet, a
+ * ring of drones round a ship for the orbitals, and a wave caught mid-expansion off a
+ * ship for the nova. Small, drawn from paths, and legible at
  * a card's worth of pixels. Each line names one of these in game/upgrades.js, and an icon
  * with no shape is a bug that says so rather than drawing the wrong thing.
  */
@@ -268,6 +270,7 @@ const ICONS = {
   pierce: iconPierce,
   ricochet: iconRicochet,
   orbitals: iconOrbitals,
+  nova: iconNova,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -275,6 +278,15 @@ const ORBIT_RING = 0.62;
 const ORBIT_BODY = 0.16;
 const ORBIT_THIRD = Math.PI * 2 / 3;
 const ORBIT_TRAIL_ARC = 0.55;    // rad of bright arc behind each drone: which way it turns
+
+/**
+ * The nova icon's two rings: where the wave is and where it was a moment ago. The near
+ * one is the bright one, because that is the edge that is hurting things now.
+ */
+const NOVA_NEAR = 0.5;
+const NOVA_FAR = 0.86;
+const NOVA_SHIP = 0.26;
+const NOVA_TICKS = 8;
 
 /** The three lengths of the pierce icon's shot, brightest where it started. */
 const PIERCE_SHOT = [
@@ -341,6 +353,40 @@ function iconOrbitals(ctx, size, tint) {
 
   shipPath(ctx, 0, size * 0.05, size * 0.3, -Math.PI / 2, 1.7);
   ctx.fillStyle = withAlpha(tint, 0.8);
+  ctx.fill();
+}
+
+/**
+ * A wave caught on its way out of a ship: the ring where it is now, a fainter one further
+ * out where it has come from, and eight short ticks between them pointing away. Two rings
+ * rather than one is the whole card - a thing that expands, not a thing that sits there -
+ * and the ship in the middle is small so the wave reads first.
+ */
+function iconNova(ctx, size, tint) {
+  ctx.strokeStyle = withAlpha(tint, 0.28);
+  ctx.lineWidth = size * 0.07;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * NOVA_FAR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = withAlpha(tint, 0.5);
+  ctx.lineWidth = size * 0.05;
+  for (let i = 0; i < NOVA_TICKS; i++) {
+    const a = (i / NOVA_TICKS) * Math.PI * 2 + Math.PI / NOVA_TICKS;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * size * (NOVA_NEAR + 0.08), Math.sin(a) * size * (NOVA_NEAR + 0.08));
+    ctx.lineTo(Math.cos(a) * size * (NOVA_FAR - 0.06), Math.sin(a) * size * (NOVA_FAR - 0.06));
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = withAlpha(tint, 0.95);
+  ctx.lineWidth = size * 0.1;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * NOVA_NEAR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  shipPath(ctx, 0, 0, size * NOVA_SHIP, -Math.PI / 2, 1.7);
+  ctx.fillStyle = withAlpha(tint, 0.9);
   ctx.fill();
 }
 

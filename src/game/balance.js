@@ -688,6 +688,78 @@ export const BALANCE = {
       // second at the top of the line, and the mix has no voice limiting yet (milestone 7).
       sound: { freq: 700, dur: 0.03, wave: 'square', vol: 0.014, slide: 420 },
     },
+    nova: {
+      ranks: 5,
+      step: 1,          // one more front per cycle, per rank
+      // The nova (PLAN 3.2, game/nova.js): a ring of damage that leaves the ship and
+      // travels outwards, hurting every body it comes over on the way.
+      //
+      // `step` sells fronts per *cycle*, not per second, and `cycle` is PLAN's own eight
+      // seconds. So rank 1 is exactly what PLAN wrote - one ring every eight seconds -
+      // and rank 5 is one every 1.6 s, which is the same line read as "the wait gets
+      // shorter". Selling the count rather than the wait is what keeps the card honest
+      // (`+1 nova ring`) and keeps the ladder linear in the rank, which is how orbitals
+      // is built too: rank 5 of either line is five times rank 1.
+      //
+      // The eight seconds are also why this is a *panic* line rather than a rate line.
+      // A single rank is nearly nothing while the ship is clear of bodies and a great
+      // deal while it is surrounded, because a front hurts everything inside it at once.
+      // That is the geometry the card is selling - see `weight` below for what that costs.
+      cycle: 8,
+      // How far the front travels before it is gone, and so how big a crowd one ring can
+      // take in. Four times the orbital ring's radius, which is the difference between a
+      // wall at the hull and a clear-out of the whole near field - and how far is also how
+      // many: two and a third bodies on average, measured, and the further out this goes
+      // the more the card is a nuke rather than a shrug.
+      reach: 220,
+      // px/s. Reaches the rim in a quarter of a second, which is fast enough to read as
+      // one event and slow enough to see cross the crowd - and it is far faster than
+      // anything in the arena can run outwards, which is what makes "a body is crossed
+      // once" true without the sim having to remember anything (game/nova.js).
+      speed: 900,
+      // What a front costs each body it comes over, as a multiple of one shot of the
+      // ship's own gun, so the damage line multiplies it exactly as it multiplies a shot.
+      // Read when the front is thrown, so a card taken while one is in the air does not
+      // rewrite it.
+      //
+      // It is a multiple rather than a number for the reason session 31 learned the hard
+      // way with the orbital ring: this is a line that *adds* a second source of damage
+      // instead of multiplying the gun, and a flat number loses to a multiply as soon as
+      // the gun is twice what it was.
+      //
+      // And four and a half rather than the one a player would guess, because of where the
+      // crowd actually is. A rank has to be worth what a rank of the damage line is (PLAN
+      // section 8), which is `fireRate x damage x step` = one and a third hull a second on
+      // a plain gun; a rank of the nova throws one front every `cycle` seconds, so a front
+      // has to come off with ten hull to spend. That is the whole sum: ten, divided by the
+      // number of bodies a front really crosses, which is two and a third - counted over
+      // twelve full bot runs, standing in the reach of the ship as it actually is, fleeing.
+      // A knot is the wrong instrument for a wide ring: the ladder's crowd stands thirty
+      // deep inside the reach (20.7x a plain gun, which would be a bomb and not a card),
+      // and the near-field knot - three bodies at the distances a press really keeps - is
+      // the one that agrees with the sum, at 2.97x, in the family with every other line.
+      //
+      // Four and a half and not five, because that is where the run stopped minding it: over
+      // forty seeds with the card dealt and taken at face value, the ship survived the
+      // fifteen-minute window as often without the line as with it (37 of 40 both ways) and
+      // scored the same - which is what "worth a rank of the gun" looks like in a run, and
+      // is NOTES session 32's A/B. Priced off the dense knot it would have been a fifth of
+      // this and a card nobody should ever take.
+      weight: 4.5,
+      // A crossed body is thrown away from the ship at this, which is most of what the
+      // line is *for*: it is the shrug that clears the pocket the orbital ring then
+      // grinds. Larger than the ring's shove and smaller than a bomber's, because this
+      // one happens to a whole crowd at once and once only.
+      shove: 240,
+      // The light of the front itself is painted by the renderer out of these; the ring
+      // the player sees is the ring the sim has already hurt with, to the pixel.
+      birth: { count: 18, speed: 300, life: 0.35 },
+      bite: { count: 3, speed: 150, life: 0.2, spread: 0.8 },
+      // One low thud per front, and not one per body: at the top of the line a front can
+      // cross forty bodies in a step and the mix has no voice limiting yet (milestone 7).
+      sound: { freq: 150, dur: 0.28, wave: 'triangle', vol: 0.1, slide: 48 },
+      shake: 4,
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

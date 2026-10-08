@@ -109,10 +109,12 @@ export const DEFAULT_POLICY = 'aware';
  * crowd arranged along the line being aimed, and this bot is always in the middle of a knot
  * rather than behind a column.
  *
- * Last comes the one line that is not a multiply on the gun, and `DEFERRED` below is why
- * it sits there and is not even compared level.
+ * Last come the two lines that are not a multiply on the gun. They sit last because when a
+ * rank of `damage` and a rank of `orbitals` are both on the table and both are worth the
+ * same, the gun's is the one worth taking first; and `DEFERRED` below is the one case where
+ * even that is not enough, and has to be told not to buy a card at all.
  */
-const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSpeed', 'orbitals'];
+const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSpeed', 'orbitals', 'nova'];
 
 /**
  * Ranks of these lines count as this much deeper than they are when the bot chooses, so it
@@ -130,6 +132,16 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
  * but never chosen, a minute and a half of mean survival between them. The ring is not a bad card; a player who buys two ranks of it on
  * the way up a gun build is not paying much for it. It is the bot's even spread that cannot
  * afford it, and delaying it is what a player who wants the gun first does anyway.
+ *
+ * NOVA is not in this table, and was, on the same evidence being demanded here (NOTES
+ * session 32: 40 seeds again, same window). Handicapped by two it cost the run: 32 of 40
+ * outlasted the window against 37 of 40 with the card out of the deck altogether, and the
+ * mean came down by a minute. Untouched by any handicap it costs nothing: 37 of 40 both
+ * ways, and the score the same to within a rounding. The difference is the shape of the two
+ * lines - the orbital ring's rate is capped by whatever stands in 64 px of the ship, which
+ * for a fleeing ship is nothing, while a nova front reaches 220 px and finds bodies even
+ * while running, so a rank of it really is worth what a rank of the damage line is and the
+ * bot may buy it level with the rest.
  */
 const DEFERRED = { orbitals: 2 };
 

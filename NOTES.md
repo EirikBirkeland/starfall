@@ -3597,3 +3597,187 @@ painted; and the frame paints the ring after the crowd, so nothing can bury it.
 - The seeds my survival tables were measured with were **seeds 1-40 of `--seed N`, `aware` bot,
   900 s cap**, written down here because sessions 27-30 said "the same 24 seeds" without ever
   saying which. Use the same ones next time or write down the new ones.
+
+## Session 32 (2026-10-08) — Nova: the eighth line, and where the crowd actually is. Released **v0.4.5**
+
+The sixth item of the firepower block, and the second thing that hurts the crowd without
+being fired at it. Where the orbital ring is a wall at 64 px that grinds whatever stands in
+it, a nova front is a one-off that goes out ten times as far, hurts every body it passes and
+throws the lot of them off the ship. One is a wall, the other is a shrug. That opposition is
+what made the session interesting, and the pricing of a *wide* line is what made it long.
+
+### What landed
+**Nova (PLAN 3.2, as a line)** is an eighth line, five ranks, `BALANCE.upgrades.nova`:
+`step: 1` front per rank inside a `cycle: 8` s - so rank 1 is exactly PLAN's "every 8 s" and
+rank 5 is one every 1.6 s - travelling out to `reach: 220` px at `speed: 900` px/s, costing
+each body it comes over `weight: 4.5` shots and throwing it `shove: 240` px/s away from the
+ship. `game/nova.js` is the module, `pulsesOf(world)` the line read as a count (the fifth
+`countOf` reading), `world.nova` the `{ wait, beat, fronts }` it lives in.
+
+**Three decisions in the module, each with a test.** *The front is a place, not a burst*: `r`
+grows and a body is hurt when the ring **crosses** it - outside on the last step, inside on
+this one - which is what lets the light you watch be the damage you get, and is why the front
+keeps `pr` and `r` the way a body keeps `px` and `x` (`render/interp.js` grew `paintR` for
+it). *A body is crossed once and only once*, with no memory and no allocation, because the
+front grows at 900 px/s and nothing in the arena can run outwards faster than a darter at
+230 - which also means a body that walks into the ring after it went by is not hurt, so this
+is a wave and not an aura the ship drags around. *A hit is one shot of the ship's own gun*
+times the damage line, baked when the front is thrown, exactly like `game/orbitals.js` -
+session 31's lesson, applied before the mistake was made rather than after.
+
+It runs after the crowd has walked, so a front bites where bodies ended up. It has no
+telegraph and no promise circle: the wave announces itself, and a 220 px ring drawn at the
+ship every 1.6 s at the top of the line would be clutter rather than a warning. The card is
+the eighth tint - `PALETTE.spring`, a true green, thirty degrees round the wheel from the
+shard's mint - and its icon is two rings and eight ticks going out of them. **In the arena
+the front wears the ship's own cyan**, because it is the ship's reach going out; the tint is
+how the card is told from the other seven, not the colour of the thing it sells.
+
+### The decision of the session: what a wide ring is worth
+Orbitals taught the family rule - a rank of a line that *adds* damage has to be worth a rank
+of the damage line, or the run is paying a level for a rounding error - and the first guess
+at the weight (one shot per body, the sentence a player would expect) measured at **20.66x a
+plain gun** on the ladder's ring crowd, eight times the family. Something was wrong with the
+instrument, not the arithmetic.
+
+It was. **A knot is the wrong instrument for a wide ring.** The ladder's crowd stands thirty
+deep inside 78 px because that is the knot the guns were measured on, and a 220 px ring drawn
+over a knot like that is a bomb and not a card. So the crowd a front really crosses was
+counted instead, over twelve full bot runs: the mean number of bodies standing inside the
+reach of a ship as it actually is - fleeing - is **two and a third**. The sum is then short:
+a rank has to come off with `fireRate x damage x step x cycle` = ten hull to spend, ten over
+two and a third is **four and a half**, and that is the weight.
+
+Which the near-field knot agrees with once it is added to the ladder (below): maxed nova
+**2.97x**, a rank of it worth 1.31 ranks of the damage line - in the family with damage at
+2.50x, ricochet at 2.63x, the ring at 2.55x, and for the same reason: a wide line priced on
+the crowd it really meets.
+
+### tools/power-ladder.js, and a third knot
+Every session since 30 has rebuilt the same throwaway measurement and left the numbers in
+these notes. Now it is a file: `node tools/power-ladder.js [--seconds N] [--line ID]`, which
+puts each maxed line on a crowd and prints the multiple of a plain gun, the raw hull a
+second, and what one rank is worth in ranks of the damage line. Three knots:
+
+  * **the ring** - thirty bodies all round the ship, three deep. What session 30 built; the
+    ladder reproduces its published numbers (damage 2.50x, ricochet 2.63x against their
+    2.50x, orbitals 2.55x against session 31's 2.54x) and so is comparable with them.
+  * **the column** - forty-two bodies in the air the gun is pointing: pierce 3.61x there.
+  * **the near field** - three bodies at the distances a press really keeps, which is what a
+    wide line has to be quoted on. Pierce is worth nothing there (1.00x), the orbital ring
+    nothing (1.00x), and the nova 2.97x. That column is the whole argument for the knot.
+
+The knots are **pinned** - every step the crowd is put back where it was planted - because
+everything that hurts a body shoves it, and a thin crowd shoved out of reach stops being the
+crowd being measured (session 31 met this with the ring; here it is designed out). The bodies
+are immortal and the run's XP is wiped each step, so a chain's fractional hits are counted as
+damage and a level-up cannot pause the arena mid-window. `tools/headless/harness.js` now also
+logs **circles** (`game.circles()`, centre and radius) which is the only way in here to ask
+whether a drawn ring is the size the sim says it is; forgetting to clear that log per step
+ate a 4 GB heap in `test/simulate.test.mjs` on the first try, so it is cleared where the
+points are.
+
+### The measurement that mattered: the card is free, and deferring it was the mistake
+Priced like orbitals - handicapped in `DEFERRED` so the bot buys the gun first - the nova
+**cost** the run: over 40 seeds (aware bot, 900 s cap) 32 of 40 outlasted the window against
+37 of 40 with the card out of the deck, mean 781 s against 854 s, 97872 score against
+109147. So the handicap came out, and the same forty seeds were run three ways:
+
+| | median | mean | reached the cap | died before 5:00 | score | nova ranks |
+|---|---|---|---|---|---|---|
+| line out of the deck | 900 s | 854 s | 37 / 40 | 2 | 109147 | - |
+| in the deck, taken level | 900 s | 855 s | 37 / 40 | 1 | 110015 | 4.78 |
+| in the deck, deferred by two | 900 s | 781 s | 32 / 40 | 5 | 97872 | 4.30 |
+
+Taken at face value the card is **free** - as often alive, the same score, the same kill
+rate - which is the outcome the parity sum was reaching for, and the first additive line in
+the game that does not need the bot protected from it. The deferral is what made it a loss:
+a bot told to hold off on the nova holds off while the offer gets worse, and pays for the
+two ranks it eventually takes with worse cards than it was offered. `DEFERRED` therefore
+holds `orbitals` alone, and the reasoning is written above it with these numbers.
+
+One thing that fell out of the census and is worth keeping: the orbital ring's **bite band was
+occupied 0.01 bodies on average** across those runs. A fleeing ship almost never has anything
+at 64 px, which is the mechanical reason session 31's ring measured as a loss, and the reason
+the nova - reaching 220 px, where a fleeing ship does have things - does not.
+
+### A bug the control caught: a line with no ranks was being dealt
+The "line out of the deck" baseline is made by setting `BALANCE.upgrades.nova.ranks = 0`
+before the game boots, and the first three A/Bs were worthless: every one of the forty "absent"
+runs had exactly one rank of the nova in it. `guaranteeSomethingNew` (game/upgrades.js,
+PLAN 3.5's promise that a deal always contains a line you have never taken) was reaching for
+any untouched line **without asking whether it had a rank to give**, and a line with no ranks
+is untouched forever. So it replaced the last card with the one that was supposed to be gone,
+`takeOffer` handed out a rank of it, and the baseline was measuring one rank of the nova. It
+cannot bite the shipped game - every line in `BALANCE` has ranks - which is exactly why it
+sat there: nothing anyone can do deals it. Fixed (untouched **and** has a rank to give) with a
+test that would have caught it, and the sum of the fix is that `ranks: 0` now means "out of
+the game", which is a knob whoever measures the next line will want.
+
+**Lesson for the next A/B: check the control.** Two runs that are supposed to differ by one
+card differed by nothing at all, and the reason was a hole in the dealer rather than in the
+card.
+
+### Reference run, rebaselined
+`node tools/simulate.js --seed 20261006 --trace` → **alive at the cap 10m00s, score 71395,
+level 49, kills 4054, shards 3264, hull 3, build 5/5/5/5/5/5/5/5** (was 71644 / 49 / 4059 /
+3260 / seven lines) - the same run with an eighth number in the build, which is what adding
+a line is supposed to do to it. Still a fingerprint of a run still flying.
+
+**Cost**: three 600 s runs side by side, twice each way - 39.8 s with the line in the deck
+against 38.9 s with it out, so about **+2.2%** of a run's step time at the top of the line
+and the crowd. A front is one pass over a capped crowd for a quarter of a second every few
+seconds, which is what the module header says it is buying.
+
+### Tests: 522, all passing (was 495)
+`test/nova.test.mjs` (19, scripted world): the count per rank, and two cycles of a maxed
+line throwing ten fronts; an untaken line counts nothing down, so the first front after the
+card goes off on the next step; **one crossing per body per front** - one body and one front
+loses exactly one bite, and ten fronts lose ten, bodies on rails so the shove cannot empty
+the reach; the reach is a wall; **a nearer body is hurt before a further one**, inside a
+third of a second, which is the picture being honest; a body that walks in behind the front
+takes nothing; the shove points straight away from the ship; what a front kills is paid for;
+**a shielder drinks a front before the hull does**; the crossing carries the damage line to
+the last decimal; a rank taken mid-wait shortens the next one and not the one being spent;
+the front stays where the ship was and still crosses the crowd it left behind; eight bodies
+below the ship, where the gun cannot reach - none die without the line, all eight die with
+it; the drawer never grows and never leaves a ring in the sky; a new run has no fronts; the
+card prints "+1 nova ring"; and the parity lockstep against the damage line at the crowd a
+front really meets.
+`test/nova-art.test.mjs` (7, the real renderer through the stub): an unworn nova costs an
+empty sky; a front is two strokes and neither a blur nor a gradient, and it costs that
+whatever the sky already holds; a front off the window costs nothing; the radius a frame
+draws is between the two the sim has been at, and exactly the lerp of them; the ring drawn
+is at the radius the front stands at, to the pixel, round the front's own middle and not the
+ship's; nothing is drawn past the rim the front dies at; and the frame paints fronts over the
+crowd and under the ship.
+`test/upgrades.test.mjs` grew the one about a line with no ranks never being dealt, which is
+the bug above (14, was 13).
+
+### Notes for whoever is next
+- **Use `tools/power-ladder.js`** before inventing a measurement, and **quote the knot that
+  matches the line's geometry**. A wide line on a dense knot is a bomb; a narrow line on a
+  sparse one is nothing. The three columns exist so the argument is about the number and not
+  about the rig.
+- **Check the control.** `ranks: 0` is now honest. If a future A/B shows a "control" and a
+  "treatment" moving together, something is leaking between them - the dealer was the first
+  place to look.
+- The orbital band being empty (0.01 bodies) for a fleeing ship is still true and is now
+  *measured*, which makes it a design question rather than a suspicion: either the band wants
+  moving out towards where bodies actually are (the census says 90-200 px), or the bot's
+  panic range of 170 px wants reconsidering, or `orbitals` is a card for a player who stands
+  their ground and the bot is simply not the customer. Nova went out at 220 px with that
+  census in hand, which is why it did not need the same surgery.
+- Also found this session by counting: bodies in reach peaks at 5.4 in the second minute and
+  falls to about 1.1 by the fifth, because a good gun kills the crowd before it closes. Any
+  future "when the ship is surrounded" card has the same shape - strong early, thin late -
+  and wants pricing the same way rather than off a knot.
+- The nova's sound is one low thud per front, `vol: 0.1`; at the top of the line that is five
+  a second, and the mix still has no voice limiting (milestone 7).
+- Still standing from session 31: the pool is now **forty ranks** deep across eight lines and
+  a healthy run spends all of it in about three minutes, then takes levels with nothing to
+  buy. `shards.xp` (14) and `progression` (base 90 / quad 0.9) are the pair to move, together.
+- Next item in PLAN is **a second primary weapon, Scatter (3.2), and a third, Arc (3.2)**,
+  picked on the title screen with a key until the hangar exists. That is a bigger piece of
+  work than a line: `game/player.js`'s `fire` is where the gun lives, and nothing yet has more
+  than one shape of shot.

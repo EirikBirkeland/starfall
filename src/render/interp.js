@@ -23,3 +23,15 @@ export function paintX(entity, alpha) {
 export function paintY(entity, alpha) {
   return lerp(entity.py, entity.y, alpha);
 }
+
+/**
+ * The radius a frame draws a growing ring at - a nova front, whose `r` is its position
+ * (game/nova.js). The pair `pr`/`r` is the same contract as `px`/`x` one dimension round:
+ * the simulation only ever changes a front's radius inside a step, and a frame is drawn
+ * between two of them. Unlike the cosmetic shockwave rings in render/effects.js, which
+ * are left where they are, a front travels several pixels a step and it is the exact edge
+ * of something that hurts, so it is worth painting where it really is.
+ */
+export function paintR(front, alpha) {
+  return lerp(front.pr, front.r, alpha);
+}

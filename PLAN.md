@@ -327,7 +327,21 @@ One item per session, as always:
       purpose: it is a wall at a distance you can see, not an aura that forgives you for
       standing in it. See `BALANCE.upgrades.orbitals`, `game/orbitals.js` and NOTES
       session 31.)
-- [ ] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line. Release.
+- [x] Nova (3.2): every 8 s a ring of damage expands from the ship, as an upgrade line.
+      Release.
+      (Done. A rank buys one more front inside an eight-second cycle, so rank 1 is exactly
+      PLAN's "every 8 s" and rank 5 is one every 1.6 s. A front leaves the ship where it
+      stood, travels out to 220 px at 900 px/s, and hurts a body when it comes over it -
+      once and only once - so the ring you watch is the ring that hurt you to the pixel, and
+      a body that walks in after the front went by takes nothing: it is a wave and not an
+      aura, and it throws everything it crosses off the ship on the way. What a crossed body
+      loses is one shot of the ship's own gun times 4.5, which is priced on the crowd a
+      front really comes over (two and a third bodies, counted over twelve bot runs) rather
+      than on a measurement knot, and that is what makes a rank of it worth a rank of the
+      damage line - 2.97x a plain gun on a crowd that keeps its distance, in the family with
+      every other line. Over 40 seeds the bot took it at face value and lost nothing by it.
+      See `BALANCE.upgrades.nova`, `game/nova.js`, `tools/power-ladder.js` and NOTES session
+      32.)
 - [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
       let the player pick the weapon on the title screen with a key.
 - [ ] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`

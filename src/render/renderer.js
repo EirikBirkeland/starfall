@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -78,6 +78,9 @@ export function renderFrame(tick, input, pointer) {
     drawTelegraphs(ctx, world.enemies, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     drawShieldBubbles(ctx, world.enemies, tick.alpha);
+    // Under the ship: a nova front is the ship's own reach going out, and the ship must
+    // never be lost inside the ring it just threw (game/nova.js).
+    drawNova(ctx, tick.alpha);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
     if (world.state !== STATE.START) drawPlayer(ctx, tick.alpha);
