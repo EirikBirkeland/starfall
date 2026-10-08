@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 0.4.13 — 2026-10-08
+Overcharge: stand still for a second and the gun loads, and the next pull of the trigger is worth double.
+- **A new card on the rack, and the first one whose price is paid in place.** **OVERCHARGE** is
+  five ranks of "stand still for a second and the next pull is worth more": **double** at the first
+  rank and another whole copy of the pull for every rank after it — x2 · x3 · x4 · x5 · x6. It costs
+  nothing to have and everything to use: the wait is the card, and the crowd is what makes the wait
+  expensive.
+- **What spends a charge is a pull of the trigger, and all of it.** A scatter's six pellets and an
+  arc's whole chain are one shot to the person at the controls, so the boost goes on everything that
+  pull throws and the pull spends the charge whether it threw one thing or eleven. A pull that threw
+  nothing — an arc pointed at an empty sky — has not fired, and keeps what it was carrying.
+- **A charge interrupted is cooled, not wiped.** Moving takes it off at twice the rate it came on, so
+  a full charge is gone in half a second of running but a dodge between two threats costs a quarter
+  of it. Wiping it on the first keypress would punish the dodge instead of the standing, and the card
+  is asking the ship to *settle*, which is something you can do between two dangers.
+- **Standing still is two questions: is the ship asking to move, and is it moving?** Leaning into a
+  wall is not standing still, because the engines are working. Being kicked backwards by your own gun
+  is, because that is what you believe you are doing while you hold the trigger and have let go of
+  the direction keys.
+- **A ring round the hull says it, and no numbers are needed.** An arc closes over the second and the
+  circle then breathes, whole and bright; a loaded shot is the same shot with more of it — a bigger,
+  whiter dot, a thicker bolt — and the pull that spent the charge shouts once at the muzzle. None of
+  it is drawn at all for a run that has not taken the card.
+- **Measured twice, and the gap between the two numbers is the card.** A ship that never moves: 1.96x
+  the plain gun at five ranks, which sits between burn's 1.46x and the damage line's own 2.5x, and
+  the difference is the standing. A real run: a bot that never meant to use it spends 6.3 loaded pulls
+  a minute and has the gun loaded in 2.7% of its frames. In the deck over ten 15-minute runs it came
+  out level (score median 113,299 with the line dealt against 113,634 without it, 113,951 with five
+  ranks handed for free) — the first card of these three that a dodging bot does not pay for.
+
 ## 0.4.12 — 2026-10-08
 Leech: every body you bring down is worth a hull back, and the first card in the game that gives something.
 - **A new card on the rack, and the first one that pays the ship instead of the gun.** **LEECH** is
