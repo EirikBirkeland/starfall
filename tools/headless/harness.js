@@ -63,7 +63,7 @@ function makeContextStub(counters, drawLog) {
     textBaseline: 'alphabetic',
     fillRect: () => { counters.fills++; },
     fill: () => { counters.fills++; },
-    stroke: () => { counters.strokes++; },
+    stroke: () => { counters.strokes++; drawLog.strokes.push(target.lineWidth); },
     fillText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
     strokeText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
     drawImage: (image, x, y, w, h) => {
@@ -86,6 +86,10 @@ function makeContextStub(counters, drawLog) {
     // drawn in a bigger colour when there is no pixel to look at.
     moveTo: (x, y) => { drawLog.points.push(onto(x, y)); },
     lineTo: (x, y) => { drawLog.points.push(onto(x, y)); },
+    // The control point of a curve is not a point the pen goes near, so only the end
+    // of the curve is logged. The sniper's eye is drawn with two of them
+    // (render/entities.js) and the stub has to agree to be told one.
+    quadraticCurveTo: (cx, cy, x, y) => { drawLog.points.push(onto(x, y)); },
     // Circles are logged too, radius and all: a ring is how the nova's front and a
     // shielder's field are drawn, and the only way to ask in here whether the picture is
     // the size the simulation says it is.
@@ -193,7 +197,7 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], strokes: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -260,6 +264,7 @@ export async function bootGame(options) {
       drawLog.points.length = 0;
       drawLog.circles.length = 0;
       drawLog.words.length = 0;
+      drawLog.strokes.length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -303,6 +308,12 @@ export async function bootGame(options) {
     translates() { return drawLog.translates.slice(); },
     /** Every sprite the last frame stamped, and where: { x, y, w, h, at }. */
     stamps() { return drawLog.images.slice(); },
+    /**
+     * The line width of every stroke the last frame made, in order: the only way in here
+     * to ask how wide something was drawn, which is how a test can check that a warning
+     * is painted as wide as the harm it warns about (test/beam-art.test.mjs).
+     */
+    strokeWidths() { return drawLog.strokes.slice(); },
     /**
      * Every point of a path the last frame moved or drew a line to, in device pixels
      * after the transforms around it - which is how big a drawn shape is, measured.

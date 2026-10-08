@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 0.3.9 — 2026-10-08
+The sniper: the last body from the plan, bolted to the floor, drawing a laser across the whole arena.
+- **A new enemy at ten and a half minutes.** It never moves. An eye turns slowly onto your ship,
+  stops, and holds a lock for **1.25 s** while the band of light it is about to fire is painted
+  across the entire arena - and then the beam goes down exactly that line. This is the ninth and
+  last body of PLAN 3.3, so the enemy roster is now complete.
+- **The warning is the thing itself.** The band you are shown is the band that hurts, edge for edge:
+  the eye *cannot change its mind* during a lock, the painted band is exactly twice the distance off
+  the axis at which your centre is hurt, and the line is clipped to the arena rather than to the
+  screen - so it is drawn wherever the world can be seen, even when the sniper itself is off the
+  glass. Kill it during the telegraph and nothing fires.
+- **The damage is instant and the light is its record.** A beam hurts everything standing on it on
+  the step it is born and then hangs there for a fifth of a second, fading, like a bolt of the arc.
+  A body that walks onto a beam after it fired is not hurt by it: a beam is a thing that happened,
+  not an area that lasts.
+- **It cannot be walked to, so it arrives where you can see it.** Every other enemy comes in off the
+  edge of the window; a body you can neither kite nor run off is landed *inside* it, at least 250 px
+  away, with a ring of light and a sound - and it starts its first wait after landing, so nothing
+  fires the instant it appears.
+- **Nothing can push it over.** A bullet's kick, a bomber's blast and a crowd making room are all
+  refused, which is what keeps the line it drew a minute ago the line it fires down. And it does not
+  stand in its own light: a beam spares the eye that fired it, so the kind threatens a run instead
+  of eating itself.
+- **What a beam kills, nobody killed** - no score, no kill, and the balance sheet now keeps a fourth
+  cause of hull loss, `beam:sniper`, beside body, shot and blast.
+- 32 new tests. The band is measured to the pixel (one px inside hurts, one px outside does not), the
+  lock is proven unable to follow the ship, the art is measured to be drawn at exactly the width the
+  damage is paid out at, and the headless bot is shown stepping off a band it cannot see the end of:
+  forty seconds against two snipers, 0 hits for the ship that reads them and 9 for the one that
+  stands still. Late-game survival is unchanged - 6 runs of 15 minutes, all still flying.
+
 ## 0.4.9 — 2026-10-08
 The game can be played by a coding agent: `node tools/agent-bridge.js`.
 - **No gameplay change.** What is new is a door in: the game boots headless, steps at about one frame

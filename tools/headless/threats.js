@@ -29,9 +29,11 @@
 
 import {
   aimProgress,
+  beamHalfWidth,
   blastPressure,
   blastRadius,
   isAiming,
+  isLocking,
   isLunging,
   isSpitting,
   lungeReach,
@@ -47,6 +49,8 @@ import {
  *   shotHorizon     how far ahead it looks for something to land
  *   telegraphRoom / telegraphClear   the same pair for a line that has been drawn
  *                   but not fired - it is being aimed at, so it can be looser
+ *   beamRoom / beamClear   the same pair again for a sniper's lock, which is a band
+ *                   rather than a line and has no far end to it
  *   blastRoom       how far outside a bomber's circle it stands
  *   wallRoom        how far off the edge of the world it tries to stay
  *   calm            where the whole sum stops counting as a threat at all
@@ -70,6 +74,9 @@ export const SKILL = {
   aimWeight: 1.6,
   lungeWeight: 2.4,
   spitWeight: 1.5,
+  beamRoom: 24,
+  beamClear: 130,
+  beamWeight: 2.4,
   blastRoom: 40,
   blastWeight: 1,
   wallRoom: 130,
@@ -201,10 +208,34 @@ function dodgeCrowd(world, avoid) {
 }
 
 /**
- * The three promises the game draws before it strikes: a darter lining itself up, a
- * darter already committed, and a spitter mid-breath. Each is a line the ship had
- * better not be standing on when the blow lands - and it lands at a time the enemy's
- * own timer says, which is what makes the warning worth anything.
+ * A sniper's lock: the band it is drawing across the whole arena.
+ *
+ * It is a line threat with two differences, and both of them are the kind. It has no
+ * far end - the beam reaches both walls - so how far down it the ship stands buys
+ * nothing and the whole of the urgency is the countdown the band is drawn bright by.
+ * And it is a band, not a line: the width that hurts is the game's own number
+ * (`beamHalfWidth`), which is what the ship has to be clear of, not the axis.
+ */
+function beamLine(world, avoid, enemy) {
+  const ship = world.player;
+  const half = beamHalfWidth(enemy);
+  const room = half + ship.r + SKILL.beamRoom;
+  const clear = room + SKILL.beamClear;
+  const where = offset(enemy.x, enemy.y, enemy.dirX, enemy.dirY, ship.x, ship.y);
+  const across = Math.abs(where.across);
+  if (across >= clear) return;
+
+  const off = clamp01((clear - across) / (clear - room));
+  const step = stepOffLine(world, ship, enemy.dirX, enemy.dirY, where.across);
+  addPush(avoid, step.x, step.y, SKILL.beamWeight * off * (0.35 + aimProgress(enemy)));
+}
+
+/**
+ * The promises the game draws before it strikes: a darter lining itself up, a darter
+ * already committed, a spitter mid-breath, and a sniper holding a band of light across
+ * the whole arena. Each is a line - or a band - the ship had better not be standing on
+ * when the blow lands, and it lands at a time the enemy's own timer says, which is what
+ * makes the warning worth anything.
  */
 function telegraphed(world, avoid, enemy, dist) {
   const stats = enemy.kind.stats;
@@ -244,6 +275,11 @@ function telegraphed(world, avoid, enemy, dist) {
       enemy.timer + dist / stats.spit.shot.speed,
       SKILL.spitWeight * (0.4 + aimProgress(enemy)));
   }
+
+  // And the fourth promise, which is not a line at all: a sniper holding a lock across
+  // the arena. It is aimed at where the ship *was* when the lock closed, so stepping off
+  // it in time is the whole of the defence and there is nothing to react to afterwards.
+  if (isLocking(enemy)) beamLine(world, avoid, enemy);
 
   // A bomber's circle is drawn on the floor at exactly its reach, and the bot knows
   // what it is for: standing in it when anything kills the bomber costs two hull. For

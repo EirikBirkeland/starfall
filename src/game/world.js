@@ -14,6 +14,7 @@ import { updateEnemies } from './enemies.js';
 import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
+import { updateBeams, makeBeam } from './beams.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -109,6 +110,11 @@ function createWorld() {
     // look for the ship. See game/enemyshots.js.
     enemyShots: new Pool(makeEnemyShot),
     enemies: [],
+    // The beams the snipers have fired (game/beams.js): the light each one left where
+    // its damage already went. Pooled and plain like the arc's bolts, because a beam
+    // is a record of a flash that has already happened - the light is born having hurt
+    // everything standing on it - and all that is left for it to do is fade.
+    beams: new Pool(makeBeam),
     // The orbital ring (game/orbitals.js): the angle it has turned to and the drones
     // standing on it, kept exactly as long as the line's rank. A plain array and not a
     // pool because a drone's place in the list *is* its place on the ring.
@@ -202,6 +208,9 @@ function stepRun(dt, input) {
   updateBullets(world, dt);
   if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run
+  // First of the things that hurt the crowd afterwards, so a beam pays out where the
+  // bodies ended up rather than where the collision grid last saw them (game/beams.js).
+  if (!updateBeams(world, dt)) return;   // a beam ended the run
   // Last of the things that hurt the crowd, so a drone bites where a body ended up after
   // walking rather than where the collision grid last saw it (game/orbitals.js).
   updateOrbitals(world, dt);

@@ -248,6 +248,9 @@ window.STARFALL = {
       // The arc's bolts still being drawn (game/arc.js), which is how a headless run can see
       // that a chain landed at all - it throws no bullets to count.
       bolts: world.arc.bolts.count,
+      // The beams still glowing (game/beams.js). A beam is a thing that already happened,
+      // so this is how a headless run can see that one went off at all.
+      beams: world.beams.count,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

@@ -8,6 +8,10 @@
 //
 //   walk(enemy, step)   moves one enemy for one step, and turns it: which way it
 //                       faces follows from how it moves, so the two are one thing.
+//   onArrive(world, enemy) optional; what the world does when the wave director
+//                       lands one of them - the announcement, and the first beat of
+//                       its own clock. A body planted by a test or by the title
+//                       screen's crowd is not an arrival and never hears about it.
 //   onDeath(world, e, byPlayer) optional; whatever a corpse goes on to make,
 //                       whoever it was that did the killing.
 //
@@ -27,10 +31,11 @@
 // note to the audio layer, not a number the simulation keeps.
 
 import { BALANCE } from './balance.js';
+import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
 import { cueBeep } from './cues.js';
-import { spray } from './effects.js';
+import { burst, ring, spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
 import { blast } from './blast.js';
 import { collapseField } from './shields.js';
@@ -79,6 +84,11 @@ export const KINDS = {
   swarmling: {
     stats: BALANCE.kinds.swarmling,
     walk: walksFlocking,
+  },
+  sniper: {
+    stats: BALANCE.kinds.sniper,
+    walk: walksWatching,
+    onArrive: groundItself,
   },
 };
 
@@ -193,6 +203,10 @@ export function makeEnemy(world, type, x, y, opts) {
     stageTime: 0,
     dirX: 0,
     dirY: 0,
+    // A lock that has run out and is waiting for game/beams.js to fire it. The walk
+    // raises it and the beam system spends it, in the same step, because a beam hurts
+    // the crowd and a walk may not splice the crowd it is being called from.
+    beamReady: false,
     // The shield a shielder is holding over this body, if anything (game/shields.js):
     // whose field reaches it, how many points of shield are up, and how long it still
     // has to go unsoaked before they start to grow back. The shield pass rewrites all
@@ -580,6 +594,82 @@ function headingThePack(enemy, step, pack, spec) {
 }
 
 /**
+ * The two beats of a sniper that are not the waiting. `''` is the third: the wait, in
+ * which it tracks the ship at `turn` rad/s and cannot hurt anything.
+ */
+const LOCKING = 'lock';
+
+/**
+ * The sniper: bolted to the floor, turning slowly to face the ship, and every
+ * `wait` seconds locking onto it. A lock is the telegraph - the eye stops, the line
+ * across the whole arena is drawn, and 1.25 s later the beam is fired down it. The
+ * lock cannot be changed once it begins, so the band you were shown is the band that
+ * hurts, which is the one thing this kind may not steal.
+ *
+ * The walk itself never fires anything: it raises `beamReady` and game/beams.js
+ * spends it later in the same step, where hurting the crowd is allowed (game/beams.js).
+ */
+function walksWatching(enemy, step) {
+  const spec = statsOf(enemy).lock;
+  // A body bolted to the floor does not answer a shove. A bullet's kick, a blast and a
+  // neighbour making room all arrive as an impulse, and all three are refused here -
+  // which is what keeps the line it drew a minute ago the line it fires down.
+  enemy.ix = 0;
+  enemy.iy = 0;
+  enemy.timer -= step.dt;
+
+  if (enemy.stage === LOCKING) return lockedOn(enemy, step, spec);
+  return tracking(enemy, step, spec);
+}
+
+/** Turn to face the ship, as slowly as its mount allows, until the wait is up. */
+function tracking(enemy, step, spec) {
+  const dx = step.ship.x - enemy.x;
+  const dy = step.ship.y - enemy.y;
+  turnToward(enemy, step, Math.atan2(dy, dx), spec.turn);
+  if (enemy.timer > 0) return;
+
+  const distance = Math.hypot(dx, dy) || 1;
+  enemy.dirX = dx / distance;
+  enemy.dirY = dy / distance;
+  enemy.stage = LOCKING;
+  enemy.timer = spec.aim.time;
+  enemy.stageTime = spec.aim.time;
+  shout(spec.aim.sound);
+}
+
+/**
+ * The telegraph. It does not turn - a locked eye keeps the line it took - and when the
+ * countdown runs out the beam goes and the wait starts again.
+ */
+function lockedOn(enemy, step, spec) {
+  if (enemy.timer > 0) return;
+
+  enemy.beamReady = true;
+  enemy.stage = '';
+  enemy.timer = spec.wait;
+  enemy.stageTime = spec.wait;
+}
+
+/**
+ * What happens when the wave director lands one inside the player's window: the light
+ * of it arriving, and the first wait started. A body that came to be here some other
+ * way - a test, a repro - is not an arrival and starts with no wait at all, which is
+ * what lets a test ask it for a lock straight away.
+ */
+function groundItself(world, enemy) {
+  const spec = statsOf(enemy).lock;
+  enemy.stage = '';
+  enemy.timer = spec.wake;
+  enemy.stageTime = spec.wake;
+
+  const land = spec.land;
+  ring(world, enemy.x, enemy.y, PALETTE.beamCore, land.ring.radius, land.ring.speed, land.ring.life);
+  burst(world, enemy.x, enemy.y, statsOf(enemy).color, land.burst.count, land.burst.speed, land.burst.life);
+  shout(land.sound);
+}
+
+/**
  * The bomber: the straight walk, and nothing in the way of ideas - its behaviour is
  * its death, and its warning is the circle it is drawn standing in. Below `arm` of
  * its hull left it stops being careful about the thing it is carrying and speeds up,
@@ -633,6 +723,30 @@ export function isLunging(enemy) {
 /** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */
 export function isSpitting(enemy) {
   return enemy.stage === SPITTING;
+}
+
+/** Is a sniper holding a lock right now - i.e. should its line be drawn across the arena. */
+export function isLocking(enemy) {
+  return enemy.stage === LOCKING;
+}
+
+/**
+ * Does this kind stand where it was put: the crowd walks round it instead of shoving
+ * it along, and nothing that kicks a body can move it (game/enemies.js). It is what
+ * makes a sniper's telegraph a fixed line rather than one that drifts as it is written.
+ */
+export function isRooted(enemy) {
+  return statsOf(enemy).rooted === true;
+}
+
+/**
+ * How far off its axis a body on a sniper's beam is hurt, in px - 0 for a kind that
+ * fires no beam. The band the renderer paints is drawn at twice this, which is the
+ * same arrangement as a bomber's circle: the warning is measured out of the damage.
+ */
+export function beamHalfWidth(enemy) {
+  const lock = statsOf(enemy).lock;
+  return lock === undefined ? 0 : lock.beam.halfWidth;
 }
 
 /**

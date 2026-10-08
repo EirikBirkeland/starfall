@@ -12,7 +12,8 @@ import { polygon, shipPath } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
-import { aimProgress, blastPressure, blastRadius, isAiming, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { world } from '../game/world.js';
@@ -152,6 +153,25 @@ export function fuseLight(enemy, at) {
   return FUSE_CALM + (1 - FUSE_CALM) * beat * (0.4 + 0.6 * pressure);
 }
 
+// How a sniper's eye is lit - the one part of the kind's own body that has anything to
+// say, so it says the same thing the band across the arena says.
+const EYE_LIGHT = 9;            // px of light inside the eye
+const EYE_CALM = 0.18;          // at rest it is a barely lit pupil ...
+const EYE_BREATH = 3;           // rad/s of breathing, so a body that never moves lives
+const EYE_BREATH_SHARE = 0.14;
+const EYE_LOCK = 0.7;           // ... and the lock's own countdown is piled on top
+
+/**
+ * How bright a sniper's eye is, 0..1: a dim pupil while it swings about, breathing, and
+ * the lock's own countdown poured on top of it - so the eye and the band it is drawing
+ * are the same number getting louder, out of `aimProgress` (game/kinds.js).
+ */
+export function lockLight(enemy, at) {
+  const breath = 0.5 + 0.5 * Math.sin(at * EYE_BREATH + enemy.phase);
+  const lock = isLocking(enemy) ? aimProgress(enemy) : 0;
+  return clamp(EYE_CALM + breath * EYE_BREATH_SHARE + lock * EYE_LOCK, 0, 1);
+}
+
 /**
  * How bright the bubble over a body is, 0..1: full and steady while the shield over it
  * is whole, a breathing glimmer while it waits to fill back up, and nothing at all on
@@ -228,6 +248,19 @@ function bulwarkPath(ctx, r) {
   ctx.closePath();
 }
 
+/**
+ * The sniper's own silhouette: an eye, pointed where it is pointing. It is the only
+ * body in the game that never moves, so the shape is the whole of how it is recognised -
+ * and an eye is the honest shape for a thing whose entire being is a line of sight.
+ */
+function lensPath(ctx, r) {
+  ctx.beginPath();
+  ctx.moveTo(r * 1.5, 0);
+  ctx.quadraticCurveTo(0, r, -r * 1.5, 0);
+  ctx.quadraticCurveTo(0, -r, r * 1.5, 0);
+  ctx.closePath();
+}
+
 let dartBlur = null;
 
 function dartBlurSprite() {
@@ -286,6 +319,78 @@ export function drawTelegraphs(ctx, list, alpha) {
     ctx.globalAlpha = was;
 
     paintGlow(ctx, glowFor(PALETTE.telegraphHead, TELEGRAPH_HEAD), tipX, tipY, 0.2 + 0.8 * done);
+  }
+}
+
+// The sniper's lock and its beam (game/beams.js, PLAN 3.3's "long telegraphed laser
+// across the whole arena").
+//
+// The whole of it is one promise drawn twice: the lock is the band of harm before it
+// hurts, the beam is the same band after it did, and the widest pass of both is drawn
+// at exactly `beamHalfWidth` doubled - the distance off the axis at which a centre is
+// hurt - so the light never claims more ground than the damage and never less. Three
+// passes make a band read as a band and not as a line: the full width of it faint, a
+// narrower one inside that hotter, and a white axis down the middle. That is how this
+// game glows without asking the canvas to blur anything (render/glow.js).
+const BAND_FILL = 0.3;         // how bright the full width of the band is at full power
+const BAND_CORE_SHARE = 0.34;  // the hot middle, as a share of the whole width
+const BAND_HOT = 0.6;          // ... and how bright it is
+const BAND_AXIS = 1.6;         // px, the white line down the middle
+const LOCK_CALM = 0.22;        // the band the instant a lock begins ...
+const LOCK_SHOUT = 1;          // ... and the instant before it fires
+const LOCK_HEAD = 11;          // px of light building in the eye it is being drawn from
+const BEAM_HEAD = 16;          // px of light left at the eye once it has fired
+
+/**
+ * One band of harm across the arena, from (x0, y0) to (x1, y1), `half` px each side of
+ * the axis, at `light` of its full brightness.
+ */
+function bandPasses(ctx, x0, y0, x1, y1, half, light) {
+  const was = ctx.globalAlpha;
+  ctx.strokeStyle = PALETTE.beamEdge;
+  ctx.lineWidth = half * 2;
+  ctx.globalAlpha = was * light * BAND_FILL;
+  strokeBetween(ctx, x0, y0, x1, y1);
+
+  ctx.lineWidth = half * BAND_CORE_SHARE;
+  ctx.globalAlpha = was * light * BAND_HOT;
+  strokeBetween(ctx, x0, y0, x1, y1);
+
+  ctx.strokeStyle = PALETTE.beamCore;
+  ctx.lineWidth = BAND_AXIS;
+  ctx.globalAlpha = was * light;
+  strokeBetween(ctx, x0, y0, x1, y1);
+  ctx.globalAlpha = was;
+}
+
+/**
+ * The locks: every sniper on the glass that is holding one, drawn as the band its beam
+ * will be - which is the whole of the telegraph, edge to edge, across the arena its
+ * beam will cross. Painted under the crowd, like a darter's line and a bomber's circle,
+ * so nothing standing in the way of a promise hides it.
+ *
+ * Note what is *not* culled with the body: a band that reaches the whole arena is on the
+ * glass even when the eye that drew it is not, and a player who cannot see the sniper
+ * is still entitled to see the line it is about to fire down.
+ */
+export function drawLocks(ctx, list, alpha) {
+  for (let i = 0; i < list.length; i++) {
+    const enemy = list[i];
+    const half = beamHalfWidth(enemy);
+    if (half === 0 || !isLocking(enemy)) continue;
+
+    const x = paintX(enemy, alpha);
+    const y = paintY(enemy, alpha);
+    const ends = beamReach(world, x, y, enemy.dirX, enemy.dirY);
+    const x0 = x - enemy.dirX * ends.back;
+    const y0 = y - enemy.dirY * ends.back;
+    const x1 = x + enemy.dirX * ends.fore;
+    const y1 = y + enemy.dirY * ends.fore;
+    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
+
+    const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * aimProgress(enemy);
+    bandPasses(ctx, x0, y0, x1, y1, half, light);
+    paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
   }
 }
 
@@ -485,6 +590,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
   else if (enemy.type === 'shielder') bulwarkPath(ctx, enemy.r);
   else if (enemy.type === 'swarmling') shipPath(ctx, 0, 0, enemy.r, 0, SWARM_SPIKE);
+  else if (enemy.type === 'sniper') lensPath(ctx, enemy.r);
   else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
   ctx.fill();
   if (enemy.elite) {
@@ -529,6 +635,13 @@ function drawEnemy(ctx, enemy, dim, alpha) {
     ctx.arc(0, 0, enemy.r * 0.55, -0.95, 0.95);
     ctx.stroke();
     paintGlow(ctx, glowFor(PALETTE.shieldLight, FACE_GLOW), enemy.r * 0.6, 0, FACE_LIGHT);
+  }
+  if (enemy.type === 'sniper') {
+    // The pupil, and the only moving part of it: the eye is the muzzle the beam comes
+    // out of, so the light inside it is the lock's countdown (`lockLight` above) and it
+    // never has to be believed on its own - the band across the arena is the same
+    // number, drawn.
+    paintGlow(ctx, glowFor(PALETTE.beamCore, EYE_LIGHT), 0, 0, lockLight(enemy, world.time));
   }
 
   if (enemy.elite && enemy.hp < enemy.maxhp) {
@@ -963,6 +1076,33 @@ export function drawArcs(ctx) {
   }
   ctx.lineCap = 'butt';
   ctx.globalAlpha = 1;
+}
+
+/**
+ * Every beam still glowing (game/beams.js). Drawn over the crowd and over the ship - a
+ * beam is the record of damage that has already been paid, and one hidden behind a
+ * drifter would be a hit nobody was told about - and it is the same band the lock drew,
+ * at the same width, going out as the light does.
+ *
+ * Nothing about a beam wobbles or breathes: the line it draws is the line that hurt,
+ * and a hazard that shimmers where it was not is a hazard misremembered.
+ */
+export function drawBeams(ctx) {
+  const beams = world.beams;
+  if (beams.count === 0) return;
+
+  for (let i = 0; i < beams.count; i++) {
+    const beam = beams.items[i];
+    const x0 = beam.x - beam.dirX * beam.back;
+    const y0 = beam.y - beam.dirY * beam.back;
+    const x1 = beam.x + beam.dirX * beam.fore;
+    const y1 = beam.y + beam.dirY * beam.fore;
+    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
+
+    bandPasses(ctx, x0, y0, x1, y1, beam.width, clamp(beam.life / beam.max, 0, 1));
+    paintGlow(ctx, glowFor(PALETTE.beamCore, BEAM_HEAD), beam.x, beam.y,
+      clamp(beam.life / beam.max, 0, 1));
+  }
 }
 
 export function drawBullets(ctx, alpha) {

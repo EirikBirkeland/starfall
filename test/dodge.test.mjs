@@ -27,7 +27,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
-import { makeEnemy, aimProgress, blastRadius, isAiming, isLunging, isSpitting } from '../src/game/kinds.js';
+import { makeEnemy, aimProgress, blastRadius, isAiming, isLocking, isLunging, isSpitting } from '../src/game/kinds.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { SKILL, escapeDirection } from '../tools/headless/threats.js';
 
@@ -484,4 +484,85 @@ test('the ship leaves the circle it was shown', () => {
   fly(still, 2, false);
   assert.ok(Math.hypot(still.player.x - same.x, still.player.y - same.y) < radius,
     'and the ship that stayed is still standing in it');
+});
+
+// --- the band a sniper holds across the arena ---------------------------------------
+
+/**
+ * PLAN 3.3's last body: it stands still and locks a laser down a line that crosses the
+ * whole world. Everything the bot needs is in one fact - the band was chosen when the
+ * lock closed, and the only defence is not to be standing on it when the light arrives.
+ * So it is read as a line with no ends: how far down it the ship happens to stand buys
+ * nothing, the width it has to be clear of is the game's own `beamHalfWidth`, and the
+ * whole of the urgency is the countdown the band is drawn bright by.
+ */
+function lockHeld(shipX, shipY) {
+  const field = parked(9);
+  const sniper = at(field, 'sniper', C.x, C.y - 500);
+  sniper.timer = 0;
+  stepTheWorld();                         // the step on which it decides to look
+  assert.ok(isLocking(sniper), 'it locked');
+  field.player.x = shipX;
+  field.player.y = shipY;                 // moved after the lock closed, so it cannot be followed
+  return { field: field, sniper: sniper };
+}
+
+test('a band is answered sideways, and answered at either end of it', () => {
+  // Standing north of the eye, on the line extended backwards: the beam goes that way
+  // too, and a bot that thought of it as a lunge would stand there feeling safe.
+  const { field } = lockHeld(C.x, C.y - 900);
+  const want = escapeDirection(field);
+
+  assert.ok(want.pressure > 0.5, 'behind the eye is on the band all the same');
+  assert.ok(Math.abs(want.x) > 0.9 && Math.abs(want.y) < 0.2,
+    'and the way off it is sideways, across the band: ' + want.x.toFixed(2) + ',' + want.y.toFixed(2));
+});
+
+test('the band is answered for the width that hurts, and for a room to stand in', () => {
+  const HALF = BALANCE.kinds.sniper.lock.beam.halfWidth;
+  const { field } = lockHeld(C.x, C.y - 1300);      // 800 px down the line, out of reach of its body
+  const ship = field.player;
+  const room = HALF + ship.r + SKILL.beamRoom;
+  const clear = room + SKILL.beamClear;
+
+  const on = escapeDirection(field).pressure;
+  ship.x = C.x + room;
+  const edge = escapeDirection(field).pressure;
+  ship.x = C.x + (room + clear) / 2;
+  const halfway = escapeDirection(field).pressure;
+  ship.x = C.x + clear + 1;
+  const past = escapeDirection(field).pressure;
+
+  assert.ok(on > 0.5 && edge > on * 0.9, 'a ship at the room is as much in it as one on the axis');
+  assert.ok(halfway < edge && halfway > 0, 'and it eases out across the clear');
+  assert.equal(past, 0, 'and once it is clear the band asks nothing of it');
+});
+
+test('the band gets louder the closer the lock is to firing', () => {
+  const { field, sniper } = lockHeld(C.x, C.y - 1300);
+  const early = escapeDirection(field).pressure;
+
+  sniper.timer = BALANCE.kinds.sniper.lock.aim.time * 0.02;
+  const late = escapeDirection(field).pressure;
+
+  assert.ok(aimProgress(sniper) > 0.95, 'the same countdown the player is shown');
+  assert.ok(late > early, early.toFixed(3) + ' at the start of a lock, ' + late.toFixed(3) + ' at the end');
+});
+
+test('two snipers fire at a ship that is not where they were aimed', () => {
+  // The whole case for the dodge, played out: two emplacements crossing the arena, one
+  // ship that reads them and one that does not. Forty seconds, because a sniper's cycle
+  // is slow and a short window would flatter nothing.
+  const dodging = parked(9);
+  at(dodging, 'sniper', C.x, C.y - 600);
+  at(dodging, 'sniper', C.x + 700, C.y);
+  const took = fly(dodging, 40, true);
+
+  const still = parked(9);
+  at(still, 'sniper', C.x, C.y - 600);
+  at(still, 'sniper', C.x + 700, C.y);
+  const hit = fly(still, 40, false);
+
+  assert.equal(took, 0, 'the ship that moved was touched ' + took + ' times in two thirds of a minute');
+  assert.ok(hit >= 5, 'the one that stood there took ' + hit + ', and would have taken more');
 });

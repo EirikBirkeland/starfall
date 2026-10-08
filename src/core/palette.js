@@ -125,6 +125,18 @@ export const PALETTE = {
   // last frame of a thing rather than as a new one (PLAN section 4).
   blastZone: '#ff6a2e',
   blastFlash: '#ffe3b0',
+  // The sniper (PLAN 3.3's stationary laser). Every warm hue in the palette is
+  // spoken for by something that walks, so the one thing in the arena that never
+  // moves takes the deepest one: a blood red darker than the darter's coral and
+  // than the swarm's scarlet, which is what lets the *white* of its eye and of its
+  // beam be the loudest light on the glass instead of another red in the crowd.
+  sniper: '#d81e5b',
+  sniperFill: 'rgba(216,18,72,0.20)',
+  // The beam: the band of harm at the width its damage is paid out at, and the
+  // white-hot axis down the middle of it. Nothing else in the game is nearly white
+  // for longer than a bomber's flash, which is the whole point of the kind.
+  beamEdge: '#ff5f86',
+  beamCore: '#fff2f6',
   // The darter's warning line (render/entities.js): the wide soft pass is the
   // enemy's own red, the thin one over it is paler, and the head of it is almost
   // white - the order your eye should read them in.

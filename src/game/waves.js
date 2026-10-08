@@ -15,9 +15,11 @@
 // whole reason the run tightens as it goes.
 //
 // This file is also the one place that decides *where* an enemy may appear: just off
-// the part of the arena the player can see, and never on top of them. `spawnEnemy`
-// is the primitive every arrival goes through, and it answers the enemy it placed
-// or null when there was nowhere to put it.
+// the part of the arena the player can see, and never on top of them - with the one
+// exception of a kind that cannot walk, which has to be landed where the player can
+// see it and shoot back at it (`arrivalSpotFor`). `spawnEnemy` is the primitive every
+// arrival goes through, and it answers the enemy it placed or null when there was
+// nowhere to put it.
 //
 // A wave spends exactly one roll of the `logic` stream per member, however many
 // kinds have unlocked, so adding a kind to the roster cannot move a run that never
@@ -233,6 +235,77 @@ function arrivalSpot(world, radius, bearing) {
 }
 
 /**
+ * The part of the glass a body that cannot walk may be landed in: inside the window
+ * by `inset` more than its own body, so the whole of it and the light of its arrival
+ * are on the screen, and inside the arena by its own body. Answers null when those
+ * two do not overlap - a window too narrow to hold the body clear of its frame.
+ */
+function sightBox(world, radius, inset) {
+  const ship = world.player;
+  const halfW = world.view.w / 2 - radius - inset;
+  const halfH = world.view.h / 2 - radius - inset;
+  const box = {
+    x0: Math.max(ship.x - halfW, radius),
+    x1: Math.min(ship.x + halfW, world.arena.w - radius),
+    y0: Math.max(ship.y - halfH, radius),
+    y1: Math.min(ship.y + halfH, world.arena.h - radius),
+  };
+  return box.x1 > box.x0 && box.y1 > box.y0 ? box : null;
+}
+
+/**
+ * Somewhere a body that cannot walk out to meet the player is landed: on the glass,
+ * and `min` px of standing room from the ship.
+ *
+ * This is the one exception to the rule that an arrival comes in off the edge of the
+ * window, and it exists because the rule is about not appearing in somebody's face.
+ * A body that cannot be run to and cannot be run off has to be where the player can
+ * see it and shoot back at it, or it is a turret nobody can answer; the distance half
+ * of the rule is kept instead, by `min`, and the kind announces itself landing
+ * (kinds.js `onArrive`). Answers null only when there is no such place on the glass.
+ */
+function inSightSpot(world, stats) {
+  const spec = stats.inSight;
+  const ship = world.player;
+  const box = sightBox(world, stats.radius, spec.inset);
+  if (box === null) return null;
+
+  const spot = { x: box.x0, y: box.y0 };
+  for (let i = 0; i < BALANCE.waves.attempts; i++) {
+    spot.x = logic.range(box.x0, box.x1);
+    spot.y = logic.range(box.y0, box.y1);
+    if (dist2(spot.x, spot.y, ship.x, ship.y) >= spec.min * spec.min) return spot;
+  }
+
+  // Out of tries on a window too small to offer the distance it likes. Land it on
+  // whichever corner of what is on the glass is furthest from the ship, which is the
+  // same rule read as far as the screen allows rather than not arriving at all.
+  const edge = [box.x0, box.x1];
+  const across = [box.y0, box.y1];
+  let bestBy = -1;
+  for (let i = 0; i < 2; i++) {
+    for (let j = 0; j < 2; j++) {
+      const by = dist2(edge[i], across[j], ship.x, ship.y);
+      if (by <= bestBy) continue;
+      bestBy = by;
+      spot.x = edge[i];
+      spot.y = across[j];
+    }
+  }
+  return spot;
+}
+
+/**
+ * Where a body of this kind comes in: off the edge of the window, like everything
+ * else, unless its kind says it cannot walk - and then in sight of the player, on the
+ * far side of the rule that keeps an arrival out of your face (`inSightSpot`).
+ */
+function arrivalSpotFor(world, stats, bearing) {
+  if (stats.arrival === 'inSight') return inSightSpot(world, stats);
+  return arrivalSpot(world, stats.radius, bearing);
+}
+
+/**
  * Stand one enemy of `type` (rolled from the roster when no type is given) on the
  * edge of what the player can see, optionally at a bearing from the ship, optionally
  * gold (game/elite.js). Answers the enemy, or null when there was nowhere to put it
@@ -244,7 +317,7 @@ function arrivalSpot(world, radius, bearing) {
 export function spawnEnemy(world, type, bearing, elite) {
   if (world.enemies.length >= BALANCE.waves.maxBodies) return null;
   const name = type || pickMember(world, Infinity);
-  const spot = arrivalSpot(world, kindOf(name).stats.radius, bearing);
+  const spot = arrivalSpotFor(world, kindOf(name).stats, bearing);
   return placeEnemy(world, name, spot, elite === true, null);
 }
 
@@ -266,6 +339,10 @@ function placeEnemy(world, type, spot, elite, pack) {
   const enemy = makeEnemy(world, type, spot.x, spot.y, PLACE);
   world.enemies.push(enemy);
   noteArrival(world, enemy);
+  // Whatever the kind wants said about its arrival - a sniper lights itself landing
+  // and starts its first wait (game/kinds.js). A body built directly by a test or by
+  // the title screen's crowd is not an arrival and hears nothing about it.
+  if (enemy.kind.onArrive) enemy.kind.onArrive(world, enemy);
   return enemy;
 }
 

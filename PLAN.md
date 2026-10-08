@@ -412,7 +412,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
 
 ### Milestone 3: enemies and waves
 - [x] Enemy definitions as data in one table, with behaviours as small functions.
-- [ ] Add each enemy from 3.3, one per session, each with its telegraph and death effect.
+- [x] Add each enemy from 3.3, one per session, each with its telegraph and death effect.
+      Nine kinds, in the order PLAN 3.3 gives them, and the last of them is the sniper below.
 - [x] Enemy bullets, in warm colours, with their own pool.
 - [x] The wave director: a spawn budget that grows with time and is spent on the enemy types unlocked so far.
       Spawns happen off-screen, never on top of the player.
@@ -435,7 +436,20 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the pack locked when it stopped bunching. "Splitter" was taken by the tank, so this
       kind's word is the flock; see NOTES session 26 for what "8 hull each, 180" became
       and why.
-- [ ] Release.
+- [x] The sniper (PLAN 3.3's last body, 10:30): bolted to the floor, an eye that turns
+      slowly onto the ship, and every few seconds a lock - 1.25 s in which the band of
+      light it is about to fire is drawn across the whole arena and the eye *cannot
+      change its mind*, so the band you were shown is the band that hurts, edge for
+      edge. `game/beams.js` is the fourth damage system and the only one an enemy owns:
+      the damage is instantaneous, paid out on the step the beam is born, and the light
+      hangs on for a fifth of a second as the record of it - so a body that walks onto a
+      beam after it fired is not hurt by it. Its line is clipped to the arena, not the
+      screen, and it is drawn whatever the camera is doing, because the whole world is
+      the danger zone and the whole world can be read. Being unable to walk also means it
+      cannot be kited or run off, so it is landed *inside* the window at a distance and
+      announced (`waves.arrival: 'inSight'`), which is the one exception to arriving off
+      the edge of the glass. "35 hull" became 12, same rescaling as every other kind.
+- [x] Release.
 
 ### Milestone 4: upgrades
 - [x] XP curve from 3.6, level-up pause, and the three-card choice screen.

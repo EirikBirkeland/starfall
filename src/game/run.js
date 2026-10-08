@@ -14,6 +14,7 @@ import { resetRanks } from './upgrades.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
+import { resetBeams } from './beams.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -50,6 +51,8 @@ export function resetRun(world) {
   resetNova(world);
   // And every bolt the arc left hanging in the sky (game/arc.js).
   resetArc(world);
+  // And every beam a sniper had still been glowing with (game/beams.js).
+  resetBeams(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

@@ -578,6 +578,74 @@ export const BALANCE = {
       death: { particles: 6, speed: 210, debris: 1, debrisSpeed: 150 },
       sound: { freq: 660, dur: 0.06, vol: 0.045 },
     },
+    // PLAN 3.3's last body (10:30): "stationary, long telegraphed laser across the
+    // whole arena". It is the only body in the game that never moves, and that is
+    // the whole of the kind: everything else about it follows from standing still.
+    //
+    // Because it cannot walk, it cannot be kited, cannot be run off, and cannot be
+    // ignored: a run that leaves it alive is played inside a line of light that gets
+    // drawn across the arena every few seconds. Because it cannot follow, the line
+    // is always one the ship was shown and had time to step off - which is the one
+    // thing a body that reaches the whole arena may be allowed to be.
+    sniper: {
+      radius: 16, speed: 0, hull: 12, score: 90, drop: 6,
+      from: 630, cost: 8, weight: 1,
+      // `sides` is the fallback shape; the eye is drawn by its own silhouette
+      // (render/entities.js), because the only thing a stationary body has to be
+      // recognised by is its shape.
+      color: PALETTE.sniper, fill: PALETTE.sniperFill, sides: 6, glow: 24,
+      // Bolted to the floor: the crowd walks round it instead of shoving it along
+      // (game/enemies.js), and a bullet's kick does not budge it. This is what makes
+      // the line it drew an hour ago still be the line it fires down.
+      rooted: true,
+      // Where one lands. A body that cannot walk has to arrive where the player can
+      // see it and shoot back at it, so it does not arrive off the edge of the glass
+      // like everything else: it lands inside the window, at a distance, announced
+      // (see `lock.land`). The rule PLAN section 3 is protecting - nothing appears in
+      // your face - is kept by `min` instead of by the edge of the screen.
+      arrival: 'inSight',
+      inSight: { inset: 54, min: 250 },
+      // The lock, in three beats (game/beams.js, game/kinds.js).
+      //
+      // `wake` is how long after landing it takes its first aim, `wait` how long
+      // between one beam and the next lock, and `turn` how fast it can bring its eye
+      // about while it waits, rad/s - slow enough that a ship which notices it can
+      // walk out from under the nose before the lock begins.
+      //
+      // `aim` is the telegraph and it is long on purpose (PLAN asks for a long one;
+      // a darter gets 0.62 s): during it the eye is locked and *cannot* change its
+      // mind, so the band drawn on the glass is exactly the band that will hurt,
+      // edge for edge, which is the promise every telegraph in this game makes.
+      //
+      // `beam.halfWidth` is that promise as a number: a centre - the ship's or a
+      // body's - within it of the axis is hurt, and the band the renderer paints is
+      // drawn at exactly twice it. `time` is how long the light hangs there after
+      // the damage was paid, which is why it is short: the damage is instantaneous
+      // and the light is its record (see game/beams.js), so nothing is hurt by a
+      // beam that has already fired.
+      lock: {
+        wake: 2.4, wait: 2.6, turn: 0.8,
+        aim: {
+          time: 1.25,
+          sound: { freq: 320, dur: 0.7, wave: 'sawtooth', vol: 0.028, slide: 1500 },
+        },
+        beam: {
+          halfWidth: 20, time: 0.3, damage: 6, shove: 260,
+          shake: 7, hitStop: 0.04,
+          flare: { count: 26, speed: 460, life: 0.3 },
+          cut: { count: 4, speed: 240, life: 0.24, spread: 0.5 },
+          sound: { freq: 1700, dur: 0.3, wave: 'square', vol: 0.1, slide: 90 },
+        },
+        // What it looks like when one lands inside your window.
+        land: {
+          ring: { radius: 10, speed: 320, life: 0.34 },
+          burst: { count: 18, speed: 260, life: 0.4 },
+          sound: { freq: 120, dur: 0.34, wave: 'triangle', vol: 0.07, slide: 62 },
+        },
+      },
+      death: { particles: 24, speed: 300, debris: 10, debrisSpeed: 210, shake: 5 },
+      sound: { freq: 150, dur: 0.22 },
+    },
   },
 
   death: {

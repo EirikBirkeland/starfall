@@ -4459,3 +4459,147 @@ at `debug` arrived once the level was lowered.
   the run. A file appeared once this session (`test/frame-cost.test.mjs`, never committed) and
   failed its timing assertion; it is gone and was never in git, so the tree is clean - but if a
   timing test ever fails that `git ls-files` cannot explain, look for an untracked stray first.
+
+## Session 37 (2026-10-08) — The sniper: the last body of 3.3, and damage that is a line instead of a place. Released **0.3.9**
+
+Milestone 3 is finished. The sniper was the ninth and last body of PLAN 3.3, so the enemy
+roster is now complete and both `Add each enemy from 3.3` and milestone 3's `Release.` are
+ticked.
+
+### What got built
+
+A body bolted to the floor with an eye that turns onto the ship, holds a lock for 1.25 s
+while the band it is about to fire is painted across the whole arena, and then fires down
+exactly that line. Every few seconds, forever, until somebody shoots it.
+
+- `src/game/beams.js` (new) - the fourth damage system and the only one an enemy owns, after
+  `orbitals.js`, `nova.js` and `arc.js`. `beamReach` clips an axis to the arena both ways
+  from the eye, `axisDistance` answers how far a point stands off a beam's line (or
+  `Infinity`, when it is past one end of it), `fire` spends a lock, `updateBeams` runs after
+  the crowd has walked and answers false when a beam ended the run, `resetBeams` is called
+  from `resetRun`.
+- `kinds.js`: the `sniper` row of `KINDS` (`walk: walksWatching`, `onArrive: groundItself`),
+  a third beat `lock`, and three new questions for anything that draws or dodges it:
+  `isLocking`, `isRooted`, `beamHalfWidth`. The walk raises `enemy.beamReady`; `beams.js`
+  spends it, in the same step.
+- `balance.js kinds.sniper`: radius 16, speed 0, hull 12, score 90, drop 6, `from: 630`,
+  cost 8, weight 1, `rooted: true`, `arrival: 'inSight' { inset: 54, min: 250 }`, and the
+  whole `lock` tree - `wake 2.4, wait 2.6, turn 0.8`, `aim.time 1.25` + sound, `beam
+  { halfWidth 20, time 0.3, damage 6, shove 260, shake, hitStop, flare, cut, sound }`,
+  `land { ring, burst, sound }`.
+- `waves.js`: `arrivalSpotFor` - the one exception to arriving off the edge of the window.
+  A kind that says `arrival: 'inSight'` is landed *inside* the glass, `min` px from the
+  ship, by `sightBox`/`inSightSpot`; `placeEnemy` now calls `kind.onArrive`, which is where
+  the landing light and the first `wake` come from.
+- `enemies.js`: the separation pass gives the whole overlap to whichever body of a pair can
+  move (`share = push * 2 / free`), so a crowd walks round a sniper instead of shovelling it
+  across the arena. Bit-identical to before for any pair where both can move.
+- `tally.js`: a fourth cause of hull loss, `beam`, written as `beam:sniper`, beside `body`,
+  `shot` and `blast`.
+- Render: `lensPath` (the eye: two quadratic curves, the only body with a silhouette of its
+  own), `lockLight` (the eye's own countdown), `drawLocks`, `bandPasses`, `drawBeams`, and
+  four palette entries (`sniper`, `sniperFill`, `beamEdge` a warm rose, `beamCore` nearly
+  white). Locks go under the crowd, beams under the ship, both for the same reason: nothing
+  standing in the middle of a promise may hide it.
+- The bot: `threats.js` learned `beamLine`, plus `SKILL.beamRoom 24`, `beamClear 130`,
+  `beamWeight 2.4`.
+- The harness: `game.strokeWidths()` (the line width of every stroke the last frame made)
+  and a `quadraticCurveTo` stub.
+
+### The decisions, and why
+
+- **The telegraph is the damage, drawn.** `beamHalfWidth` is the only number: a centre within
+  it of the axis is hurt, and the widest stroke of the band is exactly `2 x halfWidth` - which
+  `test/beam-art.test.mjs` now measures out of the fake canvas instead of trusting. The eye
+  cannot turn during a lock, so the band you were shown cannot move; killing the sniper during
+  a telegraph means no beam at all, which is what a telegraph is for.
+- **Damage is instantaneous and the light outlives it**, like an arc bolt and unlike a nova
+  front. A beam is born having already hurt everything on it, then fades for 0.3 s as the
+  record of the flash. So walking onto a beam *after* it fired hurts nobody, and a beam is a
+  thing that happened rather than an area that lasts. That is what makes "the band you were
+  shown" a promise rather than a coincidence.
+- **It reaches the arena, not the screen.** The ends are clipped to the walls when it is fired
+  and the renderer paints those same two numbers. Nothing about a beam depends on where the
+  camera happens to be - which is the point of the kind, and the reason `drawLocks` draws a
+  band whose eye is off the glass.
+- **Rooted is a property of the kind, not of the walk.** `speed: 0` would not have been enough:
+  separation, a bullet's kick and a blast all write `ix/iy` or `x` directly. `walksWatching`
+  refuses the impulses and `isRooted` refuses the shoving, and together they are what keeps a
+  line drawn a minute ago in the same place.
+- **A body that cannot be walked to must not be dropped in your face and must be answerable**,
+  so it lands inside the window at `min` px, announced, and starts its `wake` after landing.
+  `test/sniper.test.mjs` sweeps 200 arrivals and every one is in sight and out of range.
+- **A beam pays nobody.** Whatever it kills is not a kill and gives no score, the same reading
+  as a bomber's blast that nobody lit. It is the sniper's doing.
+- **The version is 0.3.9, not 0.4.10.** AGENTS.md's scheme is `0.<milestone>.<patch>` and this
+  is milestone 3's last item; `releases/releases.json` is newest-first, so the menu shows it on
+  top whatever the number says.
+
+### Things that surprised me
+
+- **The kind used to destroy itself, and only a control run gave it away.** Measuring "how many
+  beams does a ship standing on the line take" came back as *two, then nothing*: a beam's payout
+  included the eye it was fired out of, so a sniper burned itself away in two shots of its own
+  light and the whole kind lasted eight seconds. `beam.source` is excluded now, and there are
+  two tests - one that it survives its own third of a minute of beams, one that *another* sniper
+  standing in the light is not exempt. Worth remembering: the control case is where these live.
+- **Pool counters are per process, not per test.** `beams.stats().spawned` kept counting from
+  the first test in the file, so "wait until a beam has been fired" returned instantly on every
+  test after the first and three of them were quietly measuring nothing. Read a `count`
+  transition, or a delta, not a bare cumulative number. (This is the same trap as the world being
+  one arena per test file, which `test/dodge.test.mjs`'s header already warns about.)
+- **An indicator arrow fades for about ten frames**, which is a second too long for a frame-cost
+  test: the "empty sky" frame was still drawing the last test's arrow and the "with a sniper in
+  it" frame was not, which came out as a cost of *-1 strokes*. `clearTheSky()` in
+  `test/beam-art.test.mjs` now calls `resetIndicators()` and says why.
+- **`kinds.js` and `enemies.js` are a real import cycle now** (`isRooted` one way, `damageEnemy`
+  the other). It works because both sides are hoisted function declarations, and it was checked
+  by importing each of the two first. If either ever becomes a `const` arrow function, the cycle
+  will throw at import time with a confusing message.
+- **The planted crowd in `test/kinds.test.mjs`** ("walking the crowd spends no randomness") now
+  includes a sniper, which locks at once and beams the crowd it was planted in. The bodies were
+  given 9999 hull rather than the kind being neutered: the beams are what a sniper is for, and
+  it is the other test that was off subject.
+- **Seven bands at once is the most a real run ever showed.** Four 15-minute runs: 79-85% of
+  frames have no band at all, 3+ bands on about 4% of a run (the last four and a half minutes),
+  and the peak concurrent emplacements was 11 bodies out of a 322-point crowd budget. It reads
+  as the late arena turning against you rather than as noise, and the dodging bot is never hit,
+  so the weight stayed at 1.
+
+### The numbers, measured this session
+
+- `node tools/simulate.js --runs 6 --seconds 900`: **pulse 6/6 still flying at the 15m cap**
+  (hull 2-3 left), scatter 5/6 (worst 11m13s), arc 2/4 (one 6m09s death - arc was already the
+  weakest gun). `--bot naive --seconds 600`: median 3m13s, all six died. Nothing was softened
+  and the ramp is intact.
+- `node tools/balance-report.js --runs 6 --seconds 900`: the sniper is **first seen at 10m35s**
+  against a plan of 10m30s; 228 arrived in 90 minutes of play; on screen mean 1.4, peak 11,
+  5% of the crowd; 2% of all the shooting went into them; mean hull brought down 33.8, life
+  mean 21 s. `WHAT HURT THE SHIP` has **no `beam` row at all** - the aware bot is never hit by
+  one, which is exactly what the four new `test/dodge.test.mjs` cases exist to prove.
+- The dodging proof, 40 s with two parked snipers: **0 hits for the ship that reads the bands,
+  9 for the one that stands still** (it dies). One sniper, 40 s, still ship: 9 hits, dies.
+- Full suite: **646 tests, 0 failures** (21 in `test/sniper.test.mjs`, 7 new in
+  `test/beam-art.test.mjs`, 4 new in `test/dodge.test.mjs`). `node tools/simulate.js` clean.
+
+### Next
+
+- Milestone 3 is done, so the plan is back on the main road: **milestone 4's
+  `Each behaviour upgrade from 3.5, one per session, each with a test of its logic`**. Not in the
+  game yet, from that list: Burn, Chill, Leech, Overcharge, Afterimage, Magnetar (split, pierce
+  and ricochet are already lines), then the three secondaries of 3.2 that are not orbitals and
+  nova, then card weighting, reroll and banish, then the synergy table.
+- Something to check while in `upgrades.js`: PLAN's stat list still has move speed, max hull,
+  shield, pickup radius, dash cooldown, critical chance and XP gain, and `src/game/upgrades.js`
+  has eight lines (damage, fireRate, bulletSpeed, split, pierce, ricochet, orbitals, nova).
+  PLAN ticks the stat item, so the honest reading is that milestone 4 wants behaviours next -
+  but the gap is worth an hour's thought about whether the plan or the game is the one that is
+  behind.
+- Two ideas the sniper makes cheap, if a later session wants them:
+  - a **boss that is a bigger sniper** (PLAN 3.4 wants one at 10:00 and one at 15:00, and nothing
+    in the game is a boss yet): `rooted`, `beamHalfWidth` and `drawLocks` are all ready for it, and
+    a boss beam could simply be wider and slower.
+  - a **`threats.js` that answers a band with a dash** - the bot currently only walks off a band,
+    and a dash straight off the axis is the flashy correct answer when two bands cross under you.
+- The old asks, unchanged: **the third bot** (dodging with a 0.2 s delay), and **a real agent
+  playing a real run** through `node tools/agent-bridge.js`.

@@ -258,7 +258,13 @@ test('walking the crowd spends no randomness, so a walk cannot move a run', () =
   const names = Object.keys(KINDS);
   names.forEach((name, i) => {
     const spot = spots[i % spots.length];
-    field.enemies.push(makeEnemy(field, name, spot[0], spot[1]));
+    const body = makeEnemy(field, name, spot[0], spot[1]);
+    // The sniper among them locks at once and fires a beam straight down this crowd,
+    // which is what a sniper is for - and it is not what *this* test is about, so none
+    // of these bodies is fragile enough for it to be an event.
+    body.hp = 9999;
+    body.maxhp = 9999;
+    field.enemies.push(body);
   });
 
   const state = logic.state;

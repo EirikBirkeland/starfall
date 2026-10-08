@@ -15,6 +15,7 @@ import { hitPlayer, isInvulnerable } from './player.js';
 import { cueBeep } from './cues.js';
 import { noteDeath, noteHit, hurtByBody } from './tally.js';
 import { shieldSoak } from './shields.js';
+import { isRooted } from './kinds.js';
 
 /**
  * File the whole crowd in the world's collision grid. This is a snapshot for one
@@ -150,10 +151,22 @@ export function updateEnemies(world, dt) {
         const push = (radii - dist) * BALANCE.enemies.separationPush;
         const nx = dx / dist;
         const ny = dy / dist;
-        enemy.x += nx * push;
-        enemy.y += ny * push;
-        other.x -= nx * push;
-        other.y -= ny * push;
+        // Whatever can move absorbs the whole overlap between the pair - half each
+        // when both of them can, all of it when only one of them can. A body bolted to
+        // the floor (a sniper, game/kinds.js) gives way none of it, or a crowd walking
+        // past would shovel it across the arena and the line it had drawn would move
+        // with it.
+        const free = (isRooted(enemy) ? 0 : 1) + (isRooted(other) ? 0 : 1);
+        if (free === 0) continue;
+        const share = (push * 2) / free;
+        if (!isRooted(enemy)) {
+          enemy.x += nx * share;
+          enemy.y += ny * share;
+        }
+        if (!isRooted(other)) {
+          other.x -= nx * share;
+          other.y -= ny * share;
+        }
       }
     }
 

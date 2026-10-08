@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawLocks, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -76,11 +76,17 @@ export function renderFrame(tick, input, pointer) {
     drawBullets(ctx, tick.alpha);
     // Under the crowd, so a darter sits on top of its own warning line.
     drawTelegraphs(ctx, world.enemies, tick.alpha);
+    // And under it for the same reason: a lock is a promise across the whole arena and
+    // nothing standing in the middle of it may be allowed to hide it (game/beams.js).
+    drawLocks(ctx, world.enemies, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     drawShieldBubbles(ctx, world.enemies, tick.alpha);
     // Under the ship: a nova front is the ship's own reach going out, and the ship must
     // never be lost inside the ring it just threw (game/nova.js).
     drawNova(ctx, tick.alpha);
+    // Under the ship for the same reason: a beam is the loudest light in the arena for a
+    // fifth of a second and the ship must never be lost inside it (PLAN section 1).
+    drawBeams(ctx);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
     if (world.state !== STATE.START) drawPlayer(ctx, tick.alpha);
