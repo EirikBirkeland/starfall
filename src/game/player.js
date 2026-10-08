@@ -15,6 +15,7 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
 import { noteHullLoss } from './tally.js';
+import { updateOvercharge } from './overcharge.js';
 import { fire, shotsPerSecond } from './weapons.js';
 
 /**
@@ -204,6 +205,11 @@ export function updatePlayer(world, dt, input) {
   ship.thrust = clamp(ship.thrust + (input.moving ? dt * spec.thrustRamp : -dt * spec.thrustRamp), 0, 1);
   engineTrail(world, ship, dt);
   if (ship.invuln > 0) ship.invuln -= dt;
+
+  // After the ship has been moved and before the trigger is looked at: whether this step was
+  // standing still is a question about the velocity the engines just left, and a charge that
+  // comes up this step is there for a pull this step (game/overcharge.js).
+  updateOvercharge(world, dt, input);
 
   ship.fireTimer -= dt;
   if (input.firing && ship.fireTimer <= 0) {

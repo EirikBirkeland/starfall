@@ -19,6 +19,7 @@ import { logic } from '../core/rng.js';
 import { strikeChain } from './arc.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
+import { chargedPullOf, spendCharge } from './overcharge.js';
 import { gainOf, countOf, pierceOf, bounceOf } from './upgrades.js';
 
 /**
@@ -143,9 +144,12 @@ function shotFan(aim, count, gap) {
  * `speed` is the gun's, `life` is the gun's reach divided by it, and `knock` is how much
  * of its own velocity a body gets for being in the way - all three baked as the shot
  * leaves, so a pick or a card taken after this one goes does not rewrite a shot already
- * in the air (game/bullets.js is where the shove is spent).
+ * in the air (game/bullets.js is where the shove is spent). `charged` says the same about
+ * the overcharge line a step later: what the pull was worth when the trigger moved is what
+ * the shot is worth all the way to wherever it lands, and it is also the only way the eye can
+ * tell a heavy shot from a plain one (render/entities.js).
  */
-function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns) {
+function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) {
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
@@ -161,6 +165,7 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns) {
   // in the air (game/bullets.js is where both are spent).
   bullet.pierce = passes;
   bullet.bounce = turns;
+  bullet.charged = charged;
   bullet.hits.length = 0;
   return bullet;
 }
@@ -180,16 +185,20 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns) {
  * Answers whether anything left the ship, which for a fan of shots is always: it is only a
  * chain that can find nothing to throw at.
  */
-function shootFan(world, gun, count, nx, ny) {
+function shootFan(world, gun, count, nx, ny, boost) {
   const ship = world.player;
   const split = BALANCE.upgrades.split;
 
   const speed = gun.speed * gainOf(world, 'bulletSpeed');
-  const weight = gun.damage * gainOf(world, 'damage');
+  // `boost` is what a loaded gun is worth (game/overcharge.js), and it is 1 for every pull that
+  // was not, so the whole fan - the gun's own shots and the split line's extras together - is one
+  // heavier pull rather than one heavier shot among them.
+  const weight = gun.damage * gainOf(world, 'damage') * boost;
 
   const fan = shotFan(ship.angle, count, Math.max(gun.gap, split.fan));
   const pierce = pierceOf(world);
   const turns = bounceOf(world);
+  const charged = boost > 1;
   for (let i = 0; i < fan.length; i++) {
     // Every projectile gets its own small aim error, so a fan is a fan of shots and not
     // a grid of them - and everything past the gun's own is an extra, lighter by the
@@ -197,7 +206,7 @@ function shootFan(world, gun, count, nx, ny) {
     const angle = fan[i] + logic.range(-gun.spread, gun.spread);
     const heavy = i < gun.pellets;
     shoot(world, nx, ny, angle, speed,
-      heavy ? weight : weight * split.share, gun.knockback, pierce, turns);
+      heavy ? weight : weight * split.share, gun.knockback, pierce, turns, charged);
   }
   return true;
 }
@@ -224,10 +233,17 @@ export function fire(world) {
   const nx = ship.x + Math.cos(ship.angle) * nose;
   const ny = ship.y + Math.sin(ship.angle) * nose;
 
+  // What a loaded gun is worth, read once for the whole pull (game/overcharge.js).
+  const boost = chargedPullOf(world);
+
   const threw = gun.chain === undefined
-    ? shootFan(world, gun, count, nx, ny)
-    : strikeChain(world, gun, count, nx, ny);
+    ? shootFan(world, gun, count, nx, ny, boost)
+    : strikeChain(world, gun, count, nx, ny, boost);
   if (!threw) return;
+  // A pull that threw nothing has not fired, and a pull that has not fired has not spent the
+  // charge it was carrying: the arc's own answer to an empty sky stays loaded until it finds a
+  // body to spend itself on (game/overcharge.js).
+  if (boost > 1) spendCharge(world, nx, ny);
 
   ship.vx -= Math.cos(ship.angle) * gun.recoil;
   ship.vy -= Math.sin(ship.angle) * gun.recoil;

@@ -194,6 +194,20 @@ Behaviour upgrades:
   own levels for it, it did worse, which is the same story every defensive line tells a bot
   whose gun is the only thing keeping it alive.
 - **Overcharge**: standing still for 1 s doubles the next shot.
+  *Done in 0.4.13* (`src/game/overcharge.js`). PLAN's two numbers are the code's two numbers - the
+  first rank is exactly a doubling of the pull, and one second of standing still buys it - and a
+  rank buys *weight* rather than a shorter wait, because a shorter wait would make the fifth rank a
+  permanent double and stop the card being a decision. Two things the plan does not say, both
+  decided and measured: **what spends the charge is a pull of the trigger and all of it** (a
+  scatter's six pellets and an arc's whole chain are one shot to the player, and one pellet of six
+  is a doubling nobody could see), and **a charge interrupted is cooled and not wiped** - moving
+  takes it off at twice the rate it came on, so the card asks the ship to *settle* rather than to
+  never twitch, and a dodge between two threats costs a quarter of a charge instead of all of it.
+  "Standing still" is two questions - is the ship asking to move, and is it moving - so leaning
+  into a wall is not standing and being kicked by your own gun is. Measured on the ladder (a ship
+  that never moves: 1.96x at five ranks, between burn and the damage line) and in real runs (6.3
+  loaded pulls a minute for a bot that never meant to use the card): this is the one line in the
+  deck that is a playstyle rather than a rate, and NOTES session 41 has both numbers.
 - **Afterimage**: the dash leaves a decoy that enemies chase for 2 s.
 - **Magnetar**: collected shards deal small area damage around the ship.
 - The five secondary systems from 3.2, each as its own upgrade line.

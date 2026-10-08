@@ -69,6 +69,9 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   // recycled shot would otherwise bring with it from whatever the gun last fired.
   bullet.pierce = pierce === undefined ? 0 : pierce;
   bullet.bounce = turns === undefined ? 0 : turns;
+  // And that it was not thrown by a loaded gun, which is the one field of a shot a test is
+  // unlikely to set on purpose and the one a recycled shot would otherwise bring with it.
+  bullet.charged = false;
   bullet.hits.length = 0;
   return bullet;
 }

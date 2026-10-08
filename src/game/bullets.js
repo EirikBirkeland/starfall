@@ -32,15 +32,16 @@ import { cueBeep } from './cues.js';
  * of the pierce line when it leaves: one body past the first, per rank, and one of them
  * is spent on every body it goes through. `bounce` is the same for the ricochet line -
  * the turns it has left - and a turn is only taken when there is nothing left ahead of the
- * shot to go through. `hits` is who it has already touched - a shot at 620 px/s is inside
- * a body for several steps and a passed-through body it kept meeting would be shaved once
- * per step otherwise - and it is also what stops a turned shot coming back for a body it
- * has already spent itself on.
+ * shot to go through. `charged` says the gun was loaded when the trigger moved, for the
+ * whole flight of the shot (game/overcharge.js). `hits` is who it has already touched - a
+ * shot at 620 px/s is inside a body for several steps and a passed-through body it kept
+ * meeting would be shaved once per step otherwise - and it is also what stops a turned shot
+ * coming back for a body it has already spent itself on.
  */
 export function makeBullet() {
   return {
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
-    life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, hits: [],
+    life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, charged: false, hits: [],
   };
 }
 

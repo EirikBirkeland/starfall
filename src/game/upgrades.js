@@ -142,6 +142,14 @@ export const LINES = [
     flavour: 'Bodies you bring down patch the ship. Sixty of them at the first rank, and the leech gets quicker from there.',
     icon: 'leech',
   },
+  {
+    id: 'overcharge',
+    name: 'OVERCHARGE',
+    unit: SHARE_UNIT,
+    what: 'charged shot',
+    flavour: 'Stand still for a second and the gun loads. What it hands you is one heavy pull, and every rank makes that pull heavier.',
+    icon: 'overcharge',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -158,6 +166,8 @@ const BURN_LINE = 'burn';
 const CHILL_LINE = 'chill';
 /** The line that trades bodies brought down for hull back. */
 const LEECH_LINE = 'leech';
+/** The line that loads the ship's own gun while the ship stands still. */
+const OVERCHARGE_LINE = 'overcharge';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -312,6 +322,19 @@ export function chillOf(world) {
 export function leechCostOf(world) {
   if (rankOf(world, LEECH_LINE) <= 0) return 0;
   return BALANCE.upgrades[LEECH_LINE].base - countOf(world, LEECH_LINE);
+}
+
+/**
+ * What a charged pull of the trigger is worth (PLAN 3.5's Overcharge): `2` at the first rank,
+ * which is PLAN's doubling read literally, and one more whole copy of the pull for every rank
+ * after it. `1` when the line has not been taken at all, which is not a charge that does nothing
+ * but the absence of the bargain - the same trap rank 0 has walked into on every conditional
+ * line since burn. Read where a pull is thrown (game/weapons.js), so what leaves the ship is
+ * worth the ranks standing on it at the moment it leaves and nothing rewrites a shot in the air.
+ */
+export function pullBoostOf(world) {
+  if (rankOf(world, OVERCHARGE_LINE) <= 0) return 1;
+  return gainOf(world, OVERCHARGE_LINE);
 }
 
 /** Lines with a rank still to give. */

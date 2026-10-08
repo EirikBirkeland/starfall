@@ -10,7 +10,7 @@
 // out, and PLAN section 4 spends warm colours on things that are about to hurt you.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
-import { clamp } from '../core/math.js';
+import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
 import { effectOf, lineOf, maxRanksOf, rankOf } from '../game/upgrades.js';
 import { polygon, roundRect, shipPath } from './shapes.js';
@@ -58,6 +58,13 @@ const TINT = {
   // spring, and a flame and a rime - and inventing a greenier green to keep the tints all
   // twelve degrees apart would be a colour nobody could name.
   leech: PALETTE.shardLine,
+  // The twelfth tint, and - like the eleventh - not a new hue but the colour the thing itself
+  // wears in the arena: the near-white heart of a shot, which is what this card loads and what
+  // its ring is drawn in (render/entities.js). It is a paler cyan than FIRE RATE's and the two
+  // shapes could not be less alike, which is the same bargain the tenth and eleventh tints made;
+  // the rack is out of cool hues and a thirteenth invented to keep them evenly spaced would be a
+  // colour nobody could name.
+  overcharge: PALETTE.chargeRingReady,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -293,6 +300,7 @@ const ICONS = {
   burn: iconBurn,
   chill: iconChill,
   leech: iconLeech,
+  overcharge: iconOvercharge,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -594,6 +602,43 @@ function iconLeech(ctx, size, tint) {
     }
   }
   ctx.lineCap = 'butt';
+}
+
+/**
+ * A shot standing inside a ring that has nearly closed over it: the card's picture is the ring the
+ * ship wears in the arena (render/entities.js), because that ring *is* the card - an arc that
+ * closes over a second of standing still, and a shot that comes out of it heavier than it went
+ * in. The middle is the brightest thing on the card, as it is on DAMAGE and LEECH, for the same
+ * reason: the middle is what the card gives you. No chevrons and no flame, because this is not a
+ * thing arriving and not a thing happening to a body - it is the ship's own gun being loaded.
+ */
+const CHARGE_ARC = 0.78;      // how far round the ring has got, of a whole turn
+const CHARGE_RING = 0.74;     // where the ring sits, of the icon's own size
+const CHARGE_BAND = 0.13;     // and how thick it is
+
+function iconOvercharge(ctx, size, tint) {
+  const radius = size * CHARGE_RING;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * CHARGE_BAND;
+
+  ctx.strokeStyle = withAlpha(tint, 0.22);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, TAU);
+  ctx.stroke();
+
+  ctx.strokeStyle = withAlpha(tint, 0.95);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + TAU * CHARGE_ARC);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  polygon(ctx, 0, 0, size * 0.3, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(tint, 0.55);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.14, 0, TAU);
+  ctx.fillStyle = withAlpha(PALETTE.white, 0.95);
+  ctx.fill();
 }
 
 /**

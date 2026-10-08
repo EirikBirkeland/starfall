@@ -64,7 +64,7 @@ import { gainOf } from './upgrades.js';
  * snapshot positions: the bodies it was drawn between are already walking away.
  */
 export function makeBolt() {
-  return { x0: 0, y0: 0, x1: 0, y1: 0, rank: 0, life: 0, max: 0, seed: 0 };
+  return { x0: 0, y0: 0, x1: 0, y1: 0, rank: 0, life: 0, max: 0, seed: 0, charged: false };
 }
 
 /**
@@ -110,7 +110,7 @@ function preyNear(world, x, y, reach) {
  * the damage was really between. `rank` is how far down the chain this leap is - the ship's
  * own leap is the zeroth, and every one after it is drawn thinner for what it cost.
  */
-function leaveBolt(world, spec, x0, y0, body, rank) {
+function leaveBolt(world, spec, x0, y0, body, rank, charged) {
   const bolt = world.arc.bolts.spawn();
   bolt.x0 = x0;
   bolt.y0 = y0;
@@ -120,6 +120,9 @@ function leaveBolt(world, spec, x0, y0, body, rank) {
   bolt.life = spec.bolt.life;
   bolt.max = spec.bolt.life;
   bolt.seed = fx.next();
+  // The same thing a bullet carries it for: a bolt thrown by a loaded gun is thicker light, for
+  // as long as it is seen at all (game/overcharge.js, render/entities.js).
+  bolt.charged = charged;
 }
 
 /**
@@ -164,7 +167,7 @@ function land(world, spec, body, fromX, fromY, weight) {
  * walk - out to the nearest thing, then on to the next nearest thing from there - and not
  * four independent sweeps of the arena from the ship.
  */
-function throwChain(world, spec, noseX, noseY, weight) {
+function throwChain(world, spec, noseX, noseY, weight, charged) {
   let x = noseX;
   let y = noseY;
   let landed = false;
@@ -176,7 +179,7 @@ function throwChain(world, spec, noseX, noseY, weight) {
     if (body === null) break;
 
     struck.push(body);
-    leaveBolt(world, spec, x, y, body, jump);
+    leaveBolt(world, spec, x, y, body, jump, charged);
     land(world, spec, body, x, y, weight * Math.pow(spec.decay, jump));
     x = body.x;
     y = body.y;
@@ -200,12 +203,15 @@ function throwChain(world, spec, noseX, noseY, weight) {
  * leaves the ship from exactly where a shot would have.
  *
  * Returns whether anything was struck, which is the answer `fire` needs before it decides
- * whether this pull costs the ship anything at all.
+ * whether this pull costs the ship anything at all - and `boost` is what the pull is worth if
+ * the gun was loaded when the trigger moved (game/overcharge.js), which goes on every landing of
+ * every chain it throws, exactly as it goes on every pellet of a fan.
  */
-export function strikeChain(world, gun, chains, noseX, noseY) {
+export function strikeChain(world, gun, chains, noseX, noseY, boost) {
   const spec = gun.chain;
-  const weight = gun.damage * gainOf(world, 'damage');
+  const weight = gun.damage * gainOf(world, 'damage') * boost;
   const share = BALANCE.upgrades.split.share;
+  const charged = boost > 1;
 
   struck.length = 0;
   let threw = false;
@@ -214,7 +220,7 @@ export function strikeChain(world, gun, chains, noseX, noseY) {
     // already bought - so the extras go to the crowd the first one did not reach rather than
     // doubling up on the body it started at.
     const light = chain === 0 ? weight : weight * share;
-    if (throwChain(world, spec, noseX, noseY, light)) threw = true;
+    if (throwChain(world, spec, noseX, noseY, light, charged)) threw = true;
   }
   return threw;
 }

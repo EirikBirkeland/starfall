@@ -17,6 +17,7 @@ import { frostOf, isFrozen } from '../game/chill.js';
 import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
+import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -820,6 +821,24 @@ const RING_WAIT = PALETTE.dashRingWait;
 const RING_FILLING = PALETTE.dashRingFilling;
 const RING_SOFT = withAlpha(PALETTE.dashRingFilling, 0.22);
 
+// The overcharge's own art (game/overcharge.js). A second ring, one outside the dash's, because
+// this is the second thing round this ship that fills up over time and the player has to be able
+// to tell them apart at a glance: the dash's is cyan and closes over a wait, this one is the pale
+// white of a shot's own heart, breathes when it is full, and is not drawn at all for a run that
+// has not taken the card.
+const CHARGE_GAP = 21;          // px out from the ship's body - nine further out than the dash's
+const CHARGE_SOFT = 7;          // px, the wide pass under the thin one, which is the glow
+const CHARGE_LINE = 2.5;        // px, the ring itself
+const CHARGE_BREATHE = 7;       // rad/s of breathing once the gun is loaded
+const CHARGE_BREATH_ROOM = 2;   // px the loaded ring moves over while it breathes
+const CHARGE_READY_LIGHT = 0.9; // how bright a loaded ring lands, at the top of its breath
+// A charged shot: the same dot with more of it, and one wide faint ring under it for light.
+// Nothing else about it changes, because a shot that flew differently would be a different gun.
+const BULLET_CORE = 2.4;          // px, a plain shot's dot
+const CHARGED_CORE = 4.6;         // px, a loaded one's
+const CHARGED_BAND = 6;           // px of wide, faint glow under a loaded shot
+const CHARGED_SOFT = withAlpha(PALETTE.bulletCore, 0.3);
+
 // The ship's halo, and its flame. The flame sprite is the longest it ever gets;
 // thrust stretches a shorter one out of the same sprite.
 const SHIP_HALO = BALANCE.player.drawRadius * 2.3;
@@ -951,6 +970,55 @@ function drawDashRing(ctx, ship) {
   ctx.stroke();
 }
 
+/**
+ * The charge round the hull (game/overcharge.js): the same two-pass arc the dash's cooldown uses,
+ * because it is the same message - an arc that closes over a wait, whole when the wait is over -
+ * said in a different colour and one ring further out. While the gun is loading it says how far
+ * through the second you are; when it is loaded the circle is whole and breathing, which is the
+ * one tell a player gets that the next pull is the heavy one.
+ *
+ * Not drawn at all for a run that has not taken the line: a ring nothing can fill is a riddle.
+ */
+function drawChargeRing(ctx, ship) {
+  if (!hasOvercharge(world)) return;
+  const radius = ship.drawR + CHARGE_GAP;
+  const charge = chargeOf(world);
+
+  if (isLoaded(world)) {
+    const breath = 0.5 + 0.5 * Math.sin(world.time * CHARGE_BREATHE);
+    const lit = CHARGE_READY_LIGHT * (0.65 + 0.35 * breath);
+    ctx.strokeStyle = PALETTE.chargeRingSoft;
+    ctx.lineWidth = CHARGE_SOFT;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + breath * CHARGE_BREATH_ROOM, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(PALETTE.chargeRingReady, lit);
+    ctx.lineWidth = CHARGE_LINE;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + breath * CHARGE_BREATH_ROOM, 0, TAU);
+    ctx.stroke();
+    return;
+  }
+
+  ctx.strokeStyle = PALETTE.chargeRingTrack;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, TAU);
+  ctx.stroke();
+
+  ctx.strokeStyle = PALETTE.chargeRingSoft;
+  ctx.lineWidth = CHARGE_SOFT;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + TAU * charge);
+  ctx.stroke();
+
+  ctx.strokeStyle = PALETTE.chargeRingFill;
+  ctx.lineWidth = CHARGE_LINE;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, -Math.PI / 2, -Math.PI / 2 + TAU * charge);
+  ctx.stroke();
+}
+
 export function drawPlayer(ctx, alpha) {
   const ship = world.player;
   // Only the grace after a hit makes the ship blink. A dash is shown by its
@@ -993,6 +1061,7 @@ export function drawPlayer(ctx, alpha) {
 
   ctx.rotate(-ship.angle);
   drawDashRing(ctx, ship);
+  drawChargeRing(ctx, ship);
   ctx.restore();
 }
 
@@ -1124,6 +1193,7 @@ const BOLT_CORE = 0.9;        // the thin bright one over it
 const BOLT_WIDTH = 2.2;
 const BOLT_RANK = 0.72;       // how much of the light one more leap down the chain keeps
 const BOLT_REACH = 40;        // px of slack on the cull test, for the wobble and the glow
+const BOLT_CHARGED = 1.8;     // how much thicker a bolt thrown by a loaded gun is
 const WANDER_SALT = 0x9e3779b9;
 const WANDER_MIX = 0x85ebca6b;
 const WANDER_SCALE = 65536;
@@ -1193,14 +1263,17 @@ export function drawArcs(ctx) {
     // the chain because the third body a bolt reached took rather more than half of what the
     // first one did - the light thins exactly as the damage does.
     const light = clamp(bolt.life / bolt.max, 0, 1) * Math.pow(BOLT_RANK, bolt.rank);
+    // A bolt from a loaded gun is the same bolt with more of it (game/overcharge.js), which is
+    // the only way the third body a chain reached can still be seen to have been worth more.
+    const thick = bolt.charged ? BOLT_CHARGED : 1;
     boltPath(ctx, bolt.x0, bolt.y0, bolt.x1, bolt.y1, bolt.seed, bucket);
     ctx.strokeStyle = PALETTE.player;
     ctx.globalAlpha = light * BOLT_GLOW;
-    ctx.lineWidth = BOLT_GLOW_WIDTH;
+    ctx.lineWidth = BOLT_GLOW_WIDTH * thick;
     ctx.stroke();
     ctx.strokeStyle = PALETTE.bulletCore;
     ctx.globalAlpha = light * BOLT_CORE;
-    ctx.lineWidth = BOLT_WIDTH;
+    ctx.lineWidth = BOLT_WIDTH * thick;
     ctx.stroke();
   }
   ctx.lineCap = 'butt';
@@ -1247,8 +1320,20 @@ export function drawBullets(ctx, alpha) {
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
     if (!onScreen(b.x, b.y, BULLET_REACH)) continue;
+    const x = paintX(b, alpha);
+    const y = paintY(b, alpha);
+    if (b.charged) {
+      // The light of a loaded shot, without a blur or a sprite: one wide faint ring under the
+      // dot. It is the only way to see, while the shot is still in the air, that this pull was
+      // the heavy one (game/overcharge.js), and a fan of six of them has to look heavier.
+      ctx.strokeStyle = CHARGED_SOFT;
+      ctx.lineWidth = CHARGED_BAND;
+      ctx.beginPath();
+      ctx.arc(x, y, CHARGED_CORE, 0, TAU);
+      ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.arc(paintX(b, alpha), paintY(b, alpha), 2.4, 0, TAU);
+    ctx.arc(x, y, b.charged ? CHARGED_CORE : BULLET_CORE, 0, TAU);
     ctx.fill();
   }
 }

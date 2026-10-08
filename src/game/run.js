@@ -17,6 +17,7 @@ import { resetArc } from './arc.js';
 import { resetBeams } from './beams.js';
 import { resetFires } from './burn.js';
 import { resetLeech } from './leech.js';
+import { resetOvercharge } from './overcharge.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -61,6 +62,9 @@ export function resetRun(world) {
   // And whatever the last run's leech had counted or was holding (game/leech.js). A charge
   // earned by the last run's bodies is not this run's to spend.
   resetLeech(world);
+  // And however much of a charge the last run had loaded (game/overcharge.js). A gun loaded by a
+  // second of standing is spent on the pull after it, not on the pull after a restart.
+  resetOvercharge(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

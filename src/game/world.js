@@ -17,6 +17,7 @@ import { updateArc, makeBolt } from './arc.js';
 import { updateBeams, makeBeam } from './beams.js';
 import { updateBurn, makeFire } from './burn.js';
 import { updateLeech, newLeech } from './leech.js';
+import { newOvercharge } from './overcharge.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -140,6 +141,10 @@ function createWorld() {
     // has counted toward the next hull, and whether a hull is being held for the next wound.
     // Two numbers, no list, because a hull is worth one hull whoever paid for it.
     leech: newLeech(),
+    // How full the ship's gun is (game/overcharge.js): one number, 0 cold to 1 loaded, and the
+    // ring round the hull is drawn straight out of it. Nothing else is remembered, because a
+    // charge is only ever worth the one pull that spends it.
+    overcharge: newOvercharge(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.

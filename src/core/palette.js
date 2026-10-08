@@ -37,6 +37,15 @@ export const PALETTE = {
   dashRingWait: 'rgba(94,247,255,0.10)',
   dashRingFilling: 'rgba(169,253,255,0.55)',
   dashStreak: '#a9fdff',
+  // The overcharge's loading ring (game/overcharge.js, render/entities.js), one ring outside the
+  // dash's. It wears a shot's own colours because that is what it is loading: a track, a wide
+  // faint pass under the thin bright arc that closes over the wait, and the shot's own heart for
+  // the ring that breathes once the gun is loaded. Cool, whatever else the card is - warm is the
+  // crowd (PLAN section 4), and this is the ship's own gun.
+  chargeRingTrack: 'rgba(234,255,255,0.10)',
+  chargeRingSoft: 'rgba(234,255,255,0.22)',
+  chargeRingFill: 'rgba(234,255,255,0.60)',
+  chargeRingReady: '#eaffff',
 
   shard: '#58ffa1',
   shardLine: '#9dffcb',

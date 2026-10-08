@@ -254,6 +254,10 @@ window.STARFALL = {
       // The leech (game/leech.js): how far the next hull is, and whether one is being held.
       leechKills: world.leech.kills,
       leechHeld: world.leech.held,
+      // How full the ship's gun is, 0 cold to 1 loaded (game/overcharge.js). The ring round the
+      // hull is painted out of this number, and it is how a headless run can watch a charge come
+      // up and be spent instead of having to guess it from the damage.
+      charge: world.overcharge.charge,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

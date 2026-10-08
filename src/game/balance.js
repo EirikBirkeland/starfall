@@ -1196,6 +1196,76 @@ export const BALANCE = {
       // rather than a hull the run has earned, and the HUD has one meter to say it with.
       held: 1,
     },
+
+    // Overcharge (game/overcharge.js): PLAN 3.5's "standing still for 1 s doubles the next
+    // shot", and the only line in the deck whose price is paid in place rather than in levels.
+    // Everything else in the game pays for damage with a card or with the risk of being where
+    // the crowd is; this one is paid for by not moving while the crowd comes.
+    overcharge: {
+      ranks: 5,
+      // A line of shares (`percent`, game/upgrades.js), and the share is of a whole *pull* of
+      // the trigger: a charged pull is worth `1 + step x rank` of a plain one, so the first
+      // rank is exactly PLAN's doubling and the fifth is six times the weight in one pull.
+      //
+      // The rank buys weight and not speed, which is the one decision on this line worth
+      // arguing about. Selling it the other way - a shorter wait per rank, always for a double
+      // - is the card that stops being a decision: at the fifth rank a ship standing still
+      // would be loaded every 0.2 s, which at four pulls a second is every shot doubled and a
+      // permanent, costless multiplier. Selling it as weight keeps the one second the card
+      // asks for and makes the question "how much are you willing to bet on a single pull",
+      // which is the same shape as the nova line (rank buys another front, not a shorter cycle
+      // - BALANCE.upgrades.nova).
+      //
+      // Measured twice, and the two measurements disagree on purpose, which is the thing to
+      // understand before retuning this number. `node tools/power-ladder.js --line overcharge`
+      // is a ship that never moves and holds the trigger for twelve seconds: 1.96x the plain gun
+      // at five ranks, on all three knots, so the whole line is worth between burn's 1.46x
+      // (session 38 - an added source that costs nothing to use) and the damage line's own 2.5x
+      // (a multiply on everything), and the difference between them is the standing. In a real
+      // run, where the wait has to be earned between two threats, an aware bot handed five ranks
+      // spends 6.3 loaded pulls a minute and has the gun loaded in 2.7% of its frames - worth
+      // about a tenth of a rank of the damage line (four seeds at the 900 s cap). Both numbers
+      // are honest and the gap between them is the card: it is a playstyle and not a rate, worth
+      // most of a damage rank to a player who plants and fires and close to nothing to one who
+      // never stops running - and both of the bots in tools/headless run. What kept this at
+      // PLAN's own doubling is the deck A/B: ten seeds at the 900 s cap, score median 113,299
+      // with the line in the deal, 113,634 with it out, 113,951 with five ranks handed for free -
+      // level with the deck, a shade better for free, which is the same shape leech came out with
+      // (session 40) and the reason the bot is not handicapped out of taking it.
+      step: 1,
+      // s of standing still one charge costs. PLAN's number, unchanged, and the whole card: it
+      // is long enough that a ship cannot twitch its way through a fight and keep it, and short
+      // enough that one deliberate stop in a fight pays.
+      hold: 1,
+      // Shares of a charge lost per second of moving. A full charge is gone in `hold / bleed`
+      // = half a second of running, which is the difference between a card and a trap: a ship
+      // that dodges and comes back keeps most of what it had loaded, and a ship that leaves
+      // loses it. Wiping the charge the instant a key is pressed would be the trap, and it
+      // would also make the tell a flicker instead of a bar.
+      bleed: 2,
+      // px/s. What "standing still" means to the sim, and it is two questions (see
+      // game/overcharge.js): whether the ship is *asking* to move, and whether it is moving.
+      // This is the second one, and it sits above the hardest kick any gun gives the ship - a
+      // scatter's 55 px/s (BALANCE.weapons) - so a ship that is holding no direction and
+      // pulling the trigger is standing still, which is what a player believes they are doing.
+      // Nothing else in the game can move the ship: the brake owns every other velocity it has
+      // and kills a recoil in a few milliseconds.
+      still: 60,
+      // The moment a charge comes up: one ring around the ship and one note, and the only time
+      // the line makes a noise by itself. Quiet, because a ship that stands and fires re-loads
+      // once a second all fight long.
+      ready: {
+        ring: { radius: 10, speed: 260, life: 0.26 },
+        sound: { freq: 620, dur: 0.09, wave: 'triangle', vol: 0.03, slide: 620 },
+      },
+      // The charged pull itself, spent: one shout at the nose, bigger than a muzzle flash and
+      // on top of it, so the pull that is worth six of a plain one is heard as one thing.
+      spent: {
+        ring: { radius: 12, speed: 340, life: 0.22 },
+        burst: { count: 6, speed: 190, life: 0.24 },
+        sound: { freq: 380, dur: 0.12, wave: 'square', vol: 0.05, slide: 260 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).
