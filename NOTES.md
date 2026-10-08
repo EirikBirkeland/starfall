@@ -4976,3 +4976,160 @@ All of it is the headless bot, one process per batch, 16-20 seeds.
   to be *found*, which is its own milestone item.
 - Still open and untouched from earlier sessions: owned-upgrade icons on the HUD, the third bot
   (dodging with a delay), and a real agent playing a real run through `tools/agent-bridge.js`.
+
+## Session 41 (2026-10-08) — Overcharge: the first card whose price is paid in place. Released **0.4.13**
+
+Milestone 4's fourth behaviour line: PLAN 3.5's **Overcharge** - "standing still for 1 s doubles
+the next shot". The `Each behaviour upgrade from 3.5` item stays unticked (Afterimage and Magnetar
+are still to go). PLAN's line is annotated with what was built, with the two things PLAN does not
+say that had to be decided, and with the two measurements that disagree.
+
+### What got built
+
+- `src/game/overcharge.js` (new) - `newOvercharge`/`resetOvercharge` (one number on the world:
+  `charge`, 0 cold to 1 loaded), `hasOvercharge`, `chargeOf`/`isLoaded` for the frame,
+  `isStandingStill(world, input)`, `updateOvercharge` (called from `updatePlayer`, after the ship
+  has been moved and before the trigger is looked at), `chargedPullOf` and `spendCharge` (called
+  from `fire` in game/weapons.js, the second only for a pull that actually threw something).
+- `upgrades.js`: the twelfth line, a `percent` line whose `step` is 1 - so `pullBoostOf(world)` is
+  `1 + rank` for ranks 1-5 (x2 to x6) and **1 at rank 0**, which is not a charge worth nothing but
+  no charge at all. Card prints `+100% charged shot`.
+- `balance.js`: `upgrades.overcharge = { ranks: 5, step: 1, hold: 1, bleed: 2, still: 60, ready,
+  spent }`. Every one of those is read by something: `hold` and `bleed` by the charge, `still` by
+  `isStandingStill`, `ready` and `spent` by the light and the sound.
+- `weapons.js` / `arc.js` / `bullets.js`: `fire` reads the boost **once for the whole pull** and
+  hands it to `shootFan` or `strikeChain`; every bullet and every bolt now carries a `charged`
+  field (written by the spawner, like every other field, and by `bulletFlyingToward` in
+  `tools/headless/scripted.js` too).
+- `render/entities.js`: the **charge ring** round the hull, one ring outside the dash's
+  (`drawR + 21`): a track, an arc that closes over the wait under a wide faint pass, and a whole
+  breathing circle when it is loaded; **a charged shot** is a bigger whiter dot with one wide faint
+  ring under it, and **a charged bolt** is 1.8x the light. `render/cards.js`: the twelfth tint is
+  `PALETTE.chargeRingReady` (a shot's own near-white heart) and `iconOvercharge` is the ring itself
+  with a shot standing in the middle of it. Four new palette entries, no new glow holder.
+- `world.overcharge` is in `STARFALL.stats()` as `charge`.
+- `test/overcharge.test.mjs` (19) and `test/overcharge-art.test.mjs` (5): the price ladder and rank
+  0 being nothing; the second being up and one step short of it; a run without the line never
+  loading; three seconds of standing being one charge; leaning into a wall not being standing; a
+  scatter's kick not either; a dash being the loudest way not to stand still; a twitch costing a
+  quarter of a charge and a full second of running costing all of it; `still` measured at the kick
+  of a gun; a loaded pulse pull weighing exactly twice and landing exactly twice; a whole scatter
+  fan being heavy and its split extras carrying `share` of the heaviness; an arc chain landing twice
+  and every bolt of it lit thicker; an arc at an empty sky spending nothing; one shout per charge
+  and silence afterwards; a new run forgetting the last one's loaded gun; and a real naive run
+  landing heavy pulls. Suite is now **744 tests, all passing**.
+
+### The decisions, and why
+
+- **What spends a charge is a pull, and all of it.** PLAN says "the next shot"; the sim has a pull of
+  the trigger, which is one shot on the pulse, six pellets on the scatter and a whole chain on the
+  arc. Doubling one pellet of six is a doubling nobody could see, so the boost goes on everything the
+  pull throws and the pull spends the charge together. A pull that threw nothing (the arc's own
+  answer to an empty sky, which `fire` already knows about) spends nothing - a pull that cost the
+  ship nothing has not fired.
+- **A charge interrupted bleeds at `bleed` a second and is not wiped.** A full charge is gone in half
+  a second of running. Wiping it the instant a key goes down is the trap version: it punishes the
+  dodge and not the standing, and it makes the tell a flicker. Bleeding means what the card asks for
+  is that the ship *settles*, which a player who is still dodging can do between two threats - and
+  that is the version that got a test and a paragraph, not the version that got skipped.
+- **Standing still is two questions**: is the ship asking to move (the same reading `steer` uses, so
+  the tell and the engines cannot disagree), and is it moving slower than `still` = 60 px/s, which
+  is above the hardest kick any gun gives the ship (a scatter's 55). The dash counts as not standing
+  even though the ship ends a dash fast for other reasons: it is on rails.
+- **The rank buys weight, not a shorter wait.** Selling speed instead - a shorter wait per rank,
+  always for a double - makes the fifth rank a permanent x2 for a ship that never stops moving,
+  which stops it being a decision. Keeping the second and growing the pull is PLAN's letter and the
+  same shape nova settled on (rank buys another front, not a shorter cycle).
+- **One charge, not banked.** Three seconds of standing is one loaded gun. Same argument leech made
+  in session 40: more than one is a store the run is carrying rather than a thing it just earned,
+  and the ring round the ship is one honest circle.
+- **No new glow holder anywhere.** The ring's "glow" is the house trick (a wide faint pass under a
+  thin bright one) and a charged shot's is one wide faint stroke under the dot, so the draw-cost
+  bound did not move and the art test can promise `baked === 0`.
+- **No bot handicap.** `APPETITE` and `DEFERRED` are untouched, and the aware bot takes 2-4 ranks of
+  the line on its own in ten runs - the most of any of the three cards added since burn.
+
+### What the numbers came out as
+
+All of it is the headless bot, one process per batch, 8-16 seeds. Throwaways lived in
+`/tmp/oc-batch.mjs` (deck / out / forced ranks, medians) and `/tmp/oc-use.mjs` (what a run gets).
+
+- **The ladder** (`node tools/power-ladder.js --line overcharge --seconds 12`): **1.96x** the plain
+  gun at five ranks, on all three knots, i.e. one rank = 0.64 ranks of the damage line. That puts
+  maxed overcharge between burn's 1.46x (session 38) and the damage line's own 2.5x, and the
+  difference between them is the standing - the ladder's ship never moves, which is this card's best
+  case and not a fight.
+- **What a real run gets**: an aware bot handed five ranks has the gun loaded in **2.7% of its
+  frames** and spends **6.3 loaded pulls a minute** (four seeds at the 300 s cap). Against ~440 pulls
+  a minute that is roughly +7-12% of the gun - about a tenth of a rank of the damage line, all five
+  ranks of it together. The naive bot is worse (2.0% of frames, 3.8 a minute) because it flees too.
+  **This is session 32's lesson again, one level up: for a card whose condition is a playstyle, the
+  ladder measures the ship that always meets the condition and a real run measures one that never
+  tries to.** Both are written into `balance.js` next to the number.
+- **Deck A/B, aware, 900 s, 10 seeds**: in the deck median 15m00s, 10/10 at the cap, score median
+  **113,299**, level 48, kills 6335. Out of the deck (`ranks: 0`): 10/10, **113,634**, level 46,
+  kills 6434. Handed five ranks: 10/10, **113,951**, level 45. Level with the deck, a shade better
+  for free - the first of the last three cards that a dodging bot does not pay for, and hull loss was
+  0 in every batch either way (session 40's note about defensive cards being invisible to this
+  instrument stands).
+- **The naive bot, 120 s, 16 seeds**: out of the deck 13/16 alive, score median 3,384; in the deck
+  11/16, 2,899; handed four ranks 10/16, 3,168, mean survival 109 s to 113 s. Read that with
+  session 39's finding in mind - *removing any line from the deck helps this bot*, because an eleven-
+  or twelve-line deck dilutes a build whose gun is the only thing keeping it alive - and the honest
+  summary is that extra damage does not save a bot that stands still and gets mobbed the way a leech
+  does. Not a handicapping reason.
+- **Reference run rebaselined**, as it must be when a card joins the deck: `--seed 20261006 --trace`
+  is alive at the 10m cap, score **68934**, level 41, kills 4027, shards 2115, hull 3, build
+  4/3/4/4/3/3/2/4/4/3/3/3 (twelve lines, overcharge last at 3). Up from the old 59382 - the even
+  spread is now spread over twelve lines and this run happened to land better cards; the twenty-seed
+  medians above moved hardly at all, and they are the instrument.
+
+### What surprised me
+
+- **120 steps of a 1/120 s step do not add up to 1.** They stop a four-trillionth short, which made
+  "a charge is worth `hold` seconds and one step less is not a charge" untestable and, worse, made the
+  wait secretly one step long. `isLoaded` asks with `FULL_SLACK = 0.000000001` and that is the one
+  place the slack lives - session 8's microsecond lesson on the frame clock, arriving again. Rounding
+  the charge *every step* instead (my first attempt) is worse: each step's rounding then truncates the
+  next and the charge drifts a tenth of a percent short over a whole second.
+- **A ship pinned against a wall keeps all its velocity.** `fly` clamps the position and nobody clamps
+  the velocity, so "is it moving" and "is it going anywhere" are different questions in this game and
+  the wall test says the first one. Written into the test's comment, because it is the kind of fact
+  that reads as obvious right after learning it.
+- **A whole frame's `fills` count moves between two frames**, because the starfield twinkles: the art
+  test's "a loaded ring adds no filled shape" assertion had to go, and the file now says so in a
+  comment so nobody re-adds it. Strokes isolate a tell; fills do not.
+- **Two of the three test files' first drafts were wrong about what "loaded" means at the moment of
+  the pull** - `nearlyLoaded` stops one step short by design, and the pull's own step is the one that
+  fills it, because `updateOvercharge` runs before the trigger in the same step. The arc test needed
+  a full load in advance; the pulse tests did not. Same family as the session-40 lesson about what
+  "one charge" means when a crowd comes down in one step: write the step order down before the
+  assertion.
+- The tint question took longer than it should have: the rack is out of cool hues and the honest
+  answer (session 39's and 40's answer) is "wear the colour of the thing you sell". The card is a
+  shot's own near-white heart, and the arena's ring is drawn in it, so they are one thing on the glass.
+
+### For the next session
+
+- Milestone 4, next behaviour line: **Afterimage** - "the dash leaves a decoy that enemies chase for
+  2 s". Read `game/kinds.js` first: "chase" is every kind's own walk function and a decoy has to be
+  legible to nine of them, including the sniper (bolted to the floor, cannot turn to follow it) and
+  the shielder (whose guard is over a *body*, not a position). The dash's own door is
+  `beginDash`/`dashStep` in `game/player.js`; the decoy wants a place on the world and a clear answer
+  to "who shoots it" (it is not in `world.enemies`, so a bullet would fly through it - either it is a
+  body in the crowd's list, with a flag, or it is a threat the kinds read and nothing else can hurt).
+- Then **Magnetar** (collected shards deal small area damage around the ship) - the fourth of the four
+  "damage systems" doors, and closest in shape to burn and nova.
+- **Thermal shock** (Burn 3 + Chill 3) is still the natural synergy to build first, and it needs two
+  things this session did not supply: a rule about which of burn's fire-pass and chill's shatter fires
+  on a body that wore both, and the "special card frame" that makes a synergy findable. Session 39's
+  note on the two halves standing ready still stands.
+- `tools/power-ladder.js` measured this line but **flatters it**: it is a stationary ship and this
+  card pays for standing. Any future line whose value depends on how the ship moves needs the same
+  two-number treatment (ladder for the ceiling, `/tmp/oc-use.mjs`'s "% of frames the condition holds"
+  for what a run really gets) - and that percentage instrument is worth promoting into `tools/` if a
+  third line needs it.
+- Still open and untouched from earlier sessions: owned-upgrade icons on the HUD (the deck is twelve
+  lines and fifty-eight ranks now, and the HUD says none of them by name), the third bot (dodging with
+  a delay - the one instrument that could tell a played card from a bot's own luck), and a real agent
+  playing a real run through `tools/agent-bridge.js`.
