@@ -245,6 +245,9 @@ window.STARFALL = {
       fronts: world.nova.fronts.count,
       novaIn: world.nova.wait,
       novaEvery: world.nova.beat,
+      // The arc's bolts still being drawn (game/arc.js), which is how a headless run can see
+      // that a chain landed at all - it throws no bullets to count.
+      bolts: world.arc.bolts.count,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

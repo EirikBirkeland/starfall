@@ -854,6 +854,117 @@ export function drawNova(ctx, alpha) {
   ctx.globalAlpha = 1;
 }
 
+// The arc's bolts (game/arc.js): the record of a discharge that has already happened.
+//
+// A bolt is drawn as a zig between the two places the leap joined, in two passes like every
+// other light here - a wide faint stroke under a thin bright one, which is how this game
+// glows without asking the canvas to blur anything. The zig is the whole art of it: a
+// straight line would read as a laser or a shielder's field, and this is neither; it is the
+// one shape in the arena that says "something travelled through the air and it was already
+// over when you saw it".
+//
+// Two rules keep it honest, and both are tested:
+//
+//   **The two ends are pinned.** The first point of a bolt is the muzzle it left and the last
+//     is the body that was hurt, exactly, whatever the zig does in between - so the light
+//     never claims a reach the damage did not have, and never misses a body it did.
+//
+//   **It wobbles, but not every frame.** A bolt re-discharges on `BOLT_FLICKER` and holds its
+//     shape between one and the next, because a shape that re-rolled sixty times a second is
+//     a strobe and not a live thing. The dice are hashed out of the bolt's own seed rather
+//     than drawn from the frame's stream, which is what makes that hold.
+const BOLT_SEG = 15;          // px of run per zig
+const BOLT_JAG = 7;           // px of sideways wander at the widest point of a leap
+const BOLT_FLICKER = 0.05;    // s: how often a bolt re-sparks
+const BOLT_GLOW = 0.2;        // the wide faint pass under the bolt
+const BOLT_GLOW_WIDTH = 6;    // ...and how wide
+const BOLT_CORE = 0.9;        // the thin bright one over it
+const BOLT_WIDTH = 2.2;
+const BOLT_RANK = 0.72;       // how much of the light one more leap down the chain keeps
+const BOLT_REACH = 40;        // px of slack on the cull test, for the wobble and the glow
+const WANDER_SALT = 0x9e3779b9;
+const WANDER_MIX = 0x85ebca6b;
+const WANDER_SCALE = 65536;
+const UINT32 = 4294967296;
+
+/**
+ * A number in [-1, 1] from a bolt's seed, the segment's place in it, and the flicker bucket.
+ *
+ * Deliberately a hash and not the frame's stream: the stream moves on every call, so a bolt
+ * drawn from it would be a different bolt every frame. Hashed like this the shape is fixed
+ * for a bolt and turns over only when the bucket does.
+ */
+function wander(seed, segment, bucket) {
+  let h = (Math.floor(seed * WANDER_SCALE) + Math.imul(segment, WANDER_SALT)
+    + Math.imul(bucket, WANDER_MIX)) | 0;
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2c1b3c6d);
+  h ^= h >>> 12;
+  return (((h >>> 0) / UINT32) * 2) - 1;
+}
+
+/**
+ * One bolt's zig: `steps` straight legs between the two ends, each shoved sideways off the
+ * line by the hash above, and held to no wobble at all at the two ends themselves so the light
+ * starts and stops exactly where the leap did.
+ */
+function boltPath(ctx, x0, y0, x1, y1, seed, bucket) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  const steps = Math.max(2, Math.round(len / BOLT_SEG));
+  // The sideways of the line, which is the only direction a wobble may go in.
+  const ux = -dy / len;
+  const uy = dx / len;
+
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const wig = (i === 0 || i === steps)
+      ? 0
+      : wander(seed, i, bucket) * BOLT_JAG * Math.sin(t * Math.PI);
+    ctx.lineTo(x0 + dx * t + ux * wig, y0 + dy * t + uy * wig);
+  }
+}
+
+/**
+ * Every bolt still on screen. Drawn over the crowd and over the ship - a bolt is the story of
+ * where the damage went, and a story hidden behind a drifter is a story nobody is told - and
+ * before the sparks, which are the loudest thing in the frame and should stay the loudest.
+ */
+export function drawArcs(ctx) {
+  const bolts = world.arc.bolts;
+  if (bolts.count === 0) return;
+
+  const bucket = Math.floor(world.time / BOLT_FLICKER);
+  ctx.lineCap = 'round';
+  for (let i = 0; i < bolts.count; i++) {
+    const bolt = bolts.items[i];
+    const dx = bolt.x1 - bolt.x0;
+    const dy = bolt.y1 - bolt.y0;
+    const len = Math.hypot(dx, dy);
+    // A bolt is a line and not a point, so the cull test is taken from its middle with half
+    // of it either side: either end may be on screen while the middle is not.
+    if (!onScreen(bolt.x0 + dx / 2, bolt.y0 + dy / 2, len / 2 + BOLT_JAG + BOLT_REACH)) continue;
+
+    // A bolt fades because the air has stopped carrying it, and it fades by its place down
+    // the chain because the third body a bolt reached took rather more than half of what the
+    // first one did - the light thins exactly as the damage does.
+    const light = clamp(bolt.life / bolt.max, 0, 1) * Math.pow(BOLT_RANK, bolt.rank);
+    boltPath(ctx, bolt.x0, bolt.y0, bolt.x1, bolt.y1, bolt.seed, bucket);
+    ctx.strokeStyle = PALETTE.player;
+    ctx.globalAlpha = light * BOLT_GLOW;
+    ctx.lineWidth = BOLT_GLOW_WIDTH;
+    ctx.stroke();
+    ctx.strokeStyle = PALETTE.bulletCore;
+    ctx.globalAlpha = light * BOLT_CORE;
+    ctx.lineWidth = BOLT_WIDTH;
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  ctx.globalAlpha = 1;
+}
+
 export function drawBullets(ctx, alpha) {
   const bullets = world.bullets.items;
   const trail = bulletTrailSprite();

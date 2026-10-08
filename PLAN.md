@@ -342,13 +342,24 @@ One item per session, as always:
       every other line. Over 40 seeds the bot took it at face value and lost nothing by it.
       See `BALANCE.upgrades.nova`, `game/nova.js`, `tools/power-ladder.js` and NOTES session
       32.)
-- [ ] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
+- [x] A second primary weapon, Scatter (3.2), and a third, Arc (3.2). Until the hangar exists,
       let the player pick the weapon on the title screen with a key.
       **Scatter done** in 0.3.5: weapons are data (`BALANCE.weapons`) read by one module
       (`game/weapons.js`), the title screen picks with a number key, and the HUD and the
-      game-over card say which gun was flown. Arc is the next one, and it is a third of the
-      item, not two thirds - the two systems after it (mine, emp, bay) are separate items.
-      The measurements that set its numbers are in NOTES session 33 and beside the numbers.
+      game-over card say which gun was flown. **Arc done** in 0.4.7: three primaries on the
+      rack, and the third is not a bullet with a number on it - `game/arc.js` is a system of its
+      own, like the nova and the orbitals, because a bolt that chains is a thing that happens
+      *between* bodies. Two deviations from 3.2, both measured and both written beside the
+      numbers in `BALANCE.weapons.arc`: the bolt finds the nearest body itself rather than the
+      one you are pointing at (that is the gun - the pulse is the weapon you aim, the scatter is
+      the weapon you point, this is the weapon you fly), and a landing is worth a whole pulse
+      shot rather than PLAN's four fifths of one, because a bolt cannot miss and a landing is
+      therefore worth more than a shot. At PLAN's ratio it was worse than the pulse on one body
+      *and* worse than the scatter on every crowd, which is not a third primary. It inherits
+      neither pierce nor ricochet - those are a shot's business, and PLAN's own Storm synergy is
+      where the two meet again - and the split line reads as extra *chains*, because on a gun
+      that aims itself the only way to cover more ground is a second place to start from.
+      The measurements are in NOTES session 34.
 - [ ] Survival check. Add a median to `tools/simulate.js` and run at least 20 seeds with the `aware`
       bot picking upgrades. The median must be 5:00 or more. If it is not, add firepower: stronger
       ranks, more ranks, another upgrade from 3.5. Never by weakening the enemies (see the hard rule).

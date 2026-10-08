@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
+import { drawArcs, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -87,6 +87,10 @@ export function renderFrame(tick, input, pointer) {
     // Over the crowd and over the ship: the ring is the ship's own reach and it must never
     // be hidden by the bodies it is grinding (game/orbitals.js).
     drawOrbitals(ctx, tick.alpha);
+    // Last of the ship's own weapons and over everything it fired at: a bolt is the record of
+    // where the damage went, and a bolt behind a drifter is a bolt nobody is told about
+    // (game/arc.js).
+    drawArcs(ctx);
     drawSparks(ctx, tick.alpha);
     drawTexts(ctx);
   }

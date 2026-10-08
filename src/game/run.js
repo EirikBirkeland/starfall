@@ -13,6 +13,7 @@ import { firstLevelXp } from './progress.js';
 import { resetRanks } from './upgrades.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
+import { resetArc } from './arc.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -47,6 +48,8 @@ export function resetRun(world) {
   resetOrbitals(world);
   // And so does anything the nova had already thrown (game/nova.js).
   resetNova(world);
+  // And every bolt the arc left hanging in the sky (game/arc.js).
+  resetArc(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

@@ -6,7 +6,8 @@
 //   node tools/simulate.js --runs 5           several runs, with an average
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
-//   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js)
+//   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
+//                                              scatter, arc)
 //   node tools/simulate.js --trace            print a state fingerprint over time
 //   node tools/simulate.js --audio            boot with a fake audio device
 //

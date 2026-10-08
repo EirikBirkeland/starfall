@@ -7,14 +7,16 @@
 // to keep in step with a pick or with a card. `game/bullets.js` is what every shot has
 // in common whatever fired it.
 //
-// Two weapons at the time of writing, and the second is the reason this is a module and
+// Three weapons at the time of writing, and the third is the reason this is a module and
 // not four lines in game/player.js: the pulse is one heavy shot thrown as far as it can
-// go and the scatter is six light ones thrown a short way, and a fan of six is a
-// different pull, not a bigger one.
+// go, the scatter is six light ones thrown a short way, and a fan of six is a different
+// pull rather than a bigger one - and the arc throws nothing at all, it finds the bodies it
+// hurts itself, which is a third kind of pull again and lives in game/arc.js.
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
+import { strikeChain } from './arc.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 import { gainOf, countOf, pierceOf, bounceOf } from './upgrades.js';
@@ -28,6 +30,7 @@ import { gainOf, countOf, pierceOf, bounceOf } from './upgrades.js';
 export const WEAPONS = [
   { id: 'pulse', blurb: 'straight fast shots, the reliable default' },
   { id: 'scatter', blurb: 'six pellets in a cone, short range, heavy kick' },
+  { id: 'arc', blurb: 'lightning that leaps the crowd, and aims itself' },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -94,9 +97,11 @@ export function shotsPerSecond(world) {
 }
 
 /**
- * How many projectiles one pull sends out: the gun's own, plus every extra the split
- * line has to give (PLAN 3.5). This is that line read as a count rather than as words on
- * a card; `fire` fans them out around the aim.
+ * How many things one pull sends out: the gun's own, plus every extra the split line has to
+ * give (PLAN 3.5). This is that line read as a count rather than as words on a card; a gun
+ * that throws shots reads it as shots (below) and the arc reads it as chains, because on a
+ * weapon that already points itself at a body the only way to cover more ground is a second
+ * place to start from (game/arc.js).
  */
 export function shotsPerPull(world) {
   return weaponOf(world).pellets + countOf(world, SPLIT_LINE);
@@ -161,7 +166,7 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns) {
 }
 
 /**
- * One pull of the trigger: the fan, a shove backwards, a muzzle flash, and one cue.
+ * The shots of a pull that throws shots: the fan, written into the magazine one at a time.
  *
  * The multipliers are taken from the upgrade lines as the shots leave, which is what
  * lets a card taken mid-frame apply to the very next shot. What the gun itself throws is
@@ -171,19 +176,18 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns) {
  * coverage instead. Each projectile also leaves with what the gun had of the pierce and
  * ricochet lines, so a shot can go on through the body it was aimed at, or turn on to one
  * standing beside it (game/bullets.js).
+ *
+ * Answers whether anything left the ship, which for a fan of shots is always: it is only a
+ * chain that can find nothing to throw at.
  */
-export function fire(world) {
+function shootFan(world, gun, count, nx, ny) {
   const ship = world.player;
-  const gun = weaponOf(world);
   const split = BALANCE.upgrades.split;
 
   const speed = gun.speed * gainOf(world, 'bulletSpeed');
   const weight = gun.damage * gainOf(world, 'damage');
-  const nose = ship.drawR + BALANCE.bullets.noseOffset;
-  const nx = ship.x + Math.cos(ship.angle) * nose;
-  const ny = ship.y + Math.sin(ship.angle) * nose;
 
-  const fan = shotFan(ship.angle, shotsPerPull(world), Math.max(gun.gap, split.fan));
+  const fan = shotFan(ship.angle, count, Math.max(gun.gap, split.fan));
   const pierce = pierceOf(world);
   const turns = bounceOf(world);
   for (let i = 0; i < fan.length; i++) {
@@ -195,6 +199,35 @@ export function fire(world) {
     shoot(world, nx, ny, angle, speed,
       heavy ? weight : weight * split.share, gun.knockback, pierce, turns);
   }
+  return true;
+}
+
+/**
+ * One pull of the trigger: whatever the gun throws, a shove backwards, a muzzle flash, and
+ * one cue.
+ *
+ * What leaves the ship is each gun's own business and it is one of two things: a fan of
+ * shots, or a chain that finds its own bodies and lives in game/arc.js. Everything after it
+ * is what a pull costs the ship whichever of the two it was - one kick backwards, one flash
+ * at the nose, and one sound, however many shots left it or bodies were landed on.
+ *
+ * A pull that threw nothing costs nothing, and only one gun can miss that way: an arc whose
+ * reach holds no body leaves no bolt behind, so the silence is how it says the crowd is out
+ * of range (game/arc.js).
+ */
+export function fire(world) {
+  const ship = world.player;
+  const gun = weaponOf(world);
+  const count = shotsPerPull(world);
+
+  const nose = ship.drawR + BALANCE.bullets.noseOffset;
+  const nx = ship.x + Math.cos(ship.angle) * nose;
+  const ny = ship.y + Math.sin(ship.angle) * nose;
+
+  const threw = gun.chain === undefined
+    ? shootFan(world, gun, count, nx, ny)
+    : strikeChain(world, gun, count, nx, ny);
+  if (!threw) return;
 
   ship.vx -= Math.cos(ship.angle) * gun.recoil;
   ship.vy -= Math.sin(ship.angle) * gun.recoil;

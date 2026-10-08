@@ -111,11 +111,14 @@ export const BALANCE = {
   //
   //   pulse    4.4 pulls x 1 shot    x 1    =  4.4 hull/s, out to about 700 px
   //   scatter  2.2 pulls x 6 pellets x 1    = 13.2 hull/s, out to about 370 px
+  //   arc      4 pulls x 1 chain     x 1    =  4.0 hull/s on one body out to 260 px, and up
+  //                                          to four bodies' heads on a pull if they stand in
+  //                                          a chain, wherever they stand
   //
-  // and the honest note about those two lines is that a cone spends most of itself on
-  // air: a lone body catches one or three of the six depending on how far off it is, which
-  // is why the paper ratio is a poor guide and why both weapons were measured instead - on
-  // three crowds, in NOTES session 33, and again any time with
+  // and the honest note about those three lines is that what leaves the gun is not what a body
+  // pays: a cone spends most of itself on air, and a chain only lands where there is a body to
+  // land on. That is why none of the three was tuned off these products and all of them were
+  // measured instead - on three crowds, in NOTES sessions 33 and 34, and again any time with
   // `node tools/power-ladder.js --weapon scatter`.
   weapons: {
     default: 'pulse',
@@ -200,6 +203,104 @@ export const BALANCE = {
       // One heavy thump, and still one per pull however many pellets came with it
       // (the mix has no voice limiting until milestone 7).
       sound: { base: 190, jitter: 34, dur: 0.09, wave: 'sawtooth', vol: 0.07, slide: 70 },
+    },
+    arc: {
+      name: 'ARC',
+      // PLAN's four pulls a second, and the one gun in the game that is not aimed: the bolt
+      // finds the nearest body itself (game/arc.js), so what you point at is not what it
+      // strikes. That is the gun and not an oversight - the pulse is the weapon you aim, the
+      // scatter is the weapon you point, and this is the weapon you *fly*, and it is the only
+      // one of the three whose value goes up when the crowd closes.
+      fireRate: 4,
+      // One chain per pull. `pellets` is how many things a pull sends out, and on this gun
+      // the things are chains rather than shots: the split line's extras each start a fresh
+      // chain at the nearest body the last one left alone.
+      pellets: 1,
+      gap: 0,             // nothing is laid out along an arc; there is no fan to open
+      // What the head of a chain costs a body, in the unit enemy hull is counted in.
+      //
+      // PLAN writes 8 against the pulse's 10 - four fifths of one of its shots - and the first
+      // cut of this gun kept that ratio. It was wrong, and the reason is the one thing a table
+      // cannot see: a bolt cannot miss. It is not pointed, it does not travel, it does not lead,
+      // and it cannot be dodged by walking sideways, so a landing is worth more than a shot and
+      // the same ratio that makes the arc the weaker gun per shot makes it the weaker gun
+      // altogether. At four fifths of a pulse shot it cost a lone body 3.1 hull a second
+      // against the pulse's 4.3, the crowd knots 9.2 against the scatter's 12.2, and the
+      // near-field knot 5.6 against the scatter's 5.9: worse than the best of the other two
+      // everywhere, which is not a third primary, it is a third of a bad one.
+      //
+      // At a whole pulse shot it is the equal of the scatter in a bot's hands and better than
+      // the pulse, and it still loses to the pulse on one body at a time - which is the trade
+      // a chain is supposed to be. One lone drifter, six seeds, hull a second, the same
+      // instrument test/arc.test.mjs drives (the pulse in brackets):
+      //
+      //    60 px   3.9  (0.90x)     150 px  3.9  (0.92x)     260 px  3.9  (0.94x)
+      //    90 px   3.9  (0.90x)     220 px  3.9  (0.92x)     300 px  0.0  (gone: the reach)
+      //
+      // flat with range, because none of it is a projectile - and on the ladder's three crowds
+      // (`tools/power-ladder.js --weapon arc`, the scatter quoted from session 33):
+      //
+      //    the ring        11.6  (pulse 4.3, scatter 12.2)
+      //    the column      11.6  (pulse 4.3, scatter 13.0)
+      //    the near field   7.0  (pulse 4.3, scatter  5.9)
+      //
+      // so it is second on a crowd thirty deep - where a chain capped at four bodies cannot
+      // follow a fan that sweeps all of them - and first on the three bodies a fleeing ship
+      // really has round it, which is the only place left for a weapon that aims itself to live.
+      //
+      // And forty seeds of the real thing, aware bot, fifteen-minute cap, one column per gun:
+      // median 15m00s for all three, mean 14m34s against the scatter's 14m38s and the pulse's
+      // 13m31s; 38 of 40 outlasted the window against the scatter's 38 and the pulse's 35; mean
+      // kills 6461 against 6555 and 5770; mean score 114425 against 116403 and 103079. Level
+      // with the scatter, ahead of the pulse, and inside PLAN's twenty-five percent band. Note
+      // what that measurement cannot see: the bot aims at the nearest body, which is exactly
+      // what this gun does by itself, so a human who cannot hold a cursor on a drifter gains
+      // more than the table shows. That is the point of the gun.
+      damage: 1,
+      recoil: 26,         // the ship is shoved back by the discharge, lightly and once a pull
+      muzzle: { count: 4, speed: 110, life: 0.14 },
+      // A crackle rather than a shot: high, up into the squeal instead of down out of it, and
+      // one per pull like every other gun here - a chain that landed on four bodies is one
+      // sound and not four, because the mix has no voice limiting until milestone 7.
+      sound: { base: 1180, jitter: 420, dur: 0.055, wave: 'sawtooth', vol: 0.03, slide: 2400 },
+      // The chain itself (game/arc.js). Everything about a leap is here: how far the first
+      // one reaches from the ship, how much further the next may go from where it landed, how
+      // many landings a pull gets, and what each of them costs.
+      chain: {
+        // px, from the ship's nose to the body the bolt picks. It is the gun's range and the
+        // player's only sight of it, so it wants to be the distance a press really keeps
+        // rather than the distance a window has: measured, the mean number of bodies inside
+        // 220 px of a fleeing ship is two and a third (session 32), so at 260 the bolt nearly
+        // always finds something and nearly always finds it in front of the crowd rather than
+        // out in the clear sky behind it.
+        reach: 260,
+        // px, from a body the bolt is standing on to the next one. Shorter than the reach - a
+        // hop from body to body is a shorter thing to see than a leap off the ship - but long
+        // enough to be a chain at all in a crowd that is only ever three bodies deep: the
+        // near-field knot has its bodies about 210 px apart, measured over twelve bot runs, so
+        // this sits beside the ricochet's own reach for the same reason and is the same number.
+        //
+        // It cannot be much smaller. At 120 px the same knot reads 3.9 hull a second instead of
+        // 7.0 - under the pulse's 4.3 - because the bolt lands on the near body and stops, which
+        // is a slow pulse with worse aim rather than a chain. The ladder is the argument: a
+        // leap nobody can measure is not a feature.
+        leap: 220,
+        jumps: 3,         // PLAN's "chains to 3 nearby enemies", so four bodies a pull
+        decay: 0.8,       // PLAN's "20% less damage per jump", compounding down the chain
+        // px/s of shove a landing gives the body it lands on, away from wherever the bolt
+        // came in from. Small - a bolt has no mass, and a chain that pushed bodies around
+        // like a scatter pellet would be a crowd-spreading tool rather than a weapon, which
+        // is the trap session 33 found on the scatter's knockback. It is not nothing: the
+        // shove is what makes a chain read as travelling.
+        jolt: 70,
+        // How long a bolt is left on screen after the leap it records. It is a flash and not
+        // a trail: long enough to see where the damage went (four leaps at this is a shape a
+        // player can read at a glance) and short enough that the sky is not full of last
+        // second's lightning while this second's is trying to be seen.
+        bolt: { life: 0.16 },
+        // Sparks at each landing, thrown back along the line the bolt came in on.
+        hit: { count: 3, speed: 140, life: 0.18, spread: 0.9 },
+      },
     },
   },
 

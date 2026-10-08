@@ -13,6 +13,7 @@ import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies } from './enemies.js';
 import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
+import { updateArc, makeBolt } from './arc.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -117,6 +118,11 @@ function createWorld() {
     // because a front is thrown thousands of times over a long run and nothing cares
     // about the order of them.
     nova: { wait: 0, beat: 0, fronts: new Pool(makeFront) },
+    // The arc's bolts (game/arc.js): the light each leap of a chain leaves behind. Pooled
+    // like the nova's fronts, because a pull throws up to four of them four times a second
+    // and nothing cares about the order of them - a bolt is a record of a flash that has
+    // already happened, and all that is left for it to do is fade.
+    arc: { bolts: new Pool(makeBolt) },
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -203,4 +209,7 @@ function stepRun(dt, input) {
   // crowd now stands (game/nova.js).
   updateNova(world, dt);
   updateShards(world, dt);
+  // Last, because a bolt's only business is fading and a bolt thrown this step should be
+  // seen at full brightness first (game/arc.js).
+  updateArc(world, dt);
 }

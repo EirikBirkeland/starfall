@@ -52,6 +52,9 @@ export function enemyAt(type, x, y, hp) {
  */
 export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   const gun = weaponOf(world);
+  // A bullet planted in the air is a bullet gun's bullet: its speed, its reach and its shove
+  // come from the gun being flown, and a gun that throws no bullets has none of them to give.
+  if (gun.chain !== undefined) throw new Error('the arc throws no bullets to plant');
   const bullet = world.bullets.spawn();
   bullet.x = x;
   bullet.y = y;

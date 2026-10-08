@@ -20,6 +20,18 @@ import { scriptedRun } from '../tools/headless/scripted.js';
 const UNIT = BALANCE.bullets.damage;
 const PULSE = BALANCE.weapons.pulse;
 
+/**
+ * The primaries that throw shots, i.e. everything except the arc.
+ *
+ * Most of what this file says is about a fan of bullets - where it opens, what each of its
+ * shots carries, that a recycled shot is a fresh one - and none of it is true of a gun that
+ * throws no bullets and finds the bodies it hurts instead (game/arc.js). That weapon's own
+ * contract is test/arc.test.mjs; what belongs here is what every primary shares, which is a
+ * name, a rate, and the two lines that multiply it.
+ */
+const SHOT_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].chain === undefined);
+const CHAIN_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].chain !== undefined);
+
 /** Every field a bullet has, by name, from the pool's own maker. */
 const FIELDS = Object.keys(makeBullet());
 
@@ -38,20 +50,37 @@ function leanOf(shot, ship) {
 
 test('every primary on offer is a whole row of numbers', () => {
   // The title screen offers what the table can back up: an id with a row of its own, and
-  // a row with every number a pull needs in it. A weapon added to one and not the other
-  // is the kind of bug this is here to make impossible.
+  // a row with every number its kind of pull needs in it. A weapon added to one and not the
+  // other is the kind of bug this is here to make impossible - and there are two kinds of
+  // pull now, so both are asked for their own numbers.
   assert.ok(WEAPONS.length >= 2, 'the game has more than one primary now');
+  assert.ok(CHAIN_GUNS.length > 0, 'one of them is the chain');
   for (const weapon of WEAPONS) {
     const row = BALANCE.weapons[weapon.id];
     assert.ok(row !== undefined, weapon.id + ' is offered but has no numbers');
-    for (const key of ['fireRate', 'pellets', 'gap', 'damage', 'speed', 'life', 'spread',
-      'knockback', 'recoil']) {
+    for (const key of ['fireRate', 'pellets', 'damage', 'recoil']) {
       assert.ok(Number.isFinite(row[key]), weapon.id + ' is missing ' + key);
     }
-    assert.ok(row.pellets >= 1, weapon.id + ' throws at least one shot');
-    assert.ok(row.gap >= 0, weapon.id + ': a negative fan is not a fan');
+    assert.ok(row.pellets >= 1, weapon.id + ' throws at least one thing');
     assert.ok(weapon.blurb.length > 0, weapon.id + ' has a line for the player');
     assert.ok(row.name.length > 0, weapon.id + ' has a name to be flown under');
+
+    if (row.chain === undefined) {
+      for (const key of ['gap', 'speed', 'life', 'spread', 'knockback']) {
+        assert.ok(Number.isFinite(row[key]), weapon.id + ' is missing ' + key);
+      }
+      assert.ok(row.gap >= 0, weapon.id + ': a negative fan is not a fan');
+    } else {
+      // A chain needs to know how far it reaches, how far it hops, how many bodies it lands
+      // on and what each of them costs. It has no speed and no life in seconds because it
+      // flies nowhere at all (game/arc.js).
+      for (const key of ['reach', 'leap', 'jumps', 'decay', 'jolt']) {
+        assert.ok(Number.isFinite(row.chain[key]), weapon.id + ' is missing chain.' + key);
+      }
+      assert.ok(row.chain.decay > 0 && row.chain.decay <= 1, weapon.id + ': a chain decays');
+      assert.ok(row.chain.reach >= row.chain.leap,
+        weapon.id + ': the first leap reaches at least as far as a hop');
+    }
   }
 
   assert.ok(WEAPONS.some((w) => w.id === defaultWeapon()), 'the default is one of them');
@@ -124,7 +153,7 @@ test('the split line adds to a pull whatever the pull already was', () => {
   const field = scriptedRun(303);
   const split = BALANCE.upgrades.split;
 
-  for (const weapon of WEAPONS) {
+  for (const weapon of SHOT_GUNS) {
     const gun = BALANCE.weapons[weapon.id];
     setWeapon(field, weapon.id);
     for (const rank of [0, 2, split.ranks]) {
@@ -167,7 +196,7 @@ test('the gun throws its whole weight at everything it owns, and the extras carr
 test('a shot carries its own gun: speed, reach, and the shove it gives a body', () => {
   const field = scriptedRun(305);
 
-  for (const weapon of WEAPONS) {
+  for (const weapon of SHOT_GUNS) {
     const gun = BALANCE.weapons[weapon.id];
     setWeapon(field, weapon.id);
     const shots = pull(field);
@@ -194,7 +223,7 @@ test('a pull writes every field a bullet has, whichever gun fired it', () => {
   // forgets a field leaves whatever the last shot had in it.
   const field = scriptedRun(306);
 
-  for (const weapon of WEAPONS) {
+  for (const weapon of SHOT_GUNS) {
     setWeapon(field, weapon.id);
     const shots = pull(field);
     for (const shot of shots) {
@@ -243,7 +272,7 @@ test('the first shot leaves on the nose and the fan opens out from there', () =>
   const field = scriptedRun(309);
   const ship = field.player;
 
-  for (const weapon of WEAPONS) {
+  for (const weapon of SHOT_GUNS) {
     setWeapon(field, weapon.id);
     const gun = BALANCE.weapons[weapon.id];
     field.bullets.clear();
