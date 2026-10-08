@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.9",
+    "date": "2026-10-08",
+    "summary": "The agent bridge: the game playable by a coding agent over stdin/stdout"
+  },
+  {
     "version": "0.4.8",
     "date": "2026-10-08",
     "summary": "Survival check: the median is in the tool, and the firepower milestone closes on it"
