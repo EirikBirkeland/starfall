@@ -1,5 +1,33 @@
 # Starfall — changelog
 
+## 0.4.7 — 2026-10-08
+Arc: the third primary - lightning that finds the nearest body itself and leaps four of them.
+- **`3` on the title screen is the ARC.** Three primaries on the rack now, and the third is not
+  a bullet: a bolt leaves the ship, lands on the **nearest body** wherever that is, and leaps on
+  to three more, each landing worth 80% of the one before (PLAN's own numbers). Four pulls a
+  second, four bodies a pull, and a bolt that is gone in a sixteenth of a second.
+- **It aims itself, and that is the weapon.** The pulse is the gun you aim, the scatter is the
+  gun you point, this is the gun you *fly*: it works behind you, in a press, at the edge of its
+  reach, and it cannot be dodged by walking sideways. What it pays is that it is the **weakest
+  of the three on a single body** - 3.9 hull a second against the pulse's 4.3, flat with range,
+  because a bolt that lands always lands - and it stops at its fourth body, so a crowd thirty
+  deep is not its to spend.
+- On the three bodies a fleeing ship really has around it it is the **best of the three**: 7.0
+  hull a second against the scatter's 5.9 and the pulse's 4.3. Forty bot runs a gun, same seeds:
+  median 15m00s for all three, and the arc means 6461 kills and 114425 score against the
+  scatter's 6555/116403 and the pulse's 5770/103079. Nothing is 25% better than anything else.
+- **You always see what it hit.** The damage is instantaneous, so the light is the weapon: the
+  zig's two ends are the muzzle and the body, to the pixel, and its scribble never wanders off
+  the line the damage took. It re-sparks five times a second rather than every frame, so it
+  reads as a live discharge and not a strobe.
+- **Split shot means more chains here**, one more place to start from per rank at the line's
+  usual share - the coverage card working on a gun that has no angles to add. Pierce, ricochet
+  and shot speed do nothing at all on an arc, because there is no shot: PLAN's Storm synergy
+  (Ricochet 3 + Arc) is where those two meet, and the tests say so out loud.
+- The bolt pool, the draw order, and the trigger's own dispatch are all new plumbing: a pull that
+  found nothing to strike costs no kick, no flash and no sound, so the reach is something you can
+  hear as well as see.
+
 ## 0.4.6 — 2026-10-08
 Scatter: the second primary, and the gun itself became data.
 - **The title screen asks which gun you fly.** `1` is the PULSE, `2` is the SCATTER, then launch

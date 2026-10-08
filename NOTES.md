@@ -4034,3 +4034,187 @@ with no change to what they claim.
   balance row rather than quietly reading the gun.
 - The pool is still forty ranks across eight lines and a healthy run still spends all of it in
   about three minutes. Unchanged, still the biggest thing the plan owes.
+
+## Session 34 (2026-10-08) — Arc: the third primary, and the gun that aims itself. Released **v0.4.7**
+
+### What this was
+
+The other half of PLAN's *"A second primary weapon, Scatter (3.2), and a third, Arc (3.2)"*,
+which session 33 split and left unticked. It is ticked now: three primaries on the title rack,
+all data, all read by `game/weapons.js`, and the third of them is not a bullet with a number on
+it. `src/game/arc.js` is a system of its own in the `game/nova.js` / `game/orbitals.js` shape -
+state on the world, its own step, its own art, its own tests - because "lightning that chains to
+3 nearby enemies" is a thing that happens *between* bodies, and a fourth `fire` branch in
+`game/bullets.js` would have been a lie about what the object in the air is.
+
+### The three decisions, and why
+
+1. **The bolt is instantaneous and the light outlives it.** A leap is drawn between two bodies
+   in one step: the damage is done on the spot, like `game/blast.js`, and what is left is a
+   bolt in a pool (`world.arc.bolts`) whose only future is to fade, 0.16 s. That is what makes
+   it lightning and not a slow missile - and it has a consequence nobody can fake their way
+   past, which is that **the picture is the only reach the player can see**, so the renderer is
+   held to it: the zig's first point is the muzzle and its last point is the body that lost
+   hull, exactly, and every point of the wobble between them stays inside a 7 px band round the
+   straight line. `test/arc-art.test.mjs` measures that off the drawn points, not off a
+   constant.
+2. **The first body is the nearest one, whoever the player is pointing at.** This is the one
+   decision that changes how the game is played, so it is worth the argument I had with it. The
+   pulse is the weapon you aim; the scatter is the weapon you point into; this is the weapon you
+   *fly*, and it is the only one of the three whose value goes up when the crowd closes - which
+   is the one thing neither of the others can do from across the arena. It also pays for the
+   steep decay: a bolt that aimed itself, never missed, worked in every direction including
+   behind you, *and* hit as hard as the gun it was chained off would simply be the best gun in
+   the game. The chain is capped at `jumps + 1` bodies for the same reason - a knot thirty deep
+   cannot be spent on twice over.
+3. **A body is bought once per pull, and the split line buys *chains*.** The bodies a pull has
+   paid for are remembered, so a chain leaps onwards instead of back and forth, and a knot of
+   one cannot be hit four times by one pull. That same memory is what lets the split line mean
+   something here: on a gun with no angles to add, "one more projectile" can only be a second
+   place to start from, and each extra chain is lighter by the split line's own `share` - the
+   same trade the line makes on a fan of shots, one card meaning one trade on every gun. It
+   also answers session 33's loose end from the other side: split is a dud on a cone (the fan
+   already covers the arc the extras would add) and it is *good* here, on the gun that has
+   nothing else to buy coverage with.
+
+### The number that was wrong first, and by 25%
+
+`damage` sat at PLAN's ratio - 8 against the pulse's 10, four fifths of a pulse shot - and the
+gun was *dead*. Measured, at that number: 3.1 hull a second on one lone body against the
+pulse's 4.3, 9.2 on the ladder's crowd knots against the scatter's 12.2, 5.6 on the near-field
+knot against the scatter's 5.9. Worse than the best of the other two everywhere, which is not a
+third primary, it is a third of a bad one.
+
+The reason the table cannot see is the reason the weapon exists: **a bolt cannot miss.** It is
+not pointed, it does not travel, it cannot be led or dodged by walking sideways, so a landing is
+worth more than a shot and PLAN's per-shot ratio - written for a game whose shots fly - makes
+the weaker gun. At `damage: 1`, a whole pulse shot per landing:
+
+| one lone drifter, 6 seeds, hull/s (pulse in brackets) | | knots, hull/s | | |
+|---|---|---|---|---|
+| 60 px | 3.9 (0.90x) | | the ring | 11.6 (pulse 4.3, scatter 12.2) |
+| 150 px | 3.9 (0.92x) | | the column | 11.6 (pulse 4.3, scatter 13.0) |
+| 260 px | 3.9 (0.94x) | | the near field | **7.0** (pulse 4.3, scatter 5.9) |
+| 300 px | 0.0 - the reach | | | |
+
+Flat with range - none of it is a projectile - second on a crowd thirty deep where a chain
+capped at four cannot follow a fan that sweeps all of them, and **first on the three bodies a
+fleeing ship really has round it**, which is the only place left for a weapon that aims itself
+to live. Forty seeds, aware bot, fifteen-minute cap:
+
+| gun | median | mean | at the cap | mean kills | mean score |
+|---|---|---|---|---|---|
+| pulse | 15m00s | 13m31s | 35/40 | 5770 | 103079 |
+| scatter | 15m00s | 14m38s | 38/40 | 6555 | 116403 |
+| **arc** | 15m00s | 14m34s | 38/40 | 6461 | 114425 |
+
+Level with the scatter, ahead of the pulse, inside PLAN's twenty-five percent band. Read the
+caveat with it: the bot aims at the nearest body, which is *exactly* what this gun does by
+itself, so a human who cannot hold a cursor on a drifter gains more than the table shows. That
+is the point of the gun, not an oversight in it.
+
+`leap` needed its own measurement for the same reason. At 120 px - a hop you could see - the
+near-field knot reads 3.9 hull a second instead of 7.0, i.e. under the pulse: the bolt lands on
+the near body and stops, because the knot's bodies are about 210 px apart. A chain that cannot
+cross the gap is a slow pulse with worse aim, so 220, the ricochet's number, for the same
+reason and written beside it.
+
+### Found while measuring
+
+- **A bolt throws the thing it landed on, and a body that stands still can be thrown out of
+  reach.** `jolt` is only 70 px/s, but a planted body has nothing pulling it back, so over a
+  dozen landings it walks out past the 260 px reach and the gun goes quiet. In play a drifter is
+  walking *at* you at 70 px/s, so it never happens; in the test it did, and `loneBodyRate` now
+  cancels the impulse every step with a comment saying why. Real finding, test artefact, both
+  worth writing down.
+- **Three of the ten upgrade lines do nothing at all on the arc**: `bulletSpeed`, `pierce`,
+  `ricochet`. There is no shot to speed up, no shot to pass through a body, no shot to turn on to
+  another one. `test/arc.test.mjs` asserts all three so the decision cannot rot into an
+  accident, and the honest answer to "a run on the arc is offered three cards it cannot use" is
+  PLAN's own synergy table - **Ricochet 3 + Arc is Storm**, which is where those two meet again
+  and is milestone 5's work, not a bolt pretending to be a bullet. This is the same class of
+  thing as session 33's split-on-scatter note, one rung sharper.
+- **The arc leaves its shards behind.** Ninety-second runs, same seed: 299 kills and 128 shards
+  collected on the arc, 317 and 259 on the scatter. It kills at 260 px and the bot is flying the
+  other way, so the mint stays where the body was and the XP income lags - level 11 against 17
+  at that mark. It evens out by the third minute (every gun hits the level cap in a long run),
+  but it is the arc's real early-game cost and nobody has written it on the card.
+- The **reference run is unchanged, byte for byte** - `--seed 20261006 --trace`, alive at the cap
+  10m00s, score 71395, level 49, kills 4054, shards 3264, hull 3, build 5/5/5/5/5/5/5/5 - which
+  is the regression proof for touching `fire`. That function is now a dispatch: `shootFan` for a
+  gun that throws shots, `strikeChain` for the one that doesn't, and the shared tail (one kick
+  backwards, one flash at the nose, one sound per pull) in `fire` itself. A pull that threw
+  nothing costs nothing, which only the arc can do: an empty reach means no bolt, no recoil and
+  no cue, and the silence is how the gun says the crowd is out of range.
+
+### The rest of it
+
+- `world.arc = { bolts: Pool(makeBolt) }`, ticked in `stepRun` after everything that throws one,
+  and cleared by `resetRun` with the rest of the run's sky. `stats().bolts` is how a headless
+  run can see a chain land at all.
+- **Drawn over the crowd and the ship, under the sparks.** A bolt is the story of where the
+  damage went; behind a drifter it is a story nobody is told. Two strokes - wide faint under
+  thin bright, the house way of glowing without a blur - and the falloff down the chain is done
+  to the alpha and the width, so a chain of four costs four times a cheap thing.
+- The zig's dice are **hashed out of the bolt's own `seed` (from `fx`) and a 0.05 s flicker
+  bucket**, not drawn from the frame's stream: a shape that re-rolled every frame would be a
+  strobe and one that never changed would be a drawing of a wire. `test/arc-art.test.mjs` proves
+  two frames inside one flicker draw the same bolt and a frame past the boundary draws another.
+- Title screen, HUD and game-over card needed nothing: `WEAPONS` grew a third row and the number
+  keys, the `GUN ARC` readout and the build line followed. `tools/simulate.js --weapon arc` and
+  `tools/power-ladder.js --weapon arc` work for free, which is the `BALANCE.weapons` refactor
+  paying for itself one session after it was made.
+
+### Tools
+
+- `node tools/simulate.js --weapon arc`, `node tools/power-ladder.js --weapon arc`.
+- The A/B is still a throwaway (`for` loop over 40 seeds, `xargs -P 12`, then a 40-line
+  aggregator), deleted after use. The standing PLAN item - print a **median** in
+  `tools/simulate.js` - is now worth more than it was, because the number wants comparing per
+  gun and I have typed the aggregator twice running. It is the next thing I would do.
+
+### Tests: 577, all passing (was 553)
+
+`test/arc.test.mjs` (16) is the weapon: no shots, only light; PLAN's four bodies at PLAN's
+compounding decay; it stops spending at its last leap; it walks from where it landed instead of
+sweeping the arena (two bodies on opposite sides of the ship are two pulls); a body is bought
+once per pull and split buys chains at the line's share; pierce and ricochet reach nothing; the
+damage line is on the chain like it is on a shot; past the reach a pull costs nothing at all -
+no bolt, no kick, no sound; the bolt's ends are the muzzle and the body; bolts fade and a new
+run inherits no sky; kills are credited per landing; one pull is one sound; and the measurement
+above as assertions.
+
+`test/arc-art.test.mjs` (8) is the drawing: an empty sky for a boltless ship; two strokes per
+bolt and neither a blur or a gradient; an off-screen bolt costs nothing; the ends land on the
+bodies to the pixel; the wobble stays inside its band and is not a straight wire; the shape holds
+for a flicker and turns over after it; a deep bolt costs what a shallow one does; and the draw
+order, over the ship and under the sparks.
+
+`test/weapons.test.mjs` grew `SHOT_GUNS`/`CHAIN_GUNS` and asks each kind of pull for its own
+numbers - a chain has `reach`, `leap`, `jumps`, `decay`, `jolt` and no speed and no life in
+seconds, because it flies nowhere - with the bullet-shaped loops narrowed to the guns they
+describe. `tools/headless/scripted.js` now throws if a test plants a bullet while flying the
+arc, because the numbers it would copy do not exist.
+
+### Notes for whoever is next
+
+- **The survival check is the next item and it is nearly free now.** "Add a median to
+  `tools/simulate.js`, run at least 20 seeds with the aware bot, the median must be 5:00 or
+  more, write the numbers in NOTES, release." The median, the mean and the at-cap count are the
+  three numbers I have recomputed by hand for four sessions; put them in the tool, print one
+  line, and the item that has been open since before 0.4.0 closes. All three guns already
+  mediate 15m00s, so it will pass - which is worth saying out loud in the release.
+- **`pellets` now means "things a pull sends out"**, shots on two guns and chains on the third.
+  If the lance (3.2's fourth primary) lands as a piercing beam it is a shot gun and needs
+  nothing new; the **swarm** ("slow homing micro-missiles, small blast") is the one that will
+  want a third kind of pull, and `gun.chain` is the pattern for how a gun says so - a sub-object
+  on the row, a module that owns the system, one branch in `fire`.
+- A feel note I could not test: the arc is **silent** until something is inside its reach, so the
+  first two seconds of a run - no bodies yet - are a gun that does not appear to be firing. I
+  chose the silence over a fizzle bolt into empty sky because the alternative spends the one
+  picture that means "this is what your damage did". If it reads as broken, the fix is a short
+  bolt out of the nose on a dry pull, and it belongs in `game/arc.js` with the reach check.
+- Still open from session 33, untouched: split is a dud on a cone, the pool is forty ranks across
+  eight lines and a healthy run spends all of it in about three minutes, and the two primaries
+  of 3.2 that are left (lance, swarm) are milestone 5's, along with the hangar that will want to
+  own `world.weapon` one day.
