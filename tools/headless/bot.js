@@ -125,9 +125,9 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
  * capped by whatever is standing in the ring: a rank of it is worth a rank of the damage
  * line on a plain gun and a fraction of one once the gun is what a build makes it. So a
  * rank taken level with the gun's own ranks trades a multiply for an addition, and it
- * measured as a loss - the bot died inside the window on 11 of 40 runs with the ring taken
- * evenly and on 5 of 40 with the line in the pool but never chosen, a minute of mean
- * survival between them. The ring is not a bad card; a player who buys two ranks of it on
+ * measured as a loss - the bot died inside the window on 11 of 40 runs with the ring
+ * taken evenly (13 of 40 while the bite was flat) and on 5 of 40 with the line in the pool
+ * but never chosen, a minute and a half of mean survival between them. The ring is not a bad card; a player who buys two ranks of it on
  * the way up a gun build is not paying much for it. It is the bot's even spread that cannot
  * afford it, and delaying it is what a player who wants the gun first does anyway.
  */

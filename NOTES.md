@@ -3415,3 +3415,185 @@ now comes from `LINES` instead of naming five lines by hand, so a seventh cannot
   the card screen does nothing, and `simulate.js` prints no median - the block's survival-check
   item wants one, and with 21 of 24 seeds at the cap it will also want the cap raised or the
   median is just the window.
+
+## Session 31 (2026-10-08) — Orbitals: the seventh line, and a card that cost the run a rank of the gun. Released **v0.4.4**
+
+The fifth item of the owner's firepower block, and the first thing in the game that is a
+second source of damage rather than a bigger multiply on the gun. That one difference is
+the whole session: it is what made the interesting decision a number rather than a shape,
+and it is what made the bot worse at the game until I changed how it buys.
+
+### What landed
+**Orbitals (PLAN 3.2, as a line)** is a seventh line, five ranks,
+`BALANCE.upgrades.orbitals`: `step: 2` drones per rank - so PLAN's "two drones" is rank 1
+and the top of the line is ten - on a ring `radius: 64` px out, `spin: 3.2` rad/s, biting
+whatever stands in it once per `beat: 1.5` s for `weight: 1` shot, `shove: 120` px/s
+outwards, `touch: 9` px of reach. `game/orbitals.js` is the module; `dronesOf(world)` is
+the line read as a count, the fourth `countOf` reading after `volleyOf`, `pierceOf` and
+`bounceOf`. `world.orbit` is `{ angle, drones }`.
+
+**A drone has no position of its own.** The ring is one number - the angle it has turned to
+- and drone `i` of `n` stands at `angle + i/n` of a turn, `radius` px from wherever the
+ship's middle is *this step*. That is the entire simulation of a drone, and it is what makes
+them orbit instead of flock: one cannot be lagged, knocked away, or left behind by a dash,
+because it is a place on a circle and nowhere else. The whole thing is nine lines of
+placement and one angle.
+
+**The ring has a dead zone, on purpose.** A bite is a touch test at the ring's own radius, so
+a body that has walked *past* the drones - pressed against the hull, which is the body about
+to take a hull - is out of reach of them. A ring is not an aura that forgives you for
+standing in the middle of it; it is a wall at a distance you can see, and the renderer draws
+the track for exactly that reason (same deal as a bomber's circle: the simulation measures
+from the line you are shown). There is a test on it, because it reads as a bug otherwise.
+
+**A bite is a rate, not a per-neighbour-per-step shave.** A drone bites, then waits `beat`
+seconds *whoever it is touching*, so the whole ring is worth `count * weight / beat` shots a
+second and does not care how many bodies are standing in it. That is what makes the line
+possible to price at all, and it is tested both ways: a crowd in the ring loses its nominal
+rate, and three times the crowd in the ring loses exactly the same.
+
+**A rank taken mid-run re-forms the ring without a jump.** Adding a pair moves every other
+drone to a new slot, and a jump the renderer interpolates would paint a streak right across
+the arena, so `resizeRing` puts every drone on its new place and throws its own history
+away. Tested, because the failure is a smear of cyan and nothing else.
+
+**The card**: seventh tint, `PALETTE.indigo` (`#5f7dff`) - the one cool hue left once white,
+cyan, mint, violet, sky and teal were gone - and the icon is three drones on a track round a
+ship, each with a short bright arc behind it for which way the ring turns. The drones in the
+arena wear the ship's own cyan, drawn as tiny ship silhouettes along the tangent, because
+`cyan = yours` and nothing else in the arena is cyan.
+
+### The decision of the session: what a bite is worth
+First version: a flat `damage: 1` per bite, chosen so that a rank of the ring would be worth
+a rank of the damage line on a plain gun (`step * damage / beat` = 1.33 shots a second
+against the damage line's `fireRate * damage.step` = 1.32). Tidy. Consistent with every
+other non-gun damage source in the game, which are all flat numbers (a bomber's blast, a
+shielder's cap). And wrong, and the A/B said so in twenty minutes.
+
+**A flat rate cannot be equal to a multiply once the gun is big.** Every other line in the
+game multiplies the gun - `fireRate` every shot, split every volley, damage every hit - so
+by the time a build is maxed a rank of `fireRate` is worth some tenth of a fifty-damage-a-
+second gun, and a rank of a flat ring is worth 1.33 of anything. So I made the bite
+**one shot of the ship's own gun**: `bullets.damage * gainOf(world, 'damage') * weight`, read
+where the bite happens. "A drone hits as hard as you do" is a sentence a player understands,
+the card's "+2 orbital drones" stays honest, the ring keeps its share of the ladder as the run
+gets heavier, and it still does not multiply the gun's *rate*, which is what the other lines
+are for. Two tests now hold the pair: the per-rank lockstep against the damage line, and the
+scaling itself.
+
+### The ladder, on two knots
+Three seconds of trigger, immortal bodies, average of six seeds, plain pull = 1.00x. The
+right-hand column is session 30's knot (six rows of seven, a hundred and fifty px in front of
+the ship) so the four older numbers can be read against their own measurements.
+
+| maxed line | crowd standing all round the ship | the knot in front |
+|---|---|---|
+| damage | 2.50x | 2.50x |
+| split | 2.41x | 2.55x |
+| pierce | 2.20x | 3.38x |
+| ricochet | 2.42x | 2.50x |
+| **orbitals** | **2.54x** (11.0 dmg/s against the plain pull's 4.3) | **1.00x** |
+| everything at once | 13.45x | 17.01x |
+
+Two things to read there. The ring lands in the family - 2.54x, where damage is 2.50x and
+ricochet 2.42x - on a crowd that surrounds the ship, which is the crowd a ring is for. And it
+is **exactly 1.00x** on the knot in front, because a ring 64 px round the ship cannot touch a
+crowd standing 150 px away, which is not a weakness, it is what the word "ring" means. That
+is why the line is weighed in damage a second against the damage line rather than on the old
+knot, and why `test/orbitals.test.mjs` says so where a future retuner will read it. The ring
+also realises *exactly* its nominal rate at every rank (1.33 / 2.67 / 4.00 / 5.33 / 6.67 shots
+a second), which is the beat being the only limit and nothing else.
+
+### The measurement that mattered: the bot could not afford it
+40 seeds, `aware` bot, 900 s cap. The first three rows are all the *flat* bite; the last is
+what shipped.
+
+| the ring in the pool | median | mean | at the cap | mean kills | mean score |
+|---|---|---|---|---|---|
+| absent (line maxed to 0 ranks) | 15m00s | 13m54s | 36/40 | 5964 | – |
+| present, bot forbidden to pick it | 15m00s | 13m30s | 35/40 | 5817 | 103,540 |
+| present, taken evenly, flat bite | 15m00s | 11m21s | 27/40 | 4653 | 81,897 |
+| present, taken evenly, scaling bite | 15m00s | 12m11s | 29/40 | 5050 | 89,588 |
+| **present, taken late, scaling bite (shipped)** | **15m00s** | **14m14s** | **37/40** | **6130** | **109,147** |
+
+Read the first three rows together, because the middle one is the control and it settles it:
+having a seventh line in the pool costs *nothing* (36/40 against 35/40 - the pool getting
+deeper is not the problem, and session 29's "the pool is spent in three minutes" worry is not
+what this is). Taking its ranks level with the gun's own ranks costs about **two and a half minutes
+of mean survival and thirteen hundred kills a run**. The bot picks the line with the fewest ranks, so
+it buys a ring rank every seven cards, and each of those cards was a multiply on a gun that
+was doing fifty damage a second. It is trading a multiply for an addition, and it loses.
+
+So the shipped answer is two changes: the bite carries the gun's weight, **and** the bot
+defers the line (`DEFERRED = { orbitals: 2 }` in `tools/headless/bot.js`: its ranks count as
+two deeper than they are, so it is bought when it is behind, as a supplement, which is what a
+player who wants the gun first does anyway). That lands at 37/40 and the best kill average of
+the five rows - i.e. the ring is now worth roughly what it costs. Worth writing plainly:
+**this is a bot-policy finding as much as a balance one.** A player who maxes everything
+in the order they are dealt will find the seventh card is a bad buy; a player who decides what
+build they want will not. If a future item adds another *additive* line it will want the same
+treatment in both places, and now there is a measurement of what "the same" means.
+
+And the standing finding holds for a fourth release: **the median is the window.** 15m00s,
+third release running, because the crowd's arrival rate is the ceiling and not the gun
+(session 29). Nothing in this session moved it and nothing would have.
+
+### Reference run, rebaselined
+`node tools/simulate.js --seed 20261006 --trace` → **alive at the cap 10m00s, score 71644,
+level 49, kills 4059, shards 3260, hull 3, build 5/5/5/5/5/5/5** (was 71561 / 49 / 4072 /
+3400 / six lines). Still a fingerprint of a run still flying, since the default window holds
+no death.
+
+**Cost**: three 600 s runs side by side, twice each way - 38.4 s with the ring maxed, 37.0 s
+without, so about **+3.6%** of a run's step time at the top of both the line and the crowd.
+That is the drone touch test walking the crowd (ten drones × a capped crowd ≈ a thousand
+distance tests a step). It is deliberate: the grid is a snapshot of the crowd before it
+walked and a drone should bite where a body *is*, which is the same reason
+`game/shields.js` walks the crowd directly. Written into the module header, with the number,
+so the performance pass knows what it is buying back.
+
+### Tests: 495, all passing (was 475)
+`test/orbitals.test.mjs` (14, scripted world): the count and the geometry per rank (0, 2, …,
+10 drones, every one at the line radius, evenly spaced, each in its own slot); the ring turns
+at the line spin and rides with a flying ship; the tempo (a crowd in the ring loses its
+nominal rate, and three times the crowd loses exactly as much - the beat is per drone);
+the reach is a wall (bitten on the ring, untouched thirty px past it); **the dead zone**
+(a body at the ship's own end takes nothing); a bite pays out - six bodies on the ring, six
+kills, all the score; a bite shoves outwards; **a shielder drinks a bite before the hull
+does**, same body with and without a field over it; taking a rank mid-run re-forms the ring
+without a jump; a new run has no ring; the line is a count and the card prints "+2 orbital
+drone"; the per-rank lockstep against the damage line; that the bite carries the damage line;
+and the claim - seven bodies on the ring *behind* the ship, where the gun cannot reach: none
+of them die with the line at rank 0, all seven die at rank 5.
+`test/orbitals-art.test.mjs` (6, the real renderer through the stub): an unworn ring costs
+an empty sky; every drone costs the same handful of calls, and one stroke more than that is
+the track; none of it is a blur or a gradient; a drone is painted where the simulation says
+it stands; the closest thing painted for it is one ring radius out, so the picture cannot
+promise a reach the simulation does not have; a drone with a tank standing on it is still
+painted; and the frame paints the ring after the crowd, so nothing can bury it.
+
+### Notes for whoever is next
+- **An additive line wants handling in two places**, and now both of them are written down:
+  `BALANCE.upgrades.orbitals.weight` (does it scale with the gun?) and `DEFERRED` in
+  `tools/headless/bot.js` (does the bot know when to buy it?). Nova (3.2) is the next one and
+  is *also* additive - a ring of damage every 8 s does not multiply the gun either - so
+  expect the same A/B and probably the same answer. `blast.js` is already there and says the
+  nova will want it.
+- The ring shoves what it bites, and a **thin stream of bodies gets shoved out of the bite
+  band and survives**; a press does not, because there is always another body in the band.
+  First seen as a "failing" test (ten drifters on the ring took half their nominal rate over
+  three seconds) and it was the design working. Worth knowing before measuring anything else
+  with a sparse crowd: use bodies small enough to stand three deep in the band.
+- The bite sound is `vol: 0.014` and there are up to six and a half of them a second at the
+  top of the line. It is quiet enough not to be a buzz but the mix still has no voice limiting
+  (milestone 7), and this line is the loudest argument yet for it.
+- Still standing from session 29 and now worse: the pool is **thirty-five ranks deep** and a
+  healthy run spends all of it in about three minutes, then takes levels with nothing to buy.
+  `shards.xp` (14) and `progression` (base 90 / quad 0.9) are the pair to move, and they want
+  moving together with the arrival-rate question, not as a side effect of the next card.
+- Still on the table, none of them bugs: `simulate.js` prints no median (and the median is the
+  window until the cap is raised), no upgrade icons on the HUD (milestone 4's item), and Esc
+  during the card screen still does nothing.
+- The seeds my survival tables were measured with were **seeds 1-40 of `--seed N`, `aware` bot,
+  900 s cap**, written down here because sessions 27-30 said "the same 24 seeds" without ever
+  saying which. Use the same ones next time or write down the new ones.
