@@ -136,7 +136,8 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
  * NOVA is not in this table, and was, on the same evidence being demanded here (NOTES
  * session 32: 40 seeds again, same window). Handicapped by two it cost the run: 32 of 40
  * outlasted the window against 37 of 40 with the card out of the deck altogether, and the
- * mean came down by a minute. Untouched by any handicap it costs nothing: 37 of 40 both
+ * mean came down by a minute and a quarter. Untouched by any handicap it costs nothing:
+ * 37 of 40 both
  * ways, and the score the same to within a rounding. The difference is the shape of the two
  * lines - the orbital ring's rate is capped by whatever stands in 64 px of the ship, which
  * for a fleeing ship is nothing, while a nova front reaches 220 px and finds bodies even
