@@ -1,5 +1,29 @@
 # Starfall — changelog
 
+## 0.4.11 — 2026-10-08
+Chill: every hit the ship lands takes the speed out of them, and a cold body coming apart throws ice.
+- **A new card on the rack, and the first one that takes something away.** **CHILL** is five ranks
+  of "a hit slows them down". Each hit takes **8% per rank** of the body's *own walk* off it, and
+  that frost is what it is: a chilled drifter walks a tenth of its pace, a frozen one walks
+  nowhere. Bullets, arc bolts, orbital drones and nova fronts all make cold — the same four doors
+  a fire is lit at.
+- **A shove is not a walk.** A frozen body cannot move under its own engines but is still shoved
+  by a bullet's kick, a darter's shoulder and a neighbour making room, so a knot of ice is a
+  thing you push through instead of a wall you fly around. Frozen is not harmless either: it still
+  hurts to touch, a frozen spitter still spits, and a sniper that has already taken a lock fires it
+  on the second it promised. What the card buys is time to aim and room to fly.
+- **It melts.** A body nobody is hitting warms back through in **3.2 s**, so freezing the crowd is
+  something you keep up with fire rather than a tax the arena pays once.
+- **Rank 5 is the shatter.** A body that comes apart cold throws a front of ice **96 px** wide:
+  hull and frost to everything inside it, sized by *how cold that body was*, and passing on a
+  share of its cold — so a chain runs down a crowd and dies out. The hit that kills is itself a
+  frost, so killing things is what sets the ice off, the same way the killing hit is what lights a
+  fire.
+- **Rime and a shell.** A cold body wears a wash of rime as pale as its cold, and a body frozen
+  solid stands in a shell of ice that breathes, so the frame says which bodies are worth the fifth
+  rank before one comes apart and not after. A body going solid gets a ring, ten motes and one high
+  note; a body that thaws lets go quietly.
+
 ## 0.4.10 — 2026-10-08
 Burn: every hit the ship lands sets the crowd alight, and a body that dies alight passes it on.
 - **A new card on the rack - the first behaviour upgrade of milestone 4.** **BURN** is five ranks
