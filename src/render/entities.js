@@ -25,6 +25,7 @@ import { chargeOf as fieldChargeOf, hasMagnetar, isPrimed as fieldPrimed } from 
 import { fadingBy } from '../game/afterimage.js';
 import { armingOf, fadingOf, fusingOf } from '../game/mines.js';
 import { lettingGoOf, pulsingBy } from '../game/tether.js';
+import { aimedOf, fadingOf as turretFadingOf, reloadingOf } from '../game/turret.js';
 import { world } from '../game/world.js';
 
 const HIT_FLASH = BALANCE.enemies.hitFlash;
@@ -1389,6 +1390,108 @@ export function drawTether(ctx, alpha) {
     // the whole tether costs a frame no sprite of its own.
     paintGlow(ctx, glowFor(PALETTE.player, DRONE_HALO), cord.x, cord.y, knot, TETHER_KNOT_SCALE);
   }
+}
+
+// The guns the ship has set down on the road in front of it (game/turret.js). They wear the ship's own
+// cyan for the reason the orbitals and the tether do: a turret is not something the ship left behind,
+// it is a piece of the ship - its own gun on a mount - and cyan is what "yours" means on this glass
+// (PLAN section 4). Four things are drawn and none of them is a decoration:
+//
+//   **The sight line is the reach.** It runs out of the muzzle to exactly `reach` px from the mount and
+//     no further, so the line a player is shown is the ground the gun can shoot at and its shell can
+//     reach - the same promise a mine's ring and a tether's band keep (game/mines.js, game/tether.js).
+//     It is faint while the gun has nothing to shoot at and bright while it has.
+//   **The barrel is the facing.** The simulation only lets a shell leave down the nose, so the way the
+//     barrel points is the way the gun will shoot and nothing else: a gun still coming round is drawn
+//     still coming round.
+//   **The muzzle is the clock.** It brightens as the beat comes round and gutters the step a shell
+//     leaves, so the frame says when the next shot is due without a meter for it.
+//   **The whole gun dims as its ten seconds run out**, so the arena says which guns are still holding
+//     ground and which are about to stop (game/mines.js fades its mines the same way).
+const TURRET_BASE = 6.5;        // px across the mount
+const TURRET_SIDES = 4;         // a diamond: no enemy wears a square and no mine wears this
+const TURRET_LINE = 1.6;        // px, the mount's own line
+const TURRET_GLOW = 5;          // px, the wide faint pass under it
+const TURRET_BARREL = 13;       // px of barrel out from the middle, so the facing is legible
+const TURRET_BARREL_W = 4;      // px, the barrel's wide pass ...
+const TURRET_BARREL_LINE = 1.8; // px ... and its thin bright one
+const TURRET_SIGHT_CALM = 0.12; // the reach, drawn while the gun has nothing to shoot at ...
+const TURRET_SIGHT_ON = 0.46;   // ... and while it has
+const TURRET_SIGHT_SOFT = 4;    // px, the wide pass under the sight line
+const TURRET_SIGHT_LINE = 1.1;  // px, the sight line itself
+const TURRET_LIGHT_CALM = 0.12; // a cold beat, at the muzzle ...
+const TURRET_LIGHT_READY = 0.9; // ... and a beat that has come round
+const TURRET_LIGHT_SCALE = 0.6; // the drone's own glow sprite, stamped smaller: no sprite of its own
+const TURRET_ROOM = 34;         // px of slack on the cull test, for the sight line's head
+
+/**
+ * The guns standing in the arena. Over the crowd and under the ship: a turret is the one friendly thing
+ * the crowd walks over, and a gun you cannot see is a gun that has already stopped working (the tether
+ * is put down for the same reason, game/tether.js).
+ *
+ * Nothing is drawn for a run that has not taken the line, because the guns standing are the whole of
+ * the line's drawing state - ranks included, which is what the first test of test/turret-art.test.mjs
+ * is on about.
+ */
+export function drawTurrets(ctx) {
+  const stands = world.turret.stands;
+  if (stands.count === 0) return;
+
+  const spec = BALANCE.upgrades.turret;
+  const was = ctx.globalAlpha;
+  ctx.lineCap = 'butt';
+
+  for (let i = 0; i < stands.count; i++) {
+    const turret = stands.items[i];
+    // The sight line reaches out past the mount by the whole `reach`, so that is what the cull has to
+    // give it room for - a gun just off the glass still paints a line across it.
+    if (!onScreen(turret.x, turret.y, spec.reach + TURRET_ROOM)) continue;
+
+    const lit = 1 - turretFadingOf(turret);
+    const dx = Math.cos(turret.angle);
+    const dy = Math.sin(turret.angle);
+    const mx = turret.x + dx * spec.muzzle;
+    const my = turret.y + dy * spec.muzzle;
+
+    // The reach, along the nose and out to exactly the distance the gun will shoot at.
+    const sight = (TURRET_SIGHT_CALM + (TURRET_SIGHT_ON - TURRET_SIGHT_CALM) * aimedOf(turret)) * lit;
+    ctx.strokeStyle = PALETTE.player;
+    ctx.lineWidth = TURRET_SIGHT_SOFT;
+    ctx.globalAlpha = was * sight * 0.4;
+    strokeBetween(ctx, mx, my, turret.x + dx * spec.reach, turret.y + dy * spec.reach);
+    ctx.lineWidth = TURRET_SIGHT_LINE;
+    ctx.globalAlpha = was * sight;
+    strokeBetween(ctx, mx, my, turret.x + dx * spec.reach, turret.y + dy * spec.reach);
+
+    // The mount: a hard diamond, stroked and never filled, because a thing standing on the floor is
+    // not a pool of light - the one light on this gun is the muzzle.
+    polygon(ctx, turret.x, turret.y, TURRET_BASE, TURRET_SIDES, Math.PI / 4);
+    ctx.strokeStyle = withAlpha(PALETTE.playerLine, 0.3);
+    ctx.lineWidth = TURRET_GLOW;
+    ctx.globalAlpha = was * lit;
+    ctx.stroke();
+    ctx.strokeStyle = PALETTE.playerLine;
+    ctx.lineWidth = TURRET_LINE;
+    ctx.stroke();
+
+    // The barrel, which is the facing and therefore the whole of the gun's honesty.
+    const bx = turret.x + dx * TURRET_BARREL;
+    const by = turret.y + dy * TURRET_BARREL;
+    ctx.strokeStyle = withAlpha(PALETTE.playerLine, 0.35);
+    ctx.lineWidth = TURRET_BARREL_W;
+    strokeBetween(ctx, turret.x, turret.y, bx, by);
+    ctx.strokeStyle = PALETTE.playerLine;
+    ctx.lineWidth = TURRET_BARREL_LINE;
+    strokeBetween(ctx, turret.x, turret.y, bx, by);
+
+    // The muzzle: how near the next shell is, stamped with the orbital drone's own light, so the whole
+    // line costs a frame no sprite of its own.
+    const light = (TURRET_LIGHT_CALM
+      + (TURRET_LIGHT_READY - TURRET_LIGHT_CALM) * reloadingOf(turret)) * lit;
+    paintGlow(ctx, glowFor(PALETTE.player, DRONE_HALO), mx, my, light, TURRET_LIGHT_SCALE);
+  }
+
+  ctx.globalAlpha = was;
 }
 
 // The orbital ring (game/orbitals.js). It wears the ship's own colours because it *is*

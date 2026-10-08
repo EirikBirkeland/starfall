@@ -22,6 +22,7 @@ import { resetAfterimage } from './afterimage.js';
 import { resetMagnetar } from './magnetar.js';
 import { resetMines } from './mines.js';
 import { resetTether } from './tether.js';
+import { resetTurret } from './turret.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -85,6 +86,10 @@ export function resetRun(world) {
   // threads at the most, but a run can end on the dash that tied them, and a thread left hanging over
   // the title screen would burn the next run's crowd on a road the last one drove down.
   resetTether(world);
+  // And every gun the last run had set down across the road in front of it (game/turret.js). They hold
+  // their ground for ten seconds at the most, but a run can end inside that and a gun left standing
+  // would be firing at the next run's crowd off a spot the last one chose.
+  resetTurret(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

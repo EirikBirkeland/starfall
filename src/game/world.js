@@ -22,6 +22,7 @@ import { newAfterimage, updateAfterimage } from './afterimage.js';
 import { newMagnetar, updateMagnetar } from './magnetar.js';
 import { newMines, updateMines } from './mines.js';
 import { newTether, updateTether } from './tether.js';
+import { newTurret, updateTurret } from './turret.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -169,6 +170,12 @@ function createWorld() {
     // of what the line was asked to do. Nothing is remembered about which bodies were on a thread -
     // that is asked of the crowd every step (game/enemies.js) - so this is the whole state of the line.
     tether: newTether(),
+    // What the ship has set down on the road ahead of it (game/turret.js): the guns standing in the
+    // arena, the clock until the next crew is planted, and five counters of what the line was asked to
+    // do - including the two only a run can answer, how often a shell came round a body and what share
+    // of its standing time a gun had somebody in its sight at all. A gun remembers nothing about what
+    // it is aiming at: the lock is asked of the crowd every step, like the grid and the packs.
+    turret: newTurret(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
@@ -263,6 +270,9 @@ function stepRun(dt, input) {
   // And after that one too: a thread burns where the crowd finished walking, and its near end is the
   // ship as the engines and the dash left it (game/tether.js).
   updateTether(world, dt);
+  // And after that one as well: a gun reads the crowd where it ended up, and the shell it throws is
+  // walked by game/bullets.js on the next step (game/turret.js).
+  updateTurret(world, dt);
   // And after all of them, because a fire is the slowest thing here: it bites where every
   // body ended up after the walking and the other damage, and the body it finishes is the
   // one whose fire goes out sideways (game/burn.js).

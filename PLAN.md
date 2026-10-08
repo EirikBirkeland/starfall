@@ -583,12 +583,14 @@ When every item above is ticked, go back to the first unchecked item of mileston
       (All nine are in, and each has its own module and its own test file: Ricochet, Pierce, Split
       shot (0.4.1-0.4.3), Burn 0.4.10, Chill 0.4.11, Leech 0.4.12, Overcharge 0.4.13, Afterimage
       0.4.14 and Magnetar 0.4.15. Of the five secondary systems of 3.2, Orbitals and Nova went in as
-      upgrade lines in 0.4.4 and 0.4.5, Mines in 0.4.16 and Tether in 0.4.17; Turret is the last one
-      still to be built.)
-- [ ] Each secondary system from 3.2, one per session.
-      (Four of the five are in as their own lines with their own tests: Orbitals 0.4.4, Nova 0.4.5,
-      Mines 0.4.16, Tether 0.4.17. Turret - "a stationary turret is placed every 12 s and lasts 10 s"
-      - is the one left.)
+      upgrade lines in 0.4.4 and 0.4.5, Mines in 0.4.16, Tether in 0.4.17 and Turret in 0.4.18, which
+      is the last of the five secondary systems of 3.2.)
+- [x] Each secondary system from 3.2, one per session.
+      (All five are in as their own lines with their own tests: Orbitals 0.4.4, Nova 0.4.5,
+      Mines 0.4.16, Tether 0.4.17 and Turret 0.4.18 - "a stationary turret is placed every 12 s and
+      lasts 10 s", which went in as a gun planted across the road the ship is travelling down, so that
+      the two lines that own the arena floor own opposite halves of it: mines arm where you have been
+      and turrets arm where you are going.)
 - [ ] Card offer weighting, reroll, and banish.
 - [ ] Synergies, with their special card frame.
 - [ ] Owned-upgrade icons on the HUD.

@@ -72,6 +72,9 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   // And that it was not thrown by a loaded gun, which is the one field of a shot a test is
   // unlikely to set on purpose and the one a recycled shot would otherwise bring with it.
   bullet.charged = false;
+  // And that it did not come off a turret, which is the one other thing that throws a shell in this
+  // game and the one field of a shot a test is unlikely to set on purpose (game/bullets.js).
+  bullet.turret = false;
   bullet.hits.length = 0;
   return bullet;
 }

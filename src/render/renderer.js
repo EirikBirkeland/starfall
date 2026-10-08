@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -97,6 +97,9 @@ export function renderFrame(tick, input, pointer) {
     // between where the dash was and where the ship is, and it must never be hidden by the bodies it
     // is burning (game/tether.js).
     drawTether(ctx, tick.alpha);
+    // Under the ship for the same reason once more, and over the crowd on purpose: a gun the crowd
+    // walks over and cannot see is a gun that has already stopped working (game/turret.js).
+    drawTurrets(ctx);
     // Over the crowd: an enemy shot must never be hidden by the thing that fired it.
     drawEnemyShots(ctx, tick.alpha);
     // Under the ship: an image is the ship as it was, and where the two overlap the real one is

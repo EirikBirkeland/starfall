@@ -182,6 +182,14 @@ export const LINES = [
     flavour: 'A dash ties a line of light from where it started to wherever you get to, and everything standing on it burns for two seconds. It pays for turning: one more thread per dash for every rank.',
     icon: 'tether',
   },
+  {
+    id: 'turret',
+    name: 'TURRET',
+    unit: WHOLE_UNIT,
+    what: 'turret planted',
+    flavour: 'A gun is set down across the road ahead and holds that ground for ten seconds, aiming and firing at whatever it can see. Mines arm the road behind you; this arms the road in front. One more gun per crew for every rank.',
+    icon: 'turret',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -208,6 +216,8 @@ const MAGNETAR_LINE = 'magnetar';
 const MINES_LINE = 'mines';
 /** The line that ties a thread of light from a dash to the ship. */
 const TETHER_LINE = 'tether';
+/** The line that sets guns down on the road ahead of the ship. */
+const TURRET_LINE = 'turret';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -420,6 +430,18 @@ export function minesPerDropOf(world) {
  */
 export function cordsOf(world) {
   return countOf(world, TETHER_LINE);
+}
+
+/**
+ * How many guns one crew is made of (PLAN 3.2's "a stationary turret is placed every 12 s", as a
+ * line): one at the first rank and five at the fifth, planted in a line across the road the ship is
+ * travelling. The beat never changes with the rank - a rank is a wider fence, which is the same trade
+ * mines buys with its row of mines: ground rather than a quicker drum. Read where the crew is planted
+ * (game/turret.js), so a rank taken between two crews is in the next one and not in the guns already
+ * standing, which are placed places and cannot be moved after the fact.
+ */
+export function gunsPerCrewOf(world) {
+  return countOf(world, TURRET_LINE);
 }
 
 /** Lines with a rank still to give. */

@@ -166,6 +166,9 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) 
   bullet.pierce = passes;
   bullet.bounce = turns;
   bullet.charged = charged;
+  // And that it came off the ship's own trigger and not off one of the guns the ship has left
+  // standing in the road (game/turret.js), which a recycled shot would otherwise bring with it.
+  bullet.turret = false;
   bullet.hits.length = 0;
   return bullet;
 }

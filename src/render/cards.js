@@ -95,6 +95,16 @@ const TINT = {
   // wearing cyan, one is a stack of bars and the other is a ship trailing threads: they cannot be
   // mistaken for each other at any size, which is the only test a tint has to pass.
   tether: PALETTE.player,
+  // The seventeenth tint, and - following the five before it - not a seventeenth hue. It is the pale
+  // edge of the ship's own hull, which is what a turret is drawn in in the arena (render/entities.js
+  // strokes its mount and barrel with it) because a turret is not something the ship left behind: it
+  // is a piece of the ship, its own gun on a mount, still firing. AFTERIMAGE already wears this for the
+  // same reason - an image is the ship as it was and nothing else - and of the two cards now wearing
+  // the ship's pale edge one is a ship trailing ghosts and the other is a fence of guns across a road:
+  // they cannot be mistaken for each other at any size, which is the only test a tint has to pass. It
+  // also means the seventeenth card asks the canvas for no new sprite, which test/draw-cost.test.mjs
+  // is watching.
+  turret: PALETTE.playerLine,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -335,6 +345,7 @@ const ICONS = {
   magnetar: iconMagnetar,
   mines: iconMines,
   tether: iconTether,
+  turret: iconTurret,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -963,6 +974,72 @@ function iconTether(ctx, size, tint) {
   }
 
   shipPath(ctx, sx, sy, size * TETHER_SHIP_SIZE, TETHER_HEADING, 1.6);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+}
+
+/**
+ * The turret icon: the road ahead with a fence of guns laid across it, the middle one loaded and
+ * throwing, and the ship below it small as always. Three of the five are drawn because three is what
+ * fits in a card's worth of pixels and still says "a line across the road" rather than "a gun".
+ */
+const TURRET_ROAD = 0.09;      // how wide the lane is drawn across the icon
+const TURRET_GUNS = [          // where the guns stand across it, and how lit each one is
+  { at: -0.54, light: 0.38 },
+  { at: 0, light: 1 },
+  { at: 0.54, light: 0.38 },
+];
+const TURRET_Y = -0.2;         // the row of guns, as a share of the icon
+const TURRET_MOUNT = 0.115;    // the mount, as a share of the icon
+const TURRET_BARREL = 0.19;    // how far the barrel reaches up out of it
+const TURRET_LINE = 1.4;       // px, the mount and the barrel
+const TURRET_TRACER = 0.36;    // how far up the shot that just left reaches
+const TURRET_SHELL = 0.055;    // and the shot itself
+const TURRET_SHIP = 0.22;      // the ship at the bottom of it, small, as always
+
+function iconTurret(ctx, size, tint) {
+  const y = size * TURRET_Y;
+
+  // The lane, so the guns read as laid across somewhere and not as three shapes in a row.
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * TURRET_ROAD;
+  ctx.strokeStyle = withAlpha(tint, 0.14);
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.82, y);
+  ctx.lineTo(size * 0.82, y);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  for (const gun of TURRET_GUNS) {
+    const x = size * gun.at;
+    const r = size * TURRET_MOUNT;
+    // One path for the mount and its barrel, then the house two passes: a wide faint stroke under a
+    // thin bright one, which is how anything here glows without a blur.
+    polygon(ctx, x, y, r, 4, Math.PI / 4);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - size * TURRET_BARREL);
+    ctx.strokeStyle = withAlpha(tint, gun.light * 0.3);
+    ctx.lineWidth = size * 0.09;
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(tint, gun.light * 0.9);
+    ctx.lineWidth = TURRET_LINE;
+    ctx.stroke();
+  }
+
+  // The middle gun's own shot, which is the whole card: a gun that fires on its own.
+  const muzzle = y - size * TURRET_BARREL;
+  ctx.strokeStyle = withAlpha(tint, 0.5);
+  ctx.lineWidth = size * 0.05;
+  ctx.beginPath();
+  ctx.moveTo(0, muzzle);
+  ctx.lineTo(0, muzzle - size * TURRET_TRACER);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, muzzle - size * TURRET_TRACER, size * TURRET_SHELL, 0, Math.PI * 2);
+  ctx.fillStyle = withAlpha(PALETTE.white, 1);
+  ctx.fill();
+
+  shipPath(ctx, 0, size * 0.66, size * TURRET_SHIP, -Math.PI / 2, 1.6);
   ctx.fillStyle = withAlpha(tint, 0.9);
   ctx.fill();
 }

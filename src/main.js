@@ -289,6 +289,20 @@ window.STARFALL = {
       tetherHit: world.tether.hit,
       tetherHeld: world.tether.held,
       tetherSteps: world.tether.steps,
+      // The fence, as far as a headless run can see it (game/turret.js): how many guns are standing, how
+      // many crews have gone down and how many guns they were, and then the four counters that are the
+      // line's whole story. `turretHit / turretShots` is the accuracy - how often a shell that was thrown
+      // came round a body, which is the only way to tell a gun firing into traffic from a gun firing into
+      // empty sky - and `turretSeen / turretSteps` is the duty: what share of the time a gun stood it had
+      // somebody in its sight at all, which is the only way to tell a fence planted in the crowd from a
+      // fence planted in a field.
+      turret: world.turret.stands.count,
+      turretCrews: world.turret.crews,
+      turretGuns: world.turret.guns,
+      turretShots: world.turret.shots,
+      turretHit: world.turret.hit,
+      turretSeen: world.turret.seen,
+      turretSteps: world.turret.steps,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

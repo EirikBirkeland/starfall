@@ -22,6 +22,7 @@ import { chill } from './chill.js';
 import { widestEnemyRadius } from './kinds.js';
 import { burst, spray } from './effects.js';
 import { cueBeep } from './cues.js';
+import { noteShell } from './turret.js';
 
 /**
  * The shape of a bullet. `shoot` in game/weapons.js writes every field, so nothing leaks
@@ -33,7 +34,11 @@ import { cueBeep } from './cues.js';
  * is spent on every body it goes through. `bounce` is the same for the ricochet line -
  * the turns it has left - and a turn is only taken when there is nothing left ahead of the
  * shot to go through. `charged` says the gun was loaded when the trigger moved, for the
- * whole flight of the shot (game/overcharge.js). `hits` is who it has already touched - a
+ * whole flight of the shot (game/overcharge.js). `turret` says the shot came off a gun the ship
+ * left standing in the road rather than out of its own trigger (game/turret.js) - it is the run's own
+ * shot in every way that matters, and the flag exists for one reason: this loop is the only place in
+ * the game that ever knows a shot landed, so it is the only place a turret's own accuracy can be
+ * counted. `hits` is who it has already touched - a
  * shot at 620 px/s is inside a body for several steps and a passed-through body it kept
  * meeting would be shaved once per step otherwise - and it is also what stops a turned shot
  * coming back for a body it has already spent itself on.
@@ -41,7 +46,7 @@ import { cueBeep } from './cues.js';
 export function makeBullet() {
   return {
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
-    life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, charged: false, hits: [],
+    life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, charged: false, turret: false, hits: [],
   };
 }
 
@@ -236,6 +241,9 @@ export function updateBullets(world, dt) {
       // Every hit the ship lands sets the body alight, and that includes the one that brought
       // it down (game/burn.js): a body that died alight is what the third rank is for.
       ignite(world, enemy);
+      // And a shell that came off a gun the ship left standing in the road is counted there, because
+      // that is where that line keeps its own books (game/turret.js).
+      if (bullet.turret) noteShell(world);
       // Only a hit that did not kill makes the impact sound; a kill plays its own.
       if (!killed) cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
 

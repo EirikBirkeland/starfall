@@ -1690,6 +1690,175 @@ export const BALANCE = {
         sound: { freq: 1480, dur: 0.04, wave: 'square', vol: 0.016, slide: 520 },
       },
     },
+
+    // Turret (game/turret.js): PLAN 3.2's "a stationary turret is placed every 12 s and lasts 10 s",
+    // and the last of the five secondary systems that table asks for. It is the only damage in the deck
+    // that aims: everything else the ship adds pays out round the hull or along the road it just drove,
+    // and this is a shooter standing somewhere else, choosing a body and firing at it. Which makes it
+    // the second line in a row that the power ladder cannot price honestly and the run can - a knot of
+    // immortal bodies pinned round the ship is a crowd a fence planted down the road never sees - so
+    // every number below is quoted off `tools/line-ab.js --line turret`.
+    turret: {
+      ranks: 5,
+      // A line of whole things (`each`, game/upgrades.js), and the whole things are guns: a crew is
+      // `step x rank` of them, planted in a line across the road the ship is travelling. Rank 1 is
+      // PLAN's single turret on PLAN's beat; rank 5 is a fence of five with the road in the middle of
+      // it. The beat never changes with the rank, which is the shape decision in this card and mines'
+      // before it: a rank buys a longer fence and not a quicker drum, so what it is worth is ground.
+      step: 1,
+      // s between crews. PLAN's own number, unchanged: one crew every twelve seconds, however many
+      // guns are in it. It is the slowest beat in the deck by a factor of four, and that is the price
+      // of the line being a *place* - a minefield renews every three seconds and is gone when you stop
+      // laying, while this puts down a gun you can fight around and then makes you wait.
+      cycle: 12,
+      // s a gun holds the ground it was set down on. PLAN's own number, and read together with the
+      // beat it is the whole shape of the card: ten seconds of the twelve there is a fence standing
+      // where the ship was going, and two seconds where there is nothing at all. It cannot be raised to
+      // twelve without the line becoming permanent scenery, and it is long enough that a ship running
+      // loops gets its own guns back at the end of each one.
+      life: 10,
+      // s of that life a gun spends visibly going out, so the arena says which guns are still holding
+      // ground without a meter for it (render/entities.js fades the whole gun on this).
+      fade: 1.2,
+      // px down the road the first gun of a crew is set down at, measured from the ship's own middle
+      // along the way it was going (its nose, if it has stopped going anywhere). It wants to be out
+      // past the orbital ring and the nova's front - the two things that already live round the hull -
+      // and short enough that a ship at full speed passes its own fence inside half a second and leaves
+      // it covering the road behind.
+      stand: 150,
+      // px between the guns of one crew, measured across the road rather than down it. This is the
+      // whole reason a crew is a fence and not a second minefield: the guns of a crew are laid out
+      // across the lane the ship is travelling down rather than in a file along it, so a rank is a
+      // wider fence and not a longer one. It is half `reach`, and the sweep is what made it that: at 70
+      // the fifth rank is four guns aiming at the same body from the same place and the whole crew fits
+      // inside one body's turning circle (+16.6% of a run's damage for five free ranks), at 260 the two
+      // ends of the fence are further from the road than their own sight lines reach and the middle of
+      // it - the road the ship is on - falls in a gap (+11.9%), and at 150 the five of them throw one
+      // overlapping line of light across the lane and the crowd has to walk through some part of it
+      // whichever way it comes (+17.7%). Past `reach` a rank-five crew also spans more of the arena
+      // than the glass shows, which is a card that cannot be read off the screen.
+      gap: 150,
+      // px a planted gun keeps off the arena wall. The road runs into a wall now and then, and a gun
+      // set down outside the arena would be a gun nobody could see or reach, so the fence bends at the
+      // wall instead (game/waves.js lands bodies the same way).
+      pad: 26,
+      // px a gun will look for a body, measured to the body's own skin, and - because the sight line
+      // drawn on the floor and the shell's own range are the same number - how far its shell flies.
+      // Swept on the run at 200, 300 and 380 (six seeds, weight as below), and it is the flattest
+      // number in this block: five free ranks are worth +6.2% of a run's damage at 200, +16.6% here and
+      // +16.6% at 380, which is the line saying it wants to be *somewhere* rather than long. So it is
+      // set by what the picture can show and what the ship is left to do: 200 is a picket that sees the
+      // chase come up into it and nothing else, and 380 starts shooting at bodies on the far side of the
+      // ship, which is the ship's own job. 300 is "the near field and a bit" - further than the nova's
+      // front, a good deal short of the gun's own reach.
+      reach: 300,
+      // rad/s a gun swings at. It has to swing: a shell only leaves down the nose, which is the whole
+      // difference between a turret and a rune on the floor, and it is what makes the geometry of a
+      // fence matter - a gun born looking down the road has to come about to shoot the chase off the
+      // ship's tail, and the time that takes is the price of planting it ahead.
+      turn: 6,
+      // rad inside the line to its lock a gun counts as lined up, and will only fire inside. Tight
+      // enough that the swing has to actually finish, wide enough that a gun tracking a body that is
+      // walking across it keeps firing rather than stuttering at the edge of the tolerance.
+      aim: 0.16,
+      // s a gun waits between shells, per gun and not per line: five guns fire five times as often as
+      // one, which is what a rank is. One second, so one gun is worth one heavy shot a second.
+      beat: 1,
+      // What a shell costs the body it comes round, as a multiple of one shot of the ship's own gun,
+      // with the damage line multiplied into it exactly as it multiplies a drone's bite, a nova front,
+      // a mine and a thread (session 31's rule: an added source has to grow with the gun or it stops
+      // being worth taking), and read as the shell leaves.
+      //
+      // MEASURED on the run, because the ladder prices this line the wrong way up:
+      // `tools/power-ladder.js --line turret` gives five ranks 5.66x on the ring, 5.85x on the column and
+      // 5.47x on the near field - one rank of a fence worth 3.24 ranks of the gun - and it gets that by
+      // standing a rank-five crew in a knot of thirty bodies that never leave, where every gun has a lock
+      // for ever and a rank is five more guns on the same pile. In a run the crowd walks *through* a fence
+      // instead of standing in it, and the same five ranks are worth +9% of a run.
+      // The instrument is `tools/line-ab.js --line turret`, swept over the whole plausible range of this
+      // one number rather than read off one setting, because a single setting of it would have had to be
+      // judged and there is nothing here to judge it against - the columns move by a few percent and the
+      // two of them that matter disagree:
+      //
+      //   weight  dealt score  dealt damage  ranks taken  free score  free damage
+      //     1.6      0.793x       0.832x        2.0          1.090x       1.047x
+      //     2.4      0.650x       0.743x        1.5          1.090x       1.065x
+      //     3.4      0.889x       0.921x        1.5          1.096x       1.099x
+      //     4.0      0.915x       0.926x        2.0          1.096x       1.152x
+      //     5.0      0.992x       1.006x        2.5          1.094x       1.177x
+      //     6.5      0.910x       0.988x        2.0          1.096x       1.237x
+      //
+      // (the first three rows are eight seeds, the last three twelve; `dealt` is the line dealt like
+      // every other card and the bot choosing it, `free` all five ranks handed from the first frame.)
+      //
+      // **The score column does not care what a shell costs.** Five free ranks are worth +9% of a run
+      // at 1.6 and +9% at 6.5, while the damage they take off climbs from +5% to +24% over the same
+      // sweep: the fence's worth is the ground it holds, exactly as the shape decision claims, and a
+      // heavier shell mostly buys damage on bodies the gun was going to spend on anyway (mines'
+      // session found the same disagreement between the two columns and for the same reason). So the
+      // weight is set where the card is worth taking and not where the damage looks impressive.
+      //
+      // **5 is where `dealt` comes back to level**, which is the best this column gives any of the floor
+      // lines: the bot takes 2.5 ranks of it on its own and the runs it dies in are no worse than the
+      // control's (-0.8% of score on twelve seeds, -2.6% on six), where at 4 it is -8.5% and at 6.5
+      // -9%. Read the climb for what it is: the card costs a *slot*, so a fence that does nothing is
+      // worse than no fence at all and a fence that does a lot is worth the slot it takes. Above 5 the
+      // shells stop paying for themselves - free damage keeps climbing and free score refuses to follow
+      // it. Mines reads +1.1% and tether +2-3% for five free ranks in the same column; this is +7.5 to
+      // +9.4% depending on the seeds, which is the family it belongs to and at the top of it, and the
+      // top is what a line that travels with the ship rather than standing still should not be - so read
+      // the `free` column as the ceiling of a card the bot cannot use on purpose and `dealt` as the
+      // honest one.
+      //
+      // What the line actually did, rather than what the run scored: at five ranks the twelve seeds
+      // planted 72 crews and 360 guns, threw 3,084 shells and came round 2,055 of them - 0.67 of a body
+      // per shell, which is a gun that misses a third of the time rather than an aura with a muzzle, and
+      // the number the accuracy tests in test/turret.test.mjs are the headless stand-in for. The duty
+      // reading off the same batch is 364,209 of 429,095 gun-steps with somebody in sight: five guns in
+      // six had a lock, because a fence planted down the road of a run is standing in the traffic almost
+      // all the time it is standing at all - which is the one assumption the whole shape of this card
+      // makes, and the one the measurement says holds.
+      //
+      // And one finding the sweep can only hint at. NOTES has written this sentence about afterimage and
+      // about magnetar, and it is true of this line too: the bot runs in straight lines, and a fence is a
+      // *place* - worth returning to, worth herding a crowd through, worth planting on the ground you
+      // mean to fight on - which is worth nothing to a run that never returns anywhere. That is why the
+      // weight here is chosen where `dealt` stops being a punishment rather than where `free` peaks, and
+      // why a player who uses a fence on purpose should clear these numbers by a long way.
+      weight: 5,
+      // px the shell is born out along the nose, so it leaves the barrel and not the middle of the
+      // mount - the same little piece of honesty `noseOffset` buys the ship's own gun.
+      muzzle: 9,
+      // px/s of ship speed under which "the way I was going" stops meaning anything and the crew is
+      // laid out across the nose instead (game/mines.js `drifting` is the same question, asked the
+      // other way round).
+      drifting: 40,
+      // The shell itself. It is a bullet of the ship's own gun in every way that matters - it is paid
+      // out by game/bullets.js, it frosts and it lights, and the run gets the kill - and it carries no
+      // pierce and no ricochet, because those two lines are bought for the ship's trigger and this gun
+      // is not the ship's. `speed` is the pulse's, so a turret's tracer reads as the same ammunition
+      // fired from somewhere else, and `knock` is small: a shell that shoves is a shell that pushes the
+      // crowd off the ground the fence was planted to hold.
+      shell: { speed: 620, knock: 0.05 },
+      // A crew going down: one light and one note per gun at the place it landed, and one note for the
+      // crew. The sound is quiet and a little lower than a mine landing, because a crew of five arrives
+      // at five places at once and the mix has no voice limiting yet (milestone 7).
+      planted: {
+        ring: { radius: 6, speed: 150, life: 0.25 },
+        sound: { freq: 520, dur: 0.06, wave: 'square', vol: 0.018, slide: 300 },
+      },
+      // One shell leaving: a small flare off the muzzle along the nose, and a hard little report.
+      shot: {
+        count: 3, speed: 190, life: 0.16,
+        sound: { freq: 900, dur: 0.04, wave: 'square', vol: 0.018, slide: 420 },
+      },
+      // A gun going out unwasted: a ring closing in on the place it stood, and a note quiet enough that
+      // the arena is not noisy about the ground the ship did not hold.
+      gone: {
+        ring: { radius: 9, speed: -40, life: 0.3 },
+        sound: { freq: 300, dur: 0.07, wave: 'triangle', vol: 0.012, slide: 190 },
+      },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).
