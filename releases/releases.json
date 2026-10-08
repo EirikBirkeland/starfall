@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.5",
+    "date": "2026-10-08",
+    "summary": "Nova: a ring of damage leaves the ship every 8 s, and a rank buys one more inside the cycle"
+  },
+  {
     "version": "0.4.4",
     "date": "2026-10-08",
     "summary": "Orbitals: a ring of drones round the ship, two more per rank, biting whatever stands in it"
