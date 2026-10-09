@@ -1,0 +1,5 @@
+Bug report as of Oct 9, 2026 - 8:46 am:
+
+During powerup selection, long strings exceed the bounds of the card.
+Suggestion: Allow for more text space in cards or simply keep descriptions low.
+

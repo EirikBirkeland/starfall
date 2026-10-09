@@ -323,6 +323,14 @@ window.STARFALL = {
       turretHit: world.turret.hit,
       turretSeen: world.turret.seen,
       turretSteps: world.turret.steps,
+      // The synergy, as far as a headless run can see it (game/shock.js): how many bodies came apart
+      // both alight and cold, how many were standing in one when they did, and how much hull the
+      // blasts took off them. `shockCaught / shockBlasts` is the one number the card's weight was
+      // priced on - how many bodies a detonation is worth - and a run that never earned the card
+      // reads zero in all three, which is the gate being provably shut.
+      shock: world.shock.blasts,
+      shockCaught: world.shock.caught,
+      shockDealt: world.shock.dealt,
       fps: lastFps,
       alpha: lastAlpha,
       steps: world.steps,

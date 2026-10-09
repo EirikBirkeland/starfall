@@ -13,7 +13,7 @@ import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
 import {
   LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf,
-  countOf, pierceOf, rateOf,
+  countOf, pierceOf, rateOf, isSynergy,
 } from '../src/game/upgrades.js';
 import { fire, shotsPerSecond, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
@@ -119,6 +119,10 @@ test('a line with no ranks to give is never dealt, not even as the something new
   //
   // The shape that makes the guarantee fire: every line with a rank left has been taken
   // at least once, so there is nothing fresh in the deal and the guarantee goes looking.
+  //
+  // The synergy is maxed out here as well, because this test is about a deck with nothing
+  // new in it and an earned synergy *is* something new - test/synergies.test.mjs is where
+  // it is asked about.
   const ghost = 'split';
   const depth = BALANCE.upgrades[ghost].ranks;
   BALANCE.upgrades[ghost].ranks = 0;
@@ -127,6 +131,11 @@ test('a line with no ranks to give is never dealt, not even as the something new
       const field = scriptedRun(700 + seed);
       for (const id of IDS) {
         if (id !== ghost) field.upgrades[id] = BALANCE.upgrades[id].ranks - 1;
+      }
+      // The synergy is maxed out here as well: this test is about a deck with nothing new in it,
+      // and an earned synergy *is* something new - test/synergies.test.mjs is where it is asked.
+      for (const id of IDS) {
+        if (isSynergy(id)) field.upgrades[id] = BALANCE.upgrades[id].ranks;
       }
       field.offer.length = 0;
       earnLevel(field);
@@ -198,6 +207,17 @@ test('every line is five ranks deep and worth its step, in its own kind of numbe
   const field = scriptedRun(36);
   for (const line of LINES) {
     const spec = BALANCE.upgrades[line.id];
+    // A synergy is the one card PLAN 3.5 does not start at five ranks: it is owned or it is not,
+    // and it has no `step` to be worth because it sells no quantity (game/upgrades.js will throw
+    // at anything that asks it for one). Its own tests are in test/synergies.test.mjs.
+    if (isSynergy(line.id)) {
+      assert.equal(spec.ranks, 1, line.id + ' is one rank deep, and taking it twice is taking it twice');
+      assert.equal(effectOf(line.id), line.becomes, line.id + ' prints what it becomes');
+      assert.throws(() => gainOf(field, line.id), /not a line of shares/);
+      assert.throws(() => countOf(field, line.id), /not a line of whole things/);
+      assert.throws(() => rateOf(field, line.id), /does not sell a rate/);
+      continue;
+    }
     assert.equal(spec.ranks, 5, line.id + ' is five ranks deep, as PLAN 3.5 starts them');
     field.upgrades[line.id] = spec.ranks;
 

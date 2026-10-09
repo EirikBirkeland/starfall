@@ -63,7 +63,7 @@ const UP = -Math.PI / 2;
  * the step it goes out sideways, so a fire always outlives its body by the one step it needs.
  */
 export function makeFire() {
-  return { target: null, left: 0, due: 0 };
+  return { target: null, left: 0, due: 0, quenched: false };
 }
 
 /**
@@ -95,6 +95,7 @@ function feed(world, enemy, spec, time) {
   const fire = world.fires.spawn();
   fire.target = enemy;
   fire.left = time;
+  fire.quenched = false;
   // It takes a moment to get going. A fire that bit the instant it was lit would be worth a
   // whole bite more than the line says it is, and a body caught in a chain never burns long
   // enough to pay one out at all.
@@ -225,7 +226,10 @@ export function updateBurn(world, dt) {
     // Came apart since the last step - a bullet, a nova front, one of these bites. The fire
     // is one step behind the crowd on purpose: that step is where a death can still spread.
     if (body.hp <= 0) {
-      goOut(world, fires, i, fire, spec);
+      // ...unless the death already paid its ending with a detonation (game/shock.js): that fire
+      // was spent in the blast, and it is put back in the drawer without going out sideways.
+      if (fire.quenched) fires.killAt(i);
+      else goOut(world, fires, i, fire, spec);
       continue;
     }
 
@@ -249,6 +253,54 @@ export function updateBurn(world, dt) {
   }
 
   return world.state === STATE.PLAY;
+}
+
+/**
+ * Is this body alight - does it have a fire of its own going. Asked by game/shock.js, which has
+ * to know whether a corpse wore fire as well as cold before it decides what that death is worth,
+ * and asked by nothing else: every other system lights a fire and never looks to see who is
+ * burning.
+ */
+export function isAlight(world, enemy) {
+  return fireOn(world, enemy) !== null;
+}
+
+/**
+ * Light a body for a stated time, if the run has any fire at all: the door a *death* that throws
+ * fire comes through (game/shock.js), as distinct from the door a hit lands by ({@link ignite}).
+ * The time is the caller's business and is not scaled by anything here - a detonation hands on a
+ * share of what its corpse had, and this file has no way of knowing what a blast was worth.
+ *
+ * A body that has come apart is not lit: it has an ending of its own to pay, and {@link ignite} is
+ * the door that deals with corpses.
+ */
+export function passFlame(world, enemy, time) {
+  if (flameOf(world) <= 0) return null;
+  if (enemy.hp <= 0 || time <= 0) return null;
+  return feed(world, enemy, BALANCE.upgrades.burn, time);
+}
+
+/**
+ * Take a body's fire out of the world without letting it go out sideways. Only a detonation has
+ * ever needed this (game/shock.js): the fire is spent *in* the blast, so it must not also arrive
+ * on the neighbours a step later, and the one corpse must pay one ending and not two.
+ *
+ * It *marks* the fire rather than removing it, and that is not laziness: this is called from
+ * inside a death, and a death can be on its way through `updateBurn`'s own walk of this pool -
+ * a fire that bit a body which then came apart can quench a different body's fire, and taking a
+ * slot out of the pool from under that loop would move an object the loop has not come back for
+ * (core/pool.js swap-removes). A mark costs one compare in the one place that already looks at
+ * every fire, and the fire goes back in the drawer on the step that finds its body gone.
+ */
+export function quenchFlame(world, enemy) {
+  const fires = world.fires;
+  for (let i = 0; i < fires.count; i++) {
+    if (fires.items[i].target === enemy) {
+      fires.items[i].quenched = true;
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

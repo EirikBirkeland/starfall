@@ -53,6 +53,16 @@ const WHOLE_UNIT = 'each';
 const RATE_UNIT = 'rate';
 
 /**
+ * The fourth kind, and it belongs to the synergies only: a card that is *owned or not owned*
+ * and has no quantity in it at all (PLAN 3.5's table: two lines deep enough, and something new
+ * becomes available). It is not a share of anything and not a count of anything, so none of the
+ * three accessors below will read it - `1 + step * rank` and `step * rank` would both be
+ * invented numbers - and it is asked the one question it can answer ({@link hasSynergy}). Its
+ * card prints a sentence instead of a number, which is what `becomes` is for.
+ */
+const SYNERGY_UNIT = 'synergy';
+
+/**
  * The lines, in the order the cards are dealt from. `id` is the key into
  * BALANCE.upgrades and into `world.upgrades`; `unit` is one of the two words above and
  * `what` is the thing the line sells, so the card can print `step` next to it;
@@ -196,6 +206,19 @@ export const LINES = [
     flavour: 'A gun is set down across the road ahead and holds that ground for ten seconds, aiming and firing at whatever it can see. Mines arm the road behind you; this arms the road in front. One more gun per crew for every rank.',
     icon: 'turret',
   },
+  // The first synergy (PLAN 3.5's table, and the last entry in LINES on purpose: table order is
+  // LINES order, so a synergy is always the right-hand card and a player learns to look there).
+  // What it needs is in `BALANCE.upgrades.thermalShock.needs`, not here, because no number lives
+  // in this file. It has one rank, it is never drawn out of the deck like a line, and it cannot be
+  // banished: it is not a line the run has no use for, it is what the run's own lines have become.
+  {
+    id: 'thermalShock',
+    name: 'THERMAL SHOCK',
+    unit: SYNERGY_UNIT,
+    becomes: 'A COLD CORPSE GOES UP',
+    flavour: 'Fire and frost in one body is a contradiction, and this is what it is worth: a body that comes apart alight and frozen takes the room around it with it. It pays to keep a body under fire - the colder it was, the harder it goes.',
+    icon: 'thermalShock',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -268,9 +291,32 @@ export function stepOf(id) {
   return BALANCE.upgrades[id].step;
 }
 
+/**
+ * The lines this card is the payoff for, as [{ line, rank }], or undefined for a line. This is
+ * the whole difference between a synergy and a line: a line is dealt whenever the deck has a rank
+ * of it left, and a synergy is dealt only once the run has earned it (game/upgrades.js
+ * `readySynergies`, and render/cards.js draws its special frame off this same answer).
+ */
+export function needsOf(id) {
+  return BALANCE.upgrades[id].needs;
+}
+
+/** Is this card a synergy - earned by what the run is built of rather than dealt out of the deck? */
+export function isSynergy(id) {
+  return needsOf(id) !== undefined;
+}
+
+/** Does this run own the synergy - i.e. has it taken the card. */
+export function hasSynergy(world, id) {
+  return rankOf(world, id) > 0;
+}
+
 /** The plain line under the card's name: what one more rank is worth, in words. */
 export function effectOf(id) {
   const line = lineOf(id);
+  // A synergy sells a state and not a quantity, so it says what it becomes rather than what a
+  // rank adds - there is no second rank of it to add.
+  if (line.unit === SYNERGY_UNIT) return line.becomes;
   if (line.unit === WHOLE_UNIT) return '+' + stepOf(id) + ' ' + line.what;
   return '+' + Math.round(stepOf(id) * PERCENT) + '% ' + line.what;
 }
@@ -466,11 +512,43 @@ function isBanished(world, id) {
 function linesWithRoom(world) {
   const room = [];
   for (const line of LINES) {
+    // A synergy is never drawn out of the deck. It has its own way on to the table
+    // (`readySynergies`), which is what keeps an unearned one from being a card that could have
+    // been dealt by luck and keeps the ordinary deal spending exactly the random numbers it spent
+    // before synergies existed.
+    if (isSynergy(line.id)) continue;
     if (rankOf(world, line.id) >= maxRanksOf(line.id)) continue;
     if (isBanished(world, line.id)) continue;
     room.push(line);
   }
   return room;
+}
+
+/**
+ * Has this run gone deep enough into its own lines to have earned a synergy.
+ */
+function needsMet(world, id) {
+  for (const need of needsOf(id)) {
+    if (rankOf(world, need.line) < need.rank) return false;
+  }
+  return true;
+}
+
+/**
+ * The synergies this run has earned and has not taken yet, in table order, minus whatever this
+ * particular deal is refusing (`off` - see `rerollOffer`: turning the table over is the one way a
+ * run can send an earned card away for a level, and it comes back at the next one).
+ */
+function readySynergies(world, off) {
+  const ready = [];
+  for (const line of LINES) {
+    if (!isSynergy(line.id)) continue;
+    if (rankOf(world, line.id) >= maxRanksOf(line.id)) continue;
+    if (isBanished(world, line.id) || off.indexOf(line.id) >= 0) continue;
+    if (!needsMet(world, line.id)) continue;
+    ready.push(line.id);
+  }
+  return ready;
 }
 
 /** PLAN 3.5: weighted towards what the player already has. */
@@ -522,15 +600,39 @@ function drawLine(world, off) {
  */
 function guaranteeSomethingNew(world, offer, off) {
   if (offer.length === 0) return;
+  // A synergy face up on the table *is* the new thing: it is the newest card the deck has and the
+  // one the run has been walking towards, so the promise is already kept and this must not spend
+  // itself replacing something else with a second ordinary card.
   for (const id of offer) if (rankOf(world, id) === 0) return;
   const fresh = [];
   for (const line of LINES) {
     if (rankOf(world, line.id) !== 0 || maxRanksOf(line.id) <= 0) continue;
+    // A synergy is not this promise's business: it has its own way on to the table, and reaching
+    // for one here would be a second hand dealing the same card.
+    if (isSynergy(line.id)) continue;
     if (isBanished(world, line.id) || off.indexOf(line.id) >= 0) continue;
     fresh.push(line.id);
   }
   if (fresh.length === 0) return;
   offer[offer.length - 1] = logic.pick(fresh);
+}
+
+/**
+ * Put every synergy the run has earned face up, before anything is drawn, so that a payoff a run
+ * has built towards is never something it has to get lucky to be shown. The whole argument for
+ * this is the shape of the card: burn 3 and chill 3 is six levels of deciding to be a fire-and-ice
+ * run, and a reward for that decision which then came up or not on the throw of a weighted die
+ * would be a reward the run could lose without ever being offered it.
+ *
+ * They go on first because the draw fills what is left and the table is sorted afterwards: the
+ * synergy is not *added* to a full table, it takes a place in it, and a run that has earned two of
+ * them at once is choosing between two synergies and one line.
+ */
+function placeEarnedSynergies(world, table, off) {
+  for (const id of readySynergies(world, off)) {
+    if (table.length >= BALANCE.cards.offer) break;
+    table.push(id);
+  }
 }
 
 /**
@@ -542,6 +644,7 @@ function guaranteeSomethingNew(world, offer, off) {
  */
 function fillOffer(world, table, off) {
   const skip = off === undefined ? [] : off;
+  placeEarnedSynergies(world, table, skip);
   while (table.length < BALANCE.cards.offer) {
     const id = drawLine(world, table.concat(skip));
     if (id === null) break;
@@ -647,6 +750,10 @@ export function banishOffer(world, index) {
   if (world.state !== STATE.LEVEL || world.banishesLeft <= 0) return false;
   const id = world.offer[index];
   if (id === undefined) return false;
+  // A synergy cannot be cut out of the run. It is not a line the run has no use for - it is what
+  // the lines it chose have already become, and refusing it would be refusing six ranks it spent
+  // levels on, so the card has no tab on it and the key does not answer for it either.
+  if (isSynergy(id)) return false;
 
   const table = world.offer.filter((each) => each !== id);
   world.banished.push(id);
@@ -671,7 +778,10 @@ export function banishedLines(world) {
 export function describeRanks(world) {
   const taken = [];
   for (const line of LINES) {
-    if (world.upgrades[line.id] > 0) taken.push(line.name + ' ' + world.upgrades[line.id]);
+    if (world.upgrades[line.id] <= 0) continue;
+    // A synergy has one rank and no number worth printing next to it: the run either found it or
+    // it did not, and "THERMAL SHOCK 1" reads like a line that stopped short.
+    taken.push(isSynergy(line.id) ? line.name : line.name + ' ' + world.upgrades[line.id]);
   }
   let build = taken.length > 0 ? taken.join('   \u00b7   ') : 'NO UPGRADES';
   // What the run refused is part of what it became: a banished line is a road it did not

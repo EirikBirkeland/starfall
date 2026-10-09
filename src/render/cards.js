@@ -13,7 +13,7 @@
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
-import { banishedLines, effectOf, lineOf, maxRanksOf, rankOf } from '../game/upgrades.js';
+import { banishedLines, effectOf, isSynergy, lineOf, maxRanksOf, needsOf, rankOf } from '../game/upgrades.js';
 import { polygon, roundRect, shipPath } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { haloText } from './hud.js';
@@ -35,6 +35,10 @@ const ASK_GAP_X = 14;       // measure text with, and a click must be measured b
                             // same numbers that drew the target
 const TAB_W = 34;           // the banish tab in a card's top-right corner
 const TAB_H = 24;
+const SYNERGY_INSET = 5;    // px between a synergy's two edges: fire outside, frost inside
+const SYNERGY_WORD = 'SYNERGY';
+const SYNERGY_PLATE_PAD = 9;
+const NEEDS_PLUS = '  +  ';
 const ASK_ROOM = ASK_GAP + ASK_H;   // the window the row of asks under the cards needs
 
 // The shapes, one per line (the ids come from game/upgrades.js). Kept apart
@@ -114,6 +118,12 @@ const TINT = {
   // also means the seventeenth card asks the canvas for no new sprite, which test/draw-cost.test.mjs
   // is watching.
   turret: PALETTE.playerLine,
+  // The eighteenth card on the rack, and the first one that is not a line: a synergy is two lines the
+  // run already owns, so it wears both of their colours and asks the canvas for no new sprite - the
+  // flame is the tint everything below it already shines with, and the frost is a stroke. The frame
+  // is what tells it apart (see `drawSynergyEdges`), not a hue, which is just as well: NOTES session
+  // 47 counted the glow cache and there was no room left in it for a colour of its own.
+  thermalShock: PALETTE.burnFlame,
 };
 
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
@@ -167,6 +177,14 @@ function cardUnder(cards, x, y) {
 const inside = (rect, x, y) =>
   !!rect && x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 
+/** Which of these tabs the glass is over, counting the holes: a null is a card with no tab. */
+function tabUnder(tabs, x, y) {
+  for (let i = 0; i < tabs.length; i++) {
+    if (inside(tabs[i], x, y)) return i;
+  }
+  return -1;
+}
+
 /**
  * The banish tab: the number-key chip's twin, in the mirror corner of the card, reading
  * `Shift + that same number`. Taking a card and refusing it for good are one key apart, so
@@ -180,6 +198,23 @@ function tabRect(rect) {
     w: TAB_W,
     h: TAB_H,
   };
+}
+
+/**
+ * Whether this card has a banish tab at all. A synergy never does: a synergy is not a line the run
+ * has no use for, it is what the lines it chose have become, and game/upgrades.js refuses the ask
+ * as well - so the key and the mouse answer the same way here as they do in the rule.
+ *
+ * Whether the run can still *pay* for a tab is a different question and stays with the click and
+ * the drawing, which is how it always was: a spent ask leaves the geometry on the screen.
+ */
+function tabbable(id) {
+  return !isSynergy(id);
+}
+
+/** The tab's rectangle, or nothing at all for a card that has none. */
+function tabOf(id, rect) {
+  return tabbable(id) ? tabRect(rect) : null;
 }
 
 /**
@@ -210,9 +245,11 @@ export function askLayout(W, H) {
   return askRow(W, H, cardLayout(world.offer.length, W, H));
 }
 
-/** Where each card's banish tab is, in the same window, one per card on the table. */
+/** Where each card's banish tab is, in the same window, one per card on the table - and null for a
+ *  card with no tab, which is what a test clicking one has to be told. */
 export function banishLayout(W, H) {
-  return cardLayout(world.offer.length, W, H).cards.map(tabRect);
+  const layout = cardLayout(world.offer.length, W, H);
+  return layout.cards.map((rect, i) => tabOf(world.offer[i], rect));
 }
 
 /**
@@ -225,9 +262,8 @@ export function choiceHit(x, y) {
   const layout = cardLayout(world.offer.length, view.W, view.H);
 
   if (world.banishesLeft > 0) {
-    for (let i = 0; i < layout.cards.length; i++) {
-      if (inside(tabRect(layout.cards[i]), x, y)) return { banish: i };
-    }
+    const at = tabUnder(layout.cards.map((rect, i) => tabOf(world.offer[i], rect)), x, y);
+    if (at >= 0) return { banish: at };
   }
   const card = cardUnder(layout.cards, x, y);
   if (card >= 0) return { card: card };
@@ -257,9 +293,10 @@ export function drawCards(ctx, pointer) {
   const hover = pointing ? cardUnder(layout.cards, pointer.x, pointer.y) : -1;
   // Only the tab under the pointer lights up, which is how a player learns what the mark is
   // before they have spent anything finding out.
-  const tabHot = pointing && world.banishesLeft > 0
-    ? cardUnder(layout.cards.map(tabRect), pointer.x, pointer.y)
-    : -1;
+  const tabs = world.banishesLeft > 0
+    ? layout.cards.map((rect, i) => tabOf(offer[i], rect))
+    : layout.cards.map(() => null);
+  const tabHot = pointing && world.banishesLeft > 0 ? tabUnder(tabs, pointer.x, pointer.y) : -1;
 
   ctx.save();
   // The arena goes quiet behind the choice rather than going black: the crowd you are
@@ -271,7 +308,7 @@ export function drawCards(ctx, pointer) {
   ctx.textAlign = 'center';
   drawHeading(ctx, W, layout, age);
   for (let i = 0; i < offer.length; i++) {
-    drawCard(ctx, offer[i], layout.cards[i], i, age, hover === i, tabHot === i);
+    drawCard(ctx, offer[i], layout.cards[i], i, age, hover === i, tabs[i], tabHot === i);
   }
   drawAsks(ctx, askRow(W, H, layout), age);
   drawCutOut(ctx, askRow(W, H, layout));
@@ -291,11 +328,12 @@ function drawHeading(ctx, W, layout, age) {
   ctx.globalAlpha = 1;
 }
 
-function drawCard(ctx, id, rect, index, age, hovered, tabHot) {
+function drawCard(ctx, id, rect, index, age, hovered, tab, tabHot) {
   const appear = easeOut(clamp((age - index * STAGGER) / RISE, 0, 1));
   if (appear <= 0) return;
 
   const line = lineOf(id);
+  const synergy = isSynergy(id);
   const tint = TINT[line.icon] || PALETTE.player;
   const w = rect.w;
   const h = rect.h;
@@ -315,16 +353,21 @@ function drawCard(ctx, id, rect, index, age, hovered, tabHot) {
   ctx.fill();
 
   // The edge, twice: once wide and faint for the halo, once crisp. The one being
-  // pointed at is the brighter of the two, which is the whole hover story.
-  const edge = hovered ? PALETTE.playerLine : PALETTE.cardEdge;
-  roundRect(ctx, x, y, w, h, 14);
-  ctx.lineWidth = hovered ? 6 : 4;
-  ctx.strokeStyle = withAlpha(edge, hovered ? 0.3 : 0.16);
-  ctx.stroke();
-  roundRect(ctx, x, y, w, h, 14);
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = withAlpha(edge, hovered ? 1 : 0.72);
-  ctx.stroke();
+  // pointed at is the brighter of the two, which is the whole hover story. A synergy
+  // wears its two parents instead (see `drawSynergyEdges`).
+  if (synergy) {
+    drawSynergyEdges(ctx, x, y, w, h, hovered);
+  } else {
+    const edge = hovered ? PALETTE.playerLine : PALETTE.cardEdge;
+    roundRect(ctx, x, y, w, h, 14);
+    ctx.lineWidth = hovered ? 6 : 4;
+    ctx.strokeStyle = withAlpha(edge, hovered ? 0.3 : 0.16);
+    ctx.stroke();
+    roundRect(ctx, x, y, w, h, 14);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = withAlpha(edge, hovered ? 1 : 0.72);
+    ctx.stroke();
+  }
 
   drawIcon(ctx, line.icon, cx, y + h * 0.26, w * 0.34, tint);
 
@@ -335,11 +378,111 @@ function drawCard(ctx, id, rect, index, age, hovered, tabHot) {
   haloText(ctx, effectOf(id), cx, y + h * 0.65, PALETTE.xpText, 'rgba(88,255,161,0.8)');
 
   drawFlavour(ctx, line.flavour, cx, y + h * 0.755, w * 0.86, w * 0.072);
-  drawRanks(ctx, id, cx, y + h * 0.88, w, tint);
+  // Where a line shows how deep it goes, a synergy shows what it came out of: it has one rank and
+  // no depth to draw, but the two lines that earned it are the whole story of the card.
+  if (synergy) drawNeeds(ctx, id, cx, y + h * 0.88);
+  else drawRanks(ctx, id, cx, y + h * 0.88, w, tint);
   drawKeyHint(ctx, index + 1, x + w * 0.13, y + h * 0.1);
-  if (world.banishesLeft > 0) drawBanishTab(ctx, tabRect(rect), index + 1, tabHot);
-
+  if (tab !== null) drawBanishTab(ctx, tab, index + 1, tabHot);
+  else if (synergy) drawSynergyPlate(ctx, tabRect(rect));
   ctx.restore();
+}
+
+/**
+ * A synergy's frame: its two parents, held apart. The flame is the outside edge - the wide faint
+ * pass and the crisp one over it, exactly the two passes every other card makes, so the shape of a
+ * card on the rack does not change - and the frost is an inner line just inside it, which is what
+ * says *both of them* without a word. Neither is a new colour and neither is a new sprite: this is
+ * the eighteenth card on a rack that ran out of hues four cards ago, and a synergy that is made of
+ * two existing lines should be wearing their colours anyway.
+ */
+function drawSynergyEdges(ctx, x, y, w, h, hovered) {
+  const lift = hovered ? 1 : 0.78;
+
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.lineWidth = hovered ? 7 : 5;
+  ctx.strokeStyle = withAlpha(PALETTE.burnFlame, 0.22 * lift);
+  ctx.stroke();
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = withAlpha(PALETTE.burnFlame, lift);
+  ctx.stroke();
+
+  // The frost, inset: a line of rime just inside the fire, with the same wide pass under it so it
+  // is light and not paint. 5 px is the smallest gap that reads as two separate edges at the
+  // narrowest card the layout will make.
+  const gap = SYNERGY_INSET;
+  roundRect(ctx, x + gap, y + gap, w - gap * 2, h - gap * 2, 14 - gap);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = withAlpha(PALETTE.chillFrost, 0.16 * lift);
+  ctx.stroke();
+  roundRect(ctx, x + gap, y + gap, w - gap * 2, h - gap * 2, 14 - gap);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = withAlpha(PALETTE.chillShell, 0.9 * lift);
+  ctx.stroke();
+}
+
+/**
+ * The plate that says what the card is, in the corner where a line's banish tab would be - the
+ * place a player is already looking at to refuse a card, which is the right place to be told that
+ * this one is not like the others. It is sized to its own word because nothing clicks on it (the
+ * ask chips have to be a fixed width because a click has to be measured by the number that drew
+ * them; this is not clicked, so it can fit its text).
+ */
+function drawSynergyPlate(ctx, tab) {
+  ctx.font = FONT_KEY;
+  const width = ctx.measureText(SYNERGY_WORD).width + SYNERGY_PLATE_PAD * 2;
+  const cx = tab.x + tab.w / 2;
+  const rect = { x: cx - width / 2, y: tab.y, w: width, h: tab.h };
+
+  ctx.fillStyle = 'rgba(9,20,44,0.92)';
+  roundRect(ctx, rect.x, rect.y, rect.w, rect.h, rect.h / 2);
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = withAlpha(PALETTE.burnFlame, 0.7);
+  roundRect(ctx, rect.x, rect.y, rect.w, rect.h, rect.h / 2);
+  ctx.stroke();
+
+  haloText(ctx, SYNERGY_WORD, cx, rect.y + rect.h * 0.67,
+    withAlpha(PALETTE.burnCore, 0.95), 'rgba(255,194,58,0.5)');
+}
+
+/**
+ * The two lines a synergy came out of, in their own tints, where a line's rank pips would be. Both
+ * of them are necessarily deep enough by the time this card is on the table (game/upgrades.js only
+ * deals it when they are), so there is no "not yet" state to draw and the numbers are a receipt and
+ * not a promise.
+ */
+function drawNeeds(ctx, id, cx, y) {
+  const size = font(700, 15);
+  ctx.font = size;
+  ctx.textAlign = 'right';
+  const parts = needsOf(id).map((need) => {
+    const parent = lineOf(need.line);
+    return {
+      text: parent.name + ' ' + need.rank,
+      tint: TINT[parent.icon] || PALETTE.player,
+      width: ctx.measureText(parent.name + ' ' + need.rank).width,
+    };
+  });
+  const plus = ctx.measureText(NEEDS_PLUS).width;
+  let total = plus * (parts.length - 1);
+  for (const part of parts) total += part.width;
+
+  // Measured and laid out from the middle, because the words are the parents' own names and no
+  // constant can know how wide they are.
+  let at = cx - total / 2;
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) {
+      ctx.textAlign = 'center';
+      haloText(ctx, NEEDS_PLUS, at + plus / 2, y, PALETTE.uiFaint, 'rgba(111,143,176,0.3)');
+      at += plus;
+    }
+    ctx.textAlign = 'left';
+    haloText(ctx, parts[i].text, at, y, withAlpha(parts[i].tint, 0.95), 'rgba(111,143,176,0.35)');
+    at += parts[i].width;
+  }
+  ctx.textAlign = 'center';
 }
 
 /**
@@ -497,6 +640,7 @@ const ICONS = {
   nova: iconNova,
   burn: iconBurn,
   chill: iconChill,
+  thermalShock: iconThermalShock,
   leech: iconLeech,
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,
@@ -750,6 +894,62 @@ function iconChill(ctx, size, tint) {
     ctx.moveTo(cos * size * CHILL_TICK_NEAR, sin * size * CHILL_TICK_NEAR);
     ctx.lineTo(cos * size * CHILL_TICK_FAR, sin * size * CHILL_TICK_FAR);
     ctx.strokeStyle = withAlpha(tint, CHILL_TICK_LIGHT - i * 0.1);
+    ctx.stroke();
+  }
+}
+
+/**
+ * A body coming apart between the two of them: the same quiet diamond the burn and the chill icons
+ * carry - because this card is about what happens to a thing you have already hit, not about one
+ * more thing to throw - with the flame climbing its left side and a pair of rime ticks crossing
+ * its right, and the shock going out of it in six short spikes. The spikes are the card: neither
+ * parent has any, because neither of them is an event. No new colour and no new sprite, which is
+ * what let the eighteenth card on the rack be drawn at all (see `TINT`).
+ */
+const SHOCK_SPKES = 6;
+const SHOCK_BODY = 0.26;
+const SHOCK_NEAR = 0.46;
+const SHOCK_FAR = 0.78;
+
+function iconThermalShock(ctx, size, tint) {
+  // The shock first, under everything: alternating flame and rime, so the two parents are the
+  // same shape and the same size and only their colour tells them apart.
+  ctx.lineCap = 'round';
+  for (let i = 0; i < SHOCK_SPKES; i++) {
+    const angle = -Math.PI / 2 + (i / SHOCK_SPKES) * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const frost = i % 2 === 1;
+    ctx.beginPath();
+    ctx.moveTo(cos * size * SHOCK_NEAR, sin * size * SHOCK_NEAR);
+    ctx.lineTo(cos * size * SHOCK_FAR, sin * size * SHOCK_FAR);
+    ctx.strokeStyle = withAlpha(frost ? PALETTE.chillFrost : tint, frost ? 0.75 : 0.9);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  // The flame, on the left of the body and leaning off it.
+  flamePath(ctx, -size * 0.3, size * 0.34, size * 0.66, size * 0.34, -size * 0.1);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+
+  // The body, shared: half the fire's light and half the ice's, because that is the whole card.
+  polygon(ctx, 0, 0, size * SHOCK_BODY, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(PALETTE.burnCore, 0.5);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(PALETTE.chillShell, 0.9);
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // And the rime on its right: two ticks, the cold going out the other way.
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < 2; i++) {
+    const at = size * (0.36 + i * 0.26);
+    ctx.beginPath();
+    ctx.moveTo(size * 0.3, -at);
+    ctx.lineTo(size * 0.62, -at - size * 0.1);
+    ctx.strokeStyle = withAlpha(PALETTE.chillFrost, 0.8 - i * 0.25);
     ctx.stroke();
   }
 }

@@ -18,6 +18,7 @@
 
 import { bootGame } from './harness.js';
 import { escapeDirection, SKILL } from './threats.js';
+import { isSynergy } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 
 /** One 60 Hz frame. The harness drives fixed steps so runs replay exactly. */
@@ -166,6 +167,15 @@ function depthOf(ranks, id) {
 }
 
 function preferredCard(game, offer) {
+  // A synergy is taken the moment it is face up, whatever else is on the table. This is not a
+  // judgement about whether it is worth a slot - the whole point of one is that it is the payoff of
+  // the build the bot has already been paid for - and a bot that let an earned synergy sit face up
+  // while it took a fourth rank of the gun would be measuring a game where synergies do not exist,
+  // which is what every number in NOTES before this card was.
+  for (const id of offer) {
+    if (isSynergy(id)) return id;
+  }
+
   const ranks = game.world.upgrades;
   let best = offer[0];
   for (const id of offer) {

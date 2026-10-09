@@ -23,6 +23,7 @@ import { newMagnetar, updateMagnetar } from './magnetar.js';
 import { newMines, updateMines } from './mines.js';
 import { newTether, updateTether } from './tether.js';
 import { newTurret, updateTurret } from './turret.js';
+import { newShock } from './shock.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
@@ -183,6 +184,11 @@ function createWorld() {
     // of its standing time a gun had somebody in its sight at all. A gun remembers nothing about what
     // it is aiming at: the lock is asked of the crowd every step, like the grid and the packs.
     turret: newTurret(),
+    // What a body that came apart both alight and cold did to the room around it (game/shock.js):
+    // three counters of what the synergy was asked to do and what it made of it. A detonation is
+    // over in the step it happens and remembers nobody, so this is the whole state of the line -
+    // and a mirror as much as a record: nothing in the simulation reads it.
+    shock: newShock(),
     // The packs the world is holding (game/flock.js): one small object per swarm that
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.

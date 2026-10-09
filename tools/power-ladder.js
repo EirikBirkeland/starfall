@@ -73,6 +73,7 @@
 // itself (`tools/line-ab.js --line mines`), as it was for magnetar above.
 
 import { BALANCE } from '../src/game/balance.js';
+import { isSynergy } from '../src/game/upgrades.js';
 import { TAU } from '../src/core/math.js';
 import { setWeapon } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from './headless/scripted.js';
@@ -208,6 +209,11 @@ function rateFor(id, rank, knotAt, seconds) {
 
 const opts = readArgs(process.argv.slice(2));
 const lines = Object.keys(BALANCE.upgrades)
+  // A synergy is not in this list, and not because the arithmetic would not run: one rank of a
+  // synergy *is* the whole card, and a card that needs two other lines at three each measures as
+  // nothing at all on a run that has not taken them. The question a synergy can answer is "what is
+  // it worth on a run that did": tools/line-ab.js --line thermalShock --with burn=3 --with chill=3.
+  .filter((id) => !isSynergy(id))
   .filter((id) => BALANCE.upgrades[id].ranks > 0)
   .filter((id) => opts.line === null || id === opts.line);
 

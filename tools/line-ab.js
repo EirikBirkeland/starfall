@@ -8,6 +8,14 @@
 //   node tools/line-ab.js --line burn --conditions deck,free       two of the three
 //   node tools/line-ab.js --line mines --set weight=0.6    measure a different number for one of
 //                                                        the line's own fields (repeatable)
+//   node tools/line-ab.js --line turret --with burn=3      hold another line at a rank for the whole
+//                                                        run (repeatable; what a synergy needs)
+//
+// A synergy is measured with `--with`, because a synergy on its own does nothing: its own rank is
+// the thing under test and the two parents only have to be there. `--with burn=3 --with chill=3`
+// keeps the parents at that depth from the first frame (the bot may still take more of them, which
+// is why they are pinned with a `max` and not set), and the `free` condition is the one that reads -
+// a synergy is never dealt by luck, so `dealt` and `free` are the same table with the card in it.
 //
 // The three conditions, and why there are three of them:
 //
@@ -59,6 +67,7 @@ const DEFAULTS = {
   conditions: 'out,dealt,free',
   stats: '',
   sets: [],
+  holds: [],
   policy: undefined,
   dash: false,
 };
@@ -76,6 +85,7 @@ function readArgs(argv) {
     else if (arg === '--stats') opts.stats = next();
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--set') opts.sets.push(next());
+    else if (arg === '--with') opts.holds.push(next());
     else if (arg === '--dash') opts.dash = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -102,6 +112,17 @@ function readArgs(argv) {
     if (parts.length !== 2 || !Number.isFinite(value) || !(key in BALANCE.upgrades[opts.line])) {
       console.error('--set wants <key>=<number>, a key of BALANCE.upgrades.' + opts.line
         + ' (one of: ' + Object.keys(BALANCE.upgrades[opts.line]).join(', ') + ')');
+      process.exit(2);
+    }
+  }
+  for (const assignment of opts.holds) {
+    const parts = assignment.split('=');
+    const key = parts[0];
+    const value = Number(parts[1]);
+    if (parts.length !== 2 || !Number.isInteger(value) || value < 0
+      || BALANCE.upgrades[key] === undefined) {
+      console.error('--with wants <line>=<ranks>, a line of BALANCE.upgrades and a whole number '
+        + 'of ranks: ' + assignment);
       process.exit(2);
     }
   }
@@ -169,6 +190,14 @@ async function measure(game, condition, id, opts) {
         // Handed after every step, which is how a rank that was never bought is felt by the very
         // next one - the same door a card taken between two frames goes through (game/upgrades.js).
         if (ranks === 'all') game.world.upgrades[id] = BALANCE.upgrades[id].ranks;
+        // A second line held at a depth instead of raised to it: a synergy needs its parents, and
+        // pinning them with a `max` leaves the bot free to take more of them the way it likes
+        // while guaranteeing the depth the card under test is asking for.
+        for (const assignment of opts.holds) {
+          const parts = assignment.split('=');
+          const held = game.world.upgrades[parts[0]];
+          game.world.upgrades[parts[0]] = Math.max(held, Number(parts[1]));
+        }
         if (opts.dash) dashEscape(game);
       },
     }));
@@ -226,6 +255,7 @@ console.log(table(
   'the ' + opts.line + ' line, measured on ' + opts.seeds + ' seeds at a ' + clock(opts.seconds)
     + ' window, ' + (opts.policy === undefined ? DEFAULT_POLICY : opts.policy) + ' bot'
     + (opts.dash ? ' with the dash pressed' : ' that never dashes')
+    + (opts.holds.length > 0 ? ', on a run that always had ' + opts.holds.join(', ') : '')
     + (changed.length > 0 ? ', with ' + changed.join(', ') : ''),
   'the middle run of each batch, against the first condition listed. `damage` is everything the\n'
   + 'run took off bodies summed over every kind (game/tally.js keeps the sheet), which is the number\n'

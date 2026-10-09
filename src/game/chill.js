@@ -124,14 +124,18 @@ function shatterAt(world, spec) {
 
 /**
  * Add frost to one body, and say what happened: nothing, a colder body, a body that has just
- * frozen solid. It is the one door frost comes in by - a hit landing, or a shatter throwing
- * ice - so the light and the sound of a body going solid cannot be missed by one of them and
- * doubled by the other.
+ * frozen solid. It is the one door frost comes in by - a hit landing, a shatter throwing ice,
+ * and a detonation throwing it too (game/shock.js) - so the light and the sound of a body going
+ * solid cannot be missed by one of them and doubled by the other.
  *
  * A body already frozen is not deepened: there is nothing left to take off its walk, and a
  * hit that buys nothing should not pay for the tell of one.
+ *
+ * Public because a death that throws cold is not a hit: it hands on a share of what the corpse
+ * had, which is a different number from `chillOf` and has to be said out loud rather than
+ * assumed by a system that cannot see the corpse.
  */
-function freeze(world, enemy, amount, spec) {
+export function freeze(world, enemy, amount, spec) {
   const was = enemy.frost;
   if (was >= WHOLE) return;
   const frost = Math.min(WHOLE, was + amount);

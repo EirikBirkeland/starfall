@@ -17,6 +17,7 @@ import { noteDeath, noteHit, hurtByBody } from './tally.js';
 import { shieldSoak } from './shields.js';
 import { isRooted } from './kinds.js';
 import { melt, shatterOnDeath } from './chill.js';
+import { detonateOnDeath } from './shock.js';
 import { feedLeech } from './leech.js';
 import { quarryFor } from './afterimage.js';
 
@@ -115,7 +116,11 @@ export function killEnemy(world, enemy, byPlayer) {
   //
   // The ice first, because it is the corpse's own doing and it spends itself on whatever was
   // standing there when it came apart - before whatever the kind was carrying (game/chill.js).
-  shatterOnDeath(world, enemy, byPlayer);
+  //
+  // And a body that wore fire *and* frost does neither of those things, because a run that owns
+  // the synergy gets one bigger ending out of one death rather than the two of them stacked
+  // (game/shock.js). It is asked first and it says whether it claimed the corpse.
+  if (!detonateOnDeath(world, enemy, byPlayer)) shatterOnDeath(world, enemy, byPlayer);
   if (kind.onDeath) kind.onDeath(world, enemy, byPlayer);
 }
 

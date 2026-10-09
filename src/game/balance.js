@@ -1859,6 +1859,68 @@ export const BALANCE = {
         sound: { freq: 300, dur: 0.07, wave: 'triangle', vol: 0.012, slide: 190 },
       },
     },
+
+    // Thermal shock (game/shock.js): the first of PLAN 3.5's synergies - "Burn 3 + Chill 3:
+    // enemies that are both burning and chilled explode". It is not a line: it has one rank, it is
+    // never dealt until the run has built its way into it, and it is not bought *instead of*
+    // anything - it is what the two lines the run already owns become when they are both deep
+    // enough (game/upgrades.js puts it on the table, game/shock.js pays it out).
+    thermalShock: {
+      // One rank. A synergy is an event and not a meter: taking it twice would be taking it twice.
+      ranks: 1,
+      // What the card is the payoff for, and how deep each of them has to go before it is worth
+      // putting on the table. PLAN's table is the numbers: both halves at their third rank, which
+      // is where each of the two gets its second half (burn's fire jumping a corpse, chill's frost
+      // worth twelve hits instead of fifteen) and so is where the pair starts being a build rather
+      // than two things that happened to happen.
+      needs: [{ line: 'burn', rank: 3 }, { line: 'chill', rank: 3 }],
+      // What a detonation costs every body standing in it, as a multiple of one shot of the ship's
+      // own gun with the damage line multiplied in (session 31's rule, and the same pricing as a
+      // drone's bite, a nova front, a mine, a thread and a shatter), times **how cold the corpse
+      // was**. That last multiply is chill's own lesson arriving a third time: a run with a strong
+      // gun kills a body with about the first shot that touches it, so a payload gated on a body
+      // that survived being shot is a payload that stops working as the gun grows. A body killed
+      // by one cold shot goes up small; a body kept under fire goes up like a room on fire.
+      //
+      // Measured (6 seeds, an 8-minute window, the aware bot, on a run that always had burn 3 and
+      // chill 3): +5.9% of everything a run takes off bodies at 4, +1.5% at 2, +10.3% at 6 and
+      // +20.1% at 8 - and flat in score at every one of them, which is the floor-line disagreement
+      // NOTES has been writing up since Mines arriving a fourth time: all six of these runs survive
+      // the whole window, so score cannot move and damage is the only column that answers. What the
+      // blasts were asked to do at 4: 2,875 of them, 2,416 bodies caught (0.84 a blast - most find
+      // one body, a few find three), 8,368 of hull off them against the run's own 27,756, so the
+      // card is worth about a third of the damage and almost all of that is *substituted* for shots
+      // the run would have spent anyway. Worth a third of a run's damage for one level and one slot:
+      // that is what it costs, and eight times the gun is not. The honest caveat is that a run which
+      // dies at four minutes - the one where a crowd closing in has to be erased, which is the whole
+      // customer for this card - is a run that measurement cannot price at all.
+      weight: 4,
+      // px, measured to a body's own middle, and - because the flash drawn on the arena is born at
+      // exactly this number (game/shock.js) - the reach the eye is shown. The same as a fire's jump
+      // and a shatter's front on purpose: the three of them are the same shape of payoff, a death
+      // that reaches the bodies standing next to it, and one of them being wider than the others
+      // would be a colour the player cannot tell apart from a distance.
+      radius: 96,
+      // How much of a whole frost a body caught in the blast gains, as a share of the frost the
+      // corpse died with, and how much of a whole burn it catches (in seconds of burn time, scaled
+      // the same way). Both are shares and both are the *only* decay this chain has: each hop is
+      // colder, dimmer and weaker than the one before it, so a detonation runs down a crowd and
+      // dies out instead of walking the arena off one drifter - which is the rule every other
+      // chain in the deck signs (game/burn.js `spread`, game/chill.js `shatter`) and the reason a
+      // synergy cannot be a loop that plays itself.
+      cold: 0.6,
+      fire: 0.6,
+      // The flash. It wears *both* of its parents and no third colour of its own: a nearly white-hot
+      // ring (the hottest thing in the palette is what a burst of both temperatures at once looks
+      // like) with embers and chips of ice coming off it. The ring runs out by the cold the corpse
+      // had, so a body that died of one cold shot never claims as much room as one kept under fire
+      // (game/chill.js `light` argues the same thing).
+      flash: { ring: { radius: 12, speed: 700, life: 0.3 }, embers: { count: 10, speed: 260, life: 0.45 } },
+      // The glass, which belongs to a body that actually wore the shell: at the synergy's own gate
+      // nearly every kill in a late run is both alight and cold, and a shriek of breaking ice on
+      // every one of them would be a hiss (game/chill.js holds its own sound back the same way).
+      broke: { count: 12, speed: 300, life: 0.55, sound: { freq: 1300, dur: 0.12, wave: 'square', vol: 0.03, slide: 220 } },
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

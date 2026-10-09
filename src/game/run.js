@@ -23,6 +23,7 @@ import { resetMagnetar } from './magnetar.js';
 import { resetMines } from './mines.js';
 import { resetTether } from './tether.js';
 import { resetTurret } from './turret.js';
+import { resetShock } from './shock.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -90,6 +91,9 @@ export function resetRun(world) {
   // their ground for ten seconds at the most, but a run can end inside that and a gun left standing
   // would be firing at the next run's crowd off a spot the last one chose.
   resetTurret(world);
+  // And whatever the last run's detonations were counted as (game/shock.js). The blasts are gone
+  // with the crowd; the counters are this run's own scorecard and start again with it.
+  resetShock(world);
   world.enemies.length = 0;
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();

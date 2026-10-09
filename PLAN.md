@@ -305,6 +305,20 @@ Synergies (give these a special card frame, and discover them in the codex):
 | Overcharge 3 + Lance weapon | **Railgun**: the charged lance crosses the whole arena |
 | Nova 3 + Shield 3 | **Aegis burst**: losing the shield triggers a nova |
 
+Built: the first of them, and the mechanism the rest will use. A synergy is a card with `needs` and
+one rank, dealt by the run's own build rather than drawn from the deck - the moment both parents are
+deep enough it is face up on the next level, in the right-hand place, unbannishable (a run refusing
+what its build became is not a choice), and gone for good once taken. Its frame is the two parents'
+edges, flame outside and rime inside, with a SYNERGY plate where the banish tab would be. The rule
+the card buys is one corpse, one ending: a body that came apart alight *and* frosted detonates
+**instead of** shattering and **instead of** passing its fire, paying out hull, cold and fire at once
+in one blast scaled by how cold the corpse was. `game/shock.js` argues it, `test/shock.test.mjs`
+tests it, and `BALANCE.upgrades.thermalShock` has the measurement.
+
+Storm, the saw ring and the minefield can be built the same way whenever a session takes one; the
+railgun waits on the lance and the Aegis burst on a shield line the game does not have yet
+(milestone 5 and 3.7).
+
 ### 3.6 Experience curve
 
 XP needed for level n: `8 + n × 6 + n² × 0.9`, rounded. A good run reaches about level 35 by the final boss.
@@ -600,7 +614,18 @@ When every item above is ticked, go back to the first unchecked item of mileston
       taking a card. A run is granted one of each (`BALANCE.cards.rerolls`, `.banishes`),
       spent with R and Shift + a card's number or with the two chips under the cards, and an
       ask that could buy nothing is refused and kept. The hangar of 3.7 sells more of both.)
-- [ ] Synergies, with their special card frame.
+- [x] Synergies, with their special card frame.
+      (The first one is in: **Thermal shock** - Burn 3 + Chill 3, and a body that comes apart both
+      alight and frozen takes the room around it with it (`game/shock.js`, `BALANCE.upgrades.thermalShock`).
+      A synergy is a fifth kind of card, not a line: one rank, never drawn out of the deck, dealt only
+      to a run that has earned it (`needs` in its balance entry, `readySynergies` in `game/upgrades.js`),
+      never banishable, and worth a whole `+5.9%` of a run's damage at weight 4. On a body that wore
+      both parents it pays one ending and not two: the detonation stands in for the fire's jump and for
+      the shatter, and the corpse's fire is spent inside the blast. The special frame is in `render/cards.js`:
+      the flame as the card's outside edge, a line of rime just inside it, a SYNERGY plate where a line's
+      banish tab would be, and the two parents named where a line's rank pips are - both parents' colours
+      and no new hue and no new sprite, because the glow cache had no room for one.) (The frame and the first of the six are in -
+      `game/shock.js`, and the table above says which four are left and what each is waiting for.)
 - [ ] Owned-upgrade icons on the HUD.
 - [ ] Release.
 
