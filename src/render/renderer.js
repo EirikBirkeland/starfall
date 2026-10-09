@@ -9,7 +9,7 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -82,6 +82,10 @@ export function renderFrame(tick, input, pointer) {
     // And under it for the same reason: a lock is a promise across the whole arena and
     // nothing standing in the middle of it may be allowed to hide it (game/beams.js).
     drawLocks(ctx, world.enemies, tick.alpha);
+    // And under it for the same reason: the ship's own lance is drawing a band across the arena
+    // while it winds up, and the band is the only way to see a line that reaches the far wall
+    // coming (game/lance.js).
+    drawLanceLocks(ctx, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     // Over the crowd and under the ship: a fire is on the body it is eating, and the one
     // thing it must never do is hide the ship behind somebody else's flames (game/burn.js).
@@ -93,6 +97,10 @@ export function renderFrame(tick, input, pointer) {
     // Under the ship for the same reason: a beam is the loudest light in the arena for a
     // fifth of a second and the ship must never be lost inside it (PLAN section 1).
     drawBeams(ctx);
+    // Under the ship for the same reason, and over the crowd on purpose: a lance's band is where the
+    // hull came off, and the ship must never be lost inside the light of its own gun
+    // (game/lance.js).
+    drawLanceBeams(ctx);
     // Under the ship for the same reason again, and over the crowd on purpose: a thread is the road
     // between where the dash was and where the ship is, and it must never be hidden by the bodies it
     // is burning (game/tether.js).

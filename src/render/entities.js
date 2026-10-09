@@ -25,6 +25,7 @@ import { chargeOf as fieldChargeOf, hasMagnetar, isPrimed as fieldPrimed } from 
 import { fadingBy } from '../game/afterimage.js';
 import { armingOf, fadingOf, fusingOf } from '../game/mines.js';
 import { lettingGoOf, pulsingBy } from '../game/tether.js';
+import { isWinding, windOf } from '../game/lance.js';
 import { aimedOf, fadingOf as turretFadingOf, reloadingOf } from '../game/turret.js';
 import { world } from '../game/world.js';
 
@@ -407,6 +408,68 @@ export function drawLocks(ctx, list, alpha) {
     bandPasses(ctx, x0, y0, x1, y1, half, light, PALETTE.beamEdge, PALETTE.beamCore);
     paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
   }
+}
+
+// The lance's own two halves (game/lance.js): the band the gun is aiming while it winds up, and the
+// light of the band that went off. One promise drawn twice, exactly as a sniper's lock and its beam
+// are, and the widest pass of both is `beam.halfWidth` doubled - the distance off the axis at which
+// a centre is hurt - so the line you were shown is the line that hurt, edge for edge.
+//
+// What is different is who owns it. This is the ship's own gun, so it wears the ship's own colours
+// the way the tether, the orbitals and the turrets do: the crowd is warm and this is not (PLAN
+// section 4). And what is different about the aim: a sniper's lock is frozen the moment it starts,
+// because the answer to a promise about a place is to leave the place; this one tracks the nose for
+// the whole wind-up, because the answer to a promise about where *you* are pointing is to point
+// better. That is the whole skill of the gun and the band is how it is taught.
+//
+// The extras the split line adds are drawn *dimmer and never narrower* (LANCE_EXTRA). Brightness is
+// not a promise; width is, and every line of a pull is as wide as the gun says it is - so an extra
+// reads as the lighter one of the pull without ever claiming a thinner line than the one it will
+// hurt bodies on.
+const LANCE_CALM = 0.16;      // the band the instant the gun begins to wind up ...
+const LANCE_SHOUT = 0.85;     // ... and the instant before it lets go
+const LANCE_EXTRA = 0.55;     // a split line's line, of the aimed one's light
+const LANCE_CHARGED = 1.35;   // a loaded pull is *brighter*, and no wider than any other
+const LANCE_HEAD = 0.85;      // the ship's own glow sprite, stamped small: no sprite of its own
+const LANCE_ROOT = 1.25;      // ... and stamped large at the near end of a beam that went off
+
+/**
+ * The band a winding lance is aiming. Painted under the crowd, like a darter's line and a sniper's
+ * lock, because a promise about where a line of light will be is worth nothing if a drifter can
+ * stand in front of it.
+ *
+ * There is no cull here, and there cannot be one: one end of every band is the ship, which is by
+ * definition on the glass (the same argument game/tether.js makes about its threads). What bounds
+ * the drawing instead is the gun's own geometry - one band for the aim and one per rank of the
+ * split line, six at the most, for the fifth of a second the gun hums.
+ */
+export function drawLanceLocks(ctx, alpha) {
+  if (!isWinding(world)) return;
+
+  const line = world.lance;
+  const spec = BALANCE.weapons.lance.beam;
+  const ship = world.player;
+  const x = paintX(ship, alpha);
+  const y = paintY(ship, alpha);
+  const light = LANCE_CALM + (LANCE_SHOUT - LANCE_CALM) * windOf(world);
+  const head = glowFor(PALETTE.player, DRONE_HALO);
+  const nose = ship.drawR + BALANCE.bullets.noseOffset;
+
+  for (let i = 0; i < line.pull; i++) {
+    const angle = ship.angle + line.spreads[i];
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    // The reach is the arena's, not the gun's: a lance's line goes to the wall and no further, and
+    // `beamReach` is asked for each line of the fan separately because a fan's lines end at
+    // different walls. It hands back a scratch, so the number is copied out at once.
+    const fore = beamReach(world, x, y, dirX, dirY).fore;
+    bandPasses(ctx, x, y, x + dirX * fore, y + dirY * fore, spec.halfWidth,
+      light * (i === 0 ? 1 : LANCE_EXTRA), PALETTE.player, PALETTE.bulletCore);
+  }
+  // And the light gathering at the muzzle it will leave from - the clock on when the gun lets go,
+  // which is the same tell a sniper's eye is (game/kinds.js) turned round to the ship's own nose.
+  paintGlow(ctx, head, x + Math.cos(ship.angle) * nose, y + Math.sin(ship.angle) * nose,
+    light, LANCE_HEAD);
 }
 
 /**
@@ -1734,6 +1797,36 @@ export function drawBeams(ctx) {
       PALETTE.beamEdge, PALETTE.beamCore);
     paintGlow(ctx, glowFor(PALETTE.beamCore, BEAM_HEAD), beam.x, beam.y,
       clamp(beam.life / beam.max, 0, 1));
+  }
+}
+
+/**
+ * Every lance beam still glowing (game/lance.js). Under the ship - the near end of one of these is
+ * the ship's own middle, and the loudest light in the arena must never be the thing that hides the
+ * hull (PLAN section 1) - and over the crowd, because a line of damage that crossed a body silently
+ * is a line that was not worth firing.
+ *
+ * The band is the same one the wind-up drew, at the same width, and nothing about it wobbles or
+ * breathes: it is the record of where the hull came off. A charged pull is painted brighter and, on
+ * purpose, no wider: a fan of shots can be drawn as fatter dots because a dot's size promises
+ * nothing, but a band's width *is* the ground the damage is paid on.
+ *
+ * No cull, for the same reason as the bands above: one end of every one of these is the ship.
+ */
+export function drawLanceBeams(ctx) {
+  const beams = world.lance.beams;
+  if (beams.count === 0) return;
+
+  const head = glowFor(PALETTE.player, DRONE_HALO);
+  for (let i = 0; i < beams.count; i++) {
+    const beam = beams.items[i];
+    const x1 = beam.x + beam.dirX * beam.fore;
+    const y1 = beam.y + beam.dirY * beam.fore;
+    let light = clamp(beam.life / beam.max, 0, 1) * (beam.rank === 0 ? 1 : LANCE_EXTRA);
+    if (beam.charged) light *= LANCE_CHARGED;
+    bandPasses(ctx, beam.x, beam.y, x1, y1, beam.width, light,
+      PALETTE.player, PALETTE.white);
+    paintGlow(ctx, head, beam.x, beam.y, light, LANCE_ROOT);
   }
 }
 

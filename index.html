@@ -86,6 +86,16 @@
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
+  /* A short window. The title, three rows of controls, one row per primary on the rack and the
+     launch line are a tall column, and a centred column that does not fit is cut at both ends at
+     once - which is the worst way to lose any of it, and the primaries are the one part a player
+     cannot do without. So everything above and below them gives way first. */
+  @media (max-height: 620px) {
+    .controls { margin-top: 16px; gap: 7px; }
+    .weapons { margin-top: 16px; }
+    .weapon-list { gap: 6px; }
+    .hint { margin-top: 16px; }
+  }
   @keyframes pulse { 0%,100% { opacity: .30; } 50% { opacity: 1; } }
 
   .over-title {

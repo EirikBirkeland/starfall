@@ -24,13 +24,18 @@ const PULSE = BALANCE.weapons.pulse;
  * The primaries that throw shots, i.e. everything except the arc.
  *
  * Most of what this file says is about a fan of bullets - where it opens, what each of its
- * shots carries, that a recycled shot is a fresh one - and none of it is true of a gun that
- * throws no bullets and finds the bodies it hurts instead (game/arc.js). That weapon's own
- * contract is test/arc.test.mjs; what belongs here is what every primary shares, which is a
- * name, a rate, and the two lines that multiply it.
+ * shots carries, that a recycled shot is a fresh one - and none of it is true of the two guns
+ * that throw no bullets at all: the arc finds the bodies it hurts instead (game/arc.js) and the
+ * lance spends a wind-up on a line of light (game/lance.js). Those weapons' own contracts are
+ * test/arc.test.mjs and test/lance.test.mjs; what belongs here is what every primary shares,
+ * which is a name, a rate, and the two lines that multiply it.
  */
-const SHOT_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].chain === undefined);
+const SHOT_GUNS = WEAPONS.filter((weapon) => {
+  const row = BALANCE.weapons[weapon.id];
+  return row.chain === undefined && row.beam === undefined;
+});
 const CHAIN_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].chain !== undefined);
+const BEAM_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].beam !== undefined);
 
 /** Every field a bullet has, by name, from the pool's own maker. */
 const FIELDS = Object.keys(makeBullet());
@@ -51,10 +56,11 @@ function leanOf(shot, ship) {
 test('every primary on offer is a whole row of numbers', () => {
   // The title screen offers what the table can back up: an id with a row of its own, and
   // a row with every number its kind of pull needs in it. A weapon added to one and not the
-  // other is the kind of bug this is here to make impossible - and there are two kinds of
-  // pull now, so both are asked for their own numbers.
+  // other is the kind of bug this is here to make impossible - and there are three kinds of
+  // pull now, so all three are asked for their own numbers.
   assert.ok(WEAPONS.length >= 2, 'the game has more than one primary now');
   assert.ok(CHAIN_GUNS.length > 0, 'one of them is the chain');
+  assert.ok(BEAM_GUNS.length > 0, 'one of them is the beam');
   for (const weapon of WEAPONS) {
     const row = BALANCE.weapons[weapon.id];
     assert.ok(row !== undefined, weapon.id + ' is offered but has no numbers');
@@ -65,12 +71,7 @@ test('every primary on offer is a whole row of numbers', () => {
     assert.ok(weapon.blurb.length > 0, weapon.id + ' has a line for the player');
     assert.ok(row.name.length > 0, weapon.id + ' has a name to be flown under');
 
-    if (row.chain === undefined) {
-      for (const key of ['gap', 'speed', 'life', 'spread', 'knockback']) {
-        assert.ok(Number.isFinite(row[key]), weapon.id + ' is missing ' + key);
-      }
-      assert.ok(row.gap >= 0, weapon.id + ': a negative fan is not a fan');
-    } else {
+    if (row.chain !== undefined) {
       // A chain needs to know how far it reaches, how far it hops, how many bodies it lands
       // on and what each of them costs. It has no speed and no life in seconds because it
       // flies nowhere at all (game/arc.js).
@@ -80,6 +81,21 @@ test('every primary on offer is a whole row of numbers', () => {
       assert.ok(row.chain.decay > 0 && row.chain.decay <= 1, weapon.id + ': a chain decays');
       assert.ok(row.chain.reach >= row.chain.leap,
         weapon.id + ': the first leap reaches at least as far as a hop');
+    } else if (row.beam !== undefined) {
+      // A beam needs to know how long it is wound up for, how wide a line still hurts, how far it
+      // throws what it crosses, and how long its light is kept (game/lance.js). It has no speed,
+      // no life and no knockback because nothing travels: the reach is the arena's.
+      for (const key of ['wind', 'halfWidth', 'shove']) {
+        assert.ok(Number.isFinite(row.beam[key]), weapon.id + ' is missing beam.' + key);
+      }
+      assert.ok(Number.isFinite(row.beam.light.life), weapon.id + ' is missing beam.light.life');
+      assert.ok(row.beam.wind > 0, weapon.id + ': a wind-up of nothing is a free gun');
+      assert.ok(row.beam.halfWidth > 0, weapon.id + ': a line nobody can stand on');
+    } else {
+      for (const key of ['gap', 'speed', 'life', 'spread', 'knockback']) {
+        assert.ok(Number.isFinite(row[key]), weapon.id + ' is missing ' + key);
+      }
+      assert.ok(row.gap >= 0, weapon.id + ': a negative fan is not a fan');
     }
   }
 
@@ -109,9 +125,10 @@ test('a primary is chosen by id, and by its place on the title screen', () => {
   assert.equal(field.weapon, WEAPONS[WEAPONS.length - 1].id);
   assert.equal(setWeaponByIndex(field, WEAPONS.length), false, 'there is no key past the list');
 
-  // And an id that is not a primary is a bug that says so out loud. `BALANCE.weapons`
-  // holds a couple of meta keys beside the weapons, so being in that table is not enough.
-  assert.throws(() => setWeapon(field, 'lance'), /no weapon is offered/);
+  // And an id that is not a primary is a bug that says so out loud. `BALANCE.weapons` holds a
+  // couple of meta keys beside the weapons, so being in that table is not enough - and PLAN 3.2's
+  // fifth primary is not in the game yet, whatever it is called.
+  assert.throws(() => setWeapon(field, 'swarm'), /no weapon is offered/);
   assert.throws(() => setWeapon(field, 'rateMax'), /no weapon is offered/);
   assert.throws(() => weaponOf({ weapon: 'wobble' }), /no weapon is called/);
 });

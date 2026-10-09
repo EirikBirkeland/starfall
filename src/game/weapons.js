@@ -7,16 +7,19 @@
 // to keep in step with a pick or with a card. `game/bullets.js` is what every shot has
 // in common whatever fired it.
 //
-// Three weapons at the time of writing, and the third is the reason this is a module and
-// not four lines in game/player.js: the pulse is one heavy shot thrown as far as it can
+// Four weapons at the time of writing, and the third and fourth are the reason this is a module
+// and not four lines in game/player.js: the pulse is one heavy shot thrown as far as it can
 // go, the scatter is six light ones thrown a short way, and a fan of six is a different
 // pull rather than a bigger one - and the arc throws nothing at all, it finds the bodies it
-// hurts itself, which is a third kind of pull again and lives in game/arc.js.
+// hurts itself, which is a second kind of pull again and lives in game/arc.js - and the lance
+// throws nothing either but spends a wind-up on a line of light, which is a third kind of pull
+// and lives in game/lance.js.
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { strikeChain } from './arc.js';
+import { windUp } from './lance.js';
 import { burst } from './effects.js';
 import { cueBeep } from './cues.js';
 import { chargedPullOf, spendCharge } from './overcharge.js';
@@ -32,6 +35,7 @@ export const WEAPONS = [
   { id: 'pulse', blurb: 'straight fast shots, the reliable default' },
   { id: 'scatter', blurb: 'six pellets in a cone, short range, heavy kick' },
   { id: 'arc', blurb: 'lightning that leaps the crowd, and aims itself' },
+  { id: 'lance', blurb: 'a charged beam down a whole line of the arena' },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -139,6 +143,27 @@ function shotFan(aim, count, gap) {
 }
 
 /**
+ * Where this pull's things point, whichever kind of thing they are (game/arc.js wants a count and
+ * not a set of angles, game/lance.js wants the angles as offsets from the nose): the gun's own fan
+ * opened at the wider of its own gap and the split line's, and the split line's extras laid on
+ * past them. Refills and returns one scratch array, like every other hot list in the game.
+ */
+function pullFan(world, gun) {
+  return shotFan(world.player.angle, shotsPerPull(world),
+    Math.max(gun.gap, BALANCE.upgrades.split.fan));
+}
+
+/**
+ * What one pull of `gun` is worth, before it is split up between the things it throws: the gun's
+ * own damage, times whatever the damage line has earned, times the overcharge if the gun was
+ * loaded when the trigger moved (game/overcharge.js). Read as the pull is spent, which is what lets
+ * a card taken mid-frame apply to the very next pull and nothing already in the air.
+ */
+function pullWeight(world, gun, boost) {
+  return gun.damage * gainOf(world, 'damage') * boost;
+}
+
+/**
  * One projectile, written field by field like every spawner must.
  *
  * `speed` is the gun's, `life` is the gun's reach divided by it, and `knock` is how much
@@ -186,19 +211,17 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) 
  * standing beside it (game/bullets.js).
  *
  * Answers whether anything left the ship, which for a fan of shots is always: it is only a
- * chain that can find nothing to throw at.
+ * chain that can find nothing to throw at, and only a beam that has not been thrown yet.
  */
-function shootFan(world, gun, count, nx, ny, boost) {
-  const ship = world.player;
+function shootFan(world, gun, fan, nx, ny, boost) {
   const split = BALANCE.upgrades.split;
 
   const speed = gun.speed * gainOf(world, 'bulletSpeed');
   // `boost` is what a loaded gun is worth (game/overcharge.js), and it is 1 for every pull that
   // was not, so the whole fan - the gun's own shots and the split line's extras together - is one
   // heavier pull rather than one heavier shot among them.
-  const weight = gun.damage * gainOf(world, 'damage') * boost;
+  const weight = pullWeight(world, gun, boost);
 
-  const fan = shotFan(ship.angle, count, Math.max(gun.gap, split.fan));
   const pierce = pierceOf(world);
   const turns = bounceOf(world);
   const charged = boost > 1;
@@ -218,19 +241,23 @@ function shootFan(world, gun, count, nx, ny, boost) {
  * One pull of the trigger: whatever the gun throws, a shove backwards, a muzzle flash, and
  * one cue.
  *
- * What leaves the ship is each gun's own business and it is one of two things: a fan of
- * shots, or a chain that finds its own bodies and lives in game/arc.js. Everything after it
- * is what a pull costs the ship whichever of the two it was - one kick backwards, one flash
- * at the nose, and one sound, however many shots left it or bodies were landed on.
+ * What leaves the ship is each gun's own business and it is one of three things: a fan of
+ * shots, a chain that finds its own bodies (game/arc.js), or a wind-up on a line of light
+ * (game/lance.js) - which is which is read off the row, the same way test/weapons.test.mjs reads
+ * it: a `chain` block means the bolt, a `beam` block means the lance, and neither means a fan.
+ * Everything after it is what a pull costs the ship whichever of the three it was - one kick
+ * backwards, one flash at the nose, and one sound, however many shots left it or bodies were
+ * landed on.
  *
- * A pull that threw nothing costs nothing, and only one gun can miss that way: an arc whose
- * reach holds no body leaves no bolt behind, so the silence is how it says the crowd is out
- * of range (game/arc.js).
+ * A pull that threw nothing costs nothing, and only two guns can miss that way: an arc whose reach
+ * holds no body leaves no bolt behind, so the silence is how it says the crowd is out of range
+ * (game/arc.js); and a lance has not thrown anything yet at all, so it answers false and pays for
+ * its own kick, flash, sound and charge at the discharge instead (game/lance.js).
  */
 export function fire(world) {
   const ship = world.player;
   const gun = weaponOf(world);
-  const count = shotsPerPull(world);
+  const fan = pullFan(world, gun);
 
   const nose = ship.drawR + BALANCE.bullets.noseOffset;
   const nx = ship.x + Math.cos(ship.angle) * nose;
@@ -238,10 +265,11 @@ export function fire(world) {
 
   // What a loaded gun is worth, read once for the whole pull (game/overcharge.js).
   const boost = chargedPullOf(world);
+  const weight = pullWeight(world, gun, boost);
 
-  const threw = gun.chain === undefined
-    ? shootFan(world, gun, count, nx, ny, boost)
-    : strikeChain(world, gun, count, nx, ny, boost);
+  const threw = gun.beam !== undefined ? windUp(world, gun, fan, weight, boost > 1)
+    : gun.chain !== undefined ? strikeChain(world, gun, fan.length, nx, ny, boost)
+      : shootFan(world, gun, fan, nx, ny, boost);
   if (!threw) return;
   // A pull that threw nothing has not fired, and a pull that has not fired has not spent the
   // charge it was carrying: the arc's own answer to an empty sky stays loaded until it finds a

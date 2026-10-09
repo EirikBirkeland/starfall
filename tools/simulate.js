@@ -8,7 +8,7 @@
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
 //   node tools/simulate.js --dash              let the bot dash when a body gets close
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
-//                                              scatter, arc)
+//                                              scatter, arc, lance)
 //   node tools/simulate.js --need 300         exit non-zero unless the batch mediates
 //                                             this many seconds (PLAN's survival check)
 //   node tools/simulate.js --trace            print a state fingerprint over time

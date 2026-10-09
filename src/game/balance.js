@@ -200,8 +200,8 @@ export const BALANCE = {
       // whatever it hit.
       recoil: 55,
       muzzle: { count: 6, speed: 150, life: 0.16 },
-      // One heavy thump, and still one per pull however many pellets came with it
-      // (the mix has no voice limiting until milestone 7).
+      // One heavy thump, and still one per pull however many pellets came with it: a fan is one
+      // event and not six, whatever the mix would let through (audio/mix.js).
       sound: { base: 190, jitter: 34, dur: 0.09, wave: 'sawtooth', vol: 0.07, slide: 70 },
     },
     arc: {
@@ -261,7 +261,7 @@ export const BALANCE = {
       muzzle: { count: 4, speed: 110, life: 0.14 },
       // A crackle rather than a shot: high, up into the squeal instead of down out of it, and
       // one per pull like every other gun here - a chain that landed on four bodies is one
-      // sound and not four, because the mix has no voice limiting until milestone 7.
+      // sound and not four, whichever of them the mix would have afforded (audio/mix.js).
       sound: { base: 1180, jitter: 420, dur: 0.055, wave: 'sawtooth', vol: 0.03, slide: 2400 },
       // The chain itself (game/arc.js). Everything about a leap is here: how far the first
       // one reaches from the ship, how much further the next may go from where it landed, how
@@ -300,6 +300,106 @@ export const BALANCE = {
         bolt: { life: 0.16 },
         // Sparks at each landing, thrown back along the line the bolt came in on.
         hit: { count: 3, speed: 140, life: 0.18, spread: 0.9 },
+      },
+    },
+    lance: {
+      name: 'LANCE',
+      // PLAN's 0.9 pulls a second, and it is by far the slowest trigger in the game: one line of
+      // light every 1.1 s against the pulse's 4.4 shots. That is the trade this gun is - it gives
+      // up the sky in front of it for the whole of one line, and the wind-up below is the second
+      // half of the price.
+      fireRate: 0.9,
+      // One line a pull, before the split line fans it out into more lines. `pellets` is how many
+      // things a pull sends out and on this gun the things are beams (game/lance.js), so the line
+      // that adds "one more projectile" adds one more *line*, each at that line's own share.
+      pellets: 1,
+      gap: 0,             // nothing is fanned until the split line fans it; see BALANCE.upgrades.split
+      // What one line costs a body standing on it, in the unit enemy hull is counted in - so
+      // five of these is five plain shots, which kills a drifter, a darter and a weaver outright
+      // and leaves a spitter with a quarter of its hull.
+      //
+      // PLAN writes 60 against the pulse's 10 - six of its shots - and at PLAN's own rates that
+      // is 54 hull a second against the pulse's 60, i.e. nine tenths of the plain gun on a body
+      // that is standing on the line. Here the plain gun is 4.4 hull a second, so nine tenths of
+      // it is four at a time at 0.9/s, and what was decided is to spend the tenth of a point the
+      // ratio leaves over on the wind-up instead: at five, measured with `tools/power-ladder.js
+      // --weapon lance`, the gun is level with the plain one on the knot that prices a gun - the
+      // near field, one body at a time, 4.4 hull a second against the pulse's 4.3 and the
+      // scatter's 5.9 - and several times it on the two knots a line is for: 20.0 hull a second on
+      // the ring and 26.3 on the column, against the pulse's 4.3 on both, because a lance picks up
+      // every body standing in the lane and the other guns pick up one.
+      //
+      // That last pair is the whole of this gun's defence and the whole of its risk, so it is worth
+      // saying plainly: on a crowd that happens to be in a line the lance is worth as much again as
+      // a maxed damage rank on anything else, and the only thing standing between it and the
+      // scatter is that the line has to be *found*, once a second, by whoever is holding the mouse.
+      // The measurements are in NOTES session 52; test/lance.test.mjs holds the shape of the
+      // single-body number and `tools/gun-clock.js` prints what the wait costs a body that moves.
+      //
+      // Note what this number buys *nothing* on: a line that hits everything on it cannot also be
+      // given pierce, and a line that arrives in one instant cannot be given ricochet or a bullet
+      // speed. Three of the ten upgrade lines do nothing at all for this gun, which is the price
+      // of the sixth being the whole arena, and it is the same reading that leaves pierce and
+      // ricochet off the arc (BALANCE.weapons.arc).
+      damage: 5,
+      // The heaviest kick in the game, and it is paid at the discharge and not at the trigger -
+      // the gun goes off, the ship is shoved back, in that order (game/lance.js). The brake eats
+      // it in a fraction of a second (NOTES session 8), so what it is: a lurch backwards every
+      // time the thing lets go, and a ship that fires it with a body at its back should expect to
+      // be shoved at it.
+      recoil: 220,
+      // The beam itself (game/lance.js). Everything about a lance is here: how long the gun hums
+      // before it goes off, how thick a line still hurts, what a body on it is thrown by, and how
+      // long the light that remembers it is kept.
+      beam: {
+        // s of wind-up: the band is drawn, tracks the nose, and the gun whines for this long before
+        // it fires. Short on purpose. It is not a punishment for pulling the trigger, it is the
+        // window in which the line can still be walked onto what you are aiming at (game/lance.js).
+        // This number and the width below are a pair, and what they have to keep is one promise: a
+        // body you pointed at when the trigger moved is still on the line when the light arrives.
+        // A drifter crosses 9 px in 0.12 s, which is inside the half-width, so pointing at where a
+        // walking body *is* lands on it. A darter's lunge crosses 21 px and has to be led, which is
+        // the one thing in the crowd that does - and a darter comes straight at you, so leading it is
+        // a matter of holding the line where it is going. At PLAN's 0.2 s the drifter is at 15 px and
+        // the whole crowd has to be led, and a gun that misses what it was aimed at is not a slow
+        // gun, it is a broken one. What each of the crowd's paces keeps is what the line's own tool
+        // prints: `tools/gun-clock.js --weapon lance`.
+        wind: 0.12,
+        // px each side of the axis a *centre* is still hurt, which is the width the light is drawn
+        // at and the whole of the collision test (the same one-number promise game/beams.js and
+        // game/tether.js make). A third again the ship's own hit radius, and about a drifter's
+        // width: a lance is a bar of light and not a needle, because a line you can never see the
+        // end of is a line you cannot aim. At this width a beam aimed at a body takes that body and
+        // whatever is standing behind it in a lane 32 px across - which, with the wind-up above, is
+        // what lets a body walking sideways at a drifter's pace still be inside the line when the
+        // light arrives.
+        halfWidth: 16,
+        // px/s of shove given to a body the line came round, down the line and away from the ship.
+        // Heavy, because that is what a lance is *for*: the column in front of you is thrown into
+        // the wall and the press behind it has to walk back across the ground the beam just took
+        // off it. It is not a nova front's wall of shove and it never pushes a body sideways out
+        // of the line, so the next beam finds the crowd it just moved.
+        shove: 220,
+        // How long the light is kept after the flash. Longer than an arc bolt's and about a fifth
+        // of the cycle: the line is where the damage went, and at nine tenths of a pull a second
+        // there is room on the glass for it to be seen and gone before the next one.
+        light: { life: 0.22 },
+        // Sparks off each body the line came round, thrown down the line rather than back along
+        // it, because a lance does not so much hit a body as take it off its feet.
+        cut: { count: 3, speed: 150, life: 0.18, spread: 0.7 },
+        // The muzzle: one flash and one ring at the nose, once a pull however many lines came with
+        // it, and the small stop that says the gun is heavy. PLAN section 4's hit-stop is for the
+        // big events and a lance going off down a loaded column is one.
+        flash: { count: 12, speed: 260, life: 0.2, ring: { radius: 10, speed: 520, life: 0.24 } },
+        shake: 5,
+        hitStop: 0.03,
+        // The wind-up is heard as well as seen: one rising note, started at the trigger and ending
+        // when the gun does, which is the whole clock of the thing in one sound. `dur` is the
+        // wind-up, to the hundredth.
+        charge: { freq: 210, dur: 0.12, wave: 'triangle', vol: 0.03, slide: 760 },
+        // And the report: down instead of up, long for this game, and the loudest thing the trigger
+        // does (one per pull, as every gun here, whatever that costs the sky: audio/mix.js).
+        sound: { base: 150, jitter: 26, dur: 0.17, wave: 'sawtooth', vol: 0.085, slide: 44 },
       },
     },
   },
@@ -573,8 +673,8 @@ export const BALANCE = {
         sound: { freq: 380, dur: 0.3, wave: 'sawtooth', vol: 0.03, slide: 620 },
       },
       // A small body makes a small mess, and its death beep is quiet on purpose:
-      // twenty of them can go off in the same frame, and the mix has no voice limiting
-      // yet (milestone 7).
+      // twenty of them can go off in the same frame, and the mix adds up how loud a frame is
+      // rather than how many voices are in it (audio/mix.js), which makes a quiet one cheap.
       death: { particles: 6, speed: 210, debris: 1, debrisSpeed: 150 },
       sound: { freq: 660, dur: 0.06, vol: 0.045 },
     },
@@ -895,8 +995,8 @@ export const BALANCE = {
       // The sparks thrown as a shot turns, along the new heading. It is the only tell a
       // bounce has, so it is aimed: your eye can follow where the shot went.
       turn: { count: 4, speed: 170, life: 0.22, spread: 0.5 },
-      // One short tick per turn. Quiet, because a busy pull can turn half a dozen times
-      // and the mix has no voice limiting yet (milestone 7).
+      // One short tick per turn. Quiet, because a busy pull can turn half a dozen times, and the
+      // budget a frame has is spent by loudness and not by count (audio/mix.js).
       sound: { freq: 920, dur: 0.035, wave: 'triangle', vol: 0.015, slide: 380 },
     },
     orbitals: {
@@ -951,7 +1051,8 @@ export const BALANCE = {
       // which is outwards: the bite reads as a thing being pushed as well as hit.
       bite: { count: 4, speed: 160, life: 0.18, spread: 0.6 },
       // Very quiet, and it has to be: ten drones at this beat is six and a half ticks a
-      // second at the top of the line, and the mix has no voice limiting yet (milestone 7).
+      // second at the top of the line, and a voice is priced by what it adds to the sky, so
+      // this one is what the twenty after it have to fit under (audio/mix.js).
       sound: { freq: 700, dur: 0.03, wave: 'square', vol: 0.014, slide: 420 },
     },
     nova: {
@@ -1022,7 +1123,8 @@ export const BALANCE = {
       birth: { count: 18, speed: 300, life: 0.35 },
       bite: { count: 3, speed: 150, life: 0.2, spread: 0.8 },
       // One low thud per front, and not one per body: at the top of the line a front can
-      // cross forty bodies in a step and the mix has no voice limiting yet (milestone 7).
+      // cross forty bodies in a step, and forty notes at this volume in one frame is the shape
+      // of a frame the budget was written for (audio/mix.js).
       sound: { freq: 150, dur: 0.28, wave: 'triangle', vol: 0.1, slide: 48 },
       shake: 4,
     },
@@ -1417,8 +1519,8 @@ export const BALANCE = {
         },
       },
       // One crackle per crack, and quiet, because the line fires about once a second all run and
-      // the mix has no voice limiting yet (milestone 7). It falls rather than rises: the shard
-      // pickup above slides *up* with a streak, and this is the pickup spent.
+      // a voice is priced for as long as it sounds (audio/mix.js). It falls rather than rises: the
+      // shard pickup above slides *up* with a streak, and this is the pickup spent.
       sound: { freq: 1420, dur: 0.07, wave: 'triangle', vol: 0.02, slide: 430 },
       // Barely a shake. A nova is one event every few seconds and gets four; this is a metronome.
       shake: 1.2,
@@ -1522,7 +1624,8 @@ export const BALANCE = {
       //     that floor by a long way.
       weight: 3,
       // A mine landing: one small light on the floor where it fell, and one quiet click for the
-      // whole row rather than one per mine (the mix has no voice limiting yet, milestone 7).
+      // whole row rather than one per mine (audio/mix.js has a budget and a row of six would spend
+      // most of it on a sound that is one event).
       landed: {
         ring: { radius: 6, speed: 120, life: 0.2 },
         sound: { freq: 620, dur: 0.05, wave: 'square', vol: 0.016, slide: 300 },
@@ -1671,8 +1774,9 @@ export const BALANCE = {
       // a net, and the one place this card comes closest to restricting the crowd.
       shove: 200,
       // A dash tying a tether: one small light driven into the floor at every knot, and one note for
-      // the whole fan rather than one per knot (the mine row's rule, and the mix has no voice limiting
-      // yet - milestone 7). No ring at the ship, because the dash is throwing one at that very step.
+      // the whole fan rather than one per knot (the mine row's rule, and a fan of six notes is six
+      // voices added to the same sky: audio/mix.js). No ring at the ship, because the dash is throwing
+      // one at that very step.
       tied: {
         ring: { radius: 5, speed: 100, life: 0.2 },
         sound: { freq: 880, dur: 0.05, wave: 'triangle', vol: 0.02, slide: 460 },
@@ -1842,7 +1946,8 @@ export const BALANCE = {
       shell: { speed: 620, knock: 0.05 },
       // A crew going down: one light and one note per gun at the place it landed, and one note for the
       // crew. The sound is quiet and a little lower than a mine landing, because a crew of five arrives
-      // at five places at once and the mix has no voice limiting yet (milestone 7).
+      // at five places at once and five notes at this volume in one frame is a chord nobody asked for
+      // (audio/mix.js).
       planted: {
         ring: { radius: 6, speed: 150, life: 0.25 },
         sound: { freq: 520, dur: 0.06, wave: 'square', vol: 0.018, slide: 300 },

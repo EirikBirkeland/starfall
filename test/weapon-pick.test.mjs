@@ -62,6 +62,22 @@ test('the title offers every primary, in key order, and lights the default', () 
   assert.equal(game.stats().weapon, WEAPONS[0].id);
 });
 
+test('every primary on the rack answers its own number', () => {
+  // One row per primary and one key per primary are two different lists, and they were once
+  // maintained separately: the fourth primary arrived and could be looked at and not chosen
+  // (src/input/keyboard.js). So this is the whole point of the file as far as a new gun is
+  // concerned - a row that no key answers is a gun nobody can fly.
+  for (let i = 0; i < WEAPONS.length; i++) {
+    press('Digit' + (i + 1));
+    assert.equal(game.stats().weapon, WEAPONS[i].id,
+      'the ' + (i + 1) + ' key is ' + WEAPONS[i].id);
+  }
+  // The numpad answers the same list, for a keyboard that has one.
+  press('Numpad' + WEAPONS.length);
+  assert.equal(game.stats().weapon, WEAPONS[WEAPONS.length - 1].id, 'and so is the numpad');
+  press('Digit' + 2);            // leave the pick where the rest of this file expects it
+});
+
 test('a number key on the title chooses the primary', () => {
   press('Digit' + 2);
   assert.equal(game.stats().weapon, SECOND.id, 'the second key is the second primary');
@@ -70,8 +86,8 @@ test('a number key on the title chooses the primary', () => {
   assert.equal(rows[0].picked, false, 'the old pick went out');
   assert.equal(rows[1].picked, true, 'and the new one is lit');
 
-  // A key past the list changes nothing: there is no third primary to choose yet, and a
-  // silent nothing is a better answer than a surprise.
+  // A key past the list changes nothing: nothing is offered at that number, and a silent nothing is
+  // a better answer than a surprise.
   press('Digit' + (WEAPONS.length + 1));
   assert.equal(game.stats().weapon, SECOND.id, 'the pick stands');
 });

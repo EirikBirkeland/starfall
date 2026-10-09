@@ -15,6 +15,7 @@ import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
 import { updateBeams, makeBeam } from './beams.js';
+import { newLance, updateLance } from './lance.js';
 import { updateBurn, makeFire } from './burn.js';
 import { updateLeech, newLeech } from './leech.js';
 import { newOvercharge } from './overcharge.js';
@@ -145,6 +146,12 @@ function createWorld() {
     // and nothing cares about the order of them - a bolt is a record of a flash that has
     // already happened, and all that is left for it to do is fade.
     arc: { bolts: new Pool(makeBolt) },
+    // What the lance is doing (game/lance.js): the wind-up it is holding, what the beams coming out
+    // of it will be worth, the light the last few discharges left behind, and four counters of what
+    // the gun has been asked to do. One wind-up at a time and a pool of light, because a beam is a
+    // record of a flash that has already happened - born having hurt everything on its line - and
+    // all that is left for it to do is fade.
+    lance: newLance(),
     // What is on fire (game/burn.js): one fire per body that is alight, each holding on to
     // the body it is eating. Pooled and unordered like everything else that has to be many -
     // and a fire is *not* a field on the enemy because a body that dies leaves the crowd, and
@@ -286,6 +293,10 @@ function stepRun(dt, input) {
   // And after that one as well: a gun reads the crowd where it ended up, and the shell it throws is
   // walked by game/bullets.js on the next step (game/turret.js).
   updateTurret(world, dt);
+  // And after that one again: a lance's line pays out where the crowd finished walking, and its
+  // wind-up is wound in step time, so it waits out a level-up and freezes with a hit-stop
+  // (game/lance.js).
+  if (!updateLance(world, dt)) return;   // a beam ended the run
   // And after all of them, because a fire is the slowest thing here: it bites where every
   // body ended up after the walking and the other damage, and the body it finishes is the
   // one whose fire goes out sideways (game/burn.js).

@@ -6,6 +6,7 @@ import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, setWeaponByIndex, weaponName } from './game/weapons.js';
+import { windOf } from './game/lance.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
@@ -95,8 +96,9 @@ function onPickCard(number, banishing) {
   // it too, which is what "press 2, press Space, fly the scatter" means. Mid-run the keys
   // are nobody's: a run does not get to swap its gun between two frames.
   if (world.state === STATE.PLAY) return;
-  setWeaponByIndex(world, number - 1);
-  showWeapon(world.weapon);
+  // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
+  // taken, not to a key that was pressed.
+  if (setWeaponByIndex(world, number - 1)) showWeapon(world.weapon);
 }
 
 /** R rerolls the table. The same key on any other screen asks for nothing. */
@@ -271,6 +273,15 @@ window.STARFALL = {
       // The beams still glowing (game/beams.js). A beam is a thing that already happened,
       // so this is how a headless run can see that one went off at all.
       beams: world.beams.count,
+      // The lance (game/lance.js): how far through its wind-up the gun is (0 when it is cold), how
+      // much light the last discharges left, and what the gun has been asked to do. A beam throws
+      // no bullets to count, so this is the only way a headless run can see the gun is working.
+      lanceWind: windOf(world),
+      lanceBeams: world.lance.beams.count,
+      lancePulls: world.lance.pulls,
+      lanceFired: world.lance.fired,
+      lanceCaught: world.lance.caught,
+      lanceDealt: Math.round(world.lance.dealt),
       // The leech (game/leech.js): how far the next hull is, and whether one is being held.
       leechKills: world.leech.kills,
       leechHeld: world.leech.held,

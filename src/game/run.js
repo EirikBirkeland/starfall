@@ -15,6 +15,7 @@ import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
 import { resetBeams } from './beams.js';
+import { resetLance } from './lance.js';
 import { resetFires } from './burn.js';
 import { resetLeech } from './leech.js';
 import { resetOvercharge } from './overcharge.js';
@@ -62,6 +63,10 @@ export function resetRun(world) {
   resetArc(world);
   // And every beam a sniper had still been glowing with (game/beams.js).
   resetBeams(world);
+  // And whatever the lance of the last run was wound up to do (game/lance.js) - both the light it
+  // left and a beam that was still being aimed, which would otherwise go off for a ship that has
+  // already been rebuilt at the middle of the arena.
+  resetLance(world);
   // And every body still alight when the last one ended (game/burn.js) - a fire left behind
   // would be eating a body that no longer exists.
   resetFires(world);

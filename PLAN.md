@@ -316,7 +316,10 @@ in one blast scaled by how cold the corpse was. `game/shock.js` argues it, `test
 tests it, and `BALANCE.upgrades.thermalShock` has the measurement.
 
 Storm, the saw ring and the minefield can be built the same way whenever a session takes one; the
-railgun waits on the lance and the Aegis burst on a shield line the game does not have yet
+railgun has nothing left to wait for now that the lance is in (0.5.0), but its reward needs re-reading
+first, because a plain lance already crosses the whole arena - what a *loaded* one should be worth is
+the open question, argued in NOTES session 52; and the Aegis burst waits on a shield line the game does
+not have yet
 (milestone 5 and 3.7).
 
 ### 3.6 Experience curve
@@ -641,6 +644,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
 
 ### Milestone 5: weapons and ships
 - [ ] Weapon definitions as data; the five primaries from 3.2, one per session.
+      (The data half has been true since 0.3.5: `BALANCE.weapons` is the whole of a gun and
+      `game/weapons.js` reads it, so the title screen and the tools grow by themselves when a primary
+      lands. Four of the five primaries are in - Pulse and Scatter (0.3.5), Arc (0.4.7) and Lance
+      (0.5.0), each with its own test file and its own module wherever it needed one - and **Swarm** is
+      the last of them. `tools/power-ladder.js --weapon` and `tools/gun-clock.js` are the two
+      instruments it will be priced on, and `test/weapons.test.mjs` asks a new row for its own numbers.)
 - [ ] Ships with different hull, speed, weapon, and drawn shape.
 - [ ] Release.
 

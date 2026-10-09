@@ -8,10 +8,20 @@ const SWALLOWED = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
 const CONFIRM = ['Space', 'Enter', 'NumpadEnter'];
 const DASH_KEYS = ['Space'];
 
-// The upgrade cards are picked with a number (PLAN section 4). One per card, so a
-// fourth key is simply not one of them. The same numbers with Shift answer a card the
-// other way - by cutting it out of the run (game/upgrades.js `banishOffer`).
-const PICK_KEYS = { Digit1: 1, Digit2: 2, Digit3: 3, Numpad1: 1, Numpad2: 2, Numpad3: 3 };
+// The upgrade cards are picked with a number (PLAN section 4), and the title screen uses the same
+// numbers to pick the primary (game/weapons.js `setWeaponByIndex`). So the number is read out of the
+// key rather than looked up in a table of three: three cards are dealt, four primaries are on the
+// rack and a fifth is coming, and a table that stops at three is how a weapon ends up unpickable.
+// Shift turns the same number into the other thing a card can be answered with - cutting that line
+// out of the run (game/upgrades.js `banishOffer`). Anything past a digit is refused here and by
+// whatever is being answered, which between them cover every index the game can be asked for.
+const PICK_DIGIT = /^(?:Digit|Numpad)([1-9])$/;
+
+/** Which card or primary this key asks for, or 0 when it asks for neither. */
+function pickOf(code) {
+  const digits = PICK_DIGIT.exec(code);
+  return digits === null ? 0 : parseInt(digits[1], 10);
+}
 
 // The reroll. A word to remember it by, and out of the way of everything else: R is not
 // a movement key, not the mute, and not the launch.
@@ -41,8 +51,8 @@ export function initKeyboard(handlers) {
     if (DASH_KEYS.indexOf(code) >= 0 && !event.repeat) keyTaps.dash = true;
     if (CONFIRM.indexOf(code) >= 0 && handlers.onConfirm) handlers.onConfirm();
     if (!event.repeat) {
-      const pick = PICK_KEYS[code];
-      if (pick !== undefined && handlers.onPickCard) handlers.onPickCard(pick, !!event.shiftKey);
+      const pick = pickOf(code);
+      if (pick !== 0 && handlers.onPickCard) handlers.onPickCard(pick, !!event.shiftKey);
       if (REROLL_KEYS.indexOf(code) >= 0 && handlers.onReroll) handlers.onReroll();
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
