@@ -53,7 +53,7 @@ import { camera, onScreen } from './camera.js';
 import { view } from './canvas.js';
 import { holeFor, paintGlow } from './glow.js';
 import { paintX, paintY } from './interp.js';
-import { doorWedge } from './entities.js';
+import { doorNow, doorWedge } from './entities.js';
 import { bandEnds, bladesOf, fansOf } from './arms.js';
 
 // One hole sprite for every light's size: what `scale` does to it is grow the soft edge along with
@@ -127,25 +127,44 @@ function punchBodies(g, boss, alpha) {
  * The door a shell is being promised through, left out of the night.
  *
  * This is the fairness of the whole row: a promise the dark has eaten is no promise, and
- * `bosses.telegraphMin` does not care how dark it is. The wedge is the one the door's own light is
- * drawn from (render/entities.js `doorWedge`), so what the ship is shown is what the shots leave
- * out - and it is let through only *partially*, because a door is a lit place in a dark room and not
- * a second arena with the crowd standing in it.
+ * `bosses.telegraphMin` does not care how dark it is. Both halves of the promise are let out - the
+ * whole route a walking door travels, and the door where it stands - and both are asked out of
+ * render/entities.js `doorWedge` and `doorNow`, the same two answers the door's own light is
+ * painted from, so what the ship is shown is what the shots leave out. Nothing is let through
+ * *fully*, because a door is a lit place in a dark room and not a second arena with the crowd
+ * standing in it.
+ *
+ * The two are one wedge whenever the door does not walk, and then it is cut once: a hole punched
+ * twice in the same place is a hole punched twice, and the night's budget is stamps.
  */
 function punchDoor(g, boss, alpha) {
   const body = boss.enemy;
   if (body === null) return;
   const x = paintX(body, alpha);
   const y = paintY(body, alpha);
-  const wedge = doorWedge(boss, x, y);
-  if (wedge === null) return;
-  if (!onScreen(x, y, wedge.reach)) return;
+  const route = doorWedge(boss, x, y);
+  if (route === null) return;
+  const door = doorNow(boss, x, y);
+  if (door === null) return;
+  if (!onScreen(x, y, Math.max(route.reach, door.reach))) return;
 
+  const share = BALANCE.bosses.dark.light.door;
+  punchWedge(g, x, y, route, share);
+  // Only again when the door is not standing inside its own route's reach: a walking door can have
+  // its route clipped short by a wall the door itself points away from, and a lit door the night
+  // has eaten the edge of is exactly the bug this function exists to stop.
+  if (Math.abs(door.reach - route.reach) > 1 || door.to - door.from < route.to - route.from - 1e-9) {
+    punchWedge(g, x, y, door, share);
+  }
+}
+
+/** Leave one wedge of the room out of the night, at a share of the night's own depth. */
+function punchWedge(g, x, y, wedge, share) {
   g.beginPath();
   g.moveTo(x, y);
   g.arc(x, y, wedge.reach, wedge.from, wedge.to);
   g.closePath();
-  g.globalAlpha = BALANCE.bosses.dark.light.door;
+  g.globalAlpha = share;
   g.fill();
   g.globalAlpha = 1;
 }

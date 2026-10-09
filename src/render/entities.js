@@ -18,8 +18,8 @@ import {
 } from '../game/kinds.js';
 import {
   isBossBody, isBossPart, armedCount, bossTint, callAngle, callBody, callCount, callProgress,
-  callStand, callStep, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf,
-  spokeProgress, spokeStep,
+  callStand, callStep, gapAngle, gapEnd, gapHalf, gapProgress, gapStart, spokeAngle, spokeCount,
+  spokeHalf, spokeProgress, spokeStep,
 } from '../game/bosses.js';
 import { drawBoss } from './boss.js';
 import { frostOf, isFrozen } from '../game/chill.js';
@@ -370,6 +370,8 @@ const DOOR_EDGE = 2;            // px, the two lines that make a wedge read at a
 const DOOR_EDGE_LIGHT = 0.5;
 const DOOR_RIM = 3;             // px, the arc across its far end: this far, and no further
 const DOOR_RIM_LIGHT = 0.35;
+const ROUTE_LIGHT = 0.45;       // the way a walking door has to travel, against the door itself:
+                                // a place to read, and not the place to stand
 
 // The call's marks (game/bosses.js `windCall`): a tick out of the hoop, a pool of light where the
 // body will be, and a ring the size of it. Sizes are fixed px, not shares of the ring's radius,
@@ -500,20 +502,80 @@ function drawSpokes(ctx, boss, enemy, x, y) {
  * two edges and no further - a wedge that poked through a wall would be promising a place the
  * ship cannot get to, and the walls are the cage (game/field.js).
  *
- * Nothing here is the shots' own doing: the same three numbers the ring is thrown from are the
- * three the wedge is drawn from, which is the only way the door shown is the door that arrives.
+ * Two things are painted from it, and they are the two halves of one promise, the same pair the
+ * blades make with their fan (render/arms.js): the **route**, the whole of the way a walking door
+ * travels, lit faint the instant the wind-up starts, and the **door** itself walking down it. A
+ * door that does not walk has no route to speak of - the two come out the same wedge - and then the
+ * faint pass is not made at all, which is what keeps every door in the game before the Eclipse's
+ * last phase exactly the picture it always was.
+ *
+ * Nothing here is the shots' own doing: the same numbers the ring is thrown from are the numbers
+ * the light is drawn from, which is the only way the door shown is the door that arrives.
  */
 function drawTheDoor(ctx, boss, x, y) {
-  const wedge = doorWedge(boss, x, y);
-  if (wedge === null) return;
-  const { from, to, reach } = wedge;
-  if (!onScreen(x, y, reach)) return;
+  const route = doorWedge(boss, x, y);
+  if (route === null) return;
+  const door = doorNow(boss, x, y);
+  if (door === null) return;
+  if (!onScreen(x, y, Math.max(route.reach, door.reach))) return;
 
   const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * gapProgress(boss);
 
+  // Only when there is more route than door: the walk is what is being promised, so the walk is
+  // what is on the glass, end to end, from the first step and not the last.
+  if (route.to - route.from > door.to - door.from + 1e-9) {
+    paintWedge(ctx, x, y, route, light * ROUTE_LIGHT);
+  }
+  paintWedge(ctx, x, y, door, light);
+}
+
+/**
+ * The door a fight is holding open, as a wedge: the two bearings the promise runs between, and how
+ * far out they may go before a wall is in the way (a wedge that poked through a wall would be
+ * promising a place the ship cannot get to).
+ *
+ * This is the *widest* answer - the whole route a walking door travels, widened by the door - and
+ * it contains the door where it stands (render/entities.js `doorNow`). Two painters ask it and may
+ * never disagree about the answer. One is `drawTheDoor`, which lights the promise; the other is
+ * render/darkness.js, which leaves the night out of it, because a door that the dark has eaten is
+ * not a promise at all and the dark is no excuse to break `bosses.telegraphMin`
+ * (game/balance.js `bosses.dark`).
+ *
+ * Null when nothing is being armed: there is no door between shells, and the bearings the next one
+ * will be opened on are not chosen until it starts being wound.
+ */
+export function doorWedge(boss, x, y) {
+  if (armedCount(boss) === 0) return null;
+  const half = gapHalf(boss);
+  return wedgeToTheRoom(x, y, Math.min(gapStart(boss), gapEnd(boss)) - half,
+    Math.max(gapStart(boss), gapEnd(boss)) + half);
+}
+
+/** The door where it stands this very step, as opposed to the whole of the route it promised. */
+export function doorNow(boss, x, y) {
+  if (armedCount(boss) === 0) return null;
+  const half = gapHalf(boss);
+  return wedgeToTheRoom(x, y, gapAngle(boss) - half, gapAngle(boss) + half);
+}
+
+/** One wedge's own reach: the two bearings it runs between, clipped by whatever wall is in front. */
+function wedgeToTheRoom(x, y, from, to) {
+  const near = beamReach(world, x, y, Math.cos(from), Math.sin(from)).fore;
+  const far = beamReach(world, x, y, Math.cos(to), Math.sin(to)).fore;
+  const reach = Math.min(near, far);
+  if (!Number.isFinite(reach) || reach <= 0) return null;
+  return { from: from, to: to, reach: reach };
+}
+
+/**
+ * One wedge, lit: a fill, two radial edges and an arc across the far end. Both halves of the door's
+ * promise are painted with this one function and only its strength differs, so the route cannot be
+ * drawn at a different shape from the door travelling down it.
+ */
+function paintWedge(ctx, x, y, wedge, light) {
   ctx.beginPath();
   ctx.moveTo(x, y);
-  ctx.arc(x, y, reach, from, to);
+  ctx.arc(x, y, wedge.reach, wedge.from, wedge.to);
   ctx.closePath();
   ctx.fillStyle = withAlpha(PALETTE.bossGap, DOOR_FILL * light);
   ctx.fill();
@@ -522,41 +584,16 @@ function drawTheDoor(ctx, boss, x, y) {
   ctx.strokeStyle = withAlpha(PALETTE.bossGapLine, DOOR_EDGE_LIGHT * light);
   ctx.beginPath();
   ctx.moveTo(x, y);
-  ctx.lineTo(x + Math.cos(from) * reach, y + Math.sin(from) * reach);
+  ctx.lineTo(x + Math.cos(wedge.from) * wedge.reach, y + Math.sin(wedge.from) * wedge.reach);
   ctx.moveTo(x, y);
-  ctx.lineTo(x + Math.cos(to) * reach, y + Math.sin(to) * reach);
+  ctx.lineTo(x + Math.cos(wedge.to) * wedge.reach, y + Math.sin(wedge.to) * wedge.reach);
   ctx.stroke();
 
   ctx.lineWidth = DOOR_RIM;
   ctx.strokeStyle = withAlpha(PALETTE.bossGap, DOOR_RIM_LIGHT * light);
   ctx.beginPath();
-  ctx.arc(x, y, reach, from, to);
+  ctx.arc(x, y, wedge.reach, wedge.from, wedge.to);
   ctx.stroke();
-}
-
-/**
- * The door a fight is holding open, as a wedge: the two bearings it runs between, and how far out
- * they may go before a wall is in the way (a wedge that poked through a wall would be promising a
- * place the ship cannot get to).
- *
- * Two painters ask this one question and may never disagree about the answer. One is
- * `drawTheDoor`, which lights the promise; the other is render/darkness.js, which leaves the night
- * out of it, because a door that the dark has eaten is not a promise at all and the dark is no
- * excuse to break `bosses.telegraphMin` (game/balance.js `bosses.dark`).
- *
- * Null when nothing is being armed: there is no door between shells, and the bearings the next one
- * will be opened on are not chosen until it starts being wound.
- */
-export function doorWedge(boss, x, y) {
-  if (armedCount(boss) === 0) return null;
-
-  const from = gapAngle(boss) - gapHalf(boss);
-  const to = gapAngle(boss) + gapHalf(boss);
-  const near = beamReach(world, x, y, Math.cos(from), Math.sin(from)).fore;
-  const far = beamReach(world, x, y, Math.cos(to), Math.sin(to)).fore;
-  const reach = Math.min(near, far);
-  if (!Number.isFinite(reach) || reach <= 0) return null;
-  return { from: from, to: to, reach: reach };
 }
 
 /**

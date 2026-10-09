@@ -19,8 +19,8 @@ import { BALANCE } from '../src/game/balance.js';
 import { beamReach } from '../src/game/beams.js';
 import {
   armedCount, bossCells, bossCores, bossCoreOf, bossFlare, bossPhase, bossTint, cageRise,
-  callAngle, callBody, callCount, callStand, callStep, cellOpening, coreCells, gapAngle, gapHalf,
-  spokeAngle, spokeCount, spokeHalf,
+  callAngle, callBody, callCount, callStand, callStep, cellOpening, coreCells, gapAngle, gapEnd,
+  gapHalf, gapProgress, gapStart, spokeAngle, spokeCount, spokeHalf,
 } from '../src/game/bosses.js';
 import { PALETTE } from '../src/core/palette.js';
 import { damageEnemy } from '../src/game/enemies.js';
@@ -825,5 +825,160 @@ test('the pull it spends on the ship is drawn, as light falling in', () => {
     least = Math.min(least, pointsRound(sun.x, sun.y, r, 1.05, 1.6).length);
   }
   assert.ok(least > 0, 'nothing was drawn out where the drag is spent');
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------------------
+// The walking door (game/bosses.js `walkTheDoor`, render/entities.js `drawTheDoor`): the last
+// phase's shell promises a gap that travels, and the whole of the way it travels has to be on the
+// glass. So the frame draws two wedges and not one - the route, and the door walking down it - and
+// both come out of the same numbers the shots are thrown from. A test that only ever looked at the
+// door would not notice the route had been unhooked, and both of those mistakes look right.
+//
+// One wedge is two logged arcs, because a wedge is a filled path and a rim stroked over it: both
+// are the same width, and both are drawn, so a claim about a wedge here is a claim about two arcs.
+// ---------------------------------------------------------------------------------------
+
+/** The Eclipse's last phase, with its flare run out. */
+function toTheLastPhase(boss) {
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 3 && guard++ < 600) game.step(16);
+  guard = 0;
+  while (bossFlare(boss) > 0 && guard++ < 600) game.step(16);
+  assert.equal(bossPhase(boss), 3, 'it never got to its last phase');
+  return boss;
+}
+
+/** The row it promises with, for the numbers the wedges are drawn from. */
+const SHELL = BALANCE.bosses.eclipse.phases[2].bullets;
+
+/** Step into a wind-up and stop a little way into it: enough to be lit, not enough to be over. */
+function catchItWalking(boss) {
+  let guard = 0;
+  while (armedCount(boss) === 0 && guard++ < 900) game.step(16);
+  assert.ok(armedCount(boss) > 0, 'it never armed a shell');
+  for (let i = 0; i < 6; i++) game.step(16);
+  return boss;
+}
+
+/**
+ * The part-arcs the last frame drew round the sun's own middle, widest first. `arcsRound` is the
+ * Warden's and wants only one door; the Eclipse's promise is two wedges and both are wanted here.
+ */
+function wedgesRound(boss) {
+  const at = game.screenOf(boss.enemy.x, boss.enemy.y);
+  return game.circles()
+    .filter((c) => Math.hypot(c.at.x - at.x, c.at.y - at.y) < 2 && c.to > c.from
+      && c.to - c.from < TAU - 1e-9)
+    .sort((a, b) => (b.to - b.from) - (a.to - a.from));
+}
+
+/** How many arcs of one width are on the glass - a wedge is drawn twice, so a count is a claim. */
+function widths(wedges) {
+  const counts = new Map();
+  for (const c of wedges) {
+    const key = (c.to - c.from).toFixed(6);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+/** How many times one width was painted. */
+function painted(counts, width) {
+  return counts.get(width.toFixed(6)) || 0;
+}
+
+test('a walking door lights the whole of the way it walks, and the door on top of it', () => {
+  clearTheSky();
+  const boss = toTheLastPhase(bringTheEclipseOut());
+  catchItWalking(boss);
+
+  const half = gapHalf(boss);
+  const walk = gapEnd(boss) - gapStart(boss);
+  assert.ok(Math.abs(Math.abs(walk) - SHELL.gapWalk) < 1e-9, 'it is not walking the row\'s walk');
+
+  const wedges = wedgesRound(boss);
+  const counts = widths(wedges);
+  // Two wedges and no more: the way, and the door going down it - each of them painted twice, a
+  // filled path and a rim stroked over it.
+  assert.equal(wedges.length, 4,
+    'the glass holds ' + wedges.length + ' wedge-arcs and the promise is two wedges: '
+      + JSON.stringify([...counts]));
+
+  const route = wedges[0];
+  const door = wedges[wedges.length - 1];
+  assert.equal(painted(counts, Math.abs(walk) + half * 2), 2,
+    'the way was not painted as a wedge of its own');
+  assert.equal(painted(counts, half * 2), 2, 'the door was not painted as a wedge of its own');
+  assert.ok(Math.abs(route.from - (Math.min(gapStart(boss), gapEnd(boss)) - half)) < 1e-9
+    && Math.abs(route.to - (Math.max(gapStart(boss), gapEnd(boss)) + half)) < 1e-9,
+    'the route does not run from where the door lit to where it stops');
+  assert.ok(Math.abs((door.to - door.from) - half * 2) < 1e-9,
+    'the door is not drawn at the width it is left out at');
+  assert.ok(Math.abs(fold((door.from + door.to) / 2 - gapAngle(boss))) < 1e-9,
+    'the door was drawn round the wrong bearing');
+  // The two are clipped by the room separately - a route edge can be against a wall the door
+  // itself points away from - so how far each reaches is its own business; the claim that a door
+  // never reaches past a wall is made for the held door above, and stands for both of these.
+  clearTheSky();
+});
+
+test('the way is on the glass from the first step of the promise, not the last', () => {
+  clearTheSky();
+  const boss = toTheLastPhase(bringTheEclipseOut());
+  let guard = 0;
+  while (armedCount(boss) === 0 && guard++ < 900) game.step(16);
+  assert.ok(armedCount(boss) > 0, 'it never armed a shell');
+
+  // The very first frame of the wind-up. The whole point of lighting the route is that the far end
+  // of it - where the ship has to get to - is visible the moment the walk starts, so a frame that
+  // lights only what the door has covered so far is the bug this test is here to catch.
+  game.step(16);
+  assert.ok(gapProgress(boss) < 0.5, 'it had got halfway through the promise before it was caught');
+  const half = gapHalf(boss);
+  const widest = wedgesRound(boss)[0];
+  assert.ok(widest !== undefined, 'nothing was drawn round the sun at all');
+  assert.ok(Math.abs((widest.to - widest.from) - (SHELL.gapWalk + half * 2)) < 1e-9,
+    'the way was not whole on the first step: it was ' + (widest.to - widest.from).toFixed(3)
+      + ' rad and the whole of it is ' + (SHELL.gapWalk + half * 2).toFixed(3));
+  clearTheSky();
+});
+
+test('a door that does not walk lights no route at all', () => {
+  clearTheSky();
+  // Phase 2 of the same fight: the plain held door, and the same painter. Every door in the game
+  // before the last phase has to come out of this exactly as it went in, or the walking one has
+  // quietly redrawn the held ones.
+  const boss = bringTheEclipseOut();
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[1] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 2 && guard++ < 600) game.step(16);
+  guard = 0;
+  while (bossFlare(boss) > 0 && guard++ < 600) game.step(16);
+  catchItWalking(boss);
+
+  assert.equal(gapEnd(boss), gapStart(boss), 'a phase-2 door is walking');
+  const wedges = wedgesRound(boss);
+  const counts = widths(wedges);
+  assert.equal(wedges.length, 2,
+    'a held door drew ' + wedges.length + ' wedge-arcs, and a held door is one wedge: '
+      + JSON.stringify([...counts]));
+  assert.equal(painted(counts, gapHalf(boss) * 2), 2,
+    'and what it drew was not even the door');
+  clearTheSky();
+});
+
+test('lighting a walking door costs no blur and no gradient', () => {
+  clearTheSky();
+  const boss = toTheLastPhase(bringTheEclipseOut());
+  catchItWalking(boss);
+
+  const before = game.drawCalls();
+  game.step(16);
+  const spent = diff(game.drawCalls(), before);
+  assert.equal(spent.shadows, 0, 'the route asked the canvas for a blur');
+  assert.equal(spent.gradients, 0, 'the route asked the canvas for a gradient');
+  assert.ok(gapProgress(boss) > 0, 'the promise was over before it was measured');
   clearTheSky();
 });

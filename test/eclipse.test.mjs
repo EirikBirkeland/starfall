@@ -24,7 +24,8 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';
 import {
-  armedCount, bossFlare, bossName, bossPhase, bossRiding, bossShape, gapAngle, gapHalf,
+  armedCount, bossFlare, bossName, bossPhase, bossRiding, bossShape, gapAngle, gapEnd, gapHalf,
+  gapProgress, gapStart,
 } from '../src/game/bosses.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { scriptedRun, stepTheWorld, bossOnTheField } from '../tools/headless/scripted.js';
@@ -338,3 +339,257 @@ test('the sun lets go when the fight is down', () => {
   for (let i = 0; i < 60; i++) moved += shipMoved(field);
   assert.equal(moved, 0, 'a dead sun is still pulling');
 });
+
+// ---------------------------------------------------------------------------
+// The walking door (PLAN 3.4's "bullet walls with moving gaps")
+//
+// Every other door in the game is opened on you and held, because a promise that moves is not a
+// promise. The last phase of the last fight breaks that rule, and what buys the permission is the
+// same thing that bought the blades theirs: the whole of the way it travels is on the glass from
+// the first step of the wind-up, and it is standing still again before anything is thrown. So the
+// claims here are all about the shape of the walk - that it starts on the ship, that it is one way
+// and all the way, that it ends early enough to be read, and that the hole the shots leave is the
+// place the door came to rest and not a step short of it.
+// ---------------------------------------------------------------------------
+
+/** The row the last phase promises with. */
+const SHELL = ECLIPSE.phases[2].bullets;
+
+/** The last phase, with its flare run out. */
+function toPhaseThree(boss) {
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  assert.ok(until(() => bossPhase(boss) === 3, 30), 'the last phase never opened');
+  assert.ok(until(() => bossFlare(boss) === 0, 30), 'the flare never ran out');
+  return boss;
+}
+
+/** Wait for the next shell to start being promised, and hand back the fight. */
+function catchItArming(boss) {
+  assert.ok(until(() => armedCount(boss) > 0, 30), 'it never armed a shell');
+  return boss;
+}
+
+/**
+ * The wind-up stepped out to the last step, with the door's bearing and its progress at every one
+ * of them. What a walk is made of can only be measured by watching one.
+ */
+function watchTheWalk(boss) {
+  const seen = [];
+  let guard = 0;
+  while (armedCount(boss) > 0) {
+    seen.push({ at: gapAngle(boss), p: gapProgress(boss) });
+    realStep();
+    if (++guard > 4000) throw new Error('it never stopped promising');
+  }
+  return seen;
+}
+
+/** The bearing every shot in the air is travelling on - which is the bearing it left the rim on. */
+function shotBearings(field) {
+  const shots = field.enemyShots;
+  const out = [];
+  for (let i = 0; i < shots.count; i++) {
+    const shot = shots.items[i];
+    if (shot.from === 'eclipse') out.push(Math.atan2(shot.vy, shot.vx));
+  }
+  return out;
+}
+
+/** Park the ship on a bearing from the sun, `distance` out, and remember neither movement. */
+function standOnBearing(field, boss, bearing, distance) {
+  const body = boss.enemy;
+  return place(field, body.x + Math.cos(bearing) * distance, body.y + Math.sin(bearing) * distance);
+}
+test('only the last phase lets its door walk, and what it walks can be paid for', () => {
+  assert.equal(ECLIPSE.phases[0].bullets.gapWalk, undefined, 'the first shell has a held door');
+  assert.equal(ECLIPSE.phases[1].bullets.gapWalk, undefined, 'and so has the second');
+
+  // Further than the door is half-wide, or the door would have walked and the ship not noticed:
+  // it is standing dead in the middle of it when it lights, so anything less than `gap` of travel
+  // leaves it inside the wedge anyway and the gap has not moved in any way it could tell.
+  assert.ok(SHELL.gapWalk > SHELL.gap, 'a door that walked less than its own half-width never moved');
+
+  // There has to be a rest in it: `gapSettle` of the wind-up is spent with the door standing
+  // still, and that is the half of the promise the held doors never had to make. It has to be a
+  // rest the simulation can actually reach - at least a step, or the door would still be moving on
+  // the step the wall is thrown - because that rest is the only reason the last bearing the frame
+  // ever showed is the bearing the hole is left at.
+  for (const phase of ECLIPSE.phases) {
+    const row = phase.bullets;
+    if (row.gapWalk === undefined) continue;
+    assert.ok(row.gapSettle > BALANCE.sim.step, 'there is no rest at the end of the walk');
+    assert.ok(row.gapSettle < row.windup, 'the walk never finishes inside the wind-up');
+  }
+
+  // And the chase has to be affordable. The ship has `gapWalk - gap` of bearing to buy back, from
+  // the first step of the wind-up until the wall reaches its own radius - priced at the dear end,
+  // the far edge of the band the sun holds, where a radian of arc is longest, against the fastest
+  // hull in the game, and asked for less than half of it: the other half is being spent not
+  // falling into the sun (game/balance.js `eclipse.pull`).
+  const far = ECLIPSE.approach.far;
+  const arc = (SHELL.gapWalk - SHELL.gap) * far;
+  const secs = SHELL.windup + (far - ECLIPSE.radius) / SHELL.shot.speed;
+  const ask = arc / secs;
+  const ship = BALANCE.ships.wisp.maxSpeed;
+  assert.ok(ask > 20, 'a door that walks is asking for nothing: ' + ask.toFixed(0) + ' px/s');
+  assert.ok(ask < ship / 2, 'the chase costs ' + ask.toFixed(0) + ' px/s of the ' + ship + ' it has');
+});
+
+test('the door lights on the ship, walks one way, and the whole of the way', () => {
+  const field = scriptedRun(309);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+
+  // It starts where the ship is standing, exactly as every held door does: the walk is a thing that
+  // happens to a door the ship was already inside, and not a door thrown at random.
+  const lit = bearing(field, boss);
+  assert.equal(gapStart(boss), lit, 'the door did not light on the ship');
+  assert.equal(gapAngle(boss), lit, 'the door was somewhere else on the step it lit');
+
+  const walk = gapEnd(boss) - gapStart(boss);
+  assert.ok(Math.abs(Math.abs(walk) - SHELL.gapWalk) < 1e-12, 'it promised to walk ' + walk);
+
+  const seen = watchTheWalk(boss);
+  assert.ok(seen.length > 20, 'the wind-up was too short to watch');
+
+  // One way, the whole way, and never backtracking: a ship can read a bearing that only ever gets
+  // further from where it lit, and cannot read anything else.
+  let moved = 0;
+  for (let i = 1; i < seen.length; i++) {
+    const step = seen[i].at - seen[i - 1].at;
+    if (step === 0) continue;
+    assert.ok((step > 0) === (walk > 0), 'the door changed its mind at step ' + i);
+    moved += step;
+  }
+  assert.ok(Math.abs(moved - walk) < 1e-12, 'it walked ' + moved + ' of the ' + walk + ' it promised');
+  assert.equal(seen[seen.length - 1].at, gapEnd(boss), 'it was still walking when the shell landed');
+});
+
+test('the door is standing still again before the wall is thrown', () => {
+  const field = scriptedRun(310);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  const seen = watchTheWalk(boss);
+
+  // The last `gapSettle` seconds of the wind-up, measured off the progress the promise reports:
+  // not one of those steps moves the door a pixel. This is the whole of the difference between a
+  // moving gap and a moving promise - the wall that arrives has not moved an inch.
+  const since = 1 - SHELL.gapSettle / SHELL.windup;
+  const rest = seen.filter((s) => s.p > since);
+  assert.ok(rest.length > 8, 'the rest was ' + rest.length + ' steps long, which is not a rest');
+  for (const s of rest) {
+    assert.equal(s.at, seen[seen.length - 1].at, 'the door was still creeping');
+  }
+  assert.ok(rest.length * STEP < SHELL.gapSettle + STEP, 'the progress it reports lies');
+});
+
+test('the hole that arrives is the hole it walked to, edge for edge', () => {
+  const field = scriptedRun(311);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  const walked = gapEnd(boss);
+  const half = gapHalf(boss);
+
+  steps(SHELL.windup + STEP * 2);
+  assert.equal(armedCount(boss), 0, 'it is still arming after it threw');
+  assert.equal(gapAngle(boss), walked, 'it fired with the door short of its place of rest');
+
+  const bearings = shotBearings(field);
+  assert.equal(bearings.length, SHELL.count, 'it threw a different number of shots than it armed');
+  for (const bearing of bearings) {
+    assert.ok(Math.abs(off(bearing, walked)) >= half,
+      'a shot went down the door it was told to leave open');
+  }
+
+  // The door is a wide place and not a hairline: the ring is spread thinly enough over what is
+  // left of the circle that the wedge on the glass is the best answer there is, and not one of
+  // several.
+  const step = (TAU - half * 2) / SHELL.count;
+  assert.ok(half * 2 > step * 3, 'the door is barely wider than the gap between two shots');
+});
+
+test('every other shell walks the other way', () => {
+  const field = scriptedRun(312);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+
+  // The direction is the count of shells the fight has thrown and not a roll, so a player who has
+  // seen one shell walk knows which way the next one is going before it starts - which is the only
+  // way a moving gap is a rhythm rather than a coin toss.
+  const walks = [];
+  for (let shell = 0; shell < 4; shell++) {
+    catchItArming(boss);
+    walks.push(gapEnd(boss) - gapStart(boss));
+    steps(SHELL.windup + STEP * 2);
+  }
+  for (let i = 0; i < walks.length; i++) {
+    assert.ok(Math.abs(Math.abs(walks[i]) - SHELL.gapWalk) < 1e-12,
+      'shell ' + i + ' walked ' + walks[i].toFixed(3) + ' and the row says ' + SHELL.gapWalk);
+    if (i > 0) assert.ok((walks[i] > 0) !== (walks[i - 1] > 0), 'two shells in a row went the same way');
+  }
+});
+
+test('a walk is not a roll: another seed walks the same door', () => {
+  const first = oneWalk(scriptedRun(313));
+  const second = oneWalk(scriptedRun(991));
+  assert.equal(second, first, 'two runs walked different doors: ' + first + ' and ' + second);
+});
+
+/** One shell's walk, from a fresh arena with the sun arrived and on its last phase. */
+function oneWalk(field) {
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  const walk = gapEnd(boss) - gapStart(boss);
+  watchTheWalk(boss);
+  return walk;
+}
+
+test('a ship that stays where the door lit is not in it when the wall arrives', () => {
+  // The claim the whole row exists to make, paid out in hull and not in bearings: the door really
+  // did leave, and the wall really does arrive where it stopped. Two ships, one that followed and
+  // one that did not, at the dear end of the room, and the only difference between them is whether
+  // they went to where the promise ended.
+  const took = hullTakenByOneShell(314);
+  assert.ok(took.stayed >= 1, 'a ship that did nothing was left alone by a door that walked away');
+  assert.equal(took.followed, 0, 'a ship standing in the door it walked to was still hit');
+});
+
+/**
+ * One shell, twice: the hull a ship loses standing on the bearing the door lit on, and the hull the
+ * same ship loses standing on the bearing the door came to rest on. Both parked on the far edge of
+ * the band the sun holds - the dear end, where the chase costs most - and the window is as long as
+ * that wall's own flight and no longer, so nothing after this shell can be blamed for it.
+ */
+function hullTakenByOneShell(seed) {
+  const out = {};
+  for (const where of ['lit', 'rest']) {
+    const field = scriptedRun(seed);
+    const boss = eclipseOnTheField();
+    toPhaseThree(boss);
+    catchItArming(boss);
+    const ship = standOnBearing(field, boss,
+      where === 'lit' ? gapStart(boss) : gapEnd(boss), ECLIPSE.approach.far);
+    ship.invuln = 0;
+    ship.hull = 5;
+
+    const wall = (ECLIPSE.approach.far - ECLIPSE.radius) / SHELL.shot.speed;
+    const total = Math.ceil((SHELL.windup + wall) / STEP) + 4;
+    let hull = ship.hull;
+    let lost = 0;
+    for (let i = 0; i < total; i++) {
+      realStep();
+      if (ship.hull < hull) { lost++; hull = ship.hull; }
+    }
+    out[where === 'lit' ? 'stayed' : 'followed'] = lost;
+  }
+  return out;
+}

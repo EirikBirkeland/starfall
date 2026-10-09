@@ -1694,16 +1694,18 @@ export const BALANCE = {
     // everything else about this boss is - the light of its own corona falling inwards
     // (render/boss.js), from the moment it arrives.
     //
-    // SHIPPED, all three phases and all four of its permissions: the drag, the shell, the night and
-    // the blades. Phase 2 puts the arena under (`dark`, below) and phase 3 keeps it there and
-    // deeper, because PLAN's phase 3 is "everything from before", and it is the phase that grows
-    // the sweeping arms (`sweep`, below) beside its shell.
-    // NOT SHIPPED from 3.4's Eclipse row, written here so it is not lost: the same phase's "bullet
-    // walls with moving gaps". The shells are walls with a door opened on you and then held, and a
-    // gap that travelled after it was shown would be a wall and not a promise - so either the travel
-    // is shown as part of the fan (which is what the arms do) or that half line becomes [skipped]
-    // with the reason. The three phases today are the drag, the shell, the dark and the blades,
-    // priced three ways.
+    // SHIPPED, all three phases and all five of its permissions: the drag, the shell, the night,
+    // the blades and the walking door. Phase 2 puts the arena under (`dark`, below) and phase 3
+    // keeps it there and deeper, because PLAN's phase 3 is "everything from before", and it is the
+    // phase that grows the sweeping arms (`sweep`, below) and a shell whose gap moves
+    // (`gapWalk`, below) beside its plain ones.
+    //
+    // PLAN's "bullet walls with moving gaps" is the `gapWalk` row, and it keeps the one rule every
+    // promise in this fight keeps: what travels is shown travelling, the whole of the way, before
+    // anything is thrown. The wall itself never moves - not one shot of it curves - and the gap is
+    // at rest for `gapSettle` seconds before it arrives, so the moving part of a moving gap is the
+    // promise and not the harm. That is the same bargain the blades make with their fan
+    // (game/arms.js), and it is why both of them are drawn out of one answer in render/.
     eclipse: {
       name: 'THE ECLIPSE',
       blurb: 'a dark sun that drags you in and bursts in every direction',
@@ -1818,8 +1820,31 @@ export const BALANCE = {
           turn: 0.66, wait: 1.85,
           pull: { force: 230, floor: 92 },
           dark: { level: 0.86 },
+          // PLAN's moving gap, and the last new thing the game asks of you. The door is opened on
+          // your own bearing as ever - so a ship that does nothing is shown a door it is standing
+          // in - and then it walks `gapWalk` radians away from you over the wind-up and stands
+          // still for `gapSettle` before the shell comes round the corner it stopped at.
+          //
+          // The whole of the route is on the glass from the first frame of the wind-up, which is
+          // what makes the walk's own pace free: you are not chasing a thing you have to keep your
+          // eye on, you are reading a place that is drawn end to end and going to its far end
+          // (render/entities.js `doorWedge`). What it costs is written in the same place as every
+          // other ask here, against the drag: the wall takes (r - 58) / 250 s to reach a ship at r,
+          // so from the moment the door starts walking you have 1.8 s at the near edge of the sun's
+          // band and 2.3 s at the far one. The door is 2 * `gap` = 1.0 rad wide and walks 1.2, so
+          // 0.7 rad of bearing has to be paid for: 224 px of arc in close, 322 px out at the far
+          // edge, which is 127 px/s and 138 px/s of the 320 the best ship has. That is affordable,
+          // and it is not free in the one currency this fight charges in - the drag is 230 px/s
+          // inwards, so the share of your speed that goes into the door comes off the share that
+          // keeps your distance from the sun, and chasing a door across the room means falling
+          // while you do it.
+          //
+          // It alternates: every other shell walks the other way (game/bosses.js `walkOf`),
+          // which is a rhythm and not a roll, and only this phase has it. The two phases before are
+          // the plain held door, so the fight teaches its own ending.
           bullets: {
             count: 30, gap: 0.5, windup: 0.72,
+            gapWalk: 1.2, gapSettle: 0.26,
             shot: { speed: 250, radius: 8, life: 6, caged: true },
             wind: { sound: { freq: 200, dur: 0.62, wave: 'triangle', vol: 0.06, slide: 720 } },
             fire: {

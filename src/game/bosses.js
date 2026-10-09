@@ -53,6 +53,10 @@
 //     One beat's harm does move - the Eclipse's blades sweep - and it gets round the same rule the
 //     same way every other promise here does: it shows the whole of the way it travels, a fan and
 //     not a line, so what the ship is asked to leave is a place and not a rumour (game/arms.js).
+//     One beat's *promise* moves too - the Eclipse's last shell walks its door across the room -
+//     and it pays for the same permission twice over: the whole route is lit from the first step of
+//     the wind-up, and the door is standing still again before the wall is thrown (game/bosses.js
+//     `walkTheDoor`), so the harm that arrives has not moved an inch.
 //
 //   **The room's light.** A phase may ask for the night to come down - PLAN 3.4's Eclipse phase 2,
 //     "the arena darkens, and only areas near the player and near bullets are lit" - with a `dark`
@@ -128,10 +132,16 @@ const RHYTHMS = {
  * The four beats a boss can be holding: `enter` starts the promise and writes down the numbers
  * it is being shown with, `land` is what happens when the promise is kept. Both halves read the
  * same numbers either way, which is the one rule every telegraph in this game is held to.
+ *
+ * `show` is optional, and only one beat has it: a promise that is held for a while is normally held
+ * *unchanged*, and a beat that had something to do every step of its wind-up would be a telegraph
+ * with a clock in it instead of a place on the floor. A door that walks is the one exception, and
+ * it is an exception of the same shape as the blades' fan: the whole of the way it travels is shown
+ * before anything moves, and it is at rest again before anything lands.
  */
 const BEATS = {
   [LOCKING]: { enter: lockSpokes, land: fireSpokes },
-  [RINGING]: { enter: windRing, land: throwRing },
+  [RINGING]: { enter: windRing, land: throwRing, show: walkTheDoor },
   [CALLING]: { enter: windCall, land: sendCall },
   [OPENING]: { enter: lightCells, land: letThemOut },
   [ARMING]: { enter: showArms, land: letArmsLoose },
@@ -211,8 +221,11 @@ function newFight(id, index) {
     spokes: 0,        // how many rays the lock it is holding will fire
     nextBeat: LOCKING,// which of the phase's beats the ride just ended hands over to
     armed: 0,         // how many shots the ring it is arming is made of; 0 is nothing is armed
-    gapAngle: 0,      // the bearing the door it is showing is centred on
+    gapAngle: 0,      // the bearing the door it is showing is centred on, this very step
     gapHalf: 0,       // and how wide each side of that door is, in radians
+    gapFrom: 0,       // the bearing that door lit on, and the one it will come to rest on: a door
+    gapTo: 0,         // may walk (`walkTheDoor`), and the route between these two is the promise
+    gapRun: 0,        // how many seconds of the wind-up the walk takes; the rest of it is a hold
     armCount: 0,      // how many blades a sweep it is showing is made of; 0 is none are being shown
     armStep: 0,       // and how far apart two of them stand, in radians
     armArc: 0,        // and how far each of them will travel, in radians
@@ -640,6 +653,10 @@ function fireSpokes(world, boss, phase) {
  *
  * What the ride is - a ring turning on the spot, a mass drifting in - and what the ride leads to
  * are the rhythm's (`RHYTHMS`); the clock of it is here and is the same for every boss there is.
+ * A beat that is being shown is shown *unchanged* every step of it - `showThePromise` is there for
+ * the one beat that has something to walk while it waits - and nothing lands on a step that also
+ * moves a promise, because the thing on show has to be the thing that hurts right up to the moment
+ * it stops being a show.
  */
 function stepBeat(world, boss, dt) {
   const rhythm = rhythmOf(boss);
@@ -647,7 +664,7 @@ function stepBeat(world, boss, dt) {
   boss.timer -= dt;
 
   if (boss.stage !== RIDING) {
-    if (boss.timer > 0) return;      // still showing it, exactly as it was shown
+    if (boss.timer > 0) { showThePromise(boss); return; }
     BEATS[boss.stage].land(world, boss, phase);
     rideAgain(boss, phase);
     return;
@@ -873,12 +890,17 @@ function lockSpokes(world, boss, phase) {
 /**
  * The bullet-ring beat: hold still with a door lit across the ring's own body.
  *
- * The door is aimed at the ship's bearing at this instant and then held. It does not follow - a
- * promise that chases you is not a promise, it is a wall - and that is the whole of the fairness
- * of it: a ship that does nothing at all is standing in the door the moment it lights. What costs
- * a hull is sliding out of it and not coming back, and `windup` is the time given to notice and
- * correct - which is also long enough for a dash to be the answer. The bearing is no more a roll
- * than the spokes' facing is: a run of one seed throws its rings the same way.
+ * The door is aimed at the ship's bearing at this instant. It does not follow the ship - a promise
+ * that chases you is not a promise, it is a wall - and that is the whole of the fairness of it: a
+ * ship that does nothing at all is standing in the door the moment it lights. What costs a hull is
+ * sliding out of it and not coming back, and `windup` is the time given to notice and correct -
+ * which is also long enough for a dash to be the answer. The bearing is no more a roll than the
+ * spokes' facing is: a run of one seed throws its rings the same way.
+ *
+ * A row may give that door somewhere to go (`gapWalk`, game/balance.js `eclipse`), and then it
+ * walks - see `walkTheDoor`. That is the one part of this beat that is allowed to move, and it
+ * buys the permission the same way the blades do: the walk is over, and the door is standing still
+ * again, before a single shot is thrown round it.
  */
 function windRing(world, boss, phase) {
   const spec = phase.bullets;
@@ -890,10 +912,52 @@ function windRing(world, boss, phase) {
   boss.beat = spec.windup;
   boss.armed = spec.count;
   boss.gapHalf = spec.gap;
-  boss.gapAngle = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+  boss.gapFrom = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+  boss.gapTo = boss.gapFrom + walkOf(spec, boss);
+  boss.gapRun = spec.gapWalk === undefined ? 0 : spec.windup - spec.gapSettle;
+  walkTheDoor(boss);
 
   const sound = spec.wind.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * How far the door of the shell being wound will walk from where it lit, in radians, and which
+ * way: 0 for every row that does not ask for it, which is every shell in the game until the
+ * Eclipse's last phase.
+ *
+ * The direction is the count of shells the fight has already thrown, which is a rhythm a player
+ * can learn (this one went right, so the next goes left) and not a roll a seed would have to
+ * remember. It is measured on the way *out*, and the walk is always away from where the door lit:
+ * the ask is never "guess which way it is coming", it is "that way, go with it".
+ */
+function walkOf(spec, boss) {
+  if (spec.gapWalk === undefined) return 0;
+  return boss.rings % 2 === 0 ? spec.gapWalk : -spec.gapWalk;
+}
+
+/**
+ * Put the door where its walk has got to by now, which for a door that does not walk is one place
+ * and always was. Then it runs out of road: a walking row has to leave `gapSettle` of its own
+ * wind-up for the door to stand still in (game/balance.js `eclipse`, and test/eclipse.test.mjs
+ * holds every walking row to it), and that rest is what makes the last bearing the frame ever
+ * showed the exact bearing the hole is left at. No beat has to remember to land a door, and no row
+ * can promise a walk that has not finished by the time the wall is thrown.
+ */
+function walkTheDoor(boss) {
+  if (boss.gapRun <= 0) {
+    boss.gapAngle = boss.gapTo;
+    return;
+  }
+  const gone = boss.beat - boss.timer;
+  const p = clamp(gone / boss.gapRun, 0, 1);
+  boss.gapAngle = boss.gapFrom + (boss.gapTo - boss.gapFrom) * p;
+}
+
+/** One step of a promise being held. Most beats have nothing left to show; one has a door to walk. */
+function showThePromise(boss) {
+  const show = BEATS[boss.stage].show;
+  if (show !== undefined) show(boss);
 }
 
 /**
@@ -1816,6 +1880,23 @@ export function gapAngle(boss) {
 
 export function gapHalf(boss) {
   return boss.gapHalf;
+}
+
+/**
+ * The two ends of the route the door it is arming has promised to walk: where it lit, and where it
+ * will stand still. For every door that does not walk - every door but the Eclipse's last phase -
+ * both are the live bearing, which is what makes a held door and a walking one the same question
+ * asked one way (game/bosses.js `walkTheDoor`).
+ *
+ * The frame lights the whole of the route and the night leaves the whole of it out, for the same
+ * reason the blades' fan is lit end to end: a promise that travels owes the sight of all of it.
+ */
+export function gapStart(boss) {
+  return boss.gapFrom;
+}
+
+export function gapEnd(boss) {
+  return boss.gapTo;
 }
 
 /** How far through the arming it stands, 0 when it is not arming anything. */

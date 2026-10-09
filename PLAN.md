@@ -705,7 +705,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       phase is the brood priced hotter and turned faster instead, and the hive has no gun. Either
       a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
-- [ ] The Eclipse, one phase per session, including the darkness effect.
+- [x] The Eclipse, one phase per session, including the darkness effect.
       (Shipped: the arrival, the drag, the shell, the dark, and the blades - three phases, one bar,
       one flare each, PLAN's phase-2 darkness, and PLAN's phase-3 sweeping arms. It asked the
       framework for one new permission and one new rhythm: **a fight may move the ship**.
@@ -735,8 +735,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
       after the body that loosed them has gone down. A beat's harm that *moves* is the one exception to
       "a boss stands still while it shows", and it gets round the rule the way every other promise
       here does: the fan is the harm, edge for edge, and the frame and the night cut it out of the same
-      question (render/arms.js), so the dark this fight brings cannot eat it. NOT SHIPPED from 3.4's
-      Eclipse row: phase 3's bullet walls with moving gaps. `test/eclipse.test.mjs`,
+      question (render/arms.js), so the dark this fight brings cannot eat it. And PLAN's "bullet walls
+      with moving gaps" is a **walking door** (`gapWalk`, `gapSettle` on the third phase's shell): the
+      door is opened on the ship's own bearing as ever, then travels 1.2 rad over the wind-up and
+      stands still for the last 0.26 s of it before the wall is thrown round the place it stopped, so
+      the harm never moves and only the promise does - and the whole route is lit from the first step
+      of the wind-up (render/entities.js `doorWedge` answers the route and `doorNow` the door, and the
+      night leaves both out) for the same reason a fan is lit end to end. It alternates direction on
+      the count of shells thrown, which is a rhythm and not a roll, and only the last phase has it.
+      `test/eclipse.test.mjs`,
       `test/darkness.test.mjs`, `test/darkness-art.test.mjs`, `test/arms.test.mjs`,
       `test/arms-art.test.mjs` and the sun tests of `test/boss-art.test.mjs` own what is here.)
 - [ ] Victory screen and the endless mode that follows.

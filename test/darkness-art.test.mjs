@@ -23,7 +23,7 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  armedCount, bossPhase, coreReach, darknessOf, gapAngle, gapHalf,
+  armedCount, bossPhase, coreReach, darknessOf, gapAngle, gapEnd, gapHalf, gapStart,
 } from '../src/game/bosses.js';
 import { doorWedge } from '../src/render/entities.js';
 import { view } from '../src/render/canvas.js';
@@ -292,4 +292,63 @@ test('the sheet is cut to the window it is laid on', () => {
   assert.equal(holesAt(holes(), sheet(field.player.x, field.player.y), LIGHT.ship).length, 1,
     'and after the resize the ship is not where the dark thinks it is');
   game.setViewport(1280, 720);
+});
+
+// ---------------------------------------------------------------------------
+// The walking door's promise, in the dark (game/bosses.js `walkTheDoor`). The last phase's shell
+// promises a gap that travels, and the whole of the way it travels is a promise: the night may not
+// eat any more of it than it may eat a held door. Two wedges go into the dark and the narrower of
+// them - the door where it stands - has to be inside the wider.
+// ---------------------------------------------------------------------------
+
+/**
+ * The last phase, deep night and all. The dark is not asked to come back for the phase change
+ * (game/bosses.js `stepDarkness`), so the deeper ask is what the ramp is walking to here.
+ */
+function intoTheDeep() {
+  const boss = intoTheDark();
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (darknessOf(field) < ECLIPSE.phases[2].dark.level - 1e-9 && guard++ < 2000) step(16);
+  assert.equal(bossPhase(boss), 3, 'it never got to its last phase');
+  return boss;
+}
+
+test('the night leaves the whole of a walking door out, and not just its last place', () => {
+  const boss = intoTheDeep();
+  const sun = boss.enemy;
+
+  let guard = 0;
+  while (armedCount(boss) === 0 && guard++ < 900) step(16);
+  assert.ok(armedCount(boss) > 0, 'it never armed a shell to look at');
+
+  const half = gapHalf(boss);
+  const walk = gapEnd(boss) - gapStart(boss);
+  const at = sheet(sun.x, sun.y);
+  const arcs = game.circlesOffscreen().filter((c) => c.mode === 'destination-out');
+  assert.equal(arcs.length, 2, 'the night was cut with ' + arcs.length + ' wedges and the promise has two');
+
+  const route = arcs.find((c) => Math.abs((c.to - c.from) - (Math.abs(walk) + half * 2)) < 1e-9);
+  const door = arcs.find((c) => Math.abs((c.to - c.from) - half * 2) < 1e-9);
+  assert.ok(route !== undefined, 'the way the door walks was left in the dark: '
+    + JSON.stringify(arcs.map((c) => [c.from, c.to])));
+  assert.ok(door !== undefined, 'the door itself was left in the dark');
+  for (const wedge of [route, door]) {
+    assert.ok(Math.hypot(wedge.at.x - at.x, wedge.at.y - at.y) < 4,
+      'a wedge was cut somewhere other than round the sun');
+  }
+  // The door is inside the route it was promised by - which is the one ordering that matters, since
+  // the ship is asked to stand in the door and read the route.
+  assert.ok(route.from <= door.from + 1e-9 && route.to >= door.to - 1e-9,
+    'the door was cut outside the way it walks');
+  assert.ok(Math.abs(gapAngle(boss) - (door.from + door.to) / 2) < 1e-9,
+    'the door the dark left out is not the door the fight opened');
+
+  // And only while it is arming one: between shells there is no door and no route, and a wedge left
+  // cut would be a lit place in the night for a volley that is not coming.
+  guard = 0;
+  while (armedCount(boss) > 0 && guard++ < 900) step(16);
+  step(16);
+  assert.equal(game.circlesOffscreen().filter((c) => c.mode === 'destination-out').length, 0,
+    'a door was let through the night between shells');
 });

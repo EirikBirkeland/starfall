@@ -29,7 +29,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { makeEnemy, aimProgress, blastRadius, isAiming, isLocking, isLunging, isSpitting } from '../src/game/kinds.js';
 import { bossOnTheField, scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
-import { armedCount, bossPhase, gapAngle } from '../src/game/bosses.js';
+import { armedCount, bossPhase, gapAngle, gapEnd, gapStart } from '../src/game/bosses.js';
 import {
   armArc, armCount, armHalf, armStep, bossCores,
 } from '../src/game/bosses.js';
@@ -717,4 +717,62 @@ test('a blade already loose is a band the bot steps off', () => {
   assert.ok(round > 0.5, 'it did not step off the blade: ' + JSON.stringify(want));
   assert.ok(Math.abs(along) < 0.4, 'it ran along the blade, which is the wrong way off a band');
   assert.ok(arm.half > 0);
+});
+
+// --- the walking door (game/bosses.js `walkTheDoor`) ------------------------------------------
+//
+// The last phase's shell promises a gap that travels, and the bot reads the same wedge the glass
+// does, so what has to be shown is that it is reading the *live* one: a ship left behind where the
+// door lit is told to go the way the door went, and a ship standing where it came to rest is not
+// told anything at all.
+
+/**
+ * The Eclipse on its last phase, standing in the middle of an empty arena with a shell being
+ * promised whose walk is over: the door has come to rest, and the wall has not been thrown yet.
+ */
+function afterTheWalk() {
+  const field = parked();
+  const boss = bossOnTheField(2);
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 3 && guard++ < 4000) stepTheWorld();
+  guard = 0;
+  while (armedCount(boss) === 0 && guard++ < 4000) stepTheWorld();
+  guard = 0;
+  while (armedCount(boss) > 0 && Math.abs(gapAngle(boss) - gapEnd(boss)) > 1e-12 && guard++ < 4000) {
+    stepTheWorld();
+  }
+  assert.ok(armedCount(boss) > 0, 'the promise was over before it could be looked at');
+  assert.ok(Math.abs(gapAngle(boss) - gapEnd(boss)) < 1e-12, 'the door is still walking');
+  assert.ok(Math.abs(gapEnd(boss) - gapStart(boss)) > 1e-9, 'the door never walked at all');
+  field.enemies.length = 0;
+  field.enemyShots.clear();
+
+  const body = boss.enemy;
+  body.x = C.x; body.y = C.y; body.px = C.x; body.py = C.y;
+  return { field, boss, ship: field.player };
+}
+
+test('a door that has walked away is a door the bot follows', () => {
+  const scene = afterTheWalk();
+  const walk = gapEnd(scene.boss) - gapStart(scene.boss);
+
+  // Standing where the door lit: it is a whole walk outside the wedge now, and the only answer is
+  // to slide round the sun the way the door went.
+  onABearing(scene.ship, scene.boss.enemy, gapStart(scene.boss), 400);
+  const want = escapeDirection(scene.field);
+  const at = gapStart(scene.boss);
+  const along = want.x * Math.cos(at) + want.y * Math.sin(at);
+  const round = -want.x * Math.sin(at) + want.y * Math.cos(at);
+  assert.ok(want.pressure > 0.5, 'a ship left behind by the door was told nothing: ' + want.pressure);
+  assert.ok(Math.abs(along) < 0.4, 'it ran in or out, which is not how you cross onto a wedge');
+  assert.ok((round > 0) === (walk > 0), 'it went the other way round: ' + JSON.stringify(want));
+});
+
+test('a ship standing where the door came to rest is left alone', () => {
+  const scene = afterTheWalk();
+  onABearing(scene.ship, scene.boss.enemy, gapEnd(scene.boss), 400);
+  const calm = escapeDirection(scene.field);
+  assert.ok(calm.pressure < 0.01,
+    'a ship in the door it walked to was being shoved: ' + calm.pressure);
 });
