@@ -1,5 +1,33 @@
 # Starfall — changelog
 
+## 0.6.5 — 2026-10-09
+The third boss arrives at 15:00: the Eclipse, a dark sun that drags you in and bursts out in shells.
+- **Something in the arena is pulling you.** The Eclipse is a gravity well: every phase drags the ship
+  towards its middle - 130 px/s in the first, 230 in the last. That is under every ship's top speed and
+  not under the Bulwark's by much, and you have to dodge while swimming against it, so the answer is a
+  dash and a bearing rather than a straight line away. The drag is spent on your *place* and not on your
+  engines, which is why leaning into it does not cancel it: all an engine can do is out-swim it. It
+  stops at the rim of the body that hurts you on contact, so it can never feed you into the fight, and
+  it lets go entirely while the fight is changing phase.
+- **A hole, not a hull.** It is drawn the other way round from everything else in the game: the light is
+  painted first and a disc of opaque nothing is laid over the middle of it, so what you are looking at is
+  a corona with a hole in it and no stars behind. The rim is the countdown - it brightens across whatever
+  the fight is promising - and the drag itself is drawn, as ticks of the corona's own light falling
+  inwards, because it is the one thing about this boss that is not a shot and has to be seen anyway.
+- **Its one beat is a shell.** A ring of shots out of the rim with the door opened on your own bearing
+  and then held, exactly as the Warden's ring does - and while the sun drags, the pull points at the
+  body, so it can only ever carry you *down* the door you were shown, never out of it.
+- **What the framework had to learn.** A third rhythm - a fight may turn on the spot *and* hold a band,
+  which is what the sun does - and one rule the two-beat bosses never had to say out loud: a beat a phase
+  never wrote is never taken, or the Eclipse would spend half of every turn standing still with a
+  telegraph on it for a volley that was never coming.
+- **The warning tells you what the fight is going to do.** Every boss row always had a one-line blurb
+  and nothing ever showed it; now the name on the glass comes with it, fitted to the window. The
+  Eclipse drags, and that is not a thing you can read off a shape.
+- **Not in yet:** the arena darkening of PLAN's phase 2 and the sweeping arms of its phase 3. What
+  shipped is the drag and one beat priced three ways, which is the shape the first two bosses were
+  built in too.
+
 ## 0.6.4 — 2026-10-09
 The Hive's last phase: it comes apart into three smaller hives, and one hull bar stays one fight.
 - **At a third of the hull the fight stops being one body.** The flare that opens the last phase
