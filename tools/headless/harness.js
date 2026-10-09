@@ -91,7 +91,12 @@ function makeContextStub(counters, drawLog) {
     font: '',
     textAlign: 'left',
     textBaseline: 'alphabetic',
-    fillRect: () => { counters.fills++; },
+    fillRect: (x, y, w, h) => {
+      counters.fills++;
+      // The rectangle itself, for the same reason the stamps and circles are logged: the only way to
+      // ask whether a covering pass covered the thing it was laid on (render/darkness.js).
+      drawLog.rects.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
+    },
     fill: () => { counters.fills++; },
     stroke: () => { counters.strokes++; drawLog.strokes.push(target.lineWidth); },
     fillText: (text, x, y) => {
@@ -266,13 +271,13 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], rects: [] };
   // The same log for every offscreen canvas the game makes - the glow sprites, and anything that
   // paints a layer of its own and lays the sheet on the window (render/darkness.js). Cleared with
   // the frame, like the window's, so a test can ask what the last frame cut. Nothing else stamps or
   // arcs onto an offscreen canvas: a sprite bake fills soft blobs and nothing more, so on any frame
   // that meets no new thing to draw, what is in here is the layer's own work.
-  const offLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [] };
+  const offLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], rects: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -385,7 +390,8 @@ export async function bootGame(options) {
     measure(paint) {
       const spent = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
       const blank = {
-        translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [],
+        translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [],
+        strokes: [], rects: [],
       };
       paint(makeContextStub(spent, blank));
       return Object.assign({}, spent);
@@ -414,6 +420,9 @@ export async function bootGame(options) {
     stampsOffscreen() { return offLog.images.slice(); },
     /** Every circle a layer asked for on its own sheet last frame, with its composite. */
     circlesOffscreen() { return offLog.circles.slice(); },
+    /** Every rectangle the last frame filled on the window, or on a layer, and how big it was. */
+    rects() { return drawLog.rects.slice(); },
+    rectsOffscreen() { return offLog.rects.slice(); },
     /**
      * The line width of every stroke the last frame made, in order: the only way in here
      * to ask how wide something was drawn, which is how a test can check that a warning

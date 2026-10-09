@@ -119,15 +119,15 @@ function shotStandingAt(x, y) {
   return shot;
 }
 
-/** Cut everything off the lists so a claim about "this frame" is about this frame. */
-function clearTheFrame() {
+/** One frame, which is also what puts a fresh set of draw logs under the next claim. */
+function oneFrame() {
   game.step(16);
 }
 
 // ---------------------------------------------------------------------------
 
 test('the night is laid over the window when it is dark, and nowhere when it is not', () => {
-  clearTheFrame();
+  oneFrame();
   assert.equal(veil().length, 0, 'a sheet was laid over a bright room');
 
   intoTheDark();
@@ -140,6 +140,27 @@ test('the night is laid over the window when it is dark, and nowhere when it is 
   assert.equal(laid[0].mode, 'source-over',
     'the night was composited ' + laid[0].mode + ', which is a wash and not a covering');
   assert.ok(darknessOf(field) > 0.5, 'and it is not even dark yet: ' + darknessOf(field));
+});
+
+test('the night is laid over the whole sheet it is cut on', () => {
+  intoTheDark();
+  step(16);
+  // The sheet is the size of the window and the arena is a good deal bigger, so the covering has to
+  // be laid from the sheet's OWN corner. Every light on it is placed at an arena point, and a fill
+  // placed the same way would cover a strip of the sheet and `copy` would clear the rest - a room
+  // with a bright band down two of its edges, which is the kind of thing no test here can see as a
+  // pixel and therefore has to be measured as a rectangle instead.
+  const laid = game.rectsOffscreen().filter((r) => Math.abs(r.w - view.W) < 0.01
+    && Math.abs(r.h - view.H) < 0.01);
+  assert.equal(laid.length, 1, 'the night did not fill the sheet it is cut on');
+  assert.equal(laid[0].x, 0, 'the night started somewhere other than its own corner');
+  assert.equal(laid[0].y, 0, 'the night started somewhere other than its own corner');
+
+  // And the frame has to be looking somewhere other than the corner of the arena for any of the above
+  // to have been a question at all.
+  assert.ok(game.camera.x > 1 && game.camera.y > 1,
+    'the camera was parked at the arena\'s own corner, so this tested nothing: '
+    + game.camera.x + ', ' + game.camera.y);
 });
 
 test('the ship stands in a hole the row says it does', () => {

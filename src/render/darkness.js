@@ -168,11 +168,17 @@ export function drawDarkness(ctx, alpha) {
   // The night, replacing the last frame. `copy` clears as it fills, so this one pass is the whole of
   // the layer's own reset - and its alpha is the ramp, which is why the fade in and the fade out
   // need no state and no cleanup anywhere else.
+  //
+  // In the sheet's OWN coordinates, from its own corner, and over all of it. The layer is as big as
+  // the window and the arena is a thousand times bigger, so filling the rectangle the window is
+  // *looking at* would fill a strip of the sheet and `copy` would clear the rest: a night with a
+  // bright band down the top and the left of the screen. The camera is only applied below, with the
+  // lights, because the covering has no business knowing where the frame is looking.
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'copy';
   g.globalAlpha = 1;
   g.fillStyle = withAlpha(PALETTE.eclipseNight, level);
-  g.fillRect(camera.x, camera.y, layer.w, layer.h);
+  g.fillRect(0, 0, layer.w, layer.h);
 
   // From here the layer is arena coordinates, like the frame it is being laid over.
   g.translate(-camera.x, -camera.y);
