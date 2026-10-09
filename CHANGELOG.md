@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 0.5.2 — 2026-10-09
+Ships: five hulls to fly, each one the gun it was built around.
+- **The title screen now asks which ship you are**, with the same number keys it used to spend on
+  the primaries, and the ship answers the whole question at once: its hull, its engines, how long
+  its dash takes to come back, and the primary it was built around. `1 WISP - PULSE`,
+  `2 BULWARK - SCATTER`, `3 VOLT - ARC`, `4 NEEDLE - LANCE`, `5 BROOD - SWARM`. The five ships
+  carry the five primaries between them, once each, and in the primaries' own order - so the
+  number you press still means the gun it always meant, and nothing that was on that screen
+  before has been taken away. Five ships and five guns is five combinations to balance, not
+  twenty-five, and it is why one key is enough.
+- **They are priced against each other.** The Bulwark sells a fifth of its speed for a fourth
+  pip of hull; the Needle sells a pip of hull back for a fifth more speed and the lance, which
+  wants a clear lane in front of it; the Brood pays 6% of its engines for a pair of orbital
+  drones it owns from the first second; the Volt gets the quickest dash in the game - back every
+  1.5 s instead of 2.5 - and pays for it with the shortest reach of the five primaries, because
+  the arc throws lightning 260 px and no further. The Wisp pays nothing and is the yardstick
+  every one of them was measured against.
+- **What does not differ is the thing that gets hurt.** Every ship is drawn at the same size and
+  hurt by the same 6 px core, whatever its silhouette says: PLAN 3.1's rule that the ship you
+  see is a good deal bigger than the ship that takes a hit is now a rule about all five ships
+  rather than one, and no ship is a bigger target than another. What tells them apart is the
+  drawing - a dart, a blunt hexagon, a fork-tailed arrow, a needle, a pod with two pods of its
+  own - and a test now measures each one: that it wraps the core it hides, that it does not run
+  further out than the radius it is drawn at, that it is the same on both sides of its own axis,
+  and that the Needle is the longest thing for its width in the game while the Bulwark is the
+  shortest.
+- **The Wisp is exactly the ship that flew before**, and it shows: the reference run this project
+  measures against plays back fingerprint for fingerprint the same as it did before any of this
+  existed. The game-over card now says which ship the run was flown in as well as which gun it
+  fired, and `node tools/simulate.js --ship bulwark` measures one from the command line.
+
 ## 0.5.1 — 2026-10-09
 Swarm: the fifth primary — a flight of slow micro-missiles that find a body each, and go off in it.
 - **`5` on the title screen is the SWARM**, and that is the fifth and last of PLAN 3.2's primaries. Three
