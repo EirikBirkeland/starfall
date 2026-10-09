@@ -7304,3 +7304,113 @@ what makes it one fight standing in three places rather than three fights, and i
   nothing else; the F3 overlay (M10) is where they all belong.
 - Still parallel work, untouched: the four unbuilt synergies, milestone 7's music buses, and
   `tools/agent/session.js` having `choose_weapon` and no `choose_ship`.
+
+## Session 61 (2026-10-09) — The Eclipse arrives: a dark sun that drags. Released **0.6.5**
+
+Found the tree with the Eclipse half-in: `pull` on three phase rows, a `sun` rhythm, `dragShip`,
+`holdTheShip`, the disc-and-rim art, a new `test/eclipse.test.mjs`, and two scratch probes in the
+working directory - and, unlike session 60's hand-off, **the suite was already green**. So this
+session was review, one real bug, the loose ends, and the release. Suite is **1137 green** (was
+1124 at HEAD; the Eclipse file is 9 of them and the rest of my claims went inside tests that
+already existed).
+
+### The bug: the "hole" in the dark sun was painted additively, so it was not dark
+
+`drawTheSun` lays a disc of opaque `eclipseDisc` over the middle of its own corona, on purpose -
+the palette comment goes out of its way to say it is "the only body in the game whose middle is
+darker than the sky behind it". **Nothing in the arena is painted that way.** `render/renderer.js`
+sets `globalCompositeOperation = 'lighter'` for the whole world pass, and under additive
+compositing a fill of `#0a0620` does not hide the sky, it *adds* its little bit of light to it:
+what was actually on screen was a faint violet smear with every star still shining through it,
+which is the one thing the comment promised it was not. A hole is not a dark colour, it is the
+pixels under it being gone, and `source-over` is the only composite that says so. Fixed in
+`render/boss.js`: capture the composite, paint the disc `source-over`, put it back - and the shots
+going in vanish behind it (they are drawn before the boss) while the ship never does (drawn after),
+which is a better sun than the one I had to fix.
+
+**How you test a colour with no pixels:** the harness's canvas stub now logs, on every `arc`, the
+composite it was asked for (`mode`), and `test/boss-art.test.mjs` claims the circle the size of the
+sun is drawn *covering* **and** that the rim beside it is still drawn *adding* - so neither the
+bug nor a blanket `source-over` over the whole body can pass. Mutation-checked: deleting the switch
+says "the sun was painted onto the sky instead of cut out of it: ["lighter","lighter"]".
+
+**This is a standing hazard.** Every glow sprite in `render/glow.js` assumes `lighter`; the only
+painters that ever cover are `nebula.js`, `hud.js`, `cards.js`, `icons.js` and now the sun's disc.
+Anything that wants to take light away - which is exactly what **the Eclipse's phase-2 darkness**
+must do - has to make the same decision, and there is no helper for it yet. If a second one shows
+up, write `coverFor(ctx, paint)`.
+
+### The boss blurbs were dead text, and now one of them is on the glass
+
+Three boss rows had a `blurb` and nothing drew it: `drawBossWarning` painted the name and
+`INCOMING` and nothing else. Now it paints the blurb under the mark (`bossBlurb` in
+`game/bosses.js`), fitted with `fitOneLine` from `render/fit.js` so a 400 px window shrinks the
+line instead of losing words off the edge. The claim is worth it because the Eclipse is the boss
+that needs it: "a dark sun that drags you in" is the only place a player is ever told about the
+drag, and the drag is not readable off a shape. Mutation-checked (a `if (false)` on the `haloText`
+turns the warning test red).
+
+### The small mess I cleaned while I was in there
+
+`*/function spokeBar` mashed onto one line; `bossRiding`'s comment claimed the drag and the frame
+ask it a question, when in fact **only the tests do** (the drag pulls while the fight rides and the
+drawing gets `windupProgress`, which is already zero) - it is now said honestly; `dragShip`'s
+unread boolean return; `bossShape`'s doc saying "the ring's or the mass's" with three shapes on
+the books; the two scratch probes deleted.
+
+### How it was verified
+
+- **The two boss fingerprints are byte-identical to a worktree at HEAD** (`ee23537`):
+  `--seed 20261006 --trace --seconds 600`, `--at 295 --seed 11 --trace`, `--at 595 --seed 11
+  --trace`. The Warden and the Hive did not move, which is the whole claim a third boss can make.
+- **A long batch: `--seed 21..25 --seconds 1140`** - 5/5 alive at the 19-minute cap, **all three
+  bosses down on every seed**, level median 50, score median 130k. The traced marks read
+  `THE ECLIPSE walks in / phase 2 / phase 3 / down, 3 spent`.
+- **The bare bot at 15:00 (`--at 895 --seed 31..35 --seconds 300`)**: median **0m34s**, 4/5 dead
+  inside 50 s, killed by `body:drifter`, `body:eclipse`, `body:swarmling`. That is the same
+  story the Hive told at 10:00 (session 59/60: 20-35 s): a fat body sitting in the middle of a
+  caged room takes the free space away from a run that bought nothing, and the drag is the sun's
+  version of that. One seed still took the whole Eclipse down with a level-6 build inside the
+  window. So **the 840 hull stands**: for a build that has one, the Eclipse is tens of seconds
+  like the other two, and for a run that has none nothing at 15:00 is survivable, which is the
+  design and not a bug.
+
+### Surprises
+
+- **The trace counts frames, not seconds, and the difference grows.** Seed 21's Eclipse mark is
+  ~40 s "late" against `at: 900`, and the gap by then is the time the run spent parked in
+  level-up screens, where `world.elapsed` stops and frames do not. Nobody should read a boss mark
+  as a stopwatch: if someone wants honest fight lengths, print `world.elapsed` at the marks
+  (`tools/headless/bot.js`) - that changes the trace's text but not the fingerprint hashes, so
+  old traces stop diffing and it wants doing in a session of its own.
+- **A row in `balance.js` is not evidence that anything reads it.** The blurbs sat unread for four
+  releases. I hand-checked the Eclipse's own keys against the Warden's and the Hive's (`node -e`
+  over the table, key sets per row and per phase), which is how I know `cells` is the Hive's and
+  `rooted` the Warden's - but I did **not** audit whether every key on those rows is read by
+  something. `cost`, for one. Worth a pass.
+- The eclipse tests were good tests and I changed none of their claims - which is worth writing
+  down because the usual hand-off is a red test pointing at a real bug. Whatever the last session
+  was doing with the two scratch probes, it had already finished the argument before it stopped.
+
+### For the next session
+
+- **The darkness** is the reason PLAN's Eclipse item is still unticked: phase 2's "the arena
+  darkens, and only areas near the player and near bullets are lit". Sketch, so the next session is
+  not starting cold: a phase row may carry a `dark` row and the **framework owns the ramp** - a
+  0..1 value stepped in `updateBosses` toward whatever the phase asks for, and to nothing when the
+  fight is down, so `render/` asks `darknessOf(world)` every frame and there is nothing to reset.
+  The pass wants its own viewport-sized layer: fill it with the night, then punch holes with
+  `destination-out` and the **baked** sprites (`glowFor` already is a soft alpha ramp, which is
+  exactly a hole - and `test/draw-cost.test.mjs` will not forgive a gradient built in a frame), one
+  big hole at the ship, a small one at every shot, the sun's own rim left lit; then lay the layer on
+  with `source-over`, which is the composite lesson above. The number nobody can measure here is
+  how far out you can see a body coming: the harness has no pixels, so pick the radius against the
+  crowd's own speeds and then watch how much faster a bare bot dies with it on.
+- **Or** PLAN's phase 3 for the Eclipse: sweeping arms and bullet walls with moving gaps. `turn`
+  already places the sun's facing, which is what an arm sweeps with, and the shell already has a
+  door - a moving door is that row with the door taken around the circle.
+- Still open and smaller: **the Hive's owed spiral** (session 60's note), the **mid-build
+  measurement gap** (`tools/simulate.js` cannot hand a run ranks, so every boss hull is priced
+  against a level-1 bot and a level-50 bot and nothing between), the four unbuilt synergies,
+  milestone 7's music buses, and `tools/agent/session.js` still having `choose_weapon` and no
+  `choose_ship`.
