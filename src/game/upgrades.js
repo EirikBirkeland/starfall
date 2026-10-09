@@ -64,10 +64,20 @@ const SYNERGY_UNIT = 'synergy';
 
 /**
  * The lines, in the order the cards are dealt from. `id` is the key into
- * BALANCE.upgrades and into `world.upgrades`; `unit` is one of the two words above and
+ * BALANCE.upgrades and into `world.upgrades`; `unit` is one of the three words above and
  * `what` is the thing the line sells, so the card can print `step` next to it;
  * `flavour` is the one human sentence under it; `icon` picks the shape drawn on the card
  * (render/cards.js).
+ *
+ * **The writing has a budget, and the card is what spends it.** A card is at most 236 px wide
+ * (render/cards.js's `MAX_CARD_W`) and its body type is a share of that, so a description has room
+ * for about five rows of twenty-five characters: keep `flavour` to roughly **120 characters** and
+ * every card on the rack prints at the same size. render/fit.js will shrink the type and then cut
+ * the paragraph short rather than let a line walk off the bottom of the card - that is the
+ * guarantee, and it is what the one bug report the game has received asked for - but a cut card is
+ * a card nobody can read, so it is the writing that gives way, not the frame. A rank clause like
+ * "one more per rank" is usually already said by `what` and the pips, and can go first.
+ * test/card-fit.test.mjs is what says so when this is forgotten.
  */
 export const LINES = [
   {
@@ -163,7 +173,7 @@ export const LINES = [
     name: 'AFTERIMAGE',
     unit: WHOLE_UNIT,
     what: 'image left behind',
-    flavour: 'The dash leaves images of the ship standing where it was, and the bodies next to them chase those for a couple of seconds. One more image per rank, spread down the streak.',
+    flavour: 'The dash leaves images of the ship where it was. Nearby bodies chase those for a few seconds. One more image per rank.',
     icon: 'afterimage',
   },
   {
@@ -171,15 +181,15 @@ export const LINES = [
     name: 'OVERCHARGE',
     unit: SHARE_UNIT,
     what: 'charged shot',
-    flavour: 'Stand still for a second and the gun loads. What it hands you is one heavy pull, and every rank makes that pull heavier.',
+    flavour: 'Stand still for a second and the gun loads. What it hands you is one heavy pull, and every rank makes it heavier.',
     icon: 'overcharge',
   },
   {
     id: 'magnetar',
     name: 'MAGNETAR',
     unit: WHOLE_UNIT,
-    what: 'shot off everything in reach',
-    flavour: 'The shards you pick up charge the field round the ship, and when it is full it lets go. Everything standing in the field feels it.',
+    what: 'shot off the field',
+    flavour: 'Shards you pick up charge the field round the ship; when it is full it lets go, and everything standing in it feels it.',
     icon: 'magnetar',
   },
   {
@@ -187,7 +197,7 @@ export const LINES = [
     name: 'MINES',
     unit: WHOLE_UNIT,
     what: 'mine per drop',
-    flavour: 'The ship drops mines out of the way it was going, and a body that walks into one pays for the road. One more mine per drop for every rank.',
+    flavour: 'The ship drops mines out of the way it was going, and a body that walks into one pays for the road.',
     icon: 'mines',
   },
   {
@@ -195,7 +205,7 @@ export const LINES = [
     name: 'TETHER',
     unit: WHOLE_UNIT,
     what: 'thread tied',
-    flavour: 'A dash ties a line of light from where it started to wherever you get to, and everything standing on it burns for two seconds. It pays for turning: one more thread per dash for every rank.',
+    flavour: 'A dash ties light from where it started to where you got to, and everything standing on it burns.',
     icon: 'tether',
   },
   {
@@ -203,7 +213,7 @@ export const LINES = [
     name: 'TURRET',
     unit: WHOLE_UNIT,
     what: 'turret planted',
-    flavour: 'A gun is set down across the road ahead and holds that ground for ten seconds, aiming and firing at whatever it can see. Mines arm the road behind you; this arms the road in front. One more gun per crew for every rank.',
+    flavour: 'A gun is set down across the road ahead and holds it for ten seconds, firing at whatever it can see.',
     icon: 'turret',
   },
   // The first synergy (PLAN 3.5's table, and the last entry in LINES on purpose: table order is
@@ -216,7 +226,7 @@ export const LINES = [
     name: 'THERMAL SHOCK',
     unit: SYNERGY_UNIT,
     becomes: 'A COLD CORPSE GOES UP',
-    flavour: 'Fire and frost in one body is a contradiction, and this is what it is worth: a body that comes apart alight and frozen takes the room around it with it. It pays to keep a body under fire - the colder it was, the harder it goes.',
+    flavour: 'A body that comes apart alight and frozen takes the room around it with it. The colder it was, the harder it goes.',
     icon: 'thermalShock',
   },
 ];

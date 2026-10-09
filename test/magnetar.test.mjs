@@ -102,7 +102,7 @@ function collect(field, count) {
 }
 
 test('the card prints what the line is: one more shot of the gun per rank', () => {
-  assert.equal(effectOf('magnetar'), '+1 shot off everything in reach');
+  assert.equal(effectOf('magnetar'), '+1 shot off the field');
   const field = wearing(0);
   assert.equal(countOf(field, 'magnetar'), 0, 'and a build with no ranks hands out nothing');
   assert.equal(crackShotsOf(field), 0, 'which is no shots, not one shot of nothing');

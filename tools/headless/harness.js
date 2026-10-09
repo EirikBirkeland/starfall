@@ -18,6 +18,16 @@ function makeGradient() {
   return { addColorStop() {} };
 }
 
+/**
+ * How wide a character is, as a share of the font size. A real canvas knows the letterforms; this
+ * knows that a Latin sentence in a normal UI face runs about this much per character, which is a
+ * touch on the generous side of the real number for a bold face - and generous is the direction
+ * that matters, because text that fits inside this estimate fits inside a browser. It exists so
+ * that `measureText` answers with something the size of the word and the size of the font, which
+ * is the only way a test can catch words that walk off the box they were drawn in (render/fit.js).
+ */
+const TEXT_ADVANCE = 0.56;
+
 function makeContextStub(counters, drawLog) {
   const noop = () => {};
   // The canvas keeps a current transform; so does the stub, well enough to answer
@@ -43,10 +53,30 @@ function makeContextStub(counters, drawLog) {
     x: matrix.a * x + matrix.c * y + matrix.e,
     y: matrix.b * x + matrix.d * y + matrix.f,
   });
+  /** The point size in the ctx's current font string, which is what says how wide a word is. */
+  const fontSize = () => {
+    const found = /(\d+(?:\.\d+)?)px/.exec(String(target.font));
+    return found === null ? 12 : Number(found[1]);
+  };
+  const textWidth = (text) => fontSize() * TEXT_ADVANCE * String(text).length;
+  const logText = (text, x, y, stroke) => {
+    if (drawLog.texts === undefined) return;
+    drawLog.texts.push({
+      text: String(text),
+      x: x,
+      y: y,
+      w: textWidth(text),
+      size: fontSize(),
+      align: target.textAlign,
+      // `haloText` strokes a word and then fills it, so every haloed word on the card rack is in
+      // here twice. A test that counts words asks for the filled ones.
+      stroke: stroke,
+    });
+  };
   const target = {
     createLinearGradient: () => { counters.gradients++; return makeGradient(); },
     createRadialGradient: () => { counters.gradients++; return makeGradient(); },
-    measureText: () => ({ width: 10 }),
+    measureText: (text) => ({ width: textWidth(text) }),
     globalAlpha: 1,
     globalCompositeOperation: 'source-over',
     shadowBlur: 0,
@@ -64,8 +94,16 @@ function makeContextStub(counters, drawLog) {
     fillRect: () => { counters.fills++; },
     fill: () => { counters.fills++; },
     stroke: () => { counters.strokes++; drawLog.strokes.push(target.lineWidth); },
-    fillText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
-    strokeText: (text) => { counters.texts++; drawLog.words.push(String(text)); },
+    fillText: (text, x, y) => {
+      counters.texts++;
+      drawLog.words.push(String(text));
+      logText(text, x, y, false);
+    },
+    strokeText: (text, x, y) => {
+      counters.texts++;
+      drawLog.words.push(String(text));
+      logText(text, x, y, true);
+    },
     drawImage: (image, x, y, w, h) => {
       counters.images++;
       drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
@@ -201,7 +239,7 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], strokes: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -243,7 +281,9 @@ export async function bootGame(options) {
     createElement(tag) {
       if (tag !== 'canvas') return makeElement(tag, []);
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, { translates: [], images: [], dashes: [], points: [], circles: [], words: [] });
+      const spriteCtx = makeContextStub(bakes, {
+        translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [],
+      });
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -268,6 +308,7 @@ export async function bootGame(options) {
       drawLog.points.length = 0;
       drawLog.circles.length = 0;
       drawLog.words.length = 0;
+      drawLog.texts.length = 0;
       drawLog.strokes.length = 0;
       const queue = rafQueue;
       rafQueue = [];
@@ -307,6 +348,13 @@ export async function bootGame(options) {
     },
     /** Draw counters, so a test can tell that something was actually painted. */
     drawCalls() { return Object.assign({}, counters); },
+    /**
+     * The canvas the game draws into - the stub, in other words, and with it the honest measure of
+     * how wide a word is at the size a font string says to draw it. A test that wants to paint one
+     * thing on its own (the card rack, say) hands this to the painter that normally only main.js
+     * calls, and then reads `texts()` back to see where the words landed.
+     */
+    get context() { return ctx; },
     /** What it took to bake the glow sprites: offscreen canvases and gradients. */
     bakeCalls() { return Object.assign({}, bakes); },
     /**
@@ -332,6 +380,14 @@ export async function bootGame(options) {
     circles() { return drawLog.circles.slice(); },
     /** Every string the last frame put on the canvas, in the order it put them there. */
     words() { return drawLog.words.slice(); },
+    /**
+     * Every string the last frame put on the canvas, with where and how big: `{ text, x, y, w,
+     * size, align, stroke }`, in the coordinates the painter was writing in (the cards are drawn in
+     * CSS pixels, so those are CSS pixels). This is how a test can ask whether words that were meant
+     * to fit inside a box did - which measureText alone cannot say, because measuring is not
+     * drawing. A haloed word appears twice, once as its stroke and once as its fill.
+     */
+    texts() { return drawLog.texts.slice(); },
     /** Where an arena point lands on the screen, now the arena is not the window. */
     screenOf: (x, y) => game.screenOf(x, y),
     /** Choose the primary this game flies, exactly as the title screen's keys do. */

@@ -200,7 +200,7 @@ test('the magnetar card is on the rack and prints what a rank does', () => {
   paintFrame();                       // the icon's glow is baked on meeting it
   const frame = paintFrame();
   assert.ok(frame.words.indexOf('MAGNETAR') >= 0, 'the card carries its name');
-  assert.ok(frame.words.indexOf('+1 shot off everything in reach') >= 0,
+  assert.ok(frame.words.indexOf('+1 shot off the field') >= 0,
     'and the number it is selling, in shots: ' + frame.words.join(' / '));
   assert.equal(frame.gradients, 0, 'and it asks for nothing built mid-frame');
   assert.equal(frame.shadows, 0, 'and nothing blurred');

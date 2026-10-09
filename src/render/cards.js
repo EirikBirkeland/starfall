@@ -17,6 +17,7 @@ import { banishedLines, effectOf, isSynergy, lineOf, maxRanksOf, needsOf, rankOf
 import { polygon, roundRect, shipPath } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { haloText } from './hud.js';
+import { fitOneLine, fitParagraph, shrinkToFit, widthOf } from './fit.js';
 import { view } from './canvas.js';
 
 const GAP = 26;             // px of air between two cards
@@ -126,17 +127,53 @@ const TINT = {
   thermalShock: PALETTE.burnFlame,
 };
 
+// How a card is filled in. A card is whatever size the window makes it, so every part of it is a
+// share of the card and not a pixel count: the icon, then the three lines of text, then the rank
+// pips (or, for a synergy, the two lines it came out of) along the bottom.
+//
+// The flavour gets *the room that is left* rather than a fixed number of rows, and render/fit.js
+// decides what it can say in it: smaller type first, an ellipsis only when even the floor is not
+// enough. That is the answer to the one bug report the game has ever received - a card whose
+// description ran off the bottom of itself - and it is answered in two halves, this layout and a
+// rack of descriptions short enough to be read (game/upgrades.js).
+const ICON_AT = 0.21;          // the icon's centre, and its size, as shares of the card
+const ICON_SIZE = 0.30;
+const NAME_AT = 0.50;          // baselines, all of them, as shares of the card's height
+const NAME_SIZE = 0.11;        // and type sizes, as shares of the card's width
+const NAME_FLOOR = 0.078;
+const EFFECT_AT = 0.58;
+const EFFECT_SIZE = 0.082;
+const EFFECT_FLOOR = 0.056;
+const FLAVOUR_AT = 0.655;
+const FLAVOUR_SIZE = 0.06;
+const FLAVOUR_FLOOR = 0.045;
+const FLAVOUR_LEAD = 1.3;      // row pitch, as a multiple of the size it is set in
+const MARKS_AT = 0.92;         // the rank pips, or a synergy's two parents
+const MARKS_ROOM = 0.03;       // of the card, between the last flavour row and the pips
+const TEXT_W = 0.86;           // of the card's width is the measure a line of text may use
+const MARKS_SIZE = 0.064;      // a synergy's `BURN 3 + CHILL 3`, and its floor
+const MARKS_FLOOR = 0.04;
+
 const FONT_HEADING = '800 34px "Segoe UI", system-ui, sans-serif';
 const FONT_ASK = '600 12px "Segoe UI", system-ui, sans-serif';
 const FONT_KEY = '800 13px "Segoe UI", system-ui, sans-serif';
 const GLOW_KEY = 'rgba(94,247,255,0.75)';
 const HALO_GLOW = 96;      // the one glow sprite the panels shine with, stamped bigger
 
-/** A font string. Built per draw rather than per frame-by-frame constant, because the
- *  cards are sized by the window and there are only ever three of them. */
+/**
+ * A font string. Built per draw rather than per frame-by-frame constant, because the
+ * cards are sized by the window and there are only ever three of them.
+ *
+ * It rounds *down*, and that is the contract render/fit.js measures against: a card is fitted at a
+ * size and then painted at whatever this says, so a font that came out bigger than the size it was
+ * fitted at could walk off the card again with every measurement having been honest.
+ */
 function font(weight, size) {
-  return weight + ' ' + Math.max(8, Math.round(size)) + 'px "Segoe UI", system-ui, sans-serif';
+  return weight + ' ' + Math.max(8, Math.floor(size)) + 'px "Segoe UI", system-ui, sans-serif';
 }
+
+/** A text size this card may use: nothing on a card is set in type below eight pixels. */
+const px = (size) => Math.max(8, size);
 
 /** The ease the cards slide in on: fast, then settling, never a bounce. */
 function easeOut(t) {
@@ -369,22 +406,34 @@ function drawCard(ctx, id, rect, index, age, hovered, tab, tabHot) {
     ctx.stroke();
   }
 
-  drawIcon(ctx, line.icon, cx, y + h * 0.26, w * 0.34, tint);
+  drawIcon(ctx, line.icon, cx, y + h * ICON_AT, w * ICON_SIZE, tint);
 
-  ctx.font = font(800, w * 0.115);
-  haloText(ctx, line.name, cx, y + h * 0.55, PALETTE.uiText, GLOW_KEY);
+  // The three lines, each one fitted to the card it is being drawn on: smaller type before cut
+  // words, and never either one silently. The card's size is the window's business, so this is
+  // asked again every frame and costs three measurements of a dozen characters.
+  const widest = w * TEXT_W;
+  const name = fitOneLine(ctx, line.name, {
+    widest: widest, size: px(w * NAME_SIZE), minSize: px(w * NAME_FLOOR),
+    fontFor: (size) => font(800, size),
+  });
+  ctx.font = font(800, name.size);
+  haloText(ctx, name.text, cx, y + h * NAME_AT, PALETTE.uiText, GLOW_KEY);
 
-  ctx.font = font(700, w * 0.085);
-  haloText(ctx, effectOf(id), cx, y + h * 0.65, PALETTE.xpText, 'rgba(88,255,161,0.8)');
+  const effect = fitOneLine(ctx, effectOf(id), {
+    widest: widest, size: px(w * EFFECT_SIZE), minSize: px(w * EFFECT_FLOOR),
+    fontFor: (size) => font(700, size),
+  });
+  ctx.font = font(700, effect.size);
+  haloText(ctx, effect.text, cx, y + h * EFFECT_AT, PALETTE.xpText, 'rgba(88,255,161,0.8)');
 
-  drawFlavour(ctx, line.flavour, cx, y + h * 0.755, w * 0.86, w * 0.072);
+  drawFlavour(ctx, line.flavour, cx, y + h * FLAVOUR_AT, widest, h, w);
   // Where a line shows how deep it goes, a synergy shows what it came out of: it has one rank and
   // no depth to draw, but the two lines that earned it are the whole story of the card.
-  if (synergy) drawNeeds(ctx, id, cx, y + h * 0.88);
-  else drawRanks(ctx, id, cx, y + h * 0.88, w, tint);
+  if (synergy) drawNeeds(ctx, id, cx, y + h * MARKS_AT, widest, w);
+  else drawRanks(ctx, id, cx, y + h * MARKS_AT, w, tint);
   drawKeyHint(ctx, index + 1, x + w * 0.13, y + h * 0.1);
   if (tab !== null) drawBanishTab(ctx, tab, index + 1, tabHot);
-  else if (synergy) drawSynergyPlate(ctx, tabRect(rect));
+  else if (synergy) drawSynergyPlate(ctx, tabRect(rect), rect);
   ctx.restore();
 }
 
@@ -427,13 +476,16 @@ function drawSynergyEdges(ctx, x, y, w, h, hovered) {
  * place a player is already looking at to refuse a card, which is the right place to be told that
  * this one is not like the others. It is sized to its own word because nothing clicks on it (the
  * ask chips have to be a fixed width because a click has to be measured by the number that drew
- * them; this is not clicked, so it can fit its text).
+ * them; this is not clicked, so it can fit its text) - and it is pulled back inside the card, so
+ * that a narrow card reads "SYNERGY" and not "SYNERG" over the edge of itself.
  */
-function drawSynergyPlate(ctx, tab) {
+function drawSynergyPlate(ctx, tab, card) {
   ctx.font = FONT_KEY;
   const width = ctx.measureText(SYNERGY_WORD).width + SYNERGY_PLATE_PAD * 2;
-  const cx = tab.x + tab.w / 2;
-  const rect = { x: cx - width / 2, y: tab.y, w: width, h: tab.h };
+  const left = clamp(tab.x + tab.w / 2 - width / 2,
+    card.x + 5, Math.max(card.x + 5, card.x + card.w - 5 - width));
+  const rect = { x: left, y: tab.y, w: width, h: tab.h };
+  const cx = rect.x + rect.w / 2;
 
   ctx.fillStyle = 'rgba(9,20,44,0.92)';
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, rect.h / 2);
@@ -452,25 +504,28 @@ function drawSynergyPlate(ctx, tab) {
  * of them are necessarily deep enough by the time this card is on the table (game/upgrades.js only
  * deals it when they are), so there is no "not yet" state to draw and the numbers are a receipt and
  * not a promise.
+ *
+ * Laid out as one line and measured as one line, because the words are the parents' own names and no
+ * constant can know how wide they are: the size comes off the same ladder every other line on the
+ * card uses, so this cannot be the one thing that walks off the edge.
  */
-function drawNeeds(ctx, id, cx, y) {
-  const size = font(700, 15);
-  ctx.font = size;
-  ctx.textAlign = 'right';
-  const parts = needsOf(id).map((need) => {
+function drawNeeds(ctx, id, cx, y, widest, w) {
+  const needs = needsOf(id);
+  shrinkToFit(ctx, {
+    size: px(w * MARKS_SIZE), minSize: px(w * MARKS_FLOOR), fontFor: (each) => font(700, each),
+  }, () => needsWidth(ctx, needs) <= widest);
+  const parts = needs.map((need) => {
     const parent = lineOf(need.line);
     return {
       text: parent.name + ' ' + need.rank,
       tint: TINT[parent.icon] || PALETTE.player,
-      width: ctx.measureText(parent.name + ' ' + need.rank).width,
+      width: widthOf(ctx, parent.name + ' ' + need.rank),
     };
   });
-  const plus = ctx.measureText(NEEDS_PLUS).width;
-  let total = plus * (parts.length - 1);
-  for (const part of parts) total += part.width;
+  const plus = widthOf(ctx, NEEDS_PLUS);
+  const total = needsWidth(ctx, needs);
 
-  // Measured and laid out from the middle, because the words are the parents' own names and no
-  // constant can know how wide they are.
+  // Measured and laid out from the middle, because nothing knows how wide the words are.
   let at = cx - total / 2;
   for (let i = 0; i < parts.length; i++) {
     if (i > 0) {
@@ -485,6 +540,13 @@ function drawNeeds(ctx, id, cx, y) {
   ctx.textAlign = 'center';
 }
 
+/** How wide a synergy's `BURN 3 + CHILL 3` is, in the ctx's current font. */
+function needsWidth(ctx, needs) {
+  let total = widthOf(ctx, NEEDS_PLUS) * (needs.length - 1);
+  for (const need of needs) total += widthOf(ctx, lineOf(need.line).name + ' ' + need.rank);
+  return total;
+}
+
 /**
  * The banish tab, drawn as the key chip it is: a small plate with `Shift` and the card's own
  * number on it. It is small on purpose - the card is the offer, and this is the escape hatch
@@ -495,6 +557,9 @@ function drawBanishTab(ctx, tab, number, hot) {
   const cy = tab.y + tab.h / 2;
   const edge = hot ? PALETTE.playerLine : PALETTE.cardEdge;
 
+  // The tab is a fixed size however big the card is, so its type is fixed with it rather than left
+  // as whichever font the last line of the card happened to set.
+  ctx.font = FONT_KEY;
   ctx.fillStyle = hot ? withAlpha(PALETTE.player, 0.16) : 'rgba(9,20,44,0.92)';
   roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
   ctx.fill();
@@ -544,31 +609,41 @@ function drawCutOut(ctx, row) {
   if (cut.length === 0 || row.reroll === null) return;
 
   const left = row.reroll.x;
-  ctx.font = FONT_ASK;
-  haloText(ctx, 'CUT OUT OF THE RUN   \u00b7   ' + cut.map((id) => lineOf(id).name).join('   \u00b7   '),
-    left + (row.banish.x + row.banish.w - left) / 2, row.reroll.y + ASK_H + 20,
+  const span = row.banish.x + row.banish.w - left;
+  const label = 'CUT OUT OF THE RUN   \u00b7   '
+    + cut.map((id) => lineOf(id).name).join('   \u00b7   ');
+  const fitted = fitOneLine(ctx, label, {
+    widest: span, size: 12, minSize: 8, fontFor: () => FONT_ASK,
+  });
+  haloText(ctx, fitted.text, left + span / 2, row.reroll.y + ASK_H + 20,
     PALETTE.uiFaint, 'rgba(111,143,176,0.3)');
 }
 
-/** The one plain line under the effect (PLAN section 4), wrapped to fit the card. */
-function drawFlavour(ctx, text, cx, y, widest, size) {
-  ctx.font = font(600, size);
+/**
+ * The one plain line under the effect (PLAN section 4), wrapped to fit the card and given exactly
+ * the room the card has: from where it starts down to where the rank pips stand. It is a paragraph
+ * and not a line, and it is fitted by the same rule as everything else here (render/fit.js) - the
+ * longest description on the rack is a paragraph somebody wrote by hand, and the card does not
+ * grow to meet it.
+ */
+function drawFlavour(ctx, text, cx, y, widest, h, w) {
+  const room = (MARKS_AT - MARKS_ROOM - FLAVOUR_AT) * h;
+  const pitch = px(w * FLAVOUR_SIZE) * FLAVOUR_LEAD;
+  const fitted = fitParagraph(ctx, text, {
+    widest: widest,
+    size: px(w * FLAVOUR_SIZE),
+    minSize: px(w * FLAVOUR_FLOOR),
+    maxRows: Math.max(1, Math.floor(room / pitch) + 1),
+    fontFor: (size) => font(600, size),
+  });
+
   ctx.fillStyle = PALETTE.uiFaint;
   ctx.textAlign = 'center';
-  const words = text.split(' ');
-  let line = '';
-  let row = 0;
-  for (const word of words) {
-    const trial = line === '' ? word : line + ' ' + word;
-    if (line !== '' && ctx.measureText(trial).width > widest) {
-      ctx.fillText(line, cx, y + row * (size + 4));
-      line = word;
-      row++;
-    } else {
-      line = trial;
-    }
+  ctx.font = font(600, fitted.size);   // what it was measured at, and so what fits
+  const lead = fitted.size * FLAVOUR_LEAD;
+  for (let row = 0; row < fitted.rows.length; row++) {
+    ctx.fillText(fitted.rows[row], cx, y + row * lead);
   }
-  if (line !== '') ctx.fillText(line, cx, y + row * (size + 4));
 }
 
 /** The rank as pips: what is taken, the next one waiting, and what is left. */
