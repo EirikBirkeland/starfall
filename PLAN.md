@@ -706,9 +706,9 @@ When every item above is ticked, go back to the first unchecked item of mileston
       a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
-      (Shipped: the arrival, the drag, the shell, and the dark - three phases, one bar, one flare each,
-      and PLAN's phase-2 darkness.
-      It asked the framework for one new permission and one new rhythm: **a fight may move the ship**.
+      (Shipped: the arrival, the drag, the shell, and the dark - three phases, one bar, one flare
+      each, and PLAN's phase-2 darkness. It asked the framework for one new permission and one new
+      rhythm: **a fight may move the ship**.
       A phase row may carry `pull`, spent once per step along the line from the ship to whichever of
       the fight's bodies is standing, as a *place* the ship is taken to and not as a force on its
       engines (game/player.js `dragShip`) - the engines are steered back to the controls every step

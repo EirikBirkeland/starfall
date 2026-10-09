@@ -1,5 +1,32 @@
 # Starfall — changelog
 
+## 0.6.6 — 2026-10-09
+The Eclipse's second phase: at a third of the sun's hull the room goes dark, and what is left is what is shining.
+- **The arena is covered up, not dimmed.** That is the whole of the difference: a dimming leaves the
+  same room fainter, and this lays a sheet over the room and cuts holes in it, so what you can see is
+  the places something is lighting and nothing anywhere else. The ship, every shot in the air, the
+  sun itself, and the door a shell is being promised through. It comes in over two seconds,
+  *through* the flare that opens the phase, so the darkening is the second half of the sentence the
+  flare started rather than something that happens afterwards.
+- **The dark is a promise the fight has to keep.** Your own light reaches 300 px, which is over a
+  second of the fastest body's walk at you and so comfortably more than the six-tenths of a second
+  that every attack in this game has to be shown for before it lands. Every shot carries its own lantern, so a shell is a ring of lights coming and not
+  a rumour, whoever threw it and however far away it was thrown. And the door of a shell is let out of
+  the very same wedge its light is drawn from, because a promise the dark has eaten is no promise -
+  the room being black is no excuse for showing you a volley a second late.
+- **Nobody has to put the light back.** A phase asks for the night and the framework walks the room
+  towards the ask, which means a phase that asked for none is a bright room and so is an arena with no
+  fight in it: win the Eclipse and the light comes back over a second by itself, and a run that dies
+  in the dark, or wins in it, or never meets a boss, starts its next run in a bright room. The night
+  arrives slower than it leaves too, because the coming is the fight changing gear and the going is
+  the reward for having won it.
+- **It is paint the simulation describes and never obeys.** How dark it is gets stepped with the
+  fight, and then the frame is the only thing in the game that ever looks at it - no shot, body or
+  shard is worth one pixel differently because it is night, and every recording of every run this
+  tool has ever taken is unchanged, last hash to the last.
+- **What was left out of phase 3:** PLAN's sweeping arms and its bullet walls with moving gaps. The
+  three phases today are the drag harder, the shell faster, and the room darker.
+
 ## 0.6.5 — 2026-10-09
 The third boss arrives at 15:00: the Eclipse, a dark sun that drags you in and bursts out in shells.
 - **Something in the arena is pulling you.** The Eclipse is a gravity well: every phase drags the ship
