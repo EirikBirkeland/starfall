@@ -7048,3 +7048,114 @@ commit, checked in a worktree at HEAD, which is the claim that phases 1 and 2 ar
   overlay (M10) wants a boss card, they are the scorecard.
 - The four unbuilt synergies, the music buses, and `tools/agent/session.js` still having
   `choose_weapon` and no `choose_ship` are all untouched and still parallel work.
+
+## Session 59 (2026-10-09) — The Hive: a second boss, and the framework learns to walk and to own bodies. Released **0.6.3**
+
+The second entry of `BALANCE.bosses.schedule` is now a boss: a core with six hex cells set in wax
+round it, drifting at the ship, lighting a cell for about a second and letting a pack of swarmlings
+out of it, and coming apart under the gun cell by cell. Suite is **1112 green** (was 1094): fifteen
+in the new `test/hive.test.mjs`, three more in `test/boss-art.test.mjs`. The Warden's fights are
+**unchanged to the fingerprint** at `--at 295` and over a full 600 s run, checked in a worktree at
+the previous commit, which is the claim that refactoring the ring into a rhythm did not touch it.
+PLAN's Hive item is **left unticked**: phases 1 and 2 are in, and phase 3 exists but does what I
+gave it (opens every mouth the hive has left) rather than PLAN's "breaks into three smaller hives".
+
+### The decisions, since nobody will remember them
+
+- **A row names its `rhythm` and the framework keeps the clock.** `RHYTHMS` is two rows - `ring`
+  (`rideTheRing`, `takeRingBeat`, opens on `lock`) and `mass` (`driftTheMass`, `takeMassBeat`, opens
+  on `open`) - and `BEATS` is four rows keyed by beat name with an `enter` and a `land`. `stepBeat`
+  is the only place the ride/stop/show/land clock lives, so "a boss stands dead still while it is
+  promising" is one rule and not four. Warden behaviour is untouched by construction, and the
+  fingerprint check is what proves it rather than my saying so.
+- **A boss may walk.** `WALKS` (same keys as `RHYTHMS`) attaches `holdsItsGround` or
+  `holdsItsMass` to the kind row. The mass drifts to the band its row gives (`approach.near/.far`,
+  negative `pace` to back off) and is held inside the cage by `massReach` - the outermost body of
+  the whole honeycomb - or it would lean through the wall with half of itself. `glide` and
+  `advance` are exported from `game/kinds.js` now, so the boss walk spends the same frost, shove
+  and drag as the crowd's; there is no second copy of those rules to get wrong later.
+- **A boss may own bodies.** The cells are crowd bodies: `makeEnemy(world, 'cell', x, y, {kind,
+  hub, seat})`, in `world.enemies`, hurt by every gun and blast in the game, worth their own score
+  and shards, placed absolutely each step by `holdsItsPlace` from `hub.rot + seat * TAU/count`.
+  They are deliberately **not** in `BALANCE.kinds` - that table is the director's menu and
+  `test/kinds.test.mjs` holds the two kind tables to the same set - and `opts.kind` was already the
+  door a boss walks through. Two things the crowd had to learn: separation skips a body and its own
+  `hub` (a mass must not jostle its own centre), and `render/entities.js` skips `isBossPart`
+  bodies because seven hexes painted by seven painters is not one object.
+- **Breaking a cell is worth three things at once** and that is the whole of the design: 5% of the
+  hull goes down with it (`onDeath: cellComesOff`, guarded against a core that has already stopped
+  existing, so it is never buried twice), the hive has one fewer mouth (`share` is a share of the
+  living mass), and the cell pays its own score and shards. `share` is **rounded and never none**,
+  not rounded up - a share that always rounds up quietly doubles the pressure on a mass knocked
+  down to two cells.
+- **Both halves of every telegraph rule are kept by the mass.** The cell that lights is the cell
+  that opens, in the place it was standing when it lit (the mass does not drift during a beat), the
+  brood come out of the lit cell's own edge facing away from the core, and the fan is not a roll so
+  one seed opens the same cells in the same order twice. A lit cell whose beat is cut short (phase
+  change, or the hive going down) is `putOutTheMass`ed, not fired; and the whole standing mass comes
+  apart with the hive, unpaid, on one chord - `breakMass`, the rule `dismissCall` already lived by.
+- **With nothing left to open, the core opens instead.** The beat is still entered and still lands,
+  so breaking the whole honeycomb off does not punch a hole in the rhythm; the light in the middle
+  of the mass is the same countdown (`windupProgress`) the cells wore.
+
+### What the balance hunt actually found
+
+- **The bare bot at ten minutes is a brutal instrument and I nearly mis-read it.** `--at 595` with
+  the first numbers died in 17-35 s every seed, hive untouched at 100%. At HEAD (the Warden in that
+  slot) the same bot survives 3m24s, and with **no brood at all** the hive still killed it in 40 s -
+  so the mass itself, not the swarm, is what kills a run with no upgrades: seven fat bodies taking
+  the middle of a caged room away from a bot whose whole defence is free space. That is the design
+  working, not the brood being too fast.
+- **So I made the rate a rate and wrote it down.** The brood arrive at about what the crowd is
+  sending at that clock and no more: phase 1 is four bodies every six and a half seconds
+  (`share 0.34, each 2, wait 5.4, windup 1.05`), phase 2 six every five, phase 3 twelve every four
+  **with the mass whole** and a sad handful once the mouths have been shot off. Waits came down from
+  my first guess of 3.2/2.7/2.2, `each` is 2 everywhere (3 made a phase-3 wall), and the band went
+  out to 290/400 because the outer cells reach 76 px and the ship was being leaned on.
+- **The real measure is a full run, and there it is fine**: `--seconds 780 --runs 5`, 4/5 alive at
+  the 13-minute cap; one run killed both bosses (level 48, `bosses down 2`), one had the hive at 3%
+  in phase 3. The traced marks say a snowballed bot takes ~36 s on the Warden and ~36 s on the
+  Hive - the 760 hull does not make it longer, because a 10-minute build out-dps everything.
+- **New instrumentation, because "died at 0m35s" is not a number you can act on**: `stats()` now
+  carries `killedBy`, `hurtBy` and `bossCells`, `tools/simulate.js` prints what killed the run and
+  how much mass was still standing, and `--trace` marks the moment a boss walks in, changes phase
+  and comes down. `--at` now spends every schedule entry that was due before the clock was put
+  there, which is the difference between measuring the Hive and measuring the Warden five minutes
+  late; `bossOnTheField(index)` in the scripted harness takes the schedule index for the same
+  reason.
+
+### Surprises
+
+- Three traps in `test/boss-art.test.mjs`, all of them old friends: the mass is culled unless the
+  ship is parked beside it (`standBesideTheMass`, and it has to re-park every step because the mass
+  gives ground); the glow log records the corner a sprite was stamped from, so a distance test has
+  to add half the sprite's size back (`stampsAt`); and a cell is **lit and dark** on the first step
+  of its wind-up (`cellProgress` starts at 0), so the "opening cell is lit" test steps twelve
+  frames into the hold before asking the glass. That is the same lesson as `bossFlare` being 0 the
+  step a phase opens.
+- `holdsItsPlace` writes the cells' positions absolutely, so a cell is one step of the mass's drift
+  behind its own seat under a pixel and never further; the hive test allows 1.5 px of that and
+  says why. `rooted` in the cell's row is live for the crowd's separation (the other body takes the
+  whole push) while the walk is what actually keeps the shape - the comment says which does what.
+
+### For the next session
+
+- **Finish the Hive: PLAN's third phase**, "breaks into three smaller hives". That is a mass that
+  splits, which is the first thing in the game with two bosses on the field at once - read
+  `world.boss` (one fight, `bossIndex`, `bossesDown`) cold first: the schedule assumes one fight at
+  a time, and a split that arrives as three scheduled bosses is wrong. Decide, before writing,
+  whether the three are full fights or one fight in three bodies (my vote: one `world.boss` with
+  two more `world.boss`-shaped bodies the framework owns, and the bar becomes the sum).
+- Third phase means the **telegraph floor** test will pick the new beat up by itself (it walks every
+  field of every phase row), and `boss-art.test.mjs` will want a claim about what a split looks
+  like - the rule is that the shape you can shoot is the shape you can see, so three hives must be
+  drawn as three masses and not as one with bits falling off.
+- Both bosses' hull may be too big for anything but a snowballed build: session 56, 57 and 58 all
+  said the Warden's 560 might want cutting and now the Hive's 760 says the same (173 s of a bare
+  gun). Measure a mid build, not the bare bot and not the level-48 one - `tools/power-ladder.js` is
+  the tool for what a real 10-minute run is worth.
+- `boss.rings` / `boss.shots` / `boss.volleys` / `boss.beams` / `boss.calls` / `boss.summons` and
+  now the cell counters are read by tests and `STARFALL.stats()` and nothing else; the F3 overlay
+  (M10) is where they belong. The four unbuilt synergies, the music buses, and
+  `tools/agent/session.js` still having `choose_weapon` and no `choose_ship` are all still parallel
+  work.
