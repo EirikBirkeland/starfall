@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.21",
+    "date": "2026-10-09",
+    "summary": "The run's own build, down the left edge: a mark for every upgrade taken and a pip for every rank"
+  },
+  {
     "version": "0.4.20",
     "date": "2026-10-09",
     "summary": "Thermal shock: a corpse that wore both fire and frost takes the room with it, and the first synergy the deck can deal"
