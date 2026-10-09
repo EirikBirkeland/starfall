@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.5.2",
+    "date": "2026-10-09",
+    "summary": "Ships: five hulls to fly, each one the gun it was built around"
+  },
+  {
     "version": "0.5.1",
     "date": "2026-10-09",
     "summary": "Swarm: the fifth primary - slow micro-missiles that each find a body of their own and go off in it"
