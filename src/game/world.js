@@ -34,12 +34,20 @@ import { newTally } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { newRanks } from './upgrades.js';
 import { defaultWeapon } from './weapons.js';
+import { defaultShip, shipBody } from './ships.js';
 
 function createWorld() {
   const spec = BALANCE.player;
+  // The body the plain ship is made of, so the numbers on the Wisp's row are the only place
+  // any of them is written (game/ships.js). A run applies its own ship again from scratch.
+  const body = shipBody(defaultShip());
   return {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
+    // Which ship the runs of this world fly, and with it which primary (game/ships.js).
+    // Picked on the title screen until the hangar exists, and deliberately not cleared by a
+    // new run: what you picked is what you fly on, like the seed and the gun.
+    ship: defaultShip(),
     // Which primary the runs of this world are flying (game/weapons.js). Picked on the
     // title screen until the hangar exists, and deliberately not cleared by a new run:
     // what you picked is what you fly on, the same way the seed is what you get.
@@ -98,15 +106,19 @@ function createWorld() {
       px: 0, py: 0,
       r: spec.hitRadius,
       drawR: spec.drawRadius,   // the ship on screen is bigger than the ship that gets hurt
-      maxSpeed: spec.maxSpeed,
+      maxSpeed: body.maxSpeed,
+      // Which silhouette the frame draws for this ship, and how long its dash takes to come
+      // back (game/ships.js). Both are the ship's and both are read where they are used.
+      shape: body.shape,
+      dashWait: body.dashWait,
       angle: -Math.PI / 2,
       thrust: 0,
       // How close the engines are to dropping their next puff of exhaust. The
       // wake is simulated (game/effects.js `engineTrail`), so it belongs to the
       // ship like its velocity does.
       exhaustTimer: 0,
-      hull: spec.hull,
-      maxHull: spec.maxHull,    // what the pips can hold; only an elite's heal fills it for now
+      hull: body.hull,
+      maxHull: body.maxHull,    // what the pips can hold; only an elite's heal fills it for now
       invuln: 0,
       // The dash: how far it has left to cover, how long until the next one is
       // allowed, and which way it is going. All three are 0 on a fresh ship.

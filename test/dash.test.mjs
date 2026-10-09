@@ -11,9 +11,12 @@ import { BALANCE } from '../src/game/balance.js';
 import { enemyAt, scriptedRun, flyFor, stepTheWorld } from '../tools/headless/scripted.js';
 
 const spec = BALANCE.player.dash;
+// The wait is the ship's own number now (game/ships.js), and every ship this file flies is
+// the one the game starts with. Spelled out here so the tests read the way they always did.
+const COOLDOWN = BALANCE.ships.wisp.dashCooldown;
 const STEP = BALANCE.sim.step;
 const DASH_SPEED = spec.distance / spec.time;
-const GLIDE = BALANCE.player.maxSpeed * BALANCE.player.maxSpeed / (2 * BALANCE.player.brake);
+const GLIDE = BALANCE.ships.wisp.maxSpeed * BALANCE.ships.wisp.maxSpeed / (2 * BALANCE.player.brake);
 
 const still = { moveX: 0, moveY: 0, moving: false };
 const right = { moveX: 1, moveY: 0, moving: true };
@@ -63,8 +66,8 @@ function waitOutOfDash(field) {
 test('the plan asks for 220 px in 0.12 s out of a 2.5 s wait', () => {
   assert.equal(spec.distance, 220);
   assert.equal(spec.time, 0.12);
-  assert.equal(spec.cooldown, 2.5);
-  assert.ok(DASH_SPEED > BALANCE.player.maxSpeed * 4, 'a dash has to be far quicker than the ship');
+  assert.equal(COOLDOWN, 2.5);
+  assert.ok(DASH_SPEED > BALANCE.ships.wisp.maxSpeed * 4, 'a dash has to be far quicker than the ship');
 });
 
 test('a dash covers its whole distance and no further', () => {
@@ -132,7 +135,7 @@ test('the engines are ignored while the dash lasts', () => {
   const field = openSky(75);
   const ship = field.player;
   flyFor(0.5, right);
-  assert.equal(ship.vx, BALANCE.player.maxSpeed, 'the ship was flat out to the right');
+  assert.equal(ship.vx, BALANCE.ships.wisp.maxSpeed, 'the ship was flat out to the right');
   const from = ship.x;
   const back = { moveX: -0.5, moveY: 0, moving: true };
 
@@ -149,7 +152,7 @@ test('the engines are ignored while the dash lasts', () => {
     last = ship.x;
   }
   assert.ok(Math.abs(ship.x - (from - spec.distance)) < 1e-9, 'the dash came up short');
-  assert.equal(ship.vx, -BALANCE.player.maxSpeed, 'it came back to the engines at full speed');
+  assert.equal(ship.vx, -BALANCE.ships.wisp.maxSpeed, 'it came back to the engines at full speed');
 });
 
 test('the dash paints between where it was and where it is', () => {
@@ -169,11 +172,11 @@ test('the arena holds the ship through a dash, and the wait is still paid', () =
   const ship = field.player;
 
   stepTheWorld(pressDash(field));
-  assert.equal(ship.dashCd, spec.cooldown, 'a dash stopped dead by a wall still costs its wait');
+  assert.equal(ship.dashCd, COOLDOWN, 'a dash stopped dead by a wall still costs its wait');
   assert.ok(ship.x < wall, 'the dash was still underway when the wall stopped it');
 
   const waited = waitOutOfDash(field);
-  assert.ok(Math.abs(waited - spec.cooldown) < 2 * STEP,
+  assert.ok(Math.abs(waited - COOLDOWN) < 2 * STEP,
     'the wait from the press to being ready again lasted ' + waited.toFixed(3) + 's');
   assert.equal(ship.dashCd, 0);
 
@@ -233,7 +236,7 @@ test('one press is one dash, and a press spent on the wait buys nothing', () => 
   assert.ok(ship.dashCd > 0, 'the wait is still running');
 
   const waited = waitOutOfDash(field);
-  assert.ok(Math.abs(waited - (spec.cooldown - 0.3)) < 3 * STEP,
+  assert.ok(Math.abs(waited - (COOLDOWN - 0.3)) < 3 * STEP,
     'the wait gave up after ' + waited.toFixed(3) + 's of waiting');
   stepTheWorld(pressDash(field));
   assert.ok(ship.dashLeft > 0, 'a press once it is ready dashes again');

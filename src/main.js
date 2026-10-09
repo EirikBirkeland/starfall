@@ -5,7 +5,8 @@ import { world, stepWorld } from './game/world.js';
 import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
-import { shotsPerSecond, setWeapon, setWeaponByIndex, weaponName } from './game/weapons.js';
+import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
+import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
@@ -22,7 +23,7 @@ import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
-import { initScreens, hideScreens, showGameOver, showWeapon } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showShip } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -82,7 +83,7 @@ function answerChoice(x, y) {
   else takeOffer(world, hit.card);
 }
 
-/** A number key: over one of the cards on the table, or over the weapon list. */
+/** A number key: over one of the cards on the table, or over the ship list. */
 function onPickCard(number, banishing) {
   if (world.state === STATE.LEVEL) {
     // Shift turns the same number into the other thing a card can be answered with: it
@@ -91,14 +92,15 @@ function onPickCard(number, banishing) {
     else takeOffer(world, number - 1);
     return;
   }
-  // The same keys, on the two screens that are not a run: the title picks the primary to
-  // fly, because there is no hangar yet (PLAN 3.2, milestone 5). The game-over card takes
-  // it too, which is what "press 2, press Space, fly the scatter" means. Mid-run the keys
-  // are nobody's: a run does not get to swap its gun between two frames.
+  // The same keys, on the two screens that are not a run: the title picks the ship to fly,
+  // and with it the primary that ship brings (game/ships.js), because there is no hangar
+  // yet (PLAN 3.2, milestone 5). The game-over card takes it too, which is what "press 2,
+  // press Space, fly the scatter" means. Mid-run the keys are nobody's: a run does not get
+  // to swap its body or its gun between two frames.
   if (world.state === STATE.PLAY) return;
   // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
   // taken, not to a key that was pressed.
-  if (setWeaponByIndex(world, number - 1)) showWeapon(world.weapon);
+  if (setShipByIndex(world, number - 1)) showShip(world.ship);
 }
 
 /** R rerolls the table. The same key on any other screen asks for nothing. */
@@ -126,6 +128,7 @@ function describeRun() {
     shards: world.shardsCollected,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    ship: shipName(world),
     weapon: weaponName(world),
     build: describeRanks(world),
   };
@@ -171,7 +174,7 @@ function frame(now) {
 
 function boot() {
   initScreens();
-  showWeapon(world.weapon);
+  showShip(world.ship);
   initCanvas(document.getElementById('game'));
   onResize();
   // Whoever arrives first picks this visit's seed: the address bar, then the
@@ -234,8 +237,19 @@ window.STARFALL = {
   /**
    * Choose the primary (game/weapons.js) the way the title screen's number keys do, for
    * a headless tool that wants to say which gun a run flies. An unknown id throws.
+   *
+   * And it is still the honest way to ask for a gun on its own: a ship brings a gun with it
+   * (`chooseShip` below), and a tool that is pricing one primary against another wants the
+   * same body underneath every one of them. Set the ship first and the gun after, and the
+   * gun is what you asked for.
    */
   chooseWeapon: function (id) { return setWeapon(world, id); },
+  /**
+   * Choose the ship (game/ships.js) the way the title screen's number keys do, and take its
+   * primary with it: hull, speed, the dash's wait, the silhouette, and the gun it was built
+   * around, in one call. An unknown id throws.
+   */
+  chooseShip: function (id) { return setShip(world, id); },
   stats: function () {
     return {
       state: world.state,
@@ -261,6 +275,8 @@ window.STARFALL = {
       collected: world.shardsCollected,
       fireRate: shotsPerSecond(world),
       weapon: world.weapon,
+      ship: world.ship,
+      dashWait: world.player.dashWait,
       // The nova (game/nova.js): how many fronts are in the air, and how long until the
       // next one. The F3 overlay wants both, and a test that cannot see a front can at
       // least see that the clock is running.

@@ -201,7 +201,7 @@ function makeAudioContextStub(log, now) {
   return stub;
 }
 
-const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild', 'weaponRow'];
+const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild', 'shipRow'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -427,6 +427,8 @@ export async function bootGame(options) {
     screenOf: (x, y) => game.screenOf(x, y),
     /** Choose the primary this game flies, exactly as the title screen's keys do. */
     chooseWeapon: (id) => game.chooseWeapon(id),
+    /** Choose the ship it flies, and take the primary that ship brings with it. */
+    chooseShip: (id) => game.chooseShip(id),
     stats() { return game.stats(); },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
@@ -443,9 +445,10 @@ export async function bootGame(options) {
         stats: elements.finalStats.textContent,
         build: elements.finalBuild.textContent,
         newBestShown: !elements.newBest.classList.contains('hidden'),
-        // The title's primaries, as the player reads them: one line each, and which one
-        // is lit up (game/weapons.js is what they are built from).
-        weapons: elements.weaponRow.children.map((row) => ({
+        // The title's ships, as the player reads them: one line each, naming the ship and
+        // the gun it brings, and which one is lit up (game/ships.js is what they are built
+        // from).
+        ships: elements.shipRow.children.map((row) => ({
           label: row.children.map((part) => part.textContent).join(' '),
           picked: row.classList.contains('picked'),
         })),

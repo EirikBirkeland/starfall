@@ -10,6 +10,7 @@ import { BALANCE } from '../../src/game/balance.js';
 import { resetRun } from '../../src/game/run.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 import { defaultWeapon, setWeapon, weaponOf } from '../../src/game/weapons.js';
+import { defaultShip, setShip } from '../../src/game/ships.js';
 import { setSeed } from '../../src/core/rng.js';
 
 /**
@@ -18,10 +19,15 @@ import { setSeed } from '../../src/core/rng.js';
  * The primary is put back on the rack too: a scripted run flies the default gun whatever
  * the last test in this file chose, because a test that inherits another test's weapon is
  * a test that changes when the file is reordered. A test that wants a different gun says
- * so with `setWeapon`.
+ * so with `setWeapon`. And the same for the ship - which brings a gun with it, so this is
+ * the order that leaves the default gun in the saddle (game/ships.js).
  */
 export function scriptedRun(seed) {
   setSeed(seed);
+  // The ship goes back on the rack before the run is built, because the run is what applies
+  // it: putting it after `resetRun` would leave the last test's ship having written its hull
+  // and its starting ranks into this one (game/ships.js).
+  setShip(world, defaultShip());
   resetRun(world);
   setWeapon(world, defaultWeapon());
   world.state = STATE.PLAY;

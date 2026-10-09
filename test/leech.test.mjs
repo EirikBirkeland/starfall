@@ -36,7 +36,7 @@ import { playOneRun } from '../tools/headless/bot.js';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const LEECH = BALANCE.upgrades.leech;
 const STEP = BALANCE.sim.step;
-const HULL = BALANCE.player.hull;
+const HULL = BALANCE.ships.wisp.hull;
 const BIG = 1e6;
 
 /** Everything that would otherwise turn a measured window into a level-up pause. */
@@ -242,7 +242,7 @@ test('the world spends a held charge in the step the hull was lost', () => {
   stepTheWorld();
 
   assert.equal(field.tally.hullLost, 1, 'the contact landed');
-  assert.equal(ship.hull, BALANCE.player.maxHull, 'and the hull came straight back');
+  assert.equal(ship.hull, BALANCE.ships.wisp.maxHull, 'and the hull came straight back');
   assert.equal(field.leech.held, 0, 'and the charge went with it');
 });
 
@@ -272,10 +272,10 @@ test('a hull is one hull, and the cap is the cap', () => {
 
   bringDownMany(field, leechCostOf(field));
   assert.equal(ship.hull, HULL - 1, 'one hull, exactly, and the cap did not move');
-  assert.equal(ship.maxHull, BALANCE.player.maxHull);
+  assert.equal(ship.maxHull, BALANCE.ships.wisp.maxHull);
 
   bringDownMany(field, leechCostOf(field) * 4);
-  assert.equal(ship.hull, BALANCE.player.maxHull, 'full, and no further');
+  assert.equal(ship.hull, BALANCE.ships.wisp.maxHull, 'full, and no further');
   assert.equal(field.leech.held, 1, 'and the last price paid is being held');
 });
 
@@ -332,7 +332,7 @@ test('a new run forgets what the last one earned', () => {
   scriptedRun(16);
   assert.equal(field.leech.kills, 0, 'the bodies went with the last run');
   assert.equal(field.leech.held, 0, 'and so did the charge');
-  assert.equal(field.player.hull, BALANCE.player.hull, 'and the ship starts whole, as it always did');
+  assert.equal(field.player.hull, BALANCE.ships.wisp.hull, 'and the ship starts whole, as it always did');
 });
 
 test('the leech does not disturb the crowd it is healing among', () => {

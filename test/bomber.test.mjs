@@ -124,7 +124,7 @@ test('the circle it is drawn standing in is exactly the blast', () => {
 
   // The one arithmetic the player is doing with the ring: can I still be leaving
   // when it goes off. Anything under half a second at full speed is readable.
-  const toRunOut = B.radius / BALANCE.player.maxSpeed;
+  const toRunOut = B.radius / BALANCE.ships.wisp.maxSpeed;
   assert.ok(toRunOut < 0.5, 'the circle is ' + B.radius + ' px, which is '
     + toRunOut.toFixed(2) + ' s of full speed away');
   assert.ok(B.radius > BALANCE.player.hitShoveRadius,
@@ -160,7 +160,7 @@ test('the ship standing in the circle pays a hull for it', () => {
   const { field, bomber } = parked(6, SHIP.x + 60, SHIP.y);
   const player = vulnerable(field);
   const was = unharmed(player);
-  assert.equal(was.hull, BALANCE.player.hull);
+  assert.equal(was.hull, BALANCE.ships.wisp.hull);
 
   killEnemy(field, bomber, true);
 

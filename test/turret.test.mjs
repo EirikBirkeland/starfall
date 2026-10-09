@@ -207,7 +207,7 @@ test('a crew is laid across the way the ship was going, not the way it was point
     ship.py = here.y;
     assert.ok(field.turret.crews <= 2, 'and no more than the two crews the test is about');
   }
-  assert.ok(planted.vx > BALANCE.player.maxSpeed * 0.9,
+  assert.ok(planted.vx > BALANCE.ships.wisp.maxSpeed * 0.9,
     'the ship was at full stretch east by then: ' + planted.vx.toFixed(1));
   assert.ok(Math.abs(planted.vy) < 1e-6, 'and not going anywhere else: ' + planted.vy.toFixed(3));
 

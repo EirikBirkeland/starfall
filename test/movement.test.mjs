@@ -10,7 +10,10 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { enemyAt, scriptedRun, flyFor, stepTheWorld } from '../tools/headless/scripted.js';
 
-const spec = BALANCE.player;
+// The plain ship's numbers, both halves of them: what every ship shares (BALANCE.player) and
+// what the one this game starts with is worth (BALANCE.ships.wisp). Every number this file
+// measures belongs to one of the two, and it measures the ship the game flies by default.
+const spec = Object.assign({}, BALANCE.player, BALANCE.ships.wisp);
 const STEP = BALANCE.sim.step;
 
 const right = { moveX: 1, moveY: 0, moving: true };

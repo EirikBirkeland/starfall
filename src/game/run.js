@@ -11,6 +11,7 @@ import { cueChord, clearCues } from './cues.js';
 import { newTally } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
+import { applyShip } from './ships.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
@@ -37,11 +38,8 @@ export function resetRun(world) {
   ship.py = ship.y;
   ship.vx = 0;
   ship.vy = 0;
-  ship.hull = spec.hull;
-  // What the hull can hold is part of the ship, not of the run, but a heal spent in
-  // the last run must not carry into this one - and a ship select (milestone 5) will
-  // want to write both numbers anyway.
-  ship.maxHull = spec.maxHull;
+  // The hull is not written here: it comes from the ship this world flies, and that is
+  // applied below, after the ranks - see `applyShip`.
   ship.invuln = spec.startInvulnerability;
   ship.dashLeft = 0;
   ship.dashCd = 0;
@@ -118,6 +116,12 @@ export function resetRun(world) {
   // ...and with nothing owed and nothing refused: the two asks a run gets about its own
   // deal are spent by the run that spent them (game/upgrades.js).
   resetAsks(world);
+  // And now the ship itself goes on: its hull, its engines, its dash's wait, its silhouette,
+  // and any upgrade rank it arrived with (game/ships.js). After the ranks are cleared, because
+  // a ship that starts with a rank of something has to spend it on a table that has been wiped
+  // and not on the last run's; and after everything else, because nothing between here and the
+  // first step should be able to overwrite a body that has just been written.
+  applyShip(world);
   world.offer.length = 0;
   world.pendingLevels = 0;
   world.offerTime = 0;

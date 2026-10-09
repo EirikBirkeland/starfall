@@ -41,14 +41,18 @@ export const BALANCE = {
     // numbers are a rate of change of velocity, so game/player.js steers with one
     // rule however the ship happens to be moving.
     hitRadius: 6,           // what an enemy has to actually touch - deliberately far smaller than the drawing
-    drawRadius: 13,         // the ship you see; its nose sits 16 px out from the middle
-    maxSpeed: 320,          // px/s
+    // How big a ship is drawn. This is the one body number that is *not* on a ship's row
+    // below: every ship in the game is drawn at this scale and differs by its silhouette,
+    // not by its size. That is what keeps three promises true whoever you fly - the thing
+    // that gets hurt stays a fraction of the thing you see, the walls clamp every ship by
+    // the same edge, and every ring the frame paints at `drawRadius + a gap` (the dash's,
+    // the overcharge's, the magnetar's) stands at the distance the simulation measures.
+    drawRadius: 13,         // the Wisp's nose sits 16 px out from its middle
+    // How fast it goes and how much of it there is belong to the ship: `maxSpeed`, `hull`
+    // and `dashCooldown` are on its row in `ships` below. What is left here is what every
+    // ship shares, whoever you are flying.
     accel: 2400,            // px/s^2 - full speed about 0.13 s after you lean
     brake: 3200,            // px/s^2 - letting go stops it in about 0.10 s
-    hull: 3,
-    // The most the ship can hold. Nothing raises it yet - an elite's heal is clamped
-    // to it (see `elite` below) - and the milestone 4 upgrades will.
-    maxHull: 3,
     // What coming back a hull looks and sounds like. Mint, because cool colours mean
     // help (PLAN section 4) and this is the only good news a run gives out by itself.
     heal: {
@@ -81,7 +85,9 @@ export const BALANCE = {
     dash: {
       distance: 220,          // px, all of them, unless the arena gets in the way
       time: 0.12,             // s to cover them
-      cooldown: 2.5,          // s, from the start of one dash to the next
+      // How long the wait is belongs to the ship (see `dashCooldown` on the rows in
+      // `ships` below): one ship's whole idea is a dash that comes back quick, and a
+      // number it pays for cannot live in the part of the table everybody shares.
       shake: 2.5,             // a flick of trauma, so it is felt as well as seen
       // The crowd is shouldered out of the way as the dash goes through it, which
       // is also what makes a dash that ends inside a mob end somewhere you can
@@ -92,6 +98,118 @@ export const BALANCE = {
       // The burst and the ring that mark the moment it starts.
       start: { burst: 14, speed: 250, life: 0.32, ring: 7, ringSpeed: 380, ringLife: 0.3 },
       sound: { freq: 260, dur: 0.16, wave: 'triangle', vol: 0.06, slide: 880 },
+    },
+  },
+
+  // The ships (PLAN 3.7): the body you fly and the gun it brings. `game/ships.js` is the
+  // code that reads these rows, and the title screen hands them out with a number key
+  // until the hangar exists (milestone 8) - `default` is what a run that never picked flies.
+  //
+  // Each row owns: how much of it there is (`hull`, and `maxHull` for what the pips can
+  // hold), how fast it goes (`maxSpeed`), how long its dash takes to come back
+  // (`dashCooldown`), which primary it carries (`weapon`), what it is drawn as (`shape`,
+  // render/shapes.js), and any upgrade rank it arrives with (`ranks`). What it does NOT own
+  // is its hitbox: every ship is hurt by the same 6 px core in `player` above. PLAN 3.1's
+  // rule is that the thing that gets hurt is far smaller than the thing you see, and a ship
+  // that was harder to hit because it was drawn small would be a ship the eye cannot
+  // explain - so the silhouette changes and the core does not.
+  //
+  // The coins are hull, speed, and the gun, and the rows are priced against each other:
+  //
+  //   wisp      3 hull, 320 px/s, dash 2.5 s - the yardstick, and the plainest gun
+  //   bulwark   4 hull, 256 px/s, dash 2.5 s - a pip of hull for a fifth of the speed
+  //   volt      3 hull, 320 px/s, dash 1.5 s - 40% more dashes, paid for in reach
+  //   needle    2 hull, 392 px/s, dash 2.5 s - a pip of hull bought back as speed
+  //   brood     3 hull, 300 px/s, dash 2.5 s - a free pair of drones for 6% of the speed
+  //
+  // The pip of hull and the fifth of speed are the same trade made twice, once each way:
+  // the Bulwark sells 64 px/s for a fourth pip and the Needle buys 72 px/s by giving one
+  // back. Hull is the coin a run actually dies in (a pip is one more hit, and 1.5 s of
+  // grace to make something of it) and speed is the coin that keeps you from needing it,
+  // so a fifth of the second for a third of the first is about fair on a ship whose gun
+  // wants to be close to the crowd and a fifth for a third the other way on a ship whose
+  // gun wants a clear lane in front of it. The Volt's price is not in this table: it buys
+  // the quickest dash in the game and pays with the shortest reach of the five primaries
+  // (the arc makes its own lightning at 260 px, which is a distance it has to spend its
+  // speed getting inside, and that is the whole idea of it). The Brood's free Orbitals
+  // rank is a card the other four have to earn off the table, and a card is worth a few per
+  // cent of a build at the level it is picked, so six per cent of the engines is about its price.
+  //
+  // The rows are in the order of the primaries they carry, which is what lets the number a
+  // player presses keep meaning the gun it has always meant on this screen (game/ships.js).
+  ships: {
+    default: 'wisp',
+    // The ship the game has always flown, and the one every measurement in NOTES was taken
+    // on. Nothing about it is a trade: three hull, the speed the acceleration table was
+    // written for, the pulse. That is its identity - the plain answer, and the row the
+    // other four are priced against.
+    wisp: {
+      name: 'WISP',
+      shape: 'dart',
+      hull: 3,
+      maxHull: 3,
+      maxSpeed: 320,          // px/s
+      dashCooldown: 2.5,      // s, from the start of one dash to the next
+      weapon: 'pulse',
+      ranks: {},
+    },
+    // Four hull and a fifth less of the arena out of reach of, with the scatter's whole
+    // weight standing 370 px away instead of the pulse's 700. It is the ship that walks
+    // into things: the extra pip is not a gift, it is what you spend on being where the
+    // scatter needs to be. Drawn wide and blunt so the fourth pip is visible (render/shapes.js).
+    bulwark: {
+      name: 'BULWARK',
+      shape: 'hex',
+      hull: 4,
+      maxHull: 4,
+      maxSpeed: 256,
+      dashCooldown: 2.5,
+      weapon: 'scatter',
+      ranks: {},
+    },
+    // The dash is the Volt. One dash every 1.5 s rather than every 2.5 is nearly half again
+    // as many escapes in a crowded second, and the arc it carries - the one primary that
+    // throws nothing and points itself at whatever is standing inside 260 px of it - is
+    // the gun that needs a dash to get where it is useful. The hull stays at three because
+    // the reach is what it paid.
+    volt: {
+      name: 'VOLT',
+      shape: 'bolt',
+      hull: 3,
+      maxHull: 3,
+      maxSpeed: 320,
+      dashCooldown: 1.5,
+      weapon: 'arc',
+      ranks: {},
+    },
+    // The other side of the Bulwark's trade: one hull gone, a fifth more speed, and the
+    // lance, which is the primary that wants a lane it can see down the end of. Two pips
+    // means two mistakes, and being the fastest thing in the arena is what it bought with
+    // them; the drawn ship is a needle to match, and so is the card that says "two hull".
+    needle: {
+      name: 'NEEDLE',
+      shape: 'spike',
+      hull: 2,
+      maxHull: 2,
+      maxSpeed: 392,
+      dashCooldown: 2.5,
+      weapon: 'lance',
+      ranks: {},
+    },
+    // The Brood arrives with a rank of Orbitals already spent - two drones on the ring from
+    // the first second of the run, which is a card off the table before the first level.
+    // Its engines pay for it. The swarm it carries is the slowest of the primaries and
+    // does its work from further off than the ring does, so the ship reads as a carrier
+    // even when the drones are the oldest part of it, and it is drawn as one.
+    brood: {
+      name: 'BROOD',
+      shape: 'pod',
+      hull: 3,
+      maxHull: 3,
+      maxSpeed: 300,
+      dashCooldown: 2.5,
+      weapon: 'swarm',
+      ranks: { orbitals: 1 },
     },
   },
 

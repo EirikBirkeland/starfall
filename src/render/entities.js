@@ -8,7 +8,7 @@ import { BALANCE } from '../game/balance.js';
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU } from '../core/math.js';
-import { polygon, shipPath } from './shapes.js';
+import { polygon, shipPath, shipShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
@@ -1116,14 +1116,9 @@ function trailStretch(bullet) {
   return (speed / TRAIL_SPEED) * clamp(bullet.life / TRAIL_RUNOUT, 0, 1);
 }
 
-/** The ship's silhouette, pointing along +x from the origin it is drawn around. */
-function shipOutline(ctx, radius) {
-  ctx.beginPath();
-  ctx.moveTo(radius + 3, 0);
-  ctx.lineTo(-radius * 0.72, radius * 0.82);
-  ctx.lineTo(-radius * 0.35, 0);
-  ctx.lineTo(-radius * 0.72, -radius * 0.82);
-  ctx.closePath();
+/** The ship's own silhouette, pointing along +x from the origin it is drawn around. */
+function shipOutline(ctx, ship) {
+  shipShape(ship.shape)(ctx, ship.drawR);
 }
 
 /**
@@ -1143,7 +1138,7 @@ function drawDashStreak(ctx, ship) {
     ctx.translate(-i * STREAK_GHOST_GAP, 0);
     ctx.rotate(ship.angle - heading);
     ctx.globalAlpha = ctx.globalAlpha / (i + 1);
-    shipOutline(ctx, ship.drawR);
+    shipOutline(ctx, ship);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -1167,7 +1162,9 @@ function drawDashRing(ctx, ship) {
     return;
   }
 
-  const done = 1 - clamp(ship.dashCd / BALANCE.player.dash.cooldown, 0, 1);
+  // The ship's own wait, whatever ship that is (game/ships.js): the arc closing over the
+  // circle is the fraction of *this* ship's cooldown that has been spent.
+  const done = 1 - clamp(ship.dashCd / ship.dashWait, 0, 1);
   ctx.strokeStyle = RING_WAIT;
   ctx.beginPath();
   ctx.arc(0, 0, radius, 0, TAU);
@@ -1326,7 +1323,7 @@ export function drawPlayer(ctx, alpha) {
   ctx.lineWidth = 2;
   ctx.strokeStyle = PALETTE.playerLine;
   ctx.fillStyle = PALETTE.playerFill;
-  shipOutline(ctx, ship.drawR);
+  shipOutline(ctx, ship);
   ctx.fill();
   ctx.stroke();
 
@@ -1388,7 +1385,7 @@ export function drawGhosts(ctx) {
     ctx.rotate(image.angle);
     ctx.globalAlpha = ctx.globalAlpha * lit;
 
-    shipOutline(ctx, ship.drawR);
+    shipOutline(ctx, ship);
     ctx.lineWidth = GHOST_GLOW;
     ctx.strokeStyle = withAlpha(PALETTE.player, GHOST_GLOW_LIGHT);
     ctx.stroke();

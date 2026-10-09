@@ -290,7 +290,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, weapon }
+ * Options: { maxSeconds, every, onFrame, policy, ship, weapon }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -298,8 +298,14 @@ export function playOneRun(game, options) {
   const frameLimit = Math.ceil(maxSeconds * 1000 / FRAME_MS);
   const drawsBefore = game.drawCalls();
 
-  // Which primary to fly, pressed through the game's own door before the launch (the bot
-  // does not reach into the world for it, because the title screen is what offers it).
+  // Which ship to fly, and with it which primary, pressed through the game's own door
+  // before the launch (the bot does not reach into the world for it, because the title
+  // screen is what offers it).
+  if (opts.ship !== undefined) game.chooseShip(opts.ship);
+  // Which primary to fly, asked for after the ship so that a tool pricing one gun against
+  // another gets the gun it asked for on whatever body it is standing on - which is what a
+  // gun ladder is for (tools/power-ladder.js), and game/ships.js says the same about the
+  // order of the two calls.
   if (opts.weapon !== undefined) game.chooseWeapon(opts.weapon);
 
   startBotRun(game);

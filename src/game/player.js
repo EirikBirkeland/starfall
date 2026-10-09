@@ -98,8 +98,9 @@ function beginDash(world, input) {
   ship.dashDirY = dir.y;
   ship.dashLeft = spec.distance;
   // The wait is measured from the start of the dash, so a dash that ends early
-  // against a wall still costs the full cooldown.
-  ship.dashCd = spec.cooldown;
+  // against a wall still costs the full cooldown. How long that is is the ship's own
+  // number (game/ships.js) - the frame counts the same one down for its ring.
+  ship.dashCd = ship.dashWait;
 
   const back = Math.atan2(-dir.y, -dir.x);
   const start = spec.start;

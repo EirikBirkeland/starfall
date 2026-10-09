@@ -118,7 +118,7 @@ function runOf(seconds, score, level, kills, died) {
     policy: 'aware',
     seconds: seconds,
     died: died,
-    stats: { weapon: 'pulse', score: score, level: level, kills: kills },
+    stats: { ship: 'wisp', weapon: 'pulse', score: score, level: level, kills: kills },
   };
 }
 
@@ -152,9 +152,9 @@ test('a batch is its middle, its mean, and how much of it was cut short', () => 
   assert.equal(batch.kills.median, 40);
 });
 
-test('the batch line names the middle run and the gun it was flown on', () => {
+test('the batch line names the middle run and the ship it was flown on', () => {
   const line = batchLine(aggregate(BATCH, 900));
-  assert.match(line, /^batch of 3 runs, aware bot, gun pulse:/);
+  assert.match(line, /^batch of 3 runs, aware bot, ship wisp, gun pulse:/);
   assert.match(line, /median 5m00s, mean 7m00s, worst 1m00s/);
   assert.match(line, /1\/3 still flying at the 15m00s cap/);
 
@@ -167,7 +167,7 @@ test('the batch line names the middle run and the gun it was flown on', () => {
 test('a batch of runs prints its middle after the runs', () => {
   const out = simulate(['--runs', '3', '--seconds', '45', '--seed', '71']);
   assert.equal(out.trim().split('\n').filter((line) => line.startsWith('seed ')).length, 3);
-  assert.match(out, /^batch of 3 runs, aware bot, gun pulse: median/m);
+  assert.match(out, /^batch of 3 runs, aware bot, ship wisp, gun pulse: median/m);
   assert.match(out, /^ {2}score median /m);
 });
 

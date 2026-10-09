@@ -293,7 +293,7 @@ test('there is time to decide about a shot', () => {
   const fromTheNearEdge = SPIT.wind.time + SPIT.range.near / SPIT.shot.speed;
   assert.ok(SPIT.wind.time >= 0.4, 'the mouth is lit for ' + SPIT.wind.time + ' s before anything leaves it');
   assert.ok(fromTheNearEdge >= 1, 'a shot from its nearest adds up to ' + fromTheNearEdge.toFixed(2) + ' s of warning');
-  assert.ok(SPIT.shot.speed < BALANCE.player.maxSpeed,
+  assert.ok(SPIT.shot.speed < BALANCE.ships.wisp.maxSpeed,
     'and a shot is slower than a ship that knows which way to go');
 });
 

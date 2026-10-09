@@ -1,33 +1,35 @@
-// The DOM screens: the title (with the primary to fly) and the game-over card. The
-// level-up choice is not here - it is painted on the canvas (render/cards.js), because
-// its cards are drawn, not typed. Everything the run shows while it is being played is
-// on the canvas too.
+// The DOM screens: the title (with the ship to fly) and the game-over card. The level-up
+// choice is not here - it is painted on the canvas (render/cards.js), because its cards are
+// drawn, not typed. Everything the run shows while it is being played is on the canvas too.
 
-import { WEAPONS } from '../game/weapons.js';
+import { SHIPS } from '../game/ships.js';
 import { BALANCE } from '../game/balance.js';
 
 let el = null;
 
-/** The title's weapon rows, in the order they were built, so one can be lit up. */
-let weaponRows = [];
+/** The title's ship rows, in the order they were built, so one can be lit up. */
+let shipRows = [];
 
-/** One line of the weapon list: the key, the name, and what it is for. */
-function buildWeaponRow(weapon, index) {
+/** One line of the ship list: the key, the ship and the gun it brings, and what it is for. */
+function buildShipRow(ship, index) {
   const row = document.createElement('div');
-  row.classList.add('weapon');
+  row.classList.add('ship');
 
   const key = document.createElement('span');
   key.classList.add('key');
   key.textContent = String(index + 1);
 
   const what = document.createElement('span');
-  // The name is the balance row's, so the title cannot offer a gun under one name and
-  // fly it under another (game/weapons.js is what prints the gun in play and on the card).
-  what.textContent = BALANCE.weapons[weapon.id].name + ' - ' + weapon.blurb;
+  // Both names come off the balance sheet, so the title cannot offer a ship under one name
+  // and fly it under another (game/ships.js is what prints the ship on the card at the end,
+  // and game/weapons.js the gun in play). The gun is named because it comes with the ship:
+  // one key, one line, and nothing to cross-check between the two lists.
+  what.textContent = BALANCE.ships[ship.id].name + ' \u00b7 '
+    + BALANCE.weapons[BALANCE.ships[ship.id].weapon].name + ' - ' + ship.blurb;
 
   row.appendChild(key);
   row.appendChild(what);
-  el.weaponRow.appendChild(row);
+  el.shipRow.appendChild(row);
   return row;
 }
 
@@ -40,16 +42,15 @@ export function initScreens() {
     newBest: document.getElementById('newBest'),
     stats: document.getElementById('finalStats'),
     build: document.getElementById('finalBuild'),
-    weaponRow: document.getElementById('weaponRow'),
+    shipRow: document.getElementById('shipRow'),
   };
-  weaponRows = WEAPONS.map(buildWeaponRow);
+  shipRows = SHIPS.map(buildShipRow);
 }
 
-/** Light up the primary this world flies, so the pick is on the screen and not in the head. */
-export function showWeapon(id) {
-  for (let i = 0; i < weaponRows.length; i++) {
-    const picked = WEAPONS[i].id === id;
-    weaponRows[i].classList.toggle('picked', picked);
+/** Light up the ship this world flies, so the pick is on the screen and not in the head. */
+export function showShip(id) {
+  for (let i = 0; i < shipRows.length; i++) {
+    shipRows[i].classList.toggle('picked', SHIPS[i].id === id);
   }
 }
 
@@ -58,7 +59,7 @@ export function hideScreens() {
   el.over.classList.add('hidden');
 }
 
-/** summary: { score, best, newBest, level, kills, shards, seconds, seed, weapon, build } */
+/** summary: { score, best, newBest, level, kills, shards, seconds, seed, ship, weapon, build } */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
   el.finalBest.textContent = summary.best.toLocaleString('en-US');
@@ -69,6 +70,7 @@ export function showGameOver(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
-  el.build.textContent = summary.weapon + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
+  el.build.textContent = summary.ship + ' \u00b7 ' + summary.weapon
+    + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   el.over.classList.remove('hidden');
 }

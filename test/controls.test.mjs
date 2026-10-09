@@ -71,8 +71,8 @@ test('the wait lasts the 2.5 s the plan asks for, and a press spent in it buys n
   assert.equal(ship.dashCd, 0, 'the wait did not come down to zero');
   assert.equal(starts, 1, 'the one press bought ' + starts + ' dashes');
   const waited = (game.stats().steps - startedAt) * STEP;
-  assert.ok(Math.abs(waited - BALANCE.player.dash.cooldown) < 4 * STEP,
-    'the wait lasted ' + waited.toFixed(3) + 's, the plan says ' + BALANCE.player.dash.cooldown);
+  assert.ok(Math.abs(waited - BALANCE.ships.wisp.dashCooldown) < 4 * STEP,
+    'the wait lasted ' + waited.toFixed(3) + 's, the plan says ' + BALANCE.ships.wisp.dashCooldown);
 });
 
 test('mashing Space is one dash per press, with nothing queued up behind it', () => {
@@ -83,7 +83,7 @@ test('mashing Space is one dash per press, with nothing queued up behind it', ()
   // answered or not, so nothing goes off by itself when the cooldown runs out.
   let starts = 0;
   let wasDashing = false;
-  const mashFrames = Math.round((BALANCE.player.dash.cooldown - 0.3) / FRAME);
+  const mashFrames = Math.round((BALANCE.ships.wisp.dashCooldown - 0.3) / FRAME);
   for (let i = 0; i < mashFrames; i++) {
     tapSpace();
     game.step();
@@ -195,7 +195,7 @@ test('the cooldown ring says how much of the wait is left', () => {
   const readyRing = strokesOfAFrame();
 
   clearTheSky();
-  ship.dashCd = BALANCE.player.dash.cooldown;     // the ring's job is the wait; the wait is dash.test's
+  ship.dashCd = BALANCE.ships.wisp.dashCooldown;     // the ring's job is the wait; the wait is dash.test's
   const waiting = strokesOfAFrame();
 
   // Ready it is one breathing circle. Waiting: the ring, the wide faint arc that

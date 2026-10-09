@@ -9,6 +9,10 @@
 //   node tools/simulate.js --dash              let the bot dash when a body gets close
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc, lance, swarm)
+//   node tools/simulate.js --ship bulwark      fly another ship (game/ships.js: wisp,
+//                                              bulwark, volt, needle, brood) - and with it,
+//                                              that ship's own primary, unless --weapon
+//                                              is asked for as well
 //   node tools/simulate.js --need 300         exit non-zero unless the batch mediates
 //                                             this many seconds (PLAN's survival check)
 //   node tools/simulate.js --trace            print a state fingerprint over time
@@ -33,7 +37,7 @@ import { clock, int, dec } from './headless/tables.js';
 import { playRuns, dashEscape, POLICIES } from './headless/bot.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, weapon: undefined, need: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, ship: undefined, weapon: undefined, need: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -45,6 +49,7 @@ function readArgs(argv) {
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--weapon') opts.weapon = next();
+    else if (arg === '--ship') opts.ship = next();
     else if (arg === '--need') opts.need = parseFloat(next());
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--dash') opts.dash = true;
@@ -77,6 +82,7 @@ function reportLine(summary) {
   const s = summary.stats;
   return 'seed ' + summary.seed
     + '  ' + summary.policy
+    + '  ship ' + summary.stats.ship
     + '  gun ' + summary.stats.weapon
     + '  ' + (summary.died ? 'died' : 'alive at the cap')
     + '  ' + clock(summary.seconds)
@@ -125,6 +131,7 @@ export function aggregate(summaries, cap) {
   return {
     runs: summaries.length,
     policy: summaries[0].policy,
+    ship: summaries[0].stats.ship,
     weapon: summaries[0].stats.weapon,
     cap: cap,
     atCap: summaries.filter((summary) => !summary.died).length,
@@ -142,7 +149,8 @@ function count(value) {
 
 /** The set as one line: the middle run, the mean beside it, and how many never died. */
 export function batchLine(batch) {
-  return 'batch of ' + batch.runs + ' runs, ' + batch.policy + ' bot, gun ' + batch.weapon
+  return 'batch of ' + batch.runs + ' runs, ' + batch.policy + ' bot, ship ' + batch.ship
+    + ', gun ' + batch.weapon
     + ': median ' + clock(batch.seconds.median)
     + ', mean ' + clock(batch.seconds.mean)
     + ', worst ' + clock(batch.seconds.worst)
@@ -167,6 +175,7 @@ if (isMain) {
     audio: opts.audio,
     every: opts.trace ? opts.every : 0,
     policy: opts.policy,
+    ship: opts.ship,
     weapon: opts.weapon,
     onFrame: opts.dash ? dashEscape : undefined,
     // Printed as each run finishes: a batch of twenty long ones is minutes of work and

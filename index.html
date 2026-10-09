@@ -62,22 +62,22 @@
     box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
     color: #d8fbff; font-weight: 600;
   }
-  .weapons {
+  .ships {
     margin-top: 30px;
     display: grid;
     gap: 9px;
   }
-  .weapons-title {
+  .ships-title {
     font-size: 10px; letter-spacing: .42em; text-indent: .42em; color: #74b6dd;
   }
-  .weapon-list { display: grid; gap: 9px; }
-  .weapon {
+  .ship-list { display: grid; gap: 9px; }
+  .ship {
     display: flex; align-items: center; gap: 14px; font-size: 12px; letter-spacing: .14em;
     color: #6f9dc0; transition: color .15s ease;
   }
-  .weapon .key { min-width: 42px; padding: 6px 0; text-align: center; }
-  .weapon.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
-  .weapon.picked .key {
+  .ship .key { min-width: 42px; padding: 6px 0; text-align: center; }
+  .ship.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
+  .ship.picked .key {
     border-color: rgba(94,247,255,.9);
     background: rgba(94,247,255,.16);
     box-shadow: 0 0 18px rgba(94,247,255,.35) inset, 0 0 16px rgba(94,247,255,.3);
@@ -86,14 +86,15 @@
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
-  /* A short window. The title, three rows of controls, one row per primary on the rack and the
-     launch line are a tall column, and a centred column that does not fit is cut at both ends at
-     once - which is the worst way to lose any of it, and the primaries are the one part a player
-     cannot do without. So everything above and below them gives way first. */
+  /* A short window. The title, three rows of controls, one row per ship on the rack and the
+     launch line are a tall column, and a centred column that does not fit is cut at both ends
+     at once - which is the worst way to lose any of it, and the ships are the one part a
+     player cannot do without: a ship is its gun, its hull and its dash in one line. So
+     everything above and below them gives way first. */
   @media (max-height: 620px) {
     .controls { margin-top: 16px; gap: 7px; }
-    .weapons { margin-top: 16px; }
-    .weapon-list { gap: 6px; }
+    .ships { margin-top: 16px; }
+    .ship-list { gap: 6px; }
     .hint { margin-top: 16px; }
   }
   @keyframes pulse { 0%,100% { opacity: .30; } 50% { opacity: 1; } }
@@ -133,9 +134,9 @@
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
   </div>
-  <div class="weapons">
-    <div class="weapons-title">PRIMARY &#8212; PICK WITH A NUMBER</div>
-    <div class="weapon-list" id="weaponRow"></div>
+  <div class="ships">
+    <div class="ships-title">SHIP &#8212; PICK WITH A NUMBER</div>
+    <div class="ship-list" id="shipRow"></div>
   </div>
   <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
 </div>

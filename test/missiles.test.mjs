@@ -99,7 +99,7 @@ test('the row is a whole row, and it is the only one that hunts', () => {
   assert.ok(MISSILE.turn > 0, 'it can turn');
   assert.ok(MISSILE.reach > 0, 'it can see');
   assert.ok(BLAST.radius > 0 && BLAST.share > 0 && BLAST.share < 1, 'it goes off, for less than itself');
-  assert.ok(GUN.speed < BALANCE.player.maxSpeed,
+  assert.ok(GUN.speed < BALANCE.ships.wisp.maxSpeed,
     'and it is slower than the ship, which is the whole of the counterplay: ' + GUN.speed);
   assert.ok(GUN.damage > PULSE.damage, 'a missile is heavier than the shot it is not');
 });
