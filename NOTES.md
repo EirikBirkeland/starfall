@@ -6057,3 +6057,141 @@ thing on its own. Two things to remember:
   moment one is face up and never rerolls), and NOTES has been saying since session 46 that a floor
   line needs its own bot. Every number above is priced on a bot that survives eight minutes, which is
   the customer none of them was written for.
+
+---
+
+## Session 49 (2026-10-09) — Thermal shock: the first synergy, and the rule that one corpse pays one ending. **Not released** (see the last section)
+
+`src/game/shock.js` (the blast, and the four decisions below), the synergy half of
+`src/game/upgrades.js` (`SYNERGY_UNIT`, `needsOf` / `isSynergy` / `hasSynergy`, the `thermalShock`
+entry last in `LINES`, `placeEarnedSynergies`, and the fact that `linesWithRoom`,
+`guaranteeSomethingNew`, `rerollOffer` and `banishOffer` all now know what a card with needs is),
+the frame in `render/cards.js` (`drawSynergyEdges`, `drawSynergyPlate`, `drawNeeds`, and the tab
+rules), `world.shock` counters through `world.js` / `run.js` / `main.js`, three new test files
+(`test/shock.test.mjs`, `test/synergies.test.mjs`, `test/synergy-card.test.mjs`), `--with <line>=<ranks>`
+in `tools/line-ab.js`, and `tools/power-ladder.js` skipping synergies. It is in **2951de9**, which
+says "Finishes the session that ended before it could verify and commit": the work was left in the
+tree by the context window that wrote it and this one found it uncommitted, so read that commit as
+the session and this section as the audit. Verified here in a clean worktree of HEAD: **938 tests
+pass**, `tools/simulate.js` runs the reference seed, and `--trace` on 20261006 is **byte-identical
+to v0.4.19 in its body** - the only difference in the whole file is the build column gaining a
+trailing `/0`, because the run has zero ranks of a new line in it. A run that never earns the
+synergy is exactly the run it was, which is the property this whole change had to have.
+
+### The four decisions, since nobody will remember them
+
+- **One corpse, one ending.** A body that came apart alight already had an ending (it passes its
+  fire sideways, `game/burn.js`); a body that came apart cold already had one (it throws ice,
+  `game/chill.js`). With the synergy owned, a body that came apart *both* detonates **instead of
+  either**: hull, cold and fire in one blast, and the corpse's own fire is spent inside the blast so
+  it cannot also jump a step later. Six sessions of NOTES kept asking "which of the two fires" and
+  the answer is neither - a synergy that paid two area payloads on top of each other would not be a
+  synergy, it would be a double payment for one card.
+- **The blast is sized by the frost the corpse died with**, `weight x frost` of one shot of this
+  run's gun, exactly as a shatter is priced, for chill's reason said a third time: a run with a real
+  gun kills a body on about the first hit that touches it, so a payload gated on a body that
+  survived being shot is a payload that switches itself off as the gun grows.
+- **Everything a blast throws on to a neighbour is a share** (`cold` of a frost, `fire` of a burn),
+  and a neighbour that comes apart because of it is therefore weaker than the corpse that made it.
+  That is the only thing keeping a chain from walking the arena off one drifter, and it is the same
+  discipline `burn.spread` and `chill.share` keep.
+- **It can never hurt the ship that owns it**, and the ring on the arena is born at exactly the
+  damage radius - the contract every area effect in the game signs, restated so the test can hold
+  it (`test/shock.test.mjs` measures reach against the drawn ring in both directions).
+
+And one about the deal, which is the part six other files had to learn: **a synergy is dealt by the
+build and not by the draw.** The moment both parents are deep enough it is face up on the next
+level, always in the right-hand place, never drawn as one of the three, never banishable (a run
+refusing what its own build became is not a choice the game offers), one rank, and gone for good
+once taken. A reroll may turn it over for a level - that is "not now", and it comes back at the next
+level - which is `test/synergies.test.mjs`'s whole subject.
+
+### A second reading of the numbers, on a different basis
+
+`BALANCE.upgrades.thermalShock` carries the measurement that shipped it (6 seeds, 8-minute window:
++5.9% of a run's damage at weight 4, +1.5% at 2, +10.3% at 6, +20.1% at 8). This session re-ran the
+same question on **8 seeds**, with the `--with` pin working (see below), and the shape holds:
+
+| window | weight | score | damage | blasts / caught / hull dealt |
+|---|---|---|---|---|
+| 15m | 2 | 0.990x | **1.008x** | 5661 / 7907 / 12420 |
+| 15m | 4 | 0.994x | **1.041x** | 5854 / 7762 / 18532 |
+| 15m | 6 | 1.002x | **1.135x** | 5856 / 8451 / 26293 |
+| 7m | 4 | 1.008x | **1.066x** | 2568 / 2135 / 7285 |
+| 7m | 6 | 1.012x | **1.118x** | 2512 / 2122 / 9564 |
+
+Weight 4 is worth +4 to +7% of everything a run takes off bodies, which is the same answer as the
+one that shipped, arrived at from another window and another seed count. Leave the number at 4. Two
+things in these columns are worth knowing before anyone re-measures:
+
+- **Score cannot see this card on this bot, at any weight.** Every batch had 8/8 alive at the cap in
+  both conditions, so the score column is pinned and only `damage` answers. Same floor-line problem
+  NOTES has written up since Mines: the customer for a card that erases a crowd is a run that is
+  losing, and a bot that survives 15 minutes is not that customer.
+- **`cold` is a damage knob here, not a chain-length knob.** Sweeping it at weight 6: 0.3 gives
+  1.084x damage, 0.6 gives 1.135x, 0.9 gives 1.179x - while the *blast count* does not move (5836 /
+  5854 / 5785). Frosted neighbours mostly do not die hard enough to go up themselves; what the share
+  buys is a colder crowd and so a bigger next blast. The decay rule is still load-bearing (it is why
+  a blast cannot escalate), but it is not what these numbers are mostly measuring.
+- The hull the blasts are *asked* for (`shockDealt`) is about a third of the run's total damage while
+  the run only gains a twentieth of it, i.e. most of a blast's weight lands on bodies the gun was
+  finishing anyway. Substituted damage, not added damage: the card buys safety and area, not throughput.
+
+### What surprised me
+
+- **My own measurement tool was lying, and only the `dealt` column gave it away.** The first batch
+  printed a header claiming "on a run that always had burn 3, chill 3" while `dealt` showed 0 ranks
+  taken and 0 blasts - which was impossible, since the pin was supposed to guarantee the parents from
+  frame one. The `--with` flag parsed, validated and printed correctly; the loop that applied it had
+  never been written, because the edit that carried it also carried an unrelated edit to another file
+  and that whole call was rejected on a text mismatch - silently, one call earlier than the one I was
+  reading. A `--with` that prints what it did not do is worse than no `--with`: the free column was
+  still firing (the rank was forced) so every other number in the table looked fine. If a column of a
+  measurement is impossible, chase it; do not footnote it.
+- **A synergy is invisible to `tools/power-ladder.js` and that is correct.** The ladder ranks a line
+  1..N against a plain gun; one rank of a synergy *is* the card, and on a run that has not taken burn
+  and chill it is worth exactly nothing, so the ladder would print 1.00x and somebody would spend a
+  session chasing it. It now filters synergies out with the reason, and points at the question a
+  synergy can answer: `line-ab --line thermalShock --with burn=3 --with chill=3`.
+- **The trigger is the death and nothing else**, which sounds obvious and took a test to hold: a body
+  standing there wearing both fire and frost does not go off, does not go off again, and does not go
+  off twice if two blasts reach it. `test/shock.test.mjs` opens with that.
+- **Three test files, three processes, and the singleton again.** Rule tests on `scriptedRun()`, card
+  tests on a booted game: they cannot share a file (session 48's trap) and the booted one has to let
+  the cards finish sliding in before reading them, which is why `earnALevel()` in
+  `test/synergy-card.test.mjs` steps 30 frames and says why in a comment.
+- **`quenchFlame` marks instead of removing, and had to.** A death can be inside `updateBurn`'s own
+  walk of the fire pool, and `core/pool.js` swap-removes: taking a slot out from under that loop moved
+  an object the loop had not come back for and produced a `RangeError` out of a dodge test. The fire is
+  marked and goes back in the drawer on the step that finds its body gone. It is the one line in
+  `shock.js` that reaches into another system's state, and the comment says it is the price of the
+  one-corpse-one-ending rule being true.
+
+### The state of the tree, for whoever starts next
+
+**This session did not release, and you should find out why before you do.** Another context is
+working in this same folder at the same time as this one: 2951de9 swept this session's uncommitted
+work into its own commit, and the tree right now holds somebody else's in-flight answer to
+`BUG_REPORT_README` (long card text walking off the card) - `src/render/fit.js`,
+`test/card-fit.test.mjs`, `measureText` in the harness stub, shortened `flavour` and `what` strings in
+`upgrades.js`, a rewritten `render/cards.js` - and **six tests fail** on it, two of which are older
+tests (`test/magnetar.test.mjs`, `test/magnetar-art.test.mjs`) asserting the *old* magnetar strings
+verbatim. Releasing that tree would ship a red build and put someone else's half-finished work under
+my changelog line, so the release is left: **0.4.20 belongs to whoever lands the card-fit work**, and
+should be made the moment `node --test` is green again. Check `git status` before anything else, and
+if files you did not write are modified, do not `git add -A` over them.
+
+- **Do not trust `node --test` in a dirty shared tree to mean your work is fine.** This session verified
+  its own claim in a clean worktree (`git worktree add /tmp/head-check HEAD`) rather than in the tree.
+  That is two minutes and it is the only way to know which failures are yours.
+- **Five synergies are left** (PLAN's table is annotated): Storm (Ricochet 3 + the arc weapon), the saw
+  ring (Orbitals 3 + Pierce 2) and the minefield (Mines 3 + Magnetar 2) can be built now, one per
+  session, and each is now a small job - a `needs` entry in `LINES`, a behaviour module, and a card
+  that already knows how to dress itself. The railgun waits on the lance and the Aegis burst on a
+  shield line (milestone 5 and 3.7).
+- **Owned structures on the HUD** is now four milestone-4 sessions overdue (sessions 45, 46, 47, 48).
+  It is the last item of the milestone that is not waiting on another milestone.
+- **`test/draw-cost.test.mjs` is at 34 of 35 glow holders** and the synergy added none (its tint is
+  `burnFlame` and its edges are the two parents' colours, on purpose). Whatever the card-fit work adds
+  may spend the last slot; if a new colour is needed and the test fails, that is the budget talking and
+  the fix is to reuse something, not to raise the cap.
