@@ -232,8 +232,9 @@ test('a pellet shoves harder than a pulse shot', () => {
 });
 
 test('six pellets are one pull and one sound', () => {
-  // The mix has no voice limiting until milestone 7, and six thumps per pull would be a
-  // buzz rather than a gunshot (game/weapons.js).
+  // One sound per pull and not one per pellet: six thumps per pull would be a buzz rather than a
+  // gunshot (game/weapons.js). The mix has a budget to fall back on now (audio/mix.js), but it is a
+  // backstop for the frame nobody planned and not a reason to ask for six.
   const field = scriptedRun(410);
   assert.equal(cuesOfPull(field).length, 1, 'the pulse queues one cue');
 

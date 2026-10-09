@@ -169,8 +169,8 @@ export function armTie(world) {
   line.tied++;
 
   // One note for the whole tie and not one per knot, which is the mine row's rule (game/mines.js):
-  // at the top of the line a dash ties five knots inside its own twelfth of a second and the mix has
-  // no voice limiting yet (milestone 7).
+  // at the top of the line a dash ties five knots inside its own twelfth of a second, and a frame
+  // spends its mix once (audio/mix.js).
   const sound = spec.tied.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
@@ -311,7 +311,8 @@ function strike(world, riders, spec) {
   }
 
   // One note for the pulse and not one per body: at the top of the line a pulse can come round a
-  // dozen bodies and the mix has no voice limiting yet (milestone 7).
+  // dozen bodies, and a dozen notes would be the loudest thing in the sky that frame
+  // (audio/mix.js).
   const sound = spec.bite.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }

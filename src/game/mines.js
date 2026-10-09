@@ -137,7 +137,7 @@ function layDrop(world, spec) {
   }
 
   // One sound for the row and not one for every mine in it: at the top of the line a drop is five
-  // mines and the mix has no voice limiting yet (milestone 7).
+  // mines, and five notes in one frame is a sound nobody asked for (audio/mix.js).
   const sound = spec.landed.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
