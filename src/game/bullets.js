@@ -11,6 +11,10 @@
 // on to another one (ricochet). Both of those lines are read where the hit happens,
 // which means a bullet is allowed to survive a hit - so it carries its own memory of who
 // it has already been through, and neither line can be paid out twice to the same body.
+//
+// One gun opts out of all of it: a micro-missile detonates on the first body it meets and is spent
+// whatever the run bought, because a shot that goes off is not also a shot that goes through
+// (game/missiles.js).
 
 import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
@@ -23,6 +27,7 @@ import { widestEnemyRadius } from './kinds.js';
 import { burst, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { noteShell } from './turret.js';
+import { detonate, hunt } from './missiles.js';
 
 /**
  * The shape of a bullet. `shoot` in game/weapons.js writes every field, so nothing leaks
@@ -41,12 +46,17 @@ import { noteShell } from './turret.js';
  * counted. `hits` is who it has already touched - a
  * shot at 620 px/s is inside a body for several steps and a passed-through body it kept
  * meeting would be shaved once per step otherwise - and it is also what stops a turned shot
- * coming back for a body it has already spent itself on.
+ * coming back for a body it has already spent itself on. `hunts` says this shot steers: it is one of
+ * the Swarm's micro-missiles and it is bent toward whatever it can see every step (game/missiles.js),
+ * and `splash` is how wide it goes off where it lands - 0 for every shot in the game that just stops.
+ * Those two ride on the shot instead of being read off the gun being flown because a recycled shot
+ * that forgot them would hand a plain pulse shell the hunt of whatever was fired last.
  */
 export function makeBullet() {
   return {
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
     life: 0, dmg: 0, knock: 0, pierce: 0, bounce: 0, charged: false, turret: false, hits: [],
+    hunts: false, splash: 0,
   };
 }
 
@@ -206,6 +216,11 @@ export function updateBullets(world, dt) {
       continue;
     }
 
+    // A micro-missile steers before it is measured against anything, so it turns, travels and then
+    // hits, in that order every step (game/missiles.js). A shot that does not hunt costs nothing
+    // here: one boolean, read and thrown away.
+    if (bullet.hunts) hunt(world, bullet, dt);
+
     grid.queryCircle(bullet.x, bullet.y, broadPhase, nearby);
     // A shot with nothing left is spent by the first body it meets and the loop is done
     // with it. One that has a pass or a turn left keeps flying and may well find a second
@@ -246,6 +261,16 @@ export function updateBullets(world, dt) {
       if (bullet.turret) noteShell(world);
       // Only a hit that did not kill makes the impact sound; a kill plays its own.
       if (!killed) cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
+
+      // A micro-missile is spent where it lands, and what it leaves is a blast (game/missiles.js).
+      // There is no "next move" for it: the pierce line has no body left to pass through and the
+      // ricochet line nothing to turn, which is this gun's price for a shot that finds its own body
+      // and is priced as one hit and one circle rather than as a shot that keeps flying.
+      if (bullet.splash > 0) {
+        detonate(world, bullet, enemy);
+        bullets.killAt(i);
+        break;
+      }
 
       // What the shot does next is one question with three answers (see `nextMoveFor`):
       //

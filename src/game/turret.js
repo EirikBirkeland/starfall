@@ -254,6 +254,11 @@ function fireShell(world, turret, spec) {
   bullet.pierce = 0;
   bullet.bounce = 0;
   bullet.charged = false;
+  // And that it is a plain shell and not one of the Swarm's hunting ones (game/missiles.js): a
+  // turret's gun throws what its own row says, and a recycled shot would otherwise come out of the
+  // drawer still steering.
+  bullet.hunts = false;
+  bullet.splash = 0;
   bullet.hits.length = 0;
   // The one flag a shot in this game carries about its parentage, and the only reason it exists is
   // that a shell is paid out by game/bullets.js and not here, so this is the only way the line can

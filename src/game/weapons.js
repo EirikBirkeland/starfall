@@ -7,13 +7,15 @@
 // to keep in step with a pick or with a card. `game/bullets.js` is what every shot has
 // in common whatever fired it.
 //
-// Four weapons at the time of writing, and the third and fourth are the reason this is a module
-// and not four lines in game/player.js: the pulse is one heavy shot thrown as far as it can
+// Five weapons at the time of writing, and the third, fourth and fifth are the reason this is a
+// module and not four lines in game/player.js: the pulse is one heavy shot thrown as far as it can
 // go, the scatter is six light ones thrown a short way, and a fan of six is a different
 // pull rather than a bigger one - and the arc throws nothing at all, it finds the bodies it
 // hurts itself, which is a second kind of pull again and lives in game/arc.js - and the lance
 // throws nothing either but spends a wind-up on a line of light, which is a third kind of pull
-// and lives in game/lance.js.
+// and lives in game/lance.js. The fifth is the Swarm: it throws a fan of shots the way the pulse
+// does and differs only in what those shots are made of, because they steer and they go off where
+// they land (game/missiles.js).
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
@@ -36,6 +38,7 @@ export const WEAPONS = [
   { id: 'scatter', blurb: 'six pellets in a cone, short range, heavy kick' },
   { id: 'arc', blurb: 'lightning that leaps the crowd, and aims itself' },
   { id: 'lance', blurb: 'a charged beam down a whole line of the arena' },
+  { id: 'swarm', blurb: 'slow micro-missiles that find the crowd and go off in it' },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -173,8 +176,15 @@ function pullWeight(world, gun, boost) {
  * the overcharge line a step later: what the pull was worth when the trigger moved is what
  * the shot is worth all the way to wherever it lands, and it is also the only way the eye can
  * tell a heavy shot from a plain one (render/entities.js).
+ *
+ * And `hunts`/`splash` say which *kind* of shot it is: a gun with a `missile` block on its row
+ * throws micro-missiles, which steer and go off where they land (game/missiles.js), and every
+ * other gun in the game throws a shot that flies straight and stops. Both are written whichever
+ * gun fired, because a recycled shot may come out of the drawer wearing the last one's.
  */
 function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) {
+  const gun = weaponOf(world);
+  const missile = gun.missile;
   const bullet = world.bullets.spawn();
   bullet.x = nx;
   bullet.y = ny;
@@ -182,7 +192,7 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) 
   bullet.py = ny;
   bullet.vx = Math.cos(angle) * speed;
   bullet.vy = Math.sin(angle) * speed;
-  bullet.life = weaponOf(world).life;
+  bullet.life = gun.life;
   bullet.dmg = dmg;
   bullet.knock = shove;
   // The shot carries what the gun had earned when the trigger moved, and carries it for
@@ -194,6 +204,10 @@ function shoot(world, nx, ny, angle, speed, dmg, shove, passes, turns, charged) 
   // And that it came off the ship's own trigger and not off one of the guns the ship has left
   // standing in the road (game/turret.js), which a recycled shot would otherwise bring with it.
   bullet.turret = false;
+  // And what kind of shot it is (see the note above): the Swarm's row is the only one with a
+  // `missile` block on it, and the blast's own numbers live in that block rather than on the shot.
+  bullet.hunts = missile !== undefined;
+  bullet.splash = missile === undefined ? 0 : missile.blast.radius;
   bullet.hits.length = 0;
   return bullet;
 }
@@ -242,9 +256,10 @@ function shootFan(world, gun, fan, nx, ny, boost) {
  * one cue.
  *
  * What leaves the ship is each gun's own business and it is one of three things: a fan of
- * shots, a chain that finds its own bodies (game/arc.js), or a wind-up on a line of light
- * (game/lance.js) - which is which is read off the row, the same way test/weapons.test.mjs reads
- * it: a `chain` block means the bolt, a `beam` block means the lance, and neither means a fan.
+ * shots (the Swarm's are a fan of micro-missiles, but they leave the nose the same way), a chain
+ * that finds its own bodies (game/arc.js), or a wind-up on a line of light (game/lance.js) - which
+ * is which is read off the row, the same way test/weapons.test.mjs reads it: a `chain` block means
+ * the bolt, a `beam` block means the lance, and neither means a fan.
  * Everything after it is what a pull costs the ship whichever of the three it was - one kick
  * backwards, one flash at the nose, and one sound, however many shots left it or bodies were
  * landed on.

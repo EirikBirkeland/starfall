@@ -65,6 +65,12 @@ function trailWidth(vy, life) {
   bullet.knock = 0;
   bullet.pierce = 0;
   bullet.bounce = 0;
+  bullet.charged = false;
+  bullet.turret = false;
+  // And that it is a plain shot: neither of the two newest fields may be left to whatever the last
+  // shot this world fired answered (game/missiles.js).
+  bullet.hunts = false;
+  bullet.splash = 0;
   bullet.hits.length = 0;
 
   game.step();

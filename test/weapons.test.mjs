@@ -21,14 +21,16 @@ const UNIT = BALANCE.bullets.damage;
 const PULSE = BALANCE.weapons.pulse;
 
 /**
- * The primaries that throw shots, i.e. everything except the arc.
+ * The primaries that throw shots, i.e. everything except the arc and the lance.
  *
  * Most of what this file says is about a fan of bullets - where it opens, what each of its
  * shots carries, that a recycled shot is a fresh one - and none of it is true of the two guns
  * that throw no bullets at all: the arc finds the bodies it hurts instead (game/arc.js) and the
  * lance spends a wind-up on a line of light (game/lance.js). Those weapons' own contracts are
  * test/arc.test.mjs and test/lance.test.mjs; what belongs here is what every primary shares,
- * which is a name, a rate, and the two lines that multiply it.
+ * which is a name, a rate, and the two lines that multiply it. The Swarm *is* a fan of shots - a
+ * fan that steers and goes off where it lands, which is test/missiles.test.mjs's business and not
+ * this file's.
  */
 const SHOT_GUNS = WEAPONS.filter((weapon) => {
   const row = BALANCE.weapons[weapon.id];
@@ -36,6 +38,7 @@ const SHOT_GUNS = WEAPONS.filter((weapon) => {
 });
 const CHAIN_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].chain !== undefined);
 const BEAM_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].beam !== undefined);
+const MISSILE_GUNS = WEAPONS.filter((weapon) => BALANCE.weapons[weapon.id].missile !== undefined);
 
 /** Every field a bullet has, by name, from the pool's own maker. */
 const FIELDS = Object.keys(makeBullet());
@@ -57,10 +60,12 @@ test('every primary on offer is a whole row of numbers', () => {
   // The title screen offers what the table can back up: an id with a row of its own, and
   // a row with every number its kind of pull needs in it. A weapon added to one and not the
   // other is the kind of bug this is here to make impossible - and there are three kinds of
-  // pull now, so all three are asked for their own numbers.
+  // pull now, so all three are asked for their own numbers, plus the one extra block the gun that
+  // throws hunting shots owes its own module (game/missiles.js).
   assert.ok(WEAPONS.length >= 2, 'the game has more than one primary now');
   assert.ok(CHAIN_GUNS.length > 0, 'one of them is the chain');
   assert.ok(BEAM_GUNS.length > 0, 'one of them is the beam');
+  assert.ok(MISSILE_GUNS.length > 0, 'one of them is the flight of micro-missiles');
   for (const weapon of WEAPONS) {
     const row = BALANCE.weapons[weapon.id];
     assert.ok(row !== undefined, weapon.id + ' is offered but has no numbers');
@@ -96,6 +101,20 @@ test('every primary on offer is a whole row of numbers', () => {
         assert.ok(Number.isFinite(row[key]), weapon.id + ' is missing ' + key);
       }
       assert.ok(row.gap >= 0, weapon.id + ': a negative fan is not a fan');
+
+      if (row.missile !== undefined) {
+        // A gun whose shots hunt and go off owes four more numbers: how hard they can turn, how far
+        // they look, how wide they go off and how much of themselves that costs (game/missiles.js).
+        for (const key of ['turn', 'reach']) {
+          assert.ok(Number.isFinite(row.missile[key]), weapon.id + ' is missing missile.' + key);
+        }
+        assert.ok(row.missile.turn > 0, weapon.id + ': a missile that cannot turn is a slow shot');
+        for (const key of ['radius', 'share', 'shove', 'shake']) {
+          assert.ok(Number.isFinite(row.missile.blast[key]), weapon.id + ' is missing blast.' + key);
+        }
+        assert.ok(row.missile.blast.share > 0 && row.missile.blast.share < 1,
+          weapon.id + ': a blast is worth part of the shell, not more than it');
+      }
     }
   }
 
@@ -127,8 +146,8 @@ test('a primary is chosen by id, and by its place on the title screen', () => {
 
   // And an id that is not a primary is a bug that says so out loud. `BALANCE.weapons` holds a
   // couple of meta keys beside the weapons, so being in that table is not enough - and PLAN 3.2's
-  // fifth primary is not in the game yet, whatever it is called.
-  assert.throws(() => setWeapon(field, 'swarm'), /no weapon is offered/);
+  // five primaries are all in the game now, so the not-a-weapon has to be a name nobody used.
+  assert.throws(() => setWeapon(field, 'sprayer'), /no weapon is offered/);
   assert.throws(() => setWeapon(field, 'rateMax'), /no weapon is offered/);
   assert.throws(() => weaponOf({ weapon: 'wobble' }), /no weapon is called/);
 });

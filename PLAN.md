@@ -643,13 +643,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [ ] Release.
 
 ### Milestone 5: weapons and ships
-- [ ] Weapon definitions as data; the five primaries from 3.2, one per session.
-      (The data half has been true since 0.3.5: `BALANCE.weapons` is the whole of a gun and
+- [x] Weapon definitions as data; the five primaries from 3.2, one per session.
+      (Done. The data half has been true since 0.3.5: `BALANCE.weapons` is the whole of a gun and
       `game/weapons.js` reads it, so the title screen and the tools grow by themselves when a primary
-      lands. Four of the five primaries are in - Pulse and Scatter (0.3.5), Arc (0.4.7) and Lance
-      (0.5.0), each with its own test file and its own module wherever it needed one - and **Swarm** is
-      the last of them. `tools/power-ladder.js --weapon` and `tools/gun-clock.js` are the two
-      instruments it will be priced on, and `test/weapons.test.mjs` asks a new row for its own numbers.)
+      lands. All five are in now - Pulse and Scatter (0.3.5), Arc (0.4.7), Lance (0.5.0) and Swarm
+      (0.5.1), each with its own test file and its own module wherever it needed one. Three of them
+      are not a fan of shots at all: the arc finds its own bodies (game/arc.js), the lance lays down a
+      line (game/lance.js) and the Swarm's shots steer and go off where they land (game/missiles.js).
+      `tools/power-ladder.js --weapon` and `tools/gun-clock.js` are the two instruments a new row is
+      priced on, and `test/weapons.test.mjs` asks each row for the numbers its own kind of pull needs.)
 - [ ] Ships with different hull, speed, weapon, and drawn shape.
 - [ ] Release.
 

@@ -402,6 +402,111 @@ export const BALANCE = {
         sound: { base: 150, jitter: 26, dur: 0.17, wave: 'sawtooth', vol: 0.085, slide: 44 },
       },
     },
+    swarm: {
+      name: 'SWARM',
+      // PLAN's three pulls a second, and it is the middle rate of the five: the pulse pulls four and
+      // a half times a second, the arc four, the scatter two and a bit, the lance once. Three slow
+      // things a second, each one finding a body of its own - that is the whole shape of this gun.
+      fireRate: 3,
+      pellets: 1,
+      gap: 0,             // nothing is fanned until the split line fans it; see BALANCE.upgrades.split
+      // What one missile costs the body it lands on, in the unit enemy hull is counted in - so a
+      // missile is one and a half plain shots of the pulse, thrown two-thirds as often.
+      //
+      // PLAN writes 6 against the pulse's 10, i.e. three fifths of a pulse shot, and at PLAN's own
+      // rates that is eighteen hull a second against the pulse's sixty: a third of the plain gun,
+      // with homing and a small blast as the reason for the difference. This game counts hull in pulse
+      // shots (BALANCE.bullets.damage), so it is the ratio that transfers and not the number, and the
+      // ratio that shipped is a bigger one: three pulls of a missile and a half is 4.5 hull a second,
+      // which is what the plain gun does. Measured, `tools/power-ladder.js --weapon swarm` (20 s, six
+      // seeds, the same knots every gun is priced on):
+      //
+      //   the near field   4.5 hull/s   (the pulse 4.3, the scatter 5.9, the lance 4.3)
+      //   the ring        13.9          (the pulse 4.3, the scatter 12.2, the lance 20.0)
+      //   the column      12.2          (the pulse 4.3, the scatter 13.0, the lance 26.3)
+      //
+      // and `tools/gun-clock.js --weapon swarm` says 7.5 hull off one body in two seconds of held
+      // trigger at 200 px against the pulse's 8.0, and 6.0 of that same body walking across the line
+      // at a darter's pace against the pulse's 0.0 - because a missile that has missed nothing does not
+      // care that the body moved. That is the gun in one row: it is never behind on what it was aimed
+      // at and it is two to three times the plain gun on a crowd it was not aimed at, because every
+      // shell finds a different body and each of them goes off in the middle of the next few.
+      //
+      // Half a hull more than the plain shot, then, and not a whole one - the first pass at damage 1
+      // read 3.0 / 13.8 / 11.8 on those knots, i.e. seven-tenths of the plain gun on the three bodies
+      // a press actually keeps, and ten runs on each gun put that at a median 4m27s of bot survival
+      // against the pulse's 5m00s and a level 9 against its 17. The gun is meant to be *slow*, not
+      // behind, and a knot below the plain gun on the near field is behind.
+      //
+      // What this number buys *nothing* on is the pierce line and the ricochet line, and that is not
+      // an oversight: a shot that detonates on the first body it meets has nothing left to pass
+      // through and nothing to turn (game/missiles.js), which is the same reading that leaves three of
+      // the lines off the lance and two off the arc. What the bullet speed line buys *is* something,
+      // though - it is the only line that makes these shells arrive sooner - and it is worth more here
+      // than anywhere else in the game for exactly that reason: measured on a body 420 px out,
+      // five ranks of it land the same hit in 0.61 s instead of 1.28 s, which is the whole of
+      // the line being paid back.
+      damage: 1.5,
+      // px/s. Slow on purpose: a third of a pulse shot, and slower than the ship can run (320). A
+      // shot that cannot miss is only an interesting gun if it takes its time, and a missile that is
+      // slower than you are can still be led, stepped out of, and run away from - which is the whole
+      // counterplay this gun has, and the player's own judgement of whether the flight was worth the
+      // wait is made out of that speed.
+      speed: 300,
+      // s of fuse, not of range: at 300 px/s that is 600 px of air, and it is what an orbiting
+      // missile that has lost its body gets before it gives up. Long for this game - the pulse is
+      // 1.15 - because a shot that turns covers less ground in a straight line and the reach a player
+      // judges is the one they can see it travel.
+      life: 2,
+      // A little wider than the pulse's: three of them leaving the same nose in a row should be a
+      // flight and not a queue.
+      spread: 0.07,
+      // Barely a shove. A micro-missile is a thing that sticks and goes off, not a thing that knocks
+      // a body backwards - the blast does the pushing, and it pushes outwards from where it landed.
+      knockback: 0.02,
+      // Light, like the gun is: three small things a second, and the ship should never feel like it
+      // is being pushed backwards by its own swarmling launcher.
+      recoil: 10,
+      muzzle: { count: 3, speed: 90, life: 0.16 },
+      // One per pull, as every gun here (audio/mix.js). Up instead of down, which is the one sound in
+      // the game that leaves rather than strikes: the missile is off and going before the report ends.
+      sound: { base: 260, jitter: 46, dur: 0.08, wave: 'triangle', vol: 0.035, slide: 640 },
+      // The missile itself (game/missiles.js): how hard it can turn, how far it will look for a body
+      // to chase, and what the small blast it leaves where it lands costs and looks like.
+      missile: {
+        // rad/s of steering, and it is deliberately not much: a quarter of a turn takes 0.44 s, so a
+        // body that sees one coming has time to step sideways and a body that does not is a body that
+        // was not looking. Turn faster and the gun stops being aimable and becomes a searchlight.
+        turn: 3.6,
+        // px, measured to a body's skin rather than to its middle, which is what lets a tank be hunted
+        // from further out than a weaver standing the same distance off. Inside this the missile will
+        // find whatever is nearest; outside it, it flies where it was pointed and dies of old age.
+        reach: 320,
+        blast: {
+          // px. Small - about the width of two drifters and a gap, and about a third of the magnetar's
+          // field - because this is a micro-missile and the blast is the gun's *area*, not its punch.
+          // It is drawn at this radius and paid out at it, edge for edge, like every ring in this game.
+          radius: 46,
+          // of the missile's own hull, paid to every body in the circle except the one it landed on
+          // (game/missiles.js: the body you hit pays the shot, the crowd around it pays the blast).
+          // Well under half, and that is what keeps the ring knot at the scatter's level rather than
+          // the lance's: at 0.6 the same ladder read 13.8 on a damage of 1 and the crowd knots were
+          // buying more of the gun than the shells were.
+          share: 0.35,
+          // px/s thrown outwards from where it went off. A cluster that takes a flight of these
+          // comes apart, which is what makes the next flight find air rather than the same wall.
+          shove: 90,
+          ring: { radius: 8, speed: 240, life: 0.18 },
+          flash: { count: 6, speed: 150, life: 0.16 },
+          // Barely felt. Three of these a second is a drumroll of small shocks and a shake of four
+          // would be seasick; a bomber's is four and a nova front's is four.
+          shake: 0.8,
+          // One small crack per missile that lands, and quieter than the gun's own report, because
+          // on a crowd this fires about twice as often as anything else in the game (audio/mix.js).
+          sound: { freq: 220, dur: 0.1, wave: 'square', vol: 0.028, slide: 60 },
+        },
+      },
+    },
   },
 
   bullets: {

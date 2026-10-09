@@ -75,6 +75,10 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   // And that it did not come off a turret, which is the one other thing that throws a shell in this
   // game and the one field of a shot a test is unlikely to set on purpose (game/bullets.js).
   bullet.turret = false;
+  // And that it neither hunts nor goes off where it lands: the two fields a plain shot has to say no
+  // to, whatever the last shot fired in this world answered yes to (game/missiles.js).
+  bullet.hunts = false;
+  bullet.splash = 0;
   bullet.hits.length = 0;
   return bullet;
 }

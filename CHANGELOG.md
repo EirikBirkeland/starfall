@@ -1,5 +1,48 @@
 # Starfall — changelog
 
+## 0.5.1 — 2026-10-09
+Swarm: the fifth primary — a flight of slow micro-missiles that find a body each, and go off in it.
+- **`5` on the title screen is the SWARM**, and that is the fifth and last of PLAN 3.2's primaries. Three
+  pulls a second, one missile a pull, a hull and a half a piece: shells that leave the nose slowly and
+  then bend round on to whatever is nearest them. Every one of them finds a body of its own, so a flight
+  of three that you fired straight up the screen arrives as three hits on three different bodies, and
+  the crowd comes apart without anybody having to aim at it. This is the gun you fire while running away;
+  it is the gun that works when the mouse is somewhere else.
+- **It hunts, and it never gives up.** There is no lock to break: a missile bends toward the nearest body
+  it can see, at a rate and no more - a quarter of a turn takes half a second - for as long as it is in
+  the air, and then it dies of old age having asked nothing of you. It is slow on purpose: 300 px/s,
+  slower than your own ship, so a body that sees one coming can still step out of its way, and the
+  counterplay to a gun that cannot miss is to move rather than to dodge the aim.
+- **It goes off where it lands, and the blast spares what it hit.** The body the missile found pays the
+  missile; everything *else* standing in the circle pays a share of it and is thrown outwards, which is
+  what makes a cluster open up instead of standing there for the next flight. The circle is drawn at the
+  radius it is paid out at, edge for edge, and the ship that fired it is never inside it - a gun you are
+  punished for using at close range is not a gun.
+- **Two of the upgrade lines do nothing for it, and one does more than anywhere else.** A shot that
+  detonates on the first body it meets has nothing left to *pierce* and nothing to *ricochet* off, so
+  those two cards are worth exactly nothing on this primary - the same reading that leaves three lines
+  off the lance and two off the arc, said out loud rather than left as a surprise. What *bullet speed*
+  buys is the whole flight: measured, five ranks of it land the same hit in 0.61 s instead of
+  1.28 s, which is the best a rank of that line does for anything in the game.
+- **Priced on the same knots as every other gun** (`tools/power-ladder.js --weapon swarm`, and
+  `tools/gun-clock.js` for what a slow shell costs a body that moves): 4.5 hull a second on the three
+  bodies a press really keeps, where the plain gun does 4.3; 13.9 on a ring thirty deep and 12.2 on a
+  column, where the plain gun does 4.3 on both because it can only be pointed at one thing at a time.
+  The first pass at the row was a third weaker than that and it read as a worse gun rather than a slow
+  one, so the missile is heavier and its blast lighter than the first numbers.
+- **A missile is a shot with two new fields, not a new system.** The bullet grew `hunts` and `splash`, and
+  everything that throws a shell - the ship's trigger, a turret's gun, the test harness - now writes both,
+  because a recycled shot that came out of the drawer still steering would be a gun the player did not
+  pick. There is no world state to reset with the run, nothing to clock and nothing to save: a missile is
+  a bullet, and `game/missiles.js` is two functions the bullet loop calls.
+- **It is drawn as a small dart and not as a dot**, in the ship's own colours - the pale sky of the mine
+  family and a nearly white eye - because a dot that curves round after a body reads as a mistake on the
+  glass while a dart whose nose is swinging round reads as a gun doing its job. It drags the same trail
+  every shot drags, stretched to its own speed, so nothing was baked and nothing is blurred, and the glow
+  cache did not grow.
+- A run that does not pick the Swarm is untouched: the reference run on the usual seed is byte for byte
+  the run it was, trace and all.
+
 ## 0.5.0 — 2026-10-09
 Lance: the fourth primary — a line of light down the whole arena, after a moment of winding up.
 - **`4` on the title screen is the LANCE.** Four primaries on the rack, and the fourth is not a bullet

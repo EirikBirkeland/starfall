@@ -1031,6 +1031,18 @@ const CHARGED_CORE = 4.6;         // px, a loaded one's
 const CHARGED_BAND = 6;           // px of wide, faint glow under a loaded shot
 const CHARGED_SOFT = withAlpha(PALETTE.bulletCore, 0.3);
 
+// The Swarm's micro-missiles (game/missiles.js, BALANCE.weapons.swarm). They are the ship's own
+// ordnance, so they wear the mine's family - a pale sky body, a nearly white eye - and none of the
+// crowd's warm hues, which is the rule PLAN section 4 draws and the mines already keep (an explosion
+// is warm whatever lit it, the thing that carries it is not). And they are drawn as an object with a
+// nose instead of as a dot, because a dot that curves round after a body reads as a mistake on the
+// glass while a small dart whose nose is swinging round reads as a gun doing the thing it was bought
+// to do. The trail is the same streak every shot drags - it is stretched to the shot's own speed,
+// which is why a slow shell drags a short one - so nothing is baked for these and nothing is blurred.
+const MISSILE_NOSE = 5.4;   // px, point to tail of the dart
+const MISSILE_TAIL = 4.6;   // px across the fletching
+const MISSILE_EYE = 1.7;    // px, the hot dot near the point
+
 // The magnetar's own art (game/magnetar.js). A third ring, one outside the charge's, and mint
 // where the charge is the white of a shot: this one fills up with shards instead of with waiting,
 // and the colour is the thing that pays for it. Same two passes as the other two - a wide faint
@@ -1830,6 +1842,30 @@ export function drawLanceBeams(ctx) {
   }
 }
 
+/**
+ * One micro-missile, pointing the way it is going (game/missiles.js). Two fills and a rotate: the
+ * dart, and the eye at its point. Nothing about it breathes or flickers - it is a shell in the air,
+ * and the only motion it needs to show is its own nose coming round.
+ */
+function drawMissile(ctx, x, y, heading) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.fillStyle = PALETTE.mineBody;
+  ctx.beginPath();
+  ctx.moveTo(MISSILE_NOSE, 0);
+  ctx.lineTo(-MISSILE_NOSE * 0.6, MISSILE_TAIL / 2);
+  ctx.lineTo(-MISSILE_NOSE * 0.45, 0);
+  ctx.lineTo(-MISSILE_NOSE * 0.6, -MISSILE_TAIL / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = PALETTE.bulletCore;
+  ctx.beginPath();
+  ctx.arc(MISSILE_NOSE * 0.4, 0, MISSILE_EYE, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
 export function drawBullets(ctx, alpha) {
   const bullets = world.bullets.items;
   const trail = bulletTrailSprite();
@@ -1842,6 +1878,7 @@ export function drawBullets(ctx, alpha) {
   ctx.fillStyle = PALETTE.bulletCore;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
+    if (b.hunts) continue;      // a hunting shot is drawn below, as a thing and not as a dot
     if (!onScreen(b.x, b.y, BULLET_REACH)) continue;
     const x = paintX(b, alpha);
     const y = paintY(b, alpha);
@@ -1858,6 +1895,12 @@ export function drawBullets(ctx, alpha) {
     ctx.beginPath();
     ctx.arc(x, y, b.charged ? CHARGED_CORE : BULLET_CORE, 0, TAU);
     ctx.fill();
+  }
+
+  for (let i = 0; i < bullets.length; i++) {
+    const b = bullets[i];
+    if (!b.hunts || !onScreen(b.x, b.y, BULLET_REACH)) continue;
+    drawMissile(ctx, paintX(b, alpha), paintY(b, alpha), Math.atan2(b.vy, b.vx));
   }
 }
 
