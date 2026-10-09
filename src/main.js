@@ -4,7 +4,7 @@
 import { world, stepWorld } from './game/world.js';
 import { startRun, resetRun, canStartRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
-import { takeOffer, describeRanks } from './game/upgrades.js';
+import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, setWeaponByIndex, weaponName } from './game/weapons.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
@@ -16,7 +16,7 @@ import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camer
 import { buildStars, updateStars } from './render/background.js';
 import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
-import { cardAt } from './render/cards.js';
+import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
@@ -62,18 +62,32 @@ function pressAction() {
 
 function onCanvasPressed() {
   initAudio();
-  // While the cards are up the click is an answer, not a shot and not a restart.
+  // While the cards are up the click is an answer, not a shot and not a restart - and it
+  // can be one of three answers: take this card, banish it out of the run, or deal the
+  // table again (render/cards.js is what says which one the point landed on).
   if (world.state === STATE.LEVEL) {
-    takeOffer(world, cardAt(mouse.x, mouse.y));
+    answerChoice(mouse.x, mouse.y);
     return;
   }
   if (world.state !== STATE.PLAY) pressAction();
 }
 
+/** One click on the choice, wherever it landed. */
+function answerChoice(x, y) {
+  const hit = choiceHit(x, y);
+  if (hit === null) return;
+  if (hit.reroll) rerollOffer(world);
+  else if (hit.banish !== undefined) banishOffer(world, hit.banish);
+  else takeOffer(world, hit.card);
+}
+
 /** A number key: over one of the cards on the table, or over the weapon list. */
-function onPickCard(number) {
+function onPickCard(number, banishing) {
   if (world.state === STATE.LEVEL) {
-    takeOffer(world, number - 1);
+    // Shift turns the same number into the other thing a card can be answered with: it
+    // cuts that line out of the run instead of taking it.
+    if (banishing) banishOffer(world, number - 1);
+    else takeOffer(world, number - 1);
     return;
   }
   // The same keys, on the two screens that are not a run: the title picks the primary to
@@ -83,6 +97,11 @@ function onPickCard(number) {
   if (world.state === STATE.PLAY) return;
   setWeaponByIndex(world, number - 1);
   showWeapon(world.weapon);
+}
+
+/** R rerolls the table. The same key on any other screen asks for nothing. */
+function onReroll() {
+  if (world.state === STATE.LEVEL) rerollOffer(world);
 }
 
 function onResize() {
@@ -172,6 +191,7 @@ function boot() {
     onConfirm: pressAction,
     onPress: onCanvasPressed,
     onPickCard: onPickCard,
+    onReroll: onReroll,
     onToggleMute: toggleMuted,
   });
   window.addEventListener('resize', onResize);
@@ -313,6 +333,13 @@ window.STARFALL = {
       pending: world.pendingLevels,
       offer: world.offer.slice(),
       ranks: Object.assign({}, world.upgrades),
+      // The two asks a run has about its own deal (game/upgrades.js): how many of each are
+      // left, and which lines the run has taken out of its deck for good. A headless player
+      // cannot see a spent ask any other way, and the offers a reroll refuses are the whole
+      // rule about what one is worth.
+      rerollsLeft: world.rerollsLeft,
+      banishesLeft: world.banishesLeft,
+      banished: banishedLines(world),
       // The damage line's rank on its own, because what a shot of this run's gun is worth - and so
       // what a drone bite, a nova front, a mine and a thread on a tether are worth - is
       // `BALANCE.bullets.damage x (1 + 0.3 x this)`, and a headless tool cannot work a line's own

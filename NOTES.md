@@ -5862,3 +5862,94 @@ So `tools/line-ab.js --line turret`, and the sweep over `weight` (1.6 / 2.4 / 3.
 - **If a fourth system on the arena floor is ever added**, `turret.js`'s `lockOn` is the one place in the
   family of floor lines that asks the collision grid instead of walking the crowd - right for a 300 px
   sight line over a capped crowd, wrong for a touch test, and the argument is in the function.
+
+## Session 48 (2026-10-09) — The two asks: a run may argue with its own deal. Released **0.4.19**
+
+`rerollOffer` and `banishOffer` in `src/game/upgrades.js`, `BALANCE.cards.rerolls` and `.banishes`,
+`world.rerollsLeft` / `.banishesLeft` / `.banished`, `resetAsks` in `run.js`, `R` and `Shift + number` in
+`input/keyboard.js`, `choiceHit` in `render/cards.js`, two chips and a tab on the card, and `reroll` and
+`banish` on the agent bridge. Milestone 4's "card offer weighting, reroll, and banish" is done - the
+weighting was already in as `BALANCE.cards.bias`.
+
+### The five decisions, since nobody will remember them
+
+- **An ask costs the ask, never the level.** Taking a card is the only thing that spends a level, so a
+  reroll buys a second look and a banish buys a line's absence, and the run stays `LEVEL` with the level
+  still owed. Everything else would make the asks a kind of skip, and a skip you can afford is a card you
+  did not read.
+- **An ask that could buy nothing is refused and kept.** A reroll is refused when the run has spent its
+  asks or when every line with a rank left is already face up; a banish is refused when nothing can stand
+  in the slot it empties. The deal is worked out *before* the ask is spent and the table is replaced, so a
+  refusal is not something the player has to recover from - which is also why the chip is drawn dim on the
+  screen instead of being hidden, and why `R` on the title screen asks for nothing at all.
+- **A reroll does not deal from the same three cards.** `fillOffer(world, [], table)` - the old table is
+  the `off` list, so a reroll that handed a card back would have bought nothing. That list now outranks the
+  deal's own promise of "one line the run has never taken", so `guaranteeSomethingNew` is given the same
+  `off` and will not put a refused card back on the table to keep its own promise.
+- **A banished line is out of the *deck*, not off the table.** `isBanished` sits in `linesWithRoom`, so
+  `refreshOffer`, `drawLine` and the guarantee all honour it without knowing it is there, and the test that
+  matters is the ugly one: forty levels and rerolls later, the line still has not come back. It is never
+  paid for with the level, and it is on the game-over build line as `NO <name>` - the road not taken is
+  part of what the run became.
+- **One of each per run, and `BALANCE.cards` is where the hangar will add the rest.** PLAN 3.7 sells both
+  as permanent perks and the hangar is milestone 8, so the base grant lives in balance with a comment saying
+  plainly that these are not the perk's price or its per-rank grant. `world.js` initialises from the same
+  two numbers and `resetAsks` re-grants them on every `resetRun`.
+
+### What the keys are, and why those
+
+- **`R` rerolls; `Shift` + a card's number bans that card; the same number plain still takes it.** A
+  banish is the refusal of the card the number already names, so the chord is the number with a modifier and
+  not a second keyboard. R is not a movement key, not the mute and not the launch. On the card the number
+  chip is top-left and its twin `⇧n` is top-right, and the two chips under the cards say what each costs.
+- **A mouse answer goes through one function now.** `choiceHit(x, y)` returns `{ banish: i }`, `{ card: i
+  }`, `{ reroll: true }` or `null`, in that precedence - a tab is *inside* its card, so it is asked about
+  first, and only while there is a banish left to spend. With no banish left there are no tabs, so the same
+  click is a take again, which is what the test at the end of `test/level-up.test.mjs` pins.
+- **The chips are part of the layout's budget.** `ASK_ROOM` comes out of the window in `cardLayout`, so a
+  short window shrinks the cards instead of running the row over them; before that the row could overlap
+  the cards' rank pips in a 300 px-tall window.
+
+### What surprised me
+
+- **Half of the item was already built.** "Card offer weighting" has been `BALANCE.cards.bias` since 0.4,
+  along with the promise that a table always holds one line the run has never taken. What was missing was
+  the two asks, so that is what got built - and the deal's own code needed exactly one change to honour a
+  banished line, which is the best possible sign about `linesWithRoom`.
+- **`tools/simulate.js --trace` is a lie detector for a refactor of the deal.** The reroll and the banish
+  spend nothing on a run that does not use them, so the whole reference trace on seed 20261006 had to come
+  back byte-identical after the draw was pulled apart into `drawLine` / `fillOffer` / `dealOffer`. It did,
+  first try, and that is the only reason I believe the refactor was free. If you ever touch the draw and the
+  trace moves, the draw changed for everybody.
+- **Test files are processes and the world is a singleton.** My first attempt put the rule tests and the
+  real-game tests in one file, and `scriptedRun()` handed them the *same* `world` object the booted game
+  was playing - so a test that maxed out the deck to make a short table was silently dealing from a maxed
+  deck three tests later, and the failures looked like input bugs. Rule tests live in
+  `test/upgrade-asks.test.mjs`, anything that presses a key lives in `test/level-up.test.mjs`, and the two
+  never share a process.
+- **The harness's `key()` had nowhere to put a modifier.** It now takes an `extra` merged into the event, so
+  `game.key('Digit3', true, { shiftKey: true })` is a real Shift + 3 and the chord is tested at the level
+  the player touches it, not below it.
+- **The layout has no canvas to ask.** `cardLayout` is worked out from the window size alone, so the two
+  chips cannot be sized to their words and had to be given a fixed `ASK_CHIP_W`. That is fine as long as the
+  drawing and the click are measured by the same constant, which they are, and it is the reason the chip's
+  text is one centred string and not a key plate plus a label: two pieces would want a measurement to place
+  the second one. The harness does record every word a frame paints (`game.words()`), which is how
+  `test/level-up.test.mjs` can prove a spent chip is still drawn, at `×0`, instead of trusting the code.
+
+### For the next session
+
+- **Synergies, with their special card frame**, is the next unchecked item of milestone 4, and it still
+  owes one decision six sessions have now named: on a body that wore both burn and chill, which of burn's
+  fire-pass and chill's shatter fires. Decide it in `game/bullets.js` or wherever the status lives, and say
+  why in the file. The special frame is a `render/cards.js` job: a synergy card is offered when the run's
+  build asks for it, so `dealOffer` needs to know what a synergy is before the frame can be drawn for one.
+- **Owned structures on the HUD** is still owed (session 45) and is now three milestone-4 sessions overdue:
+  orbitals, mines, threads and turret crews all expire on their own clock and the HUD names none of them.
+- **A reroll is a thing the bot could use and does not.** `tools/headless/bot.js` takes the first card it
+  likes and never spends an ask, so every measurement in NOTES prices a game where the asks do not exist.
+  If a line is ever priced against "the run could have said no", that is the change; and a bot that rerolls
+  is a bot with an opinion about which lines are worth a slot, which is the opinion the power ladder has
+  been faking since it started.
+- **`test/draw-cost.test.mjs` is at 34 of 34 glow holders** (session 47). This session added no sprites -
+  the chips and the tab are plates, paths and text - so the number did not move.

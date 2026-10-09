@@ -277,11 +277,16 @@ export async function bootGame(options) {
     fire(type, event) {
       for (const handler of (listeners[type] || [])) handler(event || {});
     },
-    /** Hold or release a key, skipping the no-change repeats. */
-    key(code, down) {
+    /**
+     * Hold or release a key, skipping the no-change repeats. `extra` is anything else the
+     * event would have carried - `{ shiftKey: true }` is how a test asks for the banish
+     * chord, which is a modifier and not a key of its own.
+     */
+    key(code, down, extra) {
       if (!!held[code] === !!down) return;
       held[code] = down;
-      controller.fire(down ? 'keydown' : 'keyup', { code: code, preventDefault() {} });
+      controller.fire(down ? 'keydown' : 'keyup',
+        Object.assign({ code: code, preventDefault() {} }, extra));
     },
     moveMouse(x, y) {
       controller.fire('mousemove', { clientX: x, clientY: y, preventDefault() {} });

@@ -217,6 +217,71 @@ test('the cards are dealt, and choose takes one', async () => {
   ask('choose', { number: 1 });
 });
 
+test('the two asks about the deal: reroll deals another table, banish cuts a line', async () => {
+  await toTitle();
+  ask('start');
+  frames(2);
+  levelUp(field);
+  frames(1);
+
+  const before = ask('status');
+  assert.equal(before.asks.rerolls, BALANCE.cards.rerolls, 'a fresh run is granted a reroll');
+  assert.equal(before.asks.banishes, BALANCE.cards.banishes, 'and a banish');
+  assert.deepEqual(before.cut, [], 'and it has cut nothing yet');
+  const faceUp = before.offer.map((card) => card.id);
+
+  const cut = ask('banish', { number: 3 });
+  assert.equal(cut.banished, before.offer[2].name, 'the number is the card it was shown');
+  assert.deepEqual(cut.cut, [before.offer[2].name], 'and the run says what it cut');
+  assert.equal(cut.screen, 'choosing', 'a banish is not an answer to the level');
+  assert.equal(cut.offer.length, 3, 'the empty place was filled');
+  assert.ok(cut.offer.every((card) => card.id !== before.offer[2].id), 'and not with the line that just went');
+  assert.ok(!field.offer.includes(before.offer[2].id), 'the simulation agrees it is off the table');
+
+  const dealt = ask('reroll');
+  assert.equal(dealt.screen, 'choosing', 'a reroll is not an answer either');
+  assert.equal(dealt.rerollsLeft, BALANCE.cards.rerolls - 1, 'and it cost the ask');
+  for (const card of dealt.offer) {
+    assert.ok(!faceUp.includes(card.id), 'a reroll that hands back a card it was shown bought nothing: ' + card.id);
+  }
+
+  const status = ask('status');
+  assert.deepEqual(status.cut, [before.offer[2].name], 'the cut is on the status, for the next look');
+  assert.equal(status.asks.banishes, 0, 'and so is the banish');
+
+  // A cut line is gone from a table, not just from this deal of it.
+  for (let i = 0; i < 6; i++) {
+    ask('choose', { number: 1 });
+    frames(1);
+    levelUp(field);
+    frames(1);
+    if (ask('status').screen !== 'choosing') break;
+    assert.ok(!ask('status').offer.some((card) => card.id === before.offer[2].id),
+      'the line came back to the table');
+  }
+  await toTitle();
+});
+
+test('an ask that cannot be granted is refused, with the ask kept', async () => {
+  await toTitle();
+  ask('start');
+  frames(2);
+  levelUp(field);
+  frames(1);
+
+  ask('banish', { number: 1 });
+  ask('reroll');
+  assert.match(refuses('banish', { number: 1 }), /spent its banishes/);
+  assert.match(refuses('reroll'), /spent its rerolls/);
+  assert.equal(ask('status').screen, 'choosing', 'and the choice is still there, untouched');
+
+  assert.match(refuses('banish', { number: 9 }), /between 1 and 3/);
+  levelUp(field);            // two levels owed, so the table is still dealable afterwards
+  frames(1);
+  assert.equal(ask('status').screen, 'choosing');
+  ask('choose', { number: 1 });
+});
+
 test('observe says what is out there, nearest first and no more than asked', async () => {
   await toTitle();
   ask('start');

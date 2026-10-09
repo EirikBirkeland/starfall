@@ -70,6 +70,13 @@ function createWorld() {
     offer: [],
     pendingLevels: 0,
     offerTime: 0,
+    // The two asks a run has about its own deal (game/upgrades.js): how many rerolls and
+    // banishes it has left, and the lines it has taken out of its deck for good. A mirror
+    // of the deal, not a second copy of it: `banished` is read by the draw, which is the
+    // only place that has to honour it.
+    rerollsLeft: BALANCE.cards.rerolls,
+    banishesLeft: BALANCE.cards.banishes,
+    banished: [],
     // What this run is being made of, counted as it goes (game/tally.js). A mirror
     // and never a cause: nothing here is read by the simulation itself.
     tally: newTally(),

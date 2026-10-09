@@ -15,7 +15,7 @@
 import { STATE } from '../../src/game/state.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { WEAPONS, weaponName } from '../../src/game/weapons.js';
-import { LINES, effectOf, lineOf, maxRanksOf } from '../../src/game/upgrades.js';
+import { LINES, banishedLines, effectOf, lineOf, maxRanksOf } from '../../src/game/upgrades.js';
 import {
   aimProgress,
   blastPressure,
@@ -310,6 +310,11 @@ export function createSession(game, options) {
       upgrades: describeRanksTaken(world),
       offer: describeOffer(world),
       owedCards: world.pendingLevels,
+      // The two asks a run has about its own deal (game/upgrades.js): what is left of
+      // each, and which lines the run has already cut out of its deck. An agent that
+      // cannot see a spent chip has no reason to look for one.
+      asks: { rerolls: world.rerollsLeft, banishes: world.banishesLeft },
+      cut: banishedLines(world).map((id) => lineOf(id).name),
     };
     if (world.state === STATE.OVER) {
       out.restartIn = Math.max(0, +(BALANCE.runOver.restartGuard - world.overTimer).toFixed(2));
@@ -449,6 +454,52 @@ export function createSession(game, options) {
     return { took: table[number - 1], offer: describeOffer(world), screen: SCREEN[world.state] };
   }
 
+  /**
+   * R: the run asks for the table again. Whether it gets it is the game's business, not
+   * this one's - a reroll is refused when the run has spent its asks or when nothing else
+   * could be dealt, and either way the ask it did not spend comes back as a refusal.
+   */
+  function reroll() {
+    const world = game.world;
+    if (world.state !== STATE.LEVEL) refuse('no upgrade is on the table right now');
+    const asks = world.rerollsLeft;
+    const before = world.offer.join(',');
+    game.key('KeyR', true);
+    game.key('KeyR', false);
+    if (world.offer.join(',') === before) {
+      refuse(asks > 0
+        ? 'nothing else could be dealt - every line with a rank left is already on the table, and the ask was kept'
+        : 'this run has spent its rerolls');
+    }
+    notice();
+    return { offer: describeOffer(world), rerollsLeft: world.rerollsLeft, screen: SCREEN[world.state] };
+  }
+
+  /** Shift + a card's number: that line is out of this run's deck for good. */
+  function banish(args) {
+    const world = game.world;
+    if (world.state !== STATE.LEVEL) refuse('no upgrade is on the table right now');
+    const number = intArg(args, 'number', undefined, 1, world.offer.length);
+    if (number === undefined) refuse('banish wants which card: a number from 1 to ' + world.offer.length);
+    const asks = world.banishesLeft;
+    const gone = describeOffer(world)[number - 1];
+    game.key('Digit' + number, true, { shiftKey: true });
+    game.key('Digit' + number, false, { shiftKey: true });
+    if (world.banishesLeft === asks) {
+      refuse(asks > 0
+        ? 'that one could not be cut - nothing is left to replace it with, and the ask was kept'
+        : 'this run has spent its banishes');
+    }
+    notice();
+    return {
+      banished: gone.name,
+      offer: describeOffer(world),
+      banishesLeft: world.banishesLeft,
+      cut: banishedLines(world).map((id) => lineOf(id).name),
+      screen: SCREEN[world.state],
+    };
+  }
+
   function chooseWeapon(args) {
     const world = game.world;
     if (world.state === STATE.PLAY || world.state === STATE.LEVEL) {
@@ -534,6 +585,8 @@ export function createSession(game, options) {
     trigger: trigger,
     dash: dash,
     choose: choose,
+    reroll: reroll,
+    banish: banish,
     chooseWeapon: chooseWeapon,
     start: start,
     step: step,
@@ -655,6 +708,22 @@ export const TOOLS = [
       required: ['number'],
     },
     run: function (api, args) { return api.choose(args); },
+  },
+  {
+    name: 'reroll',
+    description: 'Ask for the whole table to be dealt again - it costs one of the run\'s rerolls, and each run is granted one. Refused, with the ask kept, if the run has spent its rerolls or if every line with a rank left is already on the table.',
+    inputSchema: { type: 'object', properties: {} },
+    run: function (api) { return api.reroll(); },
+  },
+  {
+    name: 'banish',
+    description: 'Take a card off the table without taking it: that upgrade line cannot come up again for the rest of the run, and the slot is refilled. Costs one of the run\'s banishes, and each run is granted one.',
+    inputSchema: {
+      type: 'object',
+      properties: { number: { type: 'integer', description: 'which card, counting from 1' } },
+      required: ['number'],
+    },
+    run: function (api, args) { return api.banish(args); },
   },
   {
     name: 'choose_weapon',

@@ -10,9 +10,9 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun, startBotRun, endingItAt, FRAME_MS } from '../tools/headless/bot.js';
-import { cardAt, cardLayout } from '../src/render/cards.js';
+import { cardAt, cardLayout, askLayout, banishLayout } from '../src/render/cards.js';
 import { dropShards } from '../src/game/pickups.js';
-import { LINES } from '../src/game/upgrades.js';
+import { LINES, banishedLines, lineOf } from '../src/game/upgrades.js';
 import { BALANCE } from '../src/game/balance.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -117,6 +117,140 @@ test('a click on a card takes that card, and a click off them takes nothing', ()
   assert.equal(world.state, game.STATE.PLAY, 'and a click on one is');
   assert.equal(world.upgrades[taking], before + 1, 'the middle card is the middle line');
   game.releaseMouse(0);
+});
+
+// ---- the two asks a run may make about its own deal (PLAN 3.7) -----------------
+// The rule behind them - what may be refused, what is spent, what can never come back - is
+// tested on the scripted world in test/upgrade-asks.test.mjs. These are the hands: the key
+// that rerolls, the chord that banishes, and the two chips a mouse can answer with.
+
+/** One press of a key, and the release that goes with it. `extra` is a modifier. */
+function press(code, extra) {
+  game.key(code, true, extra);
+  game.key(code, false, extra);
+}
+
+function clickWhere(x, y) {
+  game.pressMouse(x, y, 0);
+  game.releaseMouse(0);
+}
+
+const middleOf = (rect) => ({ x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 });
+
+test('R deals the table again, and costs the run its one ask', () => {
+  earnALevel();
+  const before = world.offer.slice();
+  const asks = world.rerollsLeft;
+  assert.ok(asks > 0, 'a run that has spent nothing holds a reroll');
+
+  press('KeyR');
+  assert.equal(world.rerollsLeft, asks - 1, 'the key spent it');
+  assert.notDeepEqual(world.offer.slice(), before, 'and the table is not the table it was');
+  assert.equal(world.state, game.STATE.LEVEL, 'the level is still owed, so the run is still asking');
+
+  press('Digit1');
+  game.step(FRAME_MS);
+  assert.equal(world.state, game.STATE.PLAY, 'and a number still answers the new table');
+});
+
+test('R in the middle of a run asks for nothing', () => {
+  assert.equal(world.state, game.STATE.PLAY, 'the run is flying');
+  const asks = world.rerollsLeft;
+  press('KeyR');
+  assert.equal(world.rerollsLeft, asks, 'and the key spent nothing on a table that is not there');
+});
+
+test('Shift and a number cut that line out of the run, and a plain number still takes', () => {
+  earnALevel();
+  const gone = world.offer[2];
+  const asks = world.banishesLeft;
+
+  press('Digit3', { shiftKey: true });
+  assert.equal(world.banishesLeft, asks - 1, 'Shift + 3 spent a banish');
+  assert.ok(banishedLines(world).indexOf(gone) >= 0, lineOf(gone).name + ' is out of the run now');
+  assert.ok(world.offer.indexOf(gone) < 0, 'and it is not on the table either');
+  assert.equal(world.offer.length, BALANCE.cards.offer, 'its place was filled, so the choice is no smaller');
+  assert.equal(world.state, game.STATE.LEVEL, 'and the run is still being asked');
+
+  const taking = world.offer[0];
+  const before = world.upgrades[taking];
+  press('Digit1');
+  assert.equal(world.upgrades[taking], before + 1, 'and the plain key is still just a take');
+});
+
+test('the two chips under the cards are click targets, and are not the cards', () => {
+  // The keys above spent the run's two asks; give them back, because the mouse is asked
+  // about the same two things. This is the field the hangar will one day raise (PLAN 3.7).
+  world.rerollsLeft = BALANCE.cards.rerolls;
+  world.banishesLeft = BALANCE.cards.banishes;
+  earnALevel();
+
+  const W = 1280;
+  const H = 720;
+  const layout = cardLayout(world.offer.length, W, H);
+  const asks = askLayout(W, H);
+  const tabs = banishLayout(W, H);
+  const below = middleOf(asks.reroll);
+  const tab = middleOf(tabs[1]);
+  const card = middleOf(layout.cards[2]);
+
+  assert.ok(below.y > layout.cards[0].y + layout.h, 'the chips are under the cards, not over them');
+  assert.ok(tab.x > layout.cards[1].x && tab.x < layout.cards[1].x + layout.cards[1].w,
+    'a tab sits inside its own card, so a card has two answers and not one');
+
+  const gone = world.offer[1];
+  clickWhere(tab.x, tab.y);
+  assert.ok(banishedLines(world).indexOf(gone) >= 0, 'the tab cut the middle line out of the run');
+  assert.equal(world.state, game.STATE.LEVEL, 'and did not take it');
+
+  const before = world.offer.slice();
+  clickWhere(below.x, below.y);
+  assert.notDeepEqual(world.offer.slice(), before, 'the reroll chip dealt a fresh table');
+  assert.equal(world.state, game.STATE.LEVEL, 'and did not answer the level');
+
+  clickWhere(4, 4);
+  assert.equal(world.state, game.STATE.LEVEL, 'and a click in a corner is still nothing at all');
+
+  press('Digit1');
+  game.step(FRAME_MS);
+});
+
+test('a spent ask is still painted, at zero, so the choice does not change shape', () => {
+  earnALevel();
+  // The chips fade in after the cards land, so let the choice have a few frames first.
+  for (let i = 0; i < 30; i++) game.step(FRAME_MS);
+  const words = game.words();
+
+  assert.ok(words.some((word) => word === 'R   REROLL \u00d70'),
+    'the reroll chip is still there, and says it is empty: ' + words.join('  |  '));
+  assert.ok(words.some((word) => word === '\u21e7   BANISH \u00d70'), 'and so is the banish chip');
+  assert.ok(!words.some((word) => word === '\u21e71'), 'while a card with no banish left has no tab on it');
+
+  press('Digit1');
+  game.step(FRAME_MS);
+  assert.equal(world.state, game.STATE.PLAY, 'and the run is flying again');
+});
+
+test('an ask that is spent is spent: the chip and the key both do nothing', () => {
+  assert.equal(world.rerollsLeft, 0, 'the test above spent the run its reroll');
+  assert.equal(world.banishesLeft, 0, 'and its banish');
+  earnALevel();
+
+  const asks = askLayout(1280, 720);
+  const before = world.offer.slice();
+  clickWhere(middleOf(asks.reroll).x, middleOf(asks.reroll).y);
+  press('KeyR');
+  press('Digit2', { shiftKey: true });
+
+  assert.deepEqual(world.offer.slice(), before, 'nothing was spent and nothing was changed');
+  assert.equal(world.state, game.STATE.LEVEL, 'and the level is still owed');
+
+  // And the corner where a banish tab was is simply the card again: with no banish left to
+  // spend there is no second answer there, and a click takes what it always took.
+  const whereTheTabWas = middleOf(banishLayout(1280, 720)[0]);
+  clickWhere(whereTheTabWas.x, whereTheTabWas.y);
+  assert.equal(world.state, game.STATE.PLAY, 'so the card was taken and the run is flying again');
+  game.step(FRAME_MS);
 });
 
 test('the choice is painted, and paints over a frame that is not running', () => {

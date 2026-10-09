@@ -87,6 +87,8 @@ Everything the game will do for you. Coordinates are arena pixels, y going down;
 | `trigger` | Hold or release the fire button, at whatever the cursor is over. While the cards are up this is also an answer to them: a press takes the card under the cursor, exactly as it does for a player. |
 | `dash` | A short burst that cannot be hurt, in the direction the ship is going. One, then a wait. |
 | `choose` | Take upgrade card `number`, counting from 1. Only while the run is holding still for the choice. |
+| `reroll` | Deal the whole table again. Costs one of the run's rerolls (one per run), and is refused - ask kept - when there is nothing else to deal. |
+| `banish` | Take card `number` out of the run for good, so that line is never dealt again this run. Costs one of its banishes (one per run), and fills the slot with a fresh card. |
 | `choose_weapon` | Which primary the next run flies. Between runs only - a run does not swap its gun mid-flight. |
 | `start` | Begin a run, from the title or from the game-over card. Answers back the seed it played. |
 | `step` | Let up to 30 seconds of game time go by, and get the state afterwards. Stops early, and says why, if the run ends or a card is dealt and nobody is flying. |

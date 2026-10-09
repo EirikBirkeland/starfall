@@ -10,7 +10,7 @@ import { burst, ring, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
 import { newTally } from './tally.js';
 import { firstLevelXp } from './progress.js';
-import { resetRanks } from './upgrades.js';
+import { resetRanks, resetAsks } from './upgrades.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
@@ -106,6 +106,9 @@ export function resetRun(world) {
   // The run starts with nothing bought and nothing on the table: a card left over from
   // the last run would pause a run that has earned nothing.
   resetRanks(world);
+  // ...and with nothing owed and nothing refused: the two asks a run gets about its own
+  // deal are spent by the run that spent them (game/upgrades.js).
+  resetAsks(world);
   world.offer.length = 0;
   world.pendingLevels = 0;
   world.offerTime = 0;

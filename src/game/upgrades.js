@@ -21,6 +21,12 @@
 //
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
+//
+// Two of those deals can be argued with. A run may ask for the table again (a reroll) or
+// take one of these lines out of its own deck for good (a banish); both are `rerollOffer`
+// and `banishOffer`, both cost an ask and not the level, and a run is granted its asks by
+// `resetAsks` when a run begins. An ask that could buy nothing is refused and kept, which
+// is the whole rule behind the two disabled chips on the screen.
 
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
@@ -240,6 +246,13 @@ export function resetRanks(world) {
   for (const line of LINES) world.upgrades[line.id] = 0;
 }
 
+/** What a run starts out holding: the two asks of PLAN 3.7, at their grant. */
+export function resetAsks(world) {
+  world.rerollsLeft = BALANCE.cards.rerolls;
+  world.banishesLeft = BALANCE.cards.banishes;
+  world.banished.length = 0;
+}
+
 /** How many ranks of a line the ship has. */
 export function rankOf(world, id) {
   return world.upgrades[id];
@@ -444,11 +457,18 @@ export function gunsPerCrewOf(world) {
   return countOf(world, TURRET_LINE);
 }
 
-/** Lines with a rank still to give. */
+/** Is this line out of the run's deck for good, because the run banished it? */
+function isBanished(world, id) {
+  return world.banished.indexOf(id) >= 0;
+}
+
+/** Lines with a rank still to give, and not banished out of the run. */
 function linesWithRoom(world) {
   const room = [];
   for (const line of LINES) {
-    if (rankOf(world, line.id) < maxRanksOf(line.id)) room.push(line);
+    if (rankOf(world, line.id) >= maxRanksOf(line.id)) continue;
+    if (isBanished(world, line.id)) continue;
+    room.push(line);
   }
   return room;
 }
@@ -456,6 +476,34 @@ function linesWithRoom(world) {
 /** PLAN 3.5: weighted towards what the player already has. */
 function weightOf(world, line) {
   return 1 + BALANCE.cards.bias * rankOf(world, line.id);
+}
+
+/**
+ * One weighted line out of the room that is left, or null when there is none.
+ *
+ * `off` is everything this deal may not deal: the cards already face up, the lines the
+ * run has banished, and whatever a reroll is deliberately turning its back on.
+ */
+function drawLine(world, off) {
+  const room = [];
+  for (const line of linesWithRoom(world)) {
+    if (off.indexOf(line.id) < 0) room.push(line);
+  }
+  if (room.length === 0) return null;
+
+  let total = 0;
+  for (const line of room) total += weightOf(world, line);
+
+  let roll = logic.next() * total;
+  let chosen = room.length - 1;
+  for (let i = 0; i < room.length; i++) {
+    roll -= weightOf(world, room[i]);
+    if (roll <= 0) {
+      chosen = i;
+      break;
+    }
+  }
+  return room[chosen].id;
 }
 
 /**
@@ -468,48 +516,57 @@ function weightOf(world, line) {
  * is untouched forever and would otherwise be dealt every time this fires - and taking
  * it would hand out a rank of a line that has no ranks, which is how a measurement that
  * removed a line ended up measuring one rank of it instead (NOTES session 32).
+ *
+ * `off` is the same list the draw was given: a guarantee that reached past it would put
+ * back on the table a card the deal had just deliberately left out.
  */
-function guaranteeSomethingNew(world, offer) {
+function guaranteeSomethingNew(world, offer, off) {
   if (offer.length === 0) return;
   for (const id of offer) if (rankOf(world, id) === 0) return;
   const fresh = [];
   for (const line of LINES) {
-    if (rankOf(world, line.id) === 0 && maxRanksOf(line.id) > 0) fresh.push(line.id);
+    if (rankOf(world, line.id) !== 0 || maxRanksOf(line.id) <= 0) continue;
+    if (isBanished(world, line.id) || off.indexOf(line.id) >= 0) continue;
+    fresh.push(line.id);
   }
   if (fresh.length === 0) return;
   offer[offer.length - 1] = logic.pick(fresh);
 }
 
-/** Deal the next set of cards. Empty when every line is maxed. */
-function dealOffer(world) {
-  const room = linesWithRoom(world);
-  const offer = [];
-  while (offer.length < BALANCE.cards.offer && room.length > 0) {
-    let total = 0;
-    for (const line of room) total += weightOf(world, line);
-
-    let roll = logic.next() * total;
-    let chosen = room.length - 1;
-    for (let i = 0; i < room.length; i++) {
-      roll -= weightOf(world, room[i]);
-      if (roll <= 0) {
-        chosen = i;
-        break;
-      }
-    }
-    offer.push(room[chosen].id);
-    room.splice(chosen, 1);
+/**
+ * Deal a table of cards on top of whatever is already on it, in table order.
+ *
+ * `off` is what this deal may not deal. A first deal passes nothing; a reroll passes the
+ * table it is replacing, which is what makes a reroll show you something new rather than
+ * the same three cards again.
+ */
+function fillOffer(world, table, off) {
+  const skip = off === undefined ? [] : off;
+  while (table.length < BALANCE.cards.offer) {
+    const id = drawLine(world, table.concat(skip));
+    if (id === null) break;
+    table.push(id);
   }
-  guaranteeSomethingNew(world, offer);
+  guaranteeSomethingNew(world, table, skip);
   // Presented in table order, so that the same set of lines always fills the same
   // places and key 2 is always the middle card. The draw above decides *which* lines
   // come up; it has no business deciding where they are printed.
-  offer.sort(byTableOrder);
-  return offer;
+  table.sort(byTableOrder);
+  return table;
+}
+
+/** Deal the next set of cards. Empty when every line is maxed or banished. */
+function dealOffer(world) {
+  return fillOffer(world, [], []);
 }
 
 function byTableOrder(a, b) {
   return LINES.findIndex((line) => line.id === a) - LINES.findIndex((line) => line.id === b);
+}
+
+/** Is there any line left that this run could ever be dealt again? */
+function anythingLeftToDeal(world) {
+  return linesWithRoom(world).length > 0;
 }
 
 /**
@@ -553,11 +610,73 @@ export function takeOffer(world, index) {
   return true;
 }
 
+/**
+ * Deal the table again, and take the current three cards out of this deal.
+ *
+ * A reroll costs the ask and not the level: the level is still owed and still answered by
+ * taking a card, and the reroll only buys a second look at what the run could take. It is
+ * refused - charge untouched - when the run has no asks left or when every line with a
+ * rank to give is already face up, because then there is no other table to deal and the
+ * ask would buy nothing.
+ */
+export function rerollOffer(world) {
+  if (world.state !== STATE.LEVEL || world.rerollsLeft <= 0) return false;
+  if (world.offer.length === 0) return false;
+
+  const fresh = fillOffer(world, [], world.offer);
+  if (fresh.length === 0) return false;
+
+  world.rerollsLeft--;
+  world.offer = fresh;
+  world.offerTime = world.time;   // the new cards slide in, because they are new cards
+  return true;
+}
+
+/**
+ * Take card `index` off the table *and* out of the run: a banished line is never dealt
+ * again, at any level, however much the run grows. This is the ask for a line the run has
+ * no use for at all - and the one thing it does not do is spend the level, which is still
+ * owed and still has to be answered by taking something.
+ *
+ * The banished card's place is filled by a fresh draw, so banishing one of three leaves
+ * three to choose from whenever the run has a fourth line to look at. And a banish that
+ * would leave the table empty is refused rather than taken: an empty table would hand the
+ * owed level back unpaid, which is the run losing and not the run choosing.
+ */
+export function banishOffer(world, index) {
+  if (world.state !== STATE.LEVEL || world.banishesLeft <= 0) return false;
+  const id = world.offer[index];
+  if (id === undefined) return false;
+
+  const table = world.offer.filter((each) => each !== id);
+  world.banished.push(id);
+  // The only card on the table can go only if something can stand in its place.
+  if (table.length === 0 && !anythingLeftToDeal(world)) {
+    world.banished.pop();
+    return false;
+  }
+
+  world.banishesLeft--;
+  world.offer = fillOffer(world, table, []);
+  world.offerTime = world.time;   // and the replacement arrives the way a new card does
+  return true;
+}
+
+/** The lines this run has taken out of its own deck, in table order. */
+export function banishedLines(world) {
+  return LINES.filter((line) => isBanished(world, line.id)).map((line) => line.id);
+}
+
 /** What a run was built out of, for the game-over card. */
 export function describeRanks(world) {
   const taken = [];
   for (const line of LINES) {
     if (world.upgrades[line.id] > 0) taken.push(line.name + ' ' + world.upgrades[line.id]);
   }
-  return taken.length > 0 ? taken.join('   \u00b7   ') : 'NO UPGRADES';
+  let build = taken.length > 0 ? taken.join('   \u00b7   ') : 'NO UPGRADES';
+  // What the run refused is part of what it became: a banished line is a road it did not
+  // take, and the card is where the run gets to say so.
+  const cut = banishedLines(world).map((id) => 'NO ' + lineOf(id).name);
+  if (cut.length > 0) build += '   \u00b7   ' + cut.join('   \u00b7   ');
+  return build;
 }

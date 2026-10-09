@@ -1869,6 +1869,18 @@ export const BALANCE = {
     // which is what makes a run commit to a build instead of spreading one rank over
     // everything on offer.
     bias: 1,
+    // The two asks a run is given about its own deal (PLAN 3.5, and 3.7 where they are
+    // hangar perks). A reroll deals the table again from everything that is *not*
+    // already on it; a banish takes one line out of the run for good and deals its
+    // replacement. Both cost the ask and not the level: taking a card is the only thing
+    // that spends a level, and a charge spent on nothing at all is never charged.
+    //
+    // PLAN 3.7 sells these as permanent perks, which is how they get *more* than one -
+    // the hangar is milestone 8 and there is nothing to buy them from yet, so a run is
+    // handed one of each to start with and the hangar will add ranks on top of that.
+    // Do not read these two numbers as the perk's price or its per-rank grant.
+    rerolls: 1,
+    banishes: 1,
   },
 
   playerHit: {

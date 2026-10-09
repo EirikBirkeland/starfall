@@ -591,7 +591,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
       lasts 10 s", which went in as a gun planted across the road the ship is travelling down, so that
       the two lines that own the arena floor own opposite halves of it: mines arm where you have been
       and turrets arm where you are going.)
-- [ ] Card offer weighting, reroll, and banish.
+- [x] Card offer weighting, reroll, and banish.
+      (The weighting was already in - `BALANCE.cards.bias` favours the lines a run already
+      has, and the deal never lets a table go without one line the run has never taken. The
+      two asks went in as `rerollOffer` and `banishOffer`: a reroll deals the table again
+      from everything that is *not* already face up, a banish takes a line out of the run's
+      deck for good and fills its slot, and neither spends the level, which is still paid by
+      taking a card. A run is granted one of each (`BALANCE.cards.rerolls`, `.banishes`),
+      spent with R and Shift + a card's number or with the two chips under the cards, and an
+      ask that could buy nothing is refused and kept. The hangar of 3.7 sells more of both.)
 - [ ] Synergies, with their special card frame.
 - [ ] Owned-upgrade icons on the HUD.
 - [ ] Release.

@@ -1,10 +1,11 @@
 // The upgrade choice, painted (game/upgrades.js deals the cards; this is the part you
-// read). Three panels, the icon each one sells, and the geometry that turns a click
-// into a card number.
+// read). Three panels, the icon each one sells, the two asks a run may make about its own
+// deal - reroll and banish - and the geometry that turns a click into an answer.
 //
-// The layout is asked for by two places that must never disagree: the frame that draws
-// the cards, and main.js, which has to know which card a click landed on. So the
-// rectangles are worked out here, once per window size, and nowhere else.
+// The layout is asked for by three places that must never disagree: the frame that draws
+// the cards, main.js, which has to know what a click landed on, and the tests, which have
+// to click it too. So the rectangles are worked out here, once per window size, and
+// nowhere else.
 //
 // Everything here is cool-coloured on purpose. A card is the best news a run gives
 // out, and PLAN section 4 spends warm colours on things that are about to hurt you.
@@ -12,7 +13,7 @@
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
-import { effectOf, lineOf, maxRanksOf, rankOf } from '../game/upgrades.js';
+import { banishedLines, effectOf, lineOf, maxRanksOf, rankOf } from '../game/upgrades.js';
 import { polygon, roundRect, shipPath } from './shapes.js';
 import { glowFor, paintGlow } from './glow.js';
 import { haloText } from './hud.js';
@@ -27,6 +28,14 @@ const HEADROOM = 92;        // px of window above the cards, for the heading
 const RISE = 0.2;           // how long one card takes to slide in (PLAN: under 250 ms)
 const STAGGER = 0.08;       // and how much later the next one starts
 const PUSH = 26;            // how far below its place it starts
+const ASK_GAP = 16;         // px of window between the cards and the row of asks
+const ASK_H = 26;           // how tall one ask chip is
+const ASK_CHIP_W = 112;     // fixed width chips, because the layout has no canvas to
+const ASK_GAP_X = 14;       // measure text with, and a click must be measured by the
+                            // same numbers that drew the target
+const TAB_W = 34;           // the banish tab in a card's top-right corner
+const TAB_H = 24;
+const ASK_ROOM = ASK_GAP + ASK_H;   // the window the row of asks under the cards needs
 
 // The shapes, one per line (the ids come from game/upgrades.js). Kept apart
 // from the colours so a line can be drawn in whichever cool colour suits it.
@@ -132,7 +141,9 @@ export function cardLayout(count, W, H) {
   if (cached !== null && cached.key === key) return cached;
 
   const w = Math.min(MAX_CARD_W, (W - SIDE_MARGIN * 2 - GAP * (count - 1)) / count);
-  const h = Math.min(w * CARD_RATIO, (H - HEADROOM) * MAX_HEIGHT);
+  // The asks under the cards are part of the same screen, so they are asked for out of the
+  // same window: a short window shrinks the cards instead of running the row over them.
+  const h = Math.max(60, Math.min(w * CARD_RATIO, (H - HEADROOM - ASK_ROOM) * MAX_HEIGHT));
   const span = w * count + GAP * (count - 1);
   const x0 = (W - span) / 2;
   const y0 = (H - h) / 2 + HEADROOM * 0.5;
@@ -153,6 +164,79 @@ function cardUnder(cards, x, y) {
   return -1;
 }
 
+const inside = (rect, x, y) =>
+  !!rect && x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+
+/**
+ * The banish tab: the number-key chip's twin, in the mirror corner of the card, reading
+ * `Shift + that same number`. Taking a card and refusing it for good are one key apart, so
+ * they are one chip apart - and a click anywhere else on the card is still a take, which is
+ * what makes this small mark safe to put where a player is aiming.
+ */
+function tabRect(rect) {
+  return {
+    x: rect.x + rect.w * 0.87 - TAB_W / 2,
+    y: rect.y + rect.h * 0.1 - TAB_H / 2,
+    w: TAB_W,
+    h: TAB_H,
+  };
+}
+
+/**
+ * The row of asks under the cards: reroll the whole table, or banish one of these lines
+ * out of the run. They are drawn whether or not the run can still pay for them - a spent
+ * ask is still a fact about the choice, and a chip that vanished would leave a player
+ * wondering where it went - but only a paid-for one is a click target, and `choiceHit` is
+ * what says so.
+ */
+function askRow(W, H, layout) {
+  const first = layout.cards[0];
+  if (first === undefined) return { reroll: null, banish: null };
+  const span = ASK_CHIP_W * 2 + ASK_GAP_X;
+  const x0 = (W - span) / 2;
+  const y = Math.min(first.y + layout.h + ASK_GAP, H - ASK_H - 6);
+  return {
+    reroll: { x: x0, y: y, w: ASK_CHIP_W, h: ASK_H },
+    banish: { x: x0 + ASK_CHIP_W + ASK_GAP_X, y: y, w: ASK_CHIP_W, h: ASK_H },
+  };
+}
+
+/**
+ * Where the two asks are, in a W x H window. Exported for the same reason `cardLayout` is:
+ * a test that wants to click a chip has to be able to say where one is, and the only honest
+ * way to say that is to ask the code that draws it.
+ */
+export function askLayout(W, H) {
+  return askRow(W, H, cardLayout(world.offer.length, W, H));
+}
+
+/** Where each card's banish tab is, in the same window, one per card on the table. */
+export function banishLayout(W, H) {
+  return cardLayout(world.offer.length, W, H).cards.map(tabRect);
+}
+
+/**
+ * Where a glass point lands on the choice, and what clicking there would do: banish a
+ * line, take a card, reroll the table, or nothing at all. The order here is the precedence
+ * - a tab is inside its card, so it is asked about first, and only while it is there to be
+ * asked about (a run with no banish left has no tabs, and its cards have one answer).
+ */
+export function choiceHit(x, y) {
+  const layout = cardLayout(world.offer.length, view.W, view.H);
+
+  if (world.banishesLeft > 0) {
+    for (let i = 0; i < layout.cards.length; i++) {
+      if (inside(tabRect(layout.cards[i]), x, y)) return { banish: i };
+    }
+  }
+  const card = cardUnder(layout.cards, x, y);
+  if (card >= 0) return { card: card };
+  if (inside(askRow(view.W, view.H, layout).reroll, x, y) && world.rerollsLeft > 0) {
+    return { reroll: true };
+  }
+  return null;
+}
+
 /**
  * Which of the cards on the table this glass point is over, or -1. main.js asks this
  * when the fire button goes down, which is how a mouse picks a card.
@@ -169,7 +253,13 @@ export function drawCards(ctx, pointer) {
   const H = view.H;
   const layout = cardLayout(offer.length, W, H);
   const age = world.time - world.offerTime;
-  const hover = pointer === null || pointer === undefined ? -1 : cardUnder(layout.cards, pointer.x, pointer.y);
+  const pointing = pointer !== null && pointer !== undefined;
+  const hover = pointing ? cardUnder(layout.cards, pointer.x, pointer.y) : -1;
+  // Only the tab under the pointer lights up, which is how a player learns what the mark is
+  // before they have spent anything finding out.
+  const tabHot = pointing && world.banishesLeft > 0
+    ? cardUnder(layout.cards.map(tabRect), pointer.x, pointer.y)
+    : -1;
 
   ctx.save();
   // The arena goes quiet behind the choice rather than going black: the crowd you are
@@ -181,8 +271,10 @@ export function drawCards(ctx, pointer) {
   ctx.textAlign = 'center';
   drawHeading(ctx, W, layout, age);
   for (let i = 0; i < offer.length; i++) {
-    drawCard(ctx, offer[i], layout.cards[i], i, age, hover === i);
+    drawCard(ctx, offer[i], layout.cards[i], i, age, hover === i, tabHot === i);
   }
+  drawAsks(ctx, askRow(W, H, layout), age);
+  drawCutOut(ctx, askRow(W, H, layout));
   ctx.restore();
 }
 
@@ -199,7 +291,7 @@ function drawHeading(ctx, W, layout, age) {
   ctx.globalAlpha = 1;
 }
 
-function drawCard(ctx, id, rect, index, age, hovered) {
+function drawCard(ctx, id, rect, index, age, hovered, tabHot) {
   const appear = easeOut(clamp((age - index * STAGGER) / RISE, 0, 1));
   if (appear <= 0) return;
 
@@ -245,8 +337,74 @@ function drawCard(ctx, id, rect, index, age, hovered) {
   drawFlavour(ctx, line.flavour, cx, y + h * 0.755, w * 0.86, w * 0.072);
   drawRanks(ctx, id, cx, y + h * 0.88, w, tint);
   drawKeyHint(ctx, index + 1, x + w * 0.13, y + h * 0.1);
+  if (world.banishesLeft > 0) drawBanishTab(ctx, tabRect(rect), index + 1, tabHot);
 
   ctx.restore();
+}
+
+/**
+ * The banish tab, drawn as the key chip it is: a small plate with `Shift` and the card's own
+ * number on it. It is small on purpose - the card is the offer, and this is the escape hatch
+ * from it.
+ */
+function drawBanishTab(ctx, tab, number, hot) {
+  const cx = tab.x + tab.w / 2;
+  const cy = tab.y + tab.h / 2;
+  const edge = hot ? PALETTE.playerLine : PALETTE.cardEdge;
+
+  ctx.fillStyle = hot ? withAlpha(PALETTE.player, 0.16) : 'rgba(9,20,44,0.92)';
+  roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = withAlpha(edge, hot ? 1 : 0.5);
+  roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
+  ctx.stroke();
+
+  haloText(ctx, '\u21e7' + number, cx, cy + 5, withAlpha(edge, hot ? 1 : 0.75),
+    hot ? GLOW_KEY : 'rgba(111,143,176,0.35)');
+}
+
+/**
+ * The two asks, under the cards: reroll the table, or banish one of these lines out of the
+ * run for good. A spent chip is drawn rather than hidden (see `askRow`).
+ */
+function drawAsks(ctx, row, age) {
+  const appear = easeOut(clamp((age - STAGGER * 2) / RISE, 0, 1));
+  if (appear <= 0 || row.reroll === null) return;
+
+  ctx.save();
+  ctx.globalAlpha = ctx.globalAlpha * appear;
+  drawAskChip(ctx, row.reroll, 'R   REROLL \u00d7' + world.rerollsLeft, world.rerollsLeft > 0);
+  drawAskChip(ctx, row.banish, '\u21e7   BANISH \u00d7' + world.banishesLeft, world.banishesLeft > 0);
+  ctx.restore();
+}
+
+function drawAskChip(ctx, rect, text, live) {
+  ctx.font = live ? FONT_KEY : FONT_ASK;
+  ctx.fillStyle = PALETTE.cardFace;
+  roundRect(ctx, rect.x, rect.y, rect.w, rect.h, ASK_H / 2);
+  ctx.fill();
+
+  ctx.lineWidth = live ? 1.5 : 1;
+  ctx.strokeStyle = withAlpha(live ? PALETTE.cardEdge : PALETTE.uiFaint, live ? 0.9 : 0.4);
+  roundRect(ctx, rect.x, rect.y, rect.w, rect.h, ASK_H / 2);
+  ctx.stroke();
+
+  haloText(ctx, text, rect.x + rect.w / 2, rect.y + ASK_H * 0.67,
+    live ? PALETTE.playerLine : PALETTE.uiFaint,
+    live ? GLOW_KEY : 'rgba(111,143,176,0.3)');
+}
+
+/** What the run has cut out of its own deck. Drawn only once there is one to show. */
+function drawCutOut(ctx, row) {
+  const cut = banishedLines(world);
+  if (cut.length === 0 || row.reroll === null) return;
+
+  const left = row.reroll.x;
+  ctx.font = FONT_ASK;
+  haloText(ctx, 'CUT OUT OF THE RUN   \u00b7   ' + cut.map((id) => lineOf(id).name).join('   \u00b7   '),
+    left + (row.banish.x + row.banish.w - left) / 2, row.reroll.y + ASK_H + 20,
+    PALETTE.uiFaint, 'rgba(111,143,176,0.3)');
 }
 
 /** The one plain line under the effect (PLAN section 4), wrapped to fit the card. */
