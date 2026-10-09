@@ -8,7 +8,7 @@ import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } fro
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
-import { bossHullShare, bossName, bossPhase, bossSummons, bossWarning } from './game/bosses.js';
+import { bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning } from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
@@ -288,7 +288,14 @@ window.STARFALL = {
       bossPhase: world.boss === null ? 0 : bossPhase(world.boss),
       bossWarn: world.boss === null ? 0 : bossWarning(world.boss),
       bossSummons: world.boss === null ? 0 : bossSummons(world.boss),
+      bossCells: world.boss === null ? 0 : cellsStanding(world.boss),
       bossesDown: world.bossesDown,
+      // What the run died of, and what each thing cost it on the way (game/tally.js
+      // `noteHullLoss`). A headless run that says "died at 0m35s" and not *of what* is a number
+      // nobody can act on, and a boss made of bodies is the first thing that makes the question
+      // worth asking: is it the swarm that is killing the run, or the mass it walks into?
+      killedBy: world.tally.killedBy,
+      hurtBy: world.tally.hurtBy,
       caged: fieldIsCaged(world),
       // The nova (game/nova.js): how many fronts are in the air, and how long until the
       // next one. The F3 overlay wants both, and a test that cannot see a front can at

@@ -1101,12 +1101,12 @@ export const BALANCE = {
   // (game/bosses.js). Then one row per boss, which is its body and its phases.
   //
   // The schedule is the run's spine: one entry per boss, in the order they arrive. PLAN's
-  // marks are 5:00, 10:00 and 15:00, and only the Warden is built so far - the Hive and the
-  // Eclipse join this list, each with its own row and its own mark, as they are written.
+  // marks are 5:00, 10:00 and 15:00 - the Warden and the Hive are written, the Eclipse joins
+  // this list with its own row and its own mark when it is.
   // `test/bosses.test.mjs` holds the list in the order it is played and every entry pointing
   // at a row that exists, which is the one way a schedule could lie.
   bosses: {
-    schedule: [{ at: 300, boss: 'warden' }],
+    schedule: [{ at: 300, boss: 'warden' }, { at: 600, boss: 'hive' }],
 
     // The warning, before the cage closes: the siren, the name on the glass, and a shudder
     // in the frame. Long enough to read and to let go of whatever you were doing, short
@@ -1184,6 +1184,9 @@ export const BALANCE = {
     warden: {
       name: 'THE WARDEN',
       blurb: 'a ring that turns, stops, and fires down its spokes',
+      // Which beat-machine the framework runs for it (game/bosses.js `RHYTHMS`): ride by
+      // turning on the spot, then spokes, bullet rings and calls of bodies in between.
+      rhythm: 'ring',
       radius: 60,
       hull: 560,
       speed: 0,
@@ -1353,6 +1356,183 @@ export const BALANCE = {
             dismiss: {
               spark: { count: 14, speed: 360, life: 0.34, spread: 0.7 },
               sound: { notes: [392, 262], dur: 0.5, wave: 'triangle', vol: 0.07 },
+            },
+          },
+        },
+      ],
+    },
+
+    // The Hive (PLAN 3.4's 10:00): a hex-celled mass with a core in the middle of it. It has
+    // no spokes and no door - it *breeds*. Everything it sends comes out of a cell, and the
+    // cells are bodies of the crowd themselves, which is the second boss teaching the thing
+    // the first one only hints at: a fight can have parts, and you can shoot them off.
+    //
+    // It is the second boss, so it is the one that said how much of game/bosses.js was
+    // Warden-shaped. Three things came out of writing it: a row now names its `rhythm` (the
+    // framework owns the clock of a beat - ride, stop, show it, do it - and the row says which
+    // beats it has), a boss may *walk* (the Warden's whole attack is a ring that turns on the
+    // spot, so the walk was hard-coded to nothing but turning), and a boss may own bodies
+    // (`cells` below, which go down with it on the same rule its summons already did).
+    //
+    // `radius` is the core and nothing else. The mass reaches further than that, but the core
+    // is the body the collision world is built round and the widest body in the arena prices
+    // every collision query in the game (game/enemies.js) - so the mass is wide with its
+    // *cells*, at 26 px each, and the fattest thing in the arena stays 30 px.
+    //
+    // `hull` is 173 seconds of the plain pulse gun, i.e. the same bare-gun length as the
+    // Warden and no more: what is different at ten minutes is that the run has had twice as
+    // long to buy damage, and that this bar can be paid down by breaking the mass as much as
+    // by hitting the middle of it (see `cells.share`). `score` and `drop` are what `killEnemy`
+    // pays out like any other body; `reward` is what the framework adds on top for being a
+    // boss (game/bosses.js).
+    hive: {
+      name: 'THE HIVE',
+      blurb: 'a mass of cells that breeds swarms and can be broken apart',
+      // Which beat-machine the framework runs for this boss (game/bosses.js `RHYTHMS`). The
+      // Warden's is `ring`: ride, stop dead, show the spokes, fire them. The Hive's is `mass`:
+      // drift in, stop dead, light a cell, let it out. Same grammar of a promise kept still -
+      // a different thing being promised.
+      rhythm: 'mass',
+      radius: 30,
+      hull: 760,
+      // The pace the mass drifts at, and the band it wants to stand in. Both written out and
+      // not left to the run's clock, for the same reason the hull is (game/bosses.js `arrive`):
+      // a boss's own pace is the fight's pace, and the crowd's speed scaling is a thing that
+      // happens to a wave. It keeps its distance because everything it sends is faster than it
+      // is: a hive that walks into your face has nothing left to do.
+      speed: 44,
+      approach: { near: 290, far: 400 },
+      cost: 40,
+      score: 2600,
+      drop: 32,
+      color: PALETTE.hiveCell,
+      fill: PALETTE.hiveCellFill,
+      glow: 60,
+      sides: 6,
+      reward: { hull: 1 },
+      death: {
+        particles: 96, speed: 640, debris: 44, debrisSpeed: 400,
+        ringSpeed: 940, ringScale: 2.4, shake: 15, hitStop: 0.12,
+      },
+      sound: { freq: 62, dur: 0.8, vol: 0.16 },
+      // Where it arrives: `gap` px of standing room from the ship, inside the room that is
+      // closing at the same moment. It is the Warden's number and then the mass's own reach on
+      // top, because the whole of the honeycomb arrives, not just the core it is measured from.
+      arrival: {
+        gap: 420,
+        ring: { radius: 40, speed: 900, life: 0.5 },
+        burst: { count: 54, speed: 560, life: 0.7 },
+        shake: 11,
+        hitStop: 0.06,
+      },
+      // The cells: `count` of them, `ring` px out from the core, equally spaced, and rooted to
+      // their places (game/kinds.js `isRooted`), so the mass holds its shape and a body that
+      // walks into the honeycomb is the one that moves.
+      //
+      // Breaking one is worth three things at once, and that is the whole of the first phase:
+      // a `share` of the hull goes down with it (the bar *is* the mass, and every point of it
+      // is a cell somebody can shoot), it is one fewer mouth the brood can come out of, and it
+      // is worth its own score and its own shards like any other body in the arena. Its `hull`
+      // is small on purpose and is scaled by the run's clock like any other body's: about 29
+      // by the time it arrives, which is a commitment to shoot and not a second boss.
+      //
+      // It is deliberately not in `BALANCE.kinds`: that table is the wave director's menu and
+      // the director has no business rolling a cell for a wave, and `test/kinds.test.mjs`
+      // holds the two kind tables the same set for exactly that reason. It is handed to
+      // `makeEnemy` through `opts.kind`, which is the door a boss already walks through.
+      cells: {
+        count: 6, ring: 50, radius: 26, hull: 11, share: 0.05,
+        speed: 0, cost: 5, score: 55, drop: 3,
+        color: PALETTE.hiveCell, fill: PALETTE.hiveCellFill, sides: 6, glow: 18,
+        rooted: true,
+        death: { particles: 14, speed: 260, debris: 6, debrisSpeed: 170 },
+        sound: { freq: 150, dur: 0.2, vol: 0.05 },
+        // And how it ends when the hive goes down with cells still standing: they were the
+        // fight's bodies and not the arena's, so they come apart with it - unpaid, in one
+        // chord for the whole mass (game/bosses.js `breakMass`, the rule the Warden's
+        // summons already live by).
+        fall: {
+          spark: { count: 12, speed: 300, life: 0.3, spread: 0.8 },
+          sound: { notes: [330, 220], dur: 0.55, wave: 'triangle', vol: 0.07 },
+        },
+      },
+      //
+      // The rate the brood arrive at is the difficulty of this boss, and it is written as a rate
+      // rather than as a count: a period of `wait` plus `windup`, and `share` x `each` bodies in
+      // it. Phase 1 is four bodies every six and a half seconds, which is about what the crowd is
+      // sending at ten minutes and no more - the hive *replaces* the wave rather than adding to
+      // it, and a run that has also been handed a wall to walk round dies otherwise. Phase 3 is
+      // where it is allowed to be more than the crowd, and what makes that fair is that `share`
+      // is a share of the mass that is still *standing*: the swarm shrinks as the bar does, and a
+      // run that broke the honeycomb early is fighting a sad handful of bees by the last phase.
+      //
+      // One row per phase, opening at `bosses.atHull`, as they are for the Warden. The tints
+      // get hotter as the mass comes apart - honey, then embers, then red - which is the same
+      // sentence the Warden's wear, and the name on the bar is what says which boss it is.
+      //
+      // `spin` is how fast the whole mass turns between openings, rad/s, and `wait` how long
+      // it drifts before it takes the next one. The turn belongs to the rhythm and not to the
+      // walk for the same reason the Warden's belongs to its ring: the cells that light are
+      // *placed* by it, so the mass that fires has to be standing where the mass that lit was.
+      //
+      // `spawn` is the one beat: `share` of the cells that are still standing light up, and
+      // then each of them lets out `each` bodies, `step` radians apart, out of the side of the
+      // cell that faces away from the core and `gap` px clear of it. `share` is a share of the
+      // *living* mass and not of the six it arrived with, which is the whole of the reason to
+      // shoot the cells: break the honeycomb and the swarms thin out with it, on the same beat
+      // that takes the bar down. `windup` is how long the cells are lit for and is held to
+      // `bosses.telegraphMin` like every other promise here.
+      //
+      // The brood are one pack per cell that opened (game/flock.js), so what comes out of one
+      // mouth bunches, commits and dives as one thing - which is what the kind is, and what
+      // makes six bodies one threat to read instead of six.
+      phases: [
+        {
+          tint: PALETTE.amber,
+          spin: 0.24, wait: 5.4,
+          spawn: {
+            type: 'swarmling', share: 0.34, each: 2, windup: 1.05,
+            gap: 12, step: 0.5, impulse: 210,
+            wind: { sound: { freq: 200, dur: 0.85, wave: 'triangle', vol: 0.05, slide: 520 } },
+            fire: {
+              shake: 5,
+              ring: { radius: 34, speed: 480, life: 0.4 },
+              spark: { count: 10, speed: 300, life: 0.3 },
+              sound: { freq: 520, dur: 0.26, wave: 'sawtooth', vol: 0.08, slide: 120 },
+            },
+          },
+        },
+        {
+          tint: PALETTE.ember,
+          spin: 0.32, wait: 4.2,
+          spawn: {
+            type: 'swarmling', share: 0.5, each: 2, windup: 0.9,
+            gap: 12, step: 0.42, impulse: 230,
+            wind: { sound: { freq: 240, dur: 0.75, wave: 'triangle', vol: 0.055, slide: 600 } },
+            fire: {
+              shake: 6,
+              ring: { radius: 36, speed: 540, life: 0.38 },
+              spark: { count: 12, speed: 320, life: 0.3 },
+              sound: { freq: 600, dur: 0.24, wave: 'sawtooth', vol: 0.085, slide: 130 },
+            },
+          },
+        },
+        {
+          tint: PALETTE.red,
+          spin: 0.42, wait: 3.2,
+          spawn: {
+            // The last phase opens the whole mass at once. It is the one thing phase 3 has that
+            // phase 2 has not, and it costs the hive every mouth it has left: by now half the
+            // cells are usually broken off, so this is a hunt for the cells that are still
+            // standing and not a wall of brood.
+            type: 'swarmling', share: 1, each: 2, windup: 0.75,
+            gap: 12, step: 0.42, impulse: 250,
+            wind: { sound: { freq: 290, dur: 0.6, wave: 'triangle', vol: 0.06, slide: 700 } },
+            fire: {
+              shake: 7,
+              ring: { radius: 38, speed: 600, life: 0.36 },
+              spark: { count: 12, speed: 340, life: 0.28 },
+              sound: { freq: 700, dur: 0.22, wave: 'sawtooth', vol: 0.09, slide: 140 },
             },
           },
         },

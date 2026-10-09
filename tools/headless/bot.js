@@ -17,6 +17,7 @@
 // claim from one that is hard for a bot that barely tries. `--bot naive` runs it.
 
 import { bootGame } from './harness.js';
+import { BALANCE } from '../../src/game/balance.js';
 import { escapeDirection, SKILL } from './threats.js';
 import { isSynergy } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
@@ -313,6 +314,11 @@ export function playOneRun(game, options) {
   let frames = 0;
   let died = false;
   const trace = [];
+  // Where the boss fight stood the last time the trace looked, for the lines below
+  // (game/bosses.js).
+  let bossName = '';
+  let bossPhase = 0;
+  let bossesDown = 0;
   while (frames < frameLimit) {
     botFrame(game, opts.policy);
     game.step(FRAME_MS);
@@ -321,9 +327,42 @@ export function playOneRun(game, options) {
     // then this puts it where the tool asked, before the second frame is simulated. The whole
     // difficulty curve reads `elapsed` - the crowd budget, the hull scale, the boss schedule -
     // so a run started at 295 s is the five-minute fight and not a scripted one.
-    if (frames === 1 && opts.at !== undefined) game.world.elapsed = opts.at;
+    //
+    // And everything on the schedule that was due *before* the clock was put there has been and
+    // gone: a run launched at ten minutes is measured from the ten-minute mark, and the boss due
+    // at five must not walk in five seconds later and be the thing the tool measures (game/
+    // bosses.js spends the schedule through `bossIndex` and reads nothing else).
+    if (frames === 1 && opts.at !== undefined) {
+      game.world.elapsed = opts.at;
+      const schedule = BALANCE.bosses.schedule;
+      while (game.world.bossIndex < schedule.length
+        && opts.at >= schedule[game.world.bossIndex].at) {
+        game.world.bossIndex++;
+      }
+    }
     if (opts.onFrame) opts.onFrame(game, frames);
-    if (opts.every && frames % opts.every === 0) trace.push(frames + ':' + fingerprint(game));
+    if (opts.every && frames % opts.every === 0) {
+      const stats = game.stats();
+      trace.push(frames + ':' + fingerprint(game));
+      // The three moments of a boss fight a trace is asked to show: who walked in, which phase it
+      // moved to, and when it came down. A fingerprint only says that something changed, and a
+      // boss is the one part of a run whose whole balance question is timing - how long the fight
+      // lasted and how much of it the run was able to fight (tools/simulate.js --trace).
+      if (stats.bossesDown > bossesDown) {
+        bossesDown = stats.bossesDown;
+        trace.push(frames + ':boss ' + bossName + ' down, ' + bossesDown + ' spent');
+        bossName = '';
+      }
+      if (stats.boss !== '' && stats.boss !== bossName) {
+        trace.push(frames + ':boss ' + stats.boss + ' walks in');
+        bossName = stats.boss;
+        bossPhase = stats.bossPhase;
+      } else if (stats.boss !== '' && stats.bossPhase !== bossPhase) {
+        trace.push(frames + ':boss ' + stats.boss + ' phase ' + stats.bossPhase
+          + ' at ' + Math.round(stats.bossHull * 100) + '%');
+        bossPhase = stats.bossPhase;
+      }
+    }
     if (game.stats().state === game.STATE.OVER) {
       died = true;
       break;

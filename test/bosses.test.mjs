@@ -105,26 +105,45 @@ test('a boss has one phase row for each mark the hull is cut at', () => {
 test('no phase of any boss is quicker to read than the telegraph floor', () => {
   // kinds.js refuses a sniper that locks for less than `telegraphMin`; a boss is the same promise
   // multiplied by however many spokes it holds, so the floor matters more here, not less. Every
-  // beat a phase has is held to it - the spokes, and whatever else the phase grows.
+  // beat of every phase is held to it, whatever the boss's rhythm calls that beat - the spokes, a
+  // door in a bullet ring, the marks of a call, the cells of a mass - and a phase that shows
+  // nothing at all is a phase with no business being played, which is the other half of the test
+  // and the one that would otherwise let a new boss through with a beat nobody can see coming.
   for (const { id, phase, index } of everyPhase()) {
-    assert.ok(phase.windup >= BALANCE.bosses.telegraphMin,
-      id + ' phase ' + (index + 1) + ' shows its spokes for ' + phase.windup + 's');
+    let shown = 0;
+    if (phase.windup !== undefined) {
+      assert.ok(phase.windup >= BALANCE.bosses.telegraphMin,
+        id + ' phase ' + (index + 1) + ' shows its spokes for only ' + phase.windup + 's');
+      shown++;
+    }
     for (const beat of Object.values(phase)) {
       if (beat === null || typeof beat !== 'object' || beat.windup === undefined) continue;
       assert.ok(beat.windup >= BALANCE.bosses.telegraphMin,
         id + ' phase ' + (index + 1) + ' shows a beat for only ' + beat.windup + 's');
+      shown++;
     }
+    assert.ok(shown > 0, id + ' phase ' + (index + 1) + ' promises nothing at all');
   }
 });
 
-test('a boss has enough hull to be a fight and not a wall', () => {
-  // Read off what a bare pulse gun does to it: the run that meets the first boss at 5:00 with
-  // no upgrades at all should still have a fight, and should not be bored by one.
+test('every boss has enough hull to be a fight and not a wall', () => {
+  // Read off what a bare pulse gun does to it: the run that meets a boss with no upgrades at all
+  // should still have a fight, and should not be bored by one. The same band is held to every
+  // boss in the schedule and not a band per boss, because a boss later in the run is longer in
+  // *game* terms and not in bare-gun terms: by 10:00 the run has had twice as long to buy
+  // damage, and a bar is the least of what a late boss spends on a fight. The Hive's own mass is
+  // another 175 points of body in front of its bar, and the swarms are worth more than that.
   const gun = BALANCE.weapons.pulse;
   const bare = gun.damage * gun.pellets * gun.fireRate;
-  const seconds = BALANCE.bosses.warden.hull / bare;
-  assert.ok(seconds > 60, 'the first boss melts in ' + seconds.toFixed(0) + 's of a bare gun');
-  assert.ok(seconds < 200, 'the first boss is ' + seconds.toFixed(0) + 's of a bare gun');
+
+  for (const entry of BALANCE.bosses.schedule) {
+    const row = BALANCE.bosses[entry.boss];
+    const seconds = row.hull / bare;
+    assert.ok(seconds > 60,
+      entry.boss + ' melts in ' + seconds.toFixed(0) + 's of a bare gun');
+    assert.ok(seconds < 200,
+      entry.boss + ' is ' + seconds.toFixed(0) + 's of a bare gun');
+  }
 });
 
 // ---------------------------------------------------------------------------

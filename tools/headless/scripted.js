@@ -97,15 +97,19 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
 /**
  * Bring on the boss the way the schedule brings one on (game/bosses.js): put the clock just
  * before it is due and step until it is standing in the arena, siren spent and cage shut. The
- * first entry of `BALANCE.bosses.schedule` is the default, and `seconds` is only ever worth
- * passing for a boss that comes after it.
+ * first entry of `BALANCE.bosses.schedule` is the default; `index` is which entry of the
+ * schedule to spend, counted from zero, so `bossOnTheField(1)` is the second boss and nothing
+ * before it is still lurking unspent in the schedule (a boss that is due at ten minutes will
+ * walk in on a clock of ten minutes if the five-minute one is left owing).
  *
  * Everything else about the world is left as these tests like it - no crowd, an unhurtable
  * ship - so what a test finds in the arena is the boss and whatever it put there itself.
  */
-export function bossOnTheField(seconds) {
-  const at = seconds === undefined ? BALANCE.bosses.schedule[0].at : seconds;
-  world.bossIndex = 0;
+export function bossOnTheField(index) {
+  const at = index === undefined
+    ? BALANCE.bosses.schedule[0].at
+    : BALANCE.bosses.schedule[index].at;
+  world.bossIndex = index === undefined ? 0 : index;
   world.elapsed = at - 0.05;
   let guard = 0;
   while (world.boss === null || world.boss.enemy === null) {

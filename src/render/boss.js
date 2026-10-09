@@ -29,7 +29,8 @@ import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
 import {
-  bossAngle, bossFlare, bossTint, cageRise, windupProgress,
+  bossAngle, bossCells, bossFlare, bossShape, bossTint, cageRise, cellProgress, massReach,
+  windupProgress,
 } from '../game/bosses.js';
 import { glowFor, paintGlow } from './glow.js';
 import { camera, onScreen } from './camera.js';
@@ -78,6 +79,25 @@ const CAGE_BREATH = 0.16;
 const CAGE_BREATH_RATE = 1.9;
 const CAGE_VISIBLE = 60;     // px past the window an edge is still worth stroking
 const HIT_FLASH = BALANCE.enemies.hitFlash;   // the same white every other body wears
+
+// The mass (the Hive, PLAN 3.4's 10:00). Its cells are bodies of the crowd - each one is hurt,
+// pays out and walks on its own - and they are not drawn as seven separate bodies: seven
+// hexagons that happen to be standing together are not one thing until something joins them,
+// and the wax is what joins them. So the whole honeycomb is painted in one pass, from the core,
+// and render/entities.js skips the cells on the way past (game/bosses.js `isBossPart`).
+const MASS_LIGHT = 1.25;       // the mass's own light reaches a quarter past its outermost cell
+const WAX_WIDTH = 1.0;         // the web from the core to a cell, as a share of the core's body
+const WAX_LIGHT = 0.92;
+const CELL_LINE = 2;           // px, a cell's own edge
+const CELL_FILL = 0.75;        // a whole cell's fill ...
+const CELL_STRESS = 0.9;       // ... and how much brighter one is that is about to come off
+const CELL_EDGE = 0.8;         // a cell's edge, at rest
+const BROOD_HALO = 1.5;        // a cell's brood light, as a share of its own radius
+const BROOD_CALM = 0.1;        // how much of it is there before a cell starts to open ...
+const BROOD_SHOUT = 1;         // ... and how much at the end of the wind-up
+const BROOD_MOUTH = 0.42;      // px of white in the mouth of a cell that is opening
+const MASS_CORE = 0.8;         // the core's own body, as a share of the radius it is hurt by
+const BREATH_MASS = 1.8;       // rad/s of breathing on the core, so the mass is never a dead light
 
 /** The four sides of a box the window can see, in the order the wall is stroked. */
 const SIDES = [
@@ -188,6 +208,99 @@ export function drawCage(ctx) {
   }
 }
 
+/**
+ * The Hive, whole: the wax, the cells that are still standing, and the core in the middle of
+ * them. Everything is drawn at the positions the simulation put them at, which is what lets the
+ * cells be bodies of the crowd and still be one object on the glass.
+ *
+ * What a cell is about to do is told the way every other body tells it - on the cell itself, out
+ * of its own `stage` and its own countdown (game/kinds.js `aimProgress`) - so the mouth that is
+ * opening is lit whether or not the mass is facing the ship when it does.
+ */
+function drawTheMass(ctx, boss, enemy, alpha, x, y) {
+  const tint = bossTint(boss);
+  const flare = bossFlare(boss);
+  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const cells = bossCells(boss);
+  const reach = massReach(boss);
+
+  paintGlow(ctx, glowFor(tint, reach * MASS_LIGHT), x, y, HALO_LIGHT);
+  if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, reach * MASS_LIGHT), x, y, flash * FLASH_LIGHT);
+  if (flare > 0) {
+    // The same sentence the ring speaks at a phase change: a shell going out, in the colour of the
+    // phase it is on the way to, and one breath of white over the body.
+    paintGlow(ctx, glowFor(PALETTE.white, reach * FLARE_HALO), x, y, Math.sin(flare * Math.PI));
+    ctx.lineWidth = FLARE_LINE;
+    ctx.strokeStyle = withAlpha(PALETTE.white, (1 - flare) * 0.8);
+    ctx.beginPath();
+    ctx.arc(x, y, reach * (FLARE_RING_FROM + (FLARE_RING_TO - FLARE_RING_FROM) * flare), 0, TAU);
+    ctx.stroke();
+  }
+
+  // The wax first, and under everything: one fat stroke from the core to every cell that is
+  // standing, which is what turns seven shapes into one thing. It is not the phase's colour,
+  // because it is not a light the hive is showing anybody - it is the material the thing is cut
+  // out of. Where a cell has been shot off there is nothing at all, and a hole going round with
+  // the mass is what "broken apart" looks like from the outside.
+  ctx.beginPath();
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (cell.hp <= 0) continue;
+    ctx.moveTo(x, y);
+    ctx.lineTo(paintX(cell, alpha), paintY(cell, alpha));
+  }
+  ctx.lineWidth = enemy.r * WAX_WIDTH;
+  ctx.strokeStyle = withAlpha(PALETTE.hiveWax, WAX_LIGHT);
+  ctx.stroke();
+
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (cell.hp <= 0) continue;
+    const cx = paintX(cell, alpha);
+    const cy = paintY(cell, alpha);
+    if (!onScreen(cx, cy, cell.r * BROOD_HALO + 8)) continue;
+    const open = cellProgress(cell);
+    const hurt = 1 - clamp(cell.hp / cell.maxhp, 0, 1);
+
+    // A cell fills up with light as its hull goes, which is the same trick a wounded bomber's
+    // ring plays (game/kinds.js `blastPressure`): the body that is about to come off says so.
+    polygon(ctx, cx, cy, cell.r, 6, cell.rot);
+    ctx.fillStyle = withAlpha(PALETTE.hiveCell, CELL_FILL * (1 - CELL_STRESS) + hurt * CELL_STRESS);
+    ctx.fill();
+    ctx.lineWidth = CELL_LINE;
+    ctx.strokeStyle = withAlpha(PALETTE.hiveCell, CELL_EDGE);
+    ctx.stroke();
+
+    // And the brood inside it: every cell wears a little of the phase's light, and the one that is
+    // opening wears all of it, with a white mouth in the middle of it that fills as the wind-up
+    // does. It is the only thing a cell can promise, so it is the thing it shouts.
+    paintGlow(ctx, glowFor(tint, cell.r * BROOD_HALO), cx, cy,
+      BROOD_CALM + (BROOD_SHOUT - BROOD_CALM) * open);
+    if (open > 0) {
+      paintGlow(ctx, glowFor(PALETTE.white, cell.r * BROOD_MOUTH), cx, cy, open);
+    }
+  }
+
+  // The core, on top of its own honeycomb: a hexagon like its cells and smaller than any of them,
+  // with the countdown of whatever the hive is holding burning in the middle of it. That light is
+  // the same question the cells answer (`windupProgress`), which is what keeps the mass telling
+  // the truth about "something is coming" even with the cells off the edge of the window.
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(enemy.rot);
+  polygon(ctx, 0, 0, enemy.r * MASS_CORE, 6, 0);
+  ctx.fillStyle = withAlpha(tint, 0.32);
+  ctx.fill();
+  ctx.lineWidth = CELL_LINE;
+  ctx.strokeStyle = withAlpha(tint, 0.9);
+  ctx.stroke();
+  ctx.restore();
+
+  const breath = 1 - 0.2 + 0.2 * Math.sin(world.time * BREATH_MASS);
+  const core = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
+  paintGlow(ctx, glowFor(PALETTE.white, enemy.r * MASS_CORE), x, y, core * breath);
+}
+
 /** One spoke's bar: a solid line of the ring's own frame, from `from` to `to` of its radius. */
 function spokeBar(ctx, angle, radius, from, to, width) {
   ctx.beginPath();
@@ -209,6 +322,20 @@ function spokeBar(ctx, angle, radius, from, to, width) {
 export function drawBoss(ctx, boss, enemy, alpha) {
   const x = paintX(enemy, alpha);
   const y = paintY(enemy, alpha);
+
+  // Two shapes, because a boss may be a ring that turns on the spot or a mass that walks, and the
+  // frame asks which (game/bosses.js `bossShape`) rather than learning any boss's name. Both of
+  // them wear the phase's tint, so the colour a player is looking at answers "how far into the
+  // fight am I" whoever is doing the fighting.
+  if (bossShape(boss) === 'mass') {
+    // Culled by the mass's own reach and not by the body the fight is measured by: a cell can be
+    // standing well outside the core's radius, and a hive that lost its left hand at the edge of
+    // the window would be a lie about the room.
+    if (!onScreen(x, y, massReach(boss) * MASS_LIGHT + 20)) return;
+    drawTheMass(ctx, boss, enemy, alpha, x, y);
+    return;
+  }
+
   const r = enemy.r;
   if (!onScreen(x, y, r * FLARE_RING_TO + 20)) return;
   const tint = bossTint(boss);

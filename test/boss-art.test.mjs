@@ -18,10 +18,11 @@ import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { beamReach } from '../src/game/beams.js';
 import {
-  armedCount, bossFlare, bossPhase, bossTint, cageRise, callAngle, callBody, callCount,
-  callStand, callStep, gapAngle, gapHalf, spokeAngle, spokeCount, spokeHalf,
+  armedCount, bossCells, bossFlare, bossPhase, bossTint, cageRise, callAngle, callBody, callCount,
+  callStand, callStep, cellOpening, gapAngle, gapHalf, spokeAngle, spokeCount, spokeHalf,
 } from '../src/game/bosses.js';
 import { PALETTE } from '../src/core/palette.js';
+import { damageEnemy } from '../src/game/enemies.js';
 import { bandPasses } from '../src/render/entities.js';
 import { bossBarLayout } from '../src/render/hud.js';
 
@@ -43,19 +44,83 @@ game.releaseMouse();
  * cage the moment it takes to fade up (game/bosses.js `cage.open`): a test that measures the
  * room wants the room lit and not a third of the way in.
  */
-function bringItOut() {
+function bringItOut(index) {
   field.spawnTimer = Infinity;
   field.player.invuln = Infinity;
   // A run that got to the five-minute mark: schedule unspent, clock there. `tools/simulate.js
   // --at` does the same two things, which is the point - this is the game's own door.
-  field.bossIndex = 0;
-  field.elapsed = BALANCE.bosses.schedule[0].at - 0.05;
+  field.bossIndex = index === undefined ? 0 : index;
+  field.elapsed = BALANCE.bosses.schedule[index === undefined ? 0 : index].at - 0.05;
   let guard = 0;
   while ((field.boss === null || field.boss.enemy === null) && guard < 600) { game.step(16); guard++; }
   if (field.boss === null || field.boss.enemy === null) throw new Error('the boss never arrived');
   guard = 0;
   while (cageRise(field.boss) < 1 && guard < 200) { game.step(16); guard++; }
   return field.boss;
+}
+
+/** The second boss: the Hive, which is drawn as one mass and not as a ring. */
+function bringTheHiveOut() { return bringItOut(1); }
+
+/** The cells of a mass that are lit for an opening. */
+function litCells(boss) {
+  return bossCells(boss).filter((cell) => cellOpening(cell) && cell.hp > 0);
+}
+
+/**
+ * Step until the hive is lighting a cell. It turns slowly and the cells take their turns round
+ * it, so this is a wait and not a nudge - and it is the honest way to catch one, because nothing
+ * in here may reach into the fight and declare a beat of its own.
+ */
+function catchItOpening(boss) {
+  let guard = 0;
+  while (litCells(boss).length === 0 && guard < 900) { game.step(16); guard++; }
+  // And a little way into the hold, not the first step of it: a cell begins its promise dark, so
+  // the light is 0 the step it is lit (`cellProgress` of a cell that has just been chosen) and a
+  // test that samples that very step sees a cell lit and not yet shining. Twelve frames of a
+  // wind-up that is more than forty is still well inside the promise.
+  for (let i = 0; i < 12; i++) game.step(16);
+  return litCells(boss);
+}
+
+/** How many path points the last frame put within `r` px of an arena point. */
+function pointsAt(x, y, r) {
+  const at = game.screenOf(x, y);
+  return game.points().filter((p) => Math.hypot(p.x - at.x, p.y - at.y) < r);
+}
+
+/** How many path points the last frame put at `r` px from an arena point, give or take a px. */
+function pointsOn(x, y, r) {
+  const at = game.screenOf(x, y);
+  return game.points().filter((p) => Math.abs(Math.hypot(p.x - at.x, p.y - at.y) - r) <= 1.5);
+}
+
+/**
+ * How many sprites the last frame stamped with its middle within `r` px of an arena point. The
+ * log records a stamp by the corner it drew from, so the middle has to be found again from the
+ * sprite's own size (render/glow.js stamps a glow centred on the point it was handed).
+ */
+function stampsAt(x, y, r) {
+  const at = game.screenOf(x, y);
+  return game.stamps().filter((s) => Math.hypot(s.at.x + s.w / 2 - at.x, s.at.y + s.h / 2 - at.y) < r).length;
+}
+
+/**
+ * Park the ship beside the mass and keep it there: the whole honeycomb has to be on the glass to
+ * be measured (render/camera.js culls what is not, and the hive arrives 420 px from the ship,
+ * which puts half of it off the window), and the mass gives ground when the ship stands this
+ * close, so the parking has to be repeated every step to keep the two where they were put.
+ */
+function standBesideTheMass(boss) {
+  const ship = field.player;
+  const park = () => {
+    ship.x = boss.enemy.x - 220;
+    ship.y = boss.enemy.y;
+    ship.px = ship.x;
+    ship.py = ship.y;
+  };
+  park();
+  for (let i = 0; i < 40; i++) { game.step(16); park(); }
 }
 
 /** Step until it is holding a volley, and say how many it is holding. */
@@ -475,5 +540,75 @@ test('a call lights one mark per body, on the bearings it sends them from', () =
   // And they are warm: a mark is a place a body arrives at, which is the opposite of the door
   // (PLAN section 4). The phase tint is what the bar, the spokes and the shots all wear.
   assert.notEqual(bossTint(boss), PALETTE.bossGap, 'the phase tint is the door\'s cool blue');
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------
+// The Hive: the same three claims, about a boss that is not a ring
+// ---------------------------------------------------------------------------
+
+test('the hive is drawn as a mass of hexes, each one exactly as big as it hurts', () => {
+  clearTheSky();
+  const boss = bringTheHiveOut();
+  standBesideTheMass(boss);
+  const before = game.drawCalls();
+  game.step(16);
+  const spent = diff(game.drawCalls(), before);
+
+  assert.ok(spent.strokes > 0 && spent.fills > 0, 'the mass was not drawn at all');
+  assert.equal(spent.shadows, 0, 'the mass asked the canvas for a blur');
+  assert.equal(spent.gradients, 0, 'the mass asked the canvas for a gradient');
+
+  // The one claim every telegraph in this game is held to, turned round and pointed at a body: the
+  // shape you can shoot is the shape you can see, edge for edge. A cell's collision radius is its
+  // own - it is a body of the crowd - and the hexagon drawn at it has six corners exactly that far
+  // out, and nothing of the mass is drawn further out than the bodies that hurt you.
+  for (const cell of bossCells(boss)) {
+    const on = pointsOn(cell.x, cell.y, cell.r);
+    assert.ok(on.length >= 6,
+      'a cell was drawn with ' + on.length + ' corners on its own radius of ' + cell.r + 'px, not six');
+  }
+  clearTheSky();
+});
+
+test('a cell that has been shot off is not drawn any more', () => {
+  clearTheSky();
+  const boss = bringTheHiveOut();
+  standBesideTheMass(boss);
+  const cell = bossCells(boss)[0];
+
+  // Asked at the cell's own middle, and narrowly: the wax web runs out to the centre of every cell
+  // that is standing, so a living cell has a point of the pen on this spot and a dead one has
+  // nothing of its own here at all. The window is deliberately much smaller than the gap to the
+  // next hex over, or a neighbour's edge would be blamed for the ghost of the cell that went.
+  const CELL_MARK = 12;
+  assert.ok(pointsAt(cell.x, cell.y, CELL_MARK).length > 0, 'nothing was drawn where it stood');
+  damageEnemy(field, cell, cell.hp, true);
+  standBesideTheMass(boss);
+
+  // The hole is the whole of the art for a broken mass, so it has to actually be a hole.
+  assert.equal(pointsAt(cell.x, cell.y, CELL_MARK).length, 0,
+    'a cell that is gone is still being drawn');
+  clearTheSky();
+});
+
+test('the cell that is opening is lit and the ones that are not are dark', () => {
+  clearTheSky();
+  const boss = bringTheHiveOut();
+  standBesideTheMass(boss);
+  const open = catchItOpening(boss);
+  assert.ok(open.length > 0, 'the hive never lit a cell to open it');
+
+  const dark = bossCells(boss).filter((cell) => cell.hp > 0 && !cellOpening(cell));
+  assert.ok(dark.length > 0, 'every cell lit at once, so there is nothing to compare against');
+  assert.ok(open.length < bossCells(boss).length, 'every cell is opening, so the tell tells nothing');
+
+  // A cell that is opening wears the mouth as well as the honey: one more stamp on the glass, at
+  // the place the brood will come out of. That is the whole of its promise, and it is on the body
+  // that makes it, told the way every other body tells one (game/kinds.js `aimProgress`).
+  const lit = stampsAt(open[0].x, open[0].y, open[0].r);
+  const calm = stampsAt(dark[0].x, dark[0].y, dark[0].r);
+  assert.ok(lit > calm,
+    'an opening cell wore ' + lit + ' lights and a whole one ' + calm);
   clearTheSky();
 });

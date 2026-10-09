@@ -31,11 +31,14 @@
 //     makes a phase a beat and not a number in a table.
 //
 //   **The beats.** What a boss does with its turn is its own row's business; what the framework
-//     owns is the rhythm of one - ride, stop dead, show it, fire it. A phase may hold more than
-//     one beat (the Warden's phase 2 throws a ring of shots between its spoke volleys, taking
-//     turns; its phase 3 sends a call of bodies out of its own hoop as well), and a phase change
+//     owns is the rhythm of one - ride, stop dead, show it, fire it. A rhythm says which beats
+//     its phases have and how the ride between them is spent (`ring`: the Warden, which turns on
+//     the spot and fires spokes, bullet rings and calls of bodies; `mass`: the Hive, which
+//     drifts in and lets its cells out), and a phase may hold more than one beat, which is what
+//     keeps one rhythm over a fight that has grown two or three things to read. A phase change
 //     starts from whichever of them is new, which is what the flare is announcing. Every beat of
-//     every phase is shown for `bosses.telegraphMin` at least.
+//     every phase is shown for `bosses.telegraphMin` at least, and a boss stands perfectly still
+//     while it is showing one: a promise that moves is not a promise.
 //
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
@@ -54,14 +57,15 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { TAU, clamp } from '../core/math.js';
 import { logic } from '../core/rng.js';
-import { makeEnemy } from './kinds.js';
-import { killEnemy } from './enemies.js';
+import { advance, glide, makeEnemy } from './kinds.js';
+import { damageEnemy, killEnemy } from './enemies.js';
 import { noteArrival } from './tally.js';
 import { fireBeam } from './beams.js';
 import { enemyShotAt } from './enemyshots.js';
+import { newPack } from './flock.js';
 import { addText, burst, hitStop, ring, shakeIt, spray } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
-import { closeField, openField } from './field.js';
+import { closeField, holdInField, openField } from './field.js';
 import { healPlayer } from './player.js';
 
 /**
@@ -76,6 +80,30 @@ const RIDING = '';
 const LOCKING = 'lock';
 const RINGING = 'ring';
 const CALLING = 'call';
+const OPENING = 'open';
+
+/**
+ * How a boss spends the ride from one beat to the next, and which beat the ride hands over to.
+ * A ring rides by turning on the spot; a mass rides by drifting at the ship and holding a band.
+ * Both of them stop dead to strike, and that part is the framework's and not the rhythm's
+ (`stepBeat`), so a rhythm only ever gets to say what a ride looks like and what it leads to.
+ */
+const RHYTHMS = {
+  ring: { ride: rideTheRing, take: takeRingBeat, first: LOCKING },
+  mass: { ride: driftTheMass, take: takeMassBeat, first: OPENING },
+};
+
+/**
+ * The four beats a boss can be holding: `enter` starts the promise and writes down the numbers
+ * it is being shown with, `land` is what happens when the promise is kept. Both halves read the
+ * same numbers either way, which is the one rule every telegraph in this game is held to.
+ */
+const BEATS = {
+  [LOCKING]: { enter: lockSpokes, land: fireSpokes },
+  [RINGING]: { enter: windRing, land: throwRing },
+  [CALLING]: { enter: windCall, land: sendCall },
+  [OPENING]: { enter: lightCells, land: letThemOut },
+};
 
 /** The row of a boss by id. A name nobody wrote is an error, not a silent no-op. */
 function rowOf(id) {
@@ -87,6 +115,13 @@ function rowOf(id) {
 /** The phase a fight is in, out of the row and the index. Read in nine places; named once. */
 function phaseOf(boss) {
   return boss.row.phases[boss.phase];
+}
+
+/** The rhythm a row asked for. A name nobody wrote is an error, not a silent no-op. */
+function rhythmOf(boss) {
+  const rhythm = RHYTHMS[boss.row.rhythm];
+  if (rhythm === undefined) throw new Error('no boss rhythm is written: ' + boss.row.rhythm);
+  return rhythm;
 }
 
 /**
@@ -120,6 +155,8 @@ function newFight(id, index) {
     callAngle: 0,     // the bearing that fan of marks is centred on
     callStep: 0,      // and how far apart two of them stand, in radians
     called: [],       // whatever the last call sent that is still standing (`liveCall` below)
+    cells: [],        // the bodies a `mass` rhythm is built out of (`buildMass`, `breakMass`)
+    cellTurn: 0,      // which cell of the mass the next opening starts from, so they take turns
     volleys: 0,       // counters, like every line in the deck keeps
     beams: 0,
     rings: 0,
@@ -141,9 +178,71 @@ function holdsItsGround(enemy, step) {
   if (boss !== null && boss.enemy === enemy) enemy.rot = boss.angle;
 }
 
-/** The body's row: the boss's own numbers, with the walk above attached to them. */
+/**
+ * The walk the Hive's core is given, which is the thing a second boss asked the framework for:
+ * a boss may *walk*. The Warden's whole attack is a ring that turns on the spot, so the walk
+ * used to be hard-coded to nothing but turning. The mass drifts at the ship and keeps the band
+ * its row likes - everything it sends is faster than it is, and a hive that walks into your
+ * face has nothing left to do - and it stands perfectly still while it is showing you
+ * something, which is the same rule the ring rides by and the one that makes the cell you
+ * watched light be the cell the brood come out of, in the place you saw it standing.
+ *
+ * It is not `rooted`: a body with a hull bar is entitled to be shoved by the things that are
+ * hitting it, and a shove is the only way it will ever move sideways.
+ */
+function holdsItsMass(enemy, step) {
+  const boss = step.world.boss;
+  if (boss === null || boss.enemy !== enemy) return;
+  enemy.rot = boss.angle;          // the mass's face is its own turn, not the ship's bearing
+
+  if (boss.stage !== RIDING) {
+    glide(enemy, step, 0, 0, 0);   // standing still, but a shove still moves it
+    return;
+  }
+
+  const band = boss.row.approach;
+  const distance = Math.hypot(step.ship.x - enemy.x, step.ship.y - enemy.y);
+  const pace = distance > band.far ? enemy.speed : (distance < band.near ? -enemy.speed : 0);
+  advance(enemy, step, 0, pace);
+  // And the whole of the mass is kept inside the room that closed round the duel: the cage is
+  // the arena for the duration, and a boss that walked out through a wall would be a fight
+  // nobody can have. It is held by the mass's own reach and not by the core's, or the
+  // honeycomb would lean through the cage with half of itself outside the fight.
+  holdInField(step.world, enemy, massReach(boss));
+}
+
+/**
+ * A cell's walk: it holds its place in the mass. The mass turns and the cell turns with it, the
+ * mass stops and the cell stops, and nothing the crowd does to it shifts it, because a place in
+ * a wall is not a body with an opinion (`rooted`, game/kinds.js). Its own `timer` is the light
+ * of an opening that is not finished yet, spent here the way every other body spends the
+ * countdown of its own tell (game/kinds.js `aimProgress`).
+ */
+function holdsItsPlace(enemy, step) {
+  const hub = enemy.hub;
+  if (hub === null) return;
+  const spec = enemy.kind.stats;
+  const bearing = hub.rot + enemy.seat * TAU / spec.count;
+  enemy.x = hub.x + Math.cos(bearing) * spec.ring;
+  enemy.y = hub.y + Math.sin(bearing) * spec.ring;
+  enemy.rot = hub.rot;
+  if (enemy.timer > 0) enemy.timer -= step.dt;
+}
+
+/**
+ * What walks a boss body, per rhythm: the same keys as `RHYTHMS`, because a rhythm that rides
+ * by turning and a rhythm that rides by walking are two different walks and no more.
+ */
+const WALKS = { ring: holdsItsGround, mass: holdsItsMass };
+
+/** The body's row: the boss's own numbers, with the walk its rhythm asked for attached. */
 function kindOfBoss(row) {
-  return { stats: row, walk: holdsItsGround };
+  return { stats: row, walk: WALKS[row.rhythm] };
+}
+
+/** The row a cell of a mass is built from: the honeycomb's numbers, and the one walk it has. */
+function kindOfCell(spec) {
+  return { stats: spec, walk: holdsItsPlace, onDeath: cellComesOff };
 }
 
 /**
@@ -232,9 +331,12 @@ function arrive(world, boss) {
   const body = makeEnemy(world, boss.id, spot.x, spot.y, {
     kind: kindOfBoss(row),
     // The hull is written out and not left to the kind: `makeEnemy` scales a kind's hull
-    // with the run's clock (PLAN 3.3) and a boss's hull is the fight's length, priced for
+    // with the run's clock (game/kinds.js) and a boss's hull is the fight's length, priced for
     // the minute it is scheduled at and not for whatever the clock has done since.
     hp: row.hull,
+    // And so is its pace, for the same reason: a boss that walks is as fast as its own row says
+    // it is, and the crowd's speed scaling is a thing that happens to a wave.
+    speed: row.speed,
   });
   // The body is on the crowd's list from here. It joins the collision world on the next
   // step, the same rule a tank's hatchling lives by (game/kinds.js): the grid is this
@@ -246,12 +348,18 @@ function arrive(world, boss) {
   // The ring starts at the top. Not a roll: a run is a function of its seed and the way a
   // boss opens is part of the run, so two runs of one seed open the same way.
   boss.angle = -Math.PI / 2;
+  body.rot = boss.angle;   // the body wears its rhythm's facing from the very first frame;
+  //                        from the next step the crowd's own walks keep it there
   boss.timer = phaseOf(boss).wait;
   boss.beat = phaseOf(boss).wait;
   // And its first beat is its signature. A phase *change* leads with whatever the change is
   // new (`openPhase`); an arrival leads with the attack the run has already had time to learn
   // the name of, because a boss that opens with its strangest trick has nothing left to say.
-  boss.nextBeat = LOCKING;
+  boss.nextBeat = rhythmOf(boss).first;
+  // A mass arrives whole: the cells are part of the body that lands, so they are built here and
+  // not by a beat, and they join the collision world on the next step like everything else that
+  // appears mid-step (game/kinds.js).
+  if (row.cells !== undefined) buildMass(world, boss);
 
   const land = row.arrival;
   ring(world, body.x, body.y, row.color, land.ring.radius, land.ring.speed, land.ring.life);
@@ -277,11 +385,12 @@ function openPhase(world, boss) {
   boss.spokes = 0;
   boss.armed = 0;
   boss.callCount = 0;
+  putOutTheMass(boss);
   boss.timer = phase.wait;
   boss.beat = phase.wait;
   // Whatever is new about this phase gets the first beat, so the flare that announced it is
   // followed by the thing the flare was announcing rather than by another round of the old.
-  boss.nextBeat = phase.bullets === undefined ? LOCKING : RINGING;
+  boss.nextBeat = leadBeat(phase);
 
   ring(world, enemy.x, enemy.y, phase.tint, spec.ring.radius, spec.ring.speed, spec.ring.life);
   burst(world, enemy.x, enemy.y, phase.tint, spec.burst.count, spec.burst.speed, spec.burst.life);
@@ -308,46 +417,49 @@ function fireSpokes(world, boss, phase) {
 }
 
 /**
- * The ring's own beat: ride, stop dead, show what is coming, fire it, ride again. The stop is
- * the telegraph - the same grammar a darter uses to say it is about to commit (game/kinds.js)
- * - and it is a stop rather than a slower turn because the lines drawn have to be the lines
- * that hurt, edge for edge, and a ring still turning between the promise and the firing
- * would move them. That is as true of the door it lights for a bullet ring as of the spokes, so
- * both of them freeze it, and nothing about the ride changes between the two.
+ * One boss's turn, in the framework's own words: ride, and when the ride is up stop dead, show
+ * what is coming, land it, ride again. The stop is the telegraph - the same grammar a darter
+ * uses to say it is about to commit (game/kinds.js) - and it is a stop rather than a slower
+ * turn because what is on show has to be the thing that hurts, edge for edge, and a boss still
+ * moving between the promise and the firing would move it. That is as true of a ring of spokes
+ * or a lit cell as of a door in a bullet ring, so every beat freezes every rhythm, and nothing a
+ * rhythm does to its ride changes between the two.
+ *
+ * What the ride is - a ring turning on the spot, a mass drifting in - and what the ride leads to
+ * are the rhythm's (`RHYTHMS`); the clock of it is here and is the same for every boss there is.
  */
-function stepRing(world, boss, dt) {
+function stepBeat(world, boss, dt) {
+  const rhythm = rhythmOf(boss);
   const phase = phaseOf(boss);
   boss.timer -= dt;
 
-  if (boss.stage === LOCKING) {
-    if (boss.timer > 0) return;
-    fireSpokes(world, boss, phase);
+  if (boss.stage !== RIDING) {
+    if (boss.timer > 0) return;      // still showing it, exactly as it was shown
+    BEATS[boss.stage].land(world, boss, phase);
     rideAgain(boss, phase);
     return;
   }
 
-  if (boss.stage === RINGING) {
-    if (boss.timer > 0) return;
-    throwRing(world, boss, phase);
-    rideAgain(boss, phase);
-    return;
-  }
-
-  if (boss.stage === CALLING) {
-    if (boss.timer > 0) return;
-    sendCall(world, boss, phase);
-    rideAgain(boss, phase);
-    return;
-  }
-
-  boss.angle += phase.turn * dt;
-  if (boss.angle > TAU) boss.angle -= TAU;
+  rhythm.ride(world, boss, phase, dt);
   if (boss.timer > 0) return;
 
-  const beat = takeBeat(boss, phase);
-  if (beat === CALLING) windCall(world, boss, phase);
-  else if (beat === RINGING) windRing(world, boss, phase);
-  else lockSpokes(boss, phase);
+  BEATS[rhythm.take(boss, phase)].enter(world, boss, phase);
+}
+
+/** The Warden's ride: the whole ring turns, and the spokes it will fire are turned with it. */
+function rideTheRing(world, boss, phase, dt) {
+  boss.angle += phase.turn * dt;
+  if (boss.angle > TAU) boss.angle -= TAU;
+}
+
+/**
+ * The Hive's ride: the mass turns slowly, and the cells that light for the next opening are
+ * placed by that turning - which is the same reason the ring's spokes are, and the reason the
+ * mass holds its turn as well as its drift while a beat is running (`holdsItsMass`).
+ */
+function driftTheMass(world, boss, phase, dt) {
+  boss.angle += phase.spin * dt;
+  if (boss.angle > TAU) boss.angle -= TAU;
 }
 
 /** Back to riding, from the top of the phase's own patience. Nothing is being shown. */
@@ -356,6 +468,7 @@ function rideAgain(boss, phase) {
   boss.spokes = 0;
   boss.armed = 0;
   boss.callCount = 0;
+  putOutTheMass(boss);
   boss.timer = phase.wait;
   boss.beat = phase.wait;
 }
@@ -372,7 +485,7 @@ function rideAgain(boss, phase) {
  * rhythm the ship has learned. So the call is what happens when the run has answered it, which
  * is a rule a player can read off the crowd rather than off a clock.
  */
-function takeBeat(boss, phase) {
+function takeRingBeat(boss, phase) {
   if (phase.call !== undefined && liveCall(boss) === 0) return CALLING;
   if (phase.bullets === undefined) return LOCKING;
   const beat = boss.nextBeat;
@@ -381,23 +494,50 @@ function takeBeat(boss, phase) {
 }
 
 /**
+ * The mass has one beat, and it takes it whenever the ride comes round: the hive's whole attack
+ * is the brood, so there is nothing to alternate with and no "nothing is left of the last one"
+ * gate to wait on - a gate there would be a hole in the only rhythm it has, and a hive with a
+ * hole in it is a hive that is not fighting.
+ */
+function takeMassBeat(boss, phase) {
+  return OPENING;
+}
+
+/**
+ * Which beat a phase change leads with: whatever the new phase has that the one before it had
+ * not. A phase with a `spawn` row is a mass, and a mass has one beat; a Warden phase leads on
+ * the ring of shots if it grew one and on the spokes otherwise.
+ */
+function leadBeat(phase) {
+  if (phase.spawn !== undefined) return OPENING;
+  return phase.bullets === undefined ? LOCKING : RINGING;
+}
+
+/**
  * Whatever the last call sent that is still standing, compacted in place. Its length is the
- * whole of the summoning rule (`takeBeat`), and it is the list the ring lets go of when it goes
- * down (`bossDown`), so nothing else in the game has to know a boss can make bodies.
+ * whole of the summoning rule (`takeRingBeat`), and it is the list the ring lets go of when it
+ * goes down (`bossDown`), so nothing else in the game has to know a boss can make bodies.
  *
  * Dead ones are dropped here and nowhere else: a body leaves the crowd by dying, so `hp` is the
  * whole of the question and this is called once per ride, which is cheap enough to be honest
  * about and often enough that the list is never a pile of corpses.
  */
 function liveCall(boss) {
-  const live = boss.called;
+  return living(boss.called);
+}
+
+/**
+ * How many bodies of a list a fight still owns, compacting the list as it goes. The rule is the
+ * one above: a body leaves the crowd by dying, so `hp` is the whole of the question.
+ */
+function living(list) {
   let n = 0;
-  for (let i = 0; i < live.length; i++) {
-    if (live[i].hp <= 0) continue;
-    live[n] = live[i];
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].hp <= 0) continue;
+    list[n] = list[i];
     n++;
   }
-  live.length = n;
+  list.length = n;
   return n;
 }
 
@@ -429,7 +569,7 @@ function windCall(world, boss, phase) {
 }
 
 /** The spokes beat: hold still with the rays drawn, then send them. */
-function lockSpokes(boss, phase) {
+function lockSpokes(world, boss, phase) {
   boss.stage = LOCKING;
   boss.timer = phase.windup;
   boss.beat = phase.windup;
@@ -589,6 +729,192 @@ function dismissCall(world, boss) {
   cueChord(sound.notes, sound.dur, sound.wave, sound.vol);
 }
 
+/**
+ * The mass: the cells a hive is built out of, stood round the core at the bearings its row
+ * gives them. They are built the way a boss is (through `opts.kind`, game/kinds.js), which says
+ * the whole of what they are: bodies of the crowd, hurt by every gun and fire and blast in the
+ * game, worth their kind's score and shards, in the collision world from the next step like
+ * everything else that arrives mid-step - and not on the wave director's menu, which is the one
+ * thing `opts.kind` is for.
+ */
+function buildMass(world, boss) {
+  const spec = boss.row.cells;
+  const kind = kindOfCell(spec);
+  const enemy = boss.enemy;
+
+  for (let i = 0; i < spec.count; i++) {
+    const bearing = boss.angle + i * TAU / spec.count;
+    const x = enemy.x + Math.cos(bearing) * spec.ring;
+    const y = enemy.y + Math.sin(bearing) * spec.ring;
+    const cell = makeEnemy(world, 'cell', x, y, { kind: kind, hub: enemy, seat: i });
+    cell.rot = boss.angle;
+    world.enemies.push(cell);
+    noteArrival(world, cell);
+    boss.cells.push(cell);
+  }
+}
+
+/**
+ * The opening's wind-up: `share` of the cells that are still standing light up, and then that
+ * is what comes out of them.
+ *
+ * Which ones is no roll. They are taken in order round the mass from wherever the last opening
+ * left off, so every cell takes its turn and one seed opens the same cells in the same order
+ * twice over. The count is a share of the *living* mass - rounded, and never none of it - which
+ * is the whole of the reason to shoot the honeycomb: break the mass and the swarms thin out with
+ * it, on the same beat that takes the bar down with them.
+ */
+function lightCells(world, boss, phase) {
+  const spec = phase.spawn;
+  const cells = boss.cells;
+  const standing = living(cells);
+
+  boss.stage = OPENING;
+  boss.timer = spec.windup;
+  boss.beat = spec.windup;
+
+  // With nothing left to open the beat is spent on the core itself (`letThemOut`), so it is
+  // still entered and the rhythm keeps its beat even once the mass is gone.
+  if (standing > 0) {
+    const want = Math.min(standing, Math.max(1, Math.round(standing * spec.share)));
+    for (let i = 0; i < want; i++) {
+      const cell = cells[(boss.cellTurn + i) % standing];
+      cell.stage = OPENING;
+      cell.timer = spec.windup;
+      cell.stageTime = spec.windup;
+    }
+    boss.cellTurn = (boss.cellTurn + want) % standing;
+  }
+
+  const sound = spec.wind.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * What an opening is worth: every cell that was lit lets out `each` bodies, `step` radians
+ * apart, out of the side of itself that faces away from the core and `gap` px clear of its own
+ * edge - so nothing is born inside a body that hurts you, and the mouth you watched is the
+ * mouth they came out of, edge for edge.
+ *
+ * They are one pack per mouth (game/flock.js), which is what a swarmling *is*: bodies that
+ * bunch, commit and dive as one thing, so six of them are one threat to read and not six.
+ */
+function letThemOut(world, boss, phase) {
+  const spec = phase.spawn;
+  const enemy = boss.enemy;
+  let sent = 0;
+
+  for (let i = 0; i < boss.cells.length; i++) {
+    const cell = boss.cells[i];
+    if (cell.stage !== OPENING || cell.hp <= 0) continue;
+    sent += broodFrom(world, boss, spec, phase, cell.x, cell.y, cell.r,
+      Math.atan2(cell.y - enemy.y, cell.x - enemy.x));
+    cell.stage = '';
+    cell.timer = 0;
+  }
+
+  // And when the mass has been shot to pieces the core opens instead. It is the last thing the
+  // hive has and not a hole in the rhythm: the light in the middle of it is the same countdown
+  // the cells wore, fanned out along the way it is facing, and it promises the same number.
+  if (sent === 0) sent += broodFrom(world, boss, spec, phase, enemy.x, enemy.y, enemy.r, boss.angle);
+
+  boss.calls++;
+  boss.summons += sent;
+
+  const fire = spec.fire;
+  ring(world, enemy.x, enemy.y, phase.tint, fire.ring.radius, fire.ring.speed, fire.ring.life);
+  shakeIt(world, fire.shake);
+  const sound = fire.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * One mouth opening: `each` bodies of the kind the phase named, thrown out of it along `bearing`
+ * and `step` radians apart. Answers how many came out, because a summon volley counts itself.
+ *
+ * They are the crowd's own kind and nothing about them is special (the ring's summons are built
+ * the same way, game/bosses.js `sendCall`): a swarm that was a new kind of body would be a
+ * second thing to learn on top of the mass that is already being learned.
+ */
+function broodFrom(world, boss, spec, phase, x, y, r, bearing) {
+  const middle = (spec.each - 1) / 2;
+  const kind = BALANCE.kinds[spec.type];
+  const pack = kind.flock === undefined ? null : newPack(kind.flock, x, y);
+  if (pack !== null) world.flocks.push(pack);
+
+  for (let i = 0; i < spec.each; i++) {
+    const angle = bearing + (i - middle) * spec.step;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const at = { x: x + dx * (r + spec.gap), y: y + dy * (r + spec.gap) };
+    const body = makeEnemy(world, spec.type, at.x, at.y, { flock: pack });
+    // Out of the mouth and clear of it, which is the only shove they get: what comes out of a
+    // cell walks the rest of the way on its own wings, at the crowd's own pace.
+    body.ix = dx * spec.impulse;
+    body.iy = dy * spec.impulse;
+    world.enemies.push(body);
+    noteArrival(world, body);
+    burst(world, at.x, at.y, phase.tint,
+      spec.fire.spark.count, spec.fire.spark.speed, spec.fire.spark.life);
+  }
+  return spec.each;
+}
+
+/** Every cell that was lit, put out: the beat that lit it is over, one way or the other. */
+function putOutTheMass(boss) {
+  for (let i = 0; i < boss.cells.length; i++) {
+    const cell = boss.cells[i];
+    if (cell.stage !== OPENING) continue;
+    cell.stage = '';
+    cell.timer = 0;
+  }
+}
+
+/**
+ * A cell coming off the mass takes its share of the hull with it, which is what makes the bar
+ * the mass and not a number sitting next to it: every point of the hive's hull is a cell
+ * somebody can shoot, and the fight does not care whether it was spent on the honeycomb or on
+ * the middle of it. `byPlayer` comes straight from the death, so a blast the run lit pays out
+ * like a shot the run fired.
+ */
+function cellComesOff(world, cell, byPlayer) {
+  const boss = world.boss;
+  if (boss === null || boss.enemy === null) return;
+  // A core that has already stopped existing has nothing left to take it off, and hurting it
+  // again would bury it twice (game/enemies.js `killEnemy` insists on being called once).
+  if (boss.enemy.hp <= 0) return;
+  damageEnemy(world, boss.enemy, boss.row.cells.share * boss.enemy.maxhp, byPlayer);
+}
+
+/**
+ * The hive going down with cells still standing: the whole honeycomb comes apart where it is,
+ * unpaid, in one chord for the mass rather than one per cell, because they are one event - the
+ * fight letting go of its own body. Same rule the ring's summons are dismissed by, and for the
+ * same reason: a duel that ended with two hexes of wax still clinging to a core would end on a
+ * loose end and not on the chord.
+ */
+function breakMass(world, boss) {
+  if (boss.cells.length === 0) return;
+  const spec = boss.row.cells.fall;
+  const phase = phaseOf(boss);
+
+  for (let i = 0; i < boss.cells.length; i++) {
+    const cell = boss.cells[i];
+    if (cell.hp <= 0) continue;
+    // `killEnemy` takes a body out of the crowd and the caller empties it, and nothing hurt
+    // these, so the hull has to be written to zero by hand (game/enemies.js).
+    cell.hp = 0;
+    const spark = spec.spark;
+    spray(world, cell.x, cell.y, phase.tint, spark.count, spark.speed, spark.life,
+      cell.rot, spark.spread);
+    killEnemy(world, cell, false);
+  }
+  boss.cells.length = 0;
+
+  const sound = spec.sound;
+  cueChord(sound.notes, sound.dur, sound.wave, sound.vol);
+}
+
 /** A boss that has stopped existing: the room opens, the run is paid, the arena quiets. */
 function bossDown(world, boss) {
   const spec = BALANCE.bosses;
@@ -599,6 +925,7 @@ function bossDown(world, boss) {
   world.bossesDown++;
   openField(world);
   dismissCall(world, boss);
+  breakMass(world, boss);
 
   // The body is already paid for by `killEnemy` - score, shards, the wreck, the noise of
   // it. What a boss gets on top of that is the framework's, and the one thing worth money
@@ -657,10 +984,10 @@ export function updateBosses(world, dt) {
     return;
   }
 
-  stepRing(world, boss, dt);
-  // The body wears the ring's facing at the end of the step as well as during the crowd's own
-  // (game/bosses.js `holdsItsGround`), so a frame or a contact test that reads `rot` never finds
-  // it a step behind the ring that was turned after the crowd was walked.
+  stepBeat(world, boss, dt);
+  // The body wears the rhythm's facing at the end of the step as well as during the crowd's own
+  // (game/bosses.js `holdsItsGround`, `holdsItsMass`), so a frame or a contact test that reads
+  // `rot` never finds it a step behind a ring that was turned after the crowd was walked.
   boss.enemy.rot = boss.angle;
 }
 
@@ -687,6 +1014,66 @@ export function bossOf(world) {
 export function isBossBody(world, enemy) {
   const boss = world.boss;
   return boss !== null && boss.enemy === enemy;
+}
+
+/**
+ * Is this body one of the cells a boss's mass is built out of? A cell is a body of the crowd in
+ * every way that matters - it is hurt, it pays out, it walks - but it is drawn with its boss and
+ * not as a drifter of its own, because a hexagon of wax on its own is not a thing a player can
+ * read (render/entities.js asks, and skips what this answers yes to).
+ *
+ * It is one step away from `isBossBody`: a cell knows the body it is part of, so nothing here
+ * searches a list once per body per frame.
+ */
+export function isBossPart(world, enemy) {
+  return enemy.hub !== null && isBossBody(world, enemy.hub);
+}
+
+/**
+ * Which art a boss wears: the ring's or the mass's. The frame asks this rather than matching on
+ * the boss's id, so a third boss is a row and not an edit (render/boss.js).
+ */
+export function bossShape(boss) {
+  return boss.row.rhythm;
+}
+
+/** The bodies a mass is made of, whole or broken - the frame draws the holes as well. */
+export function bossCells(boss) {
+  return boss.cells;
+}
+
+/** How many cells of the mass are still standing. Reads; does not compact (game/bosses.js). */
+export function cellsStanding(boss) {
+  let n = 0;
+  for (let i = 0; i < boss.cells.length; i++) {
+    if (boss.cells[i].hp > 0) n++;
+  }
+  return n;
+}
+
+/**
+ * How far the mass reaches: the core's middle to the outside edge of an outer cell. It is what
+ * the cage holds the core by (game/bosses.js `holdsItsMass`) and what the frame culls with, so
+ * that no cell can be standing in the arena with its boss off the window and therefore
+ * undrawn (render/boss.js).
+ */
+export function massReach(boss) {
+  return boss.row.cells.ring + boss.row.cells.radius;
+}
+
+/**
+ * Is this cell lighting up for an opening? It is the body's own beat, told the way every other
+ * body tells one (game/kinds.js `isSpitting`), so the frame draws a cell's tell with the same
+ * arithmetic it draws a spitter's mouth with.
+ */
+export function cellOpening(cell) {
+  return cell.stage === OPENING;
+}
+
+/** How far through its opening a cell stands, 0 when it is not having one. */
+export function cellProgress(cell) {
+  if (cell.stage !== OPENING) return 0;
+  return clamp(1 - cell.timer / (cell.stageTime || 1), 0, 1);
 }
 
 /** The name on the bar and on the warning. */
@@ -843,13 +1230,16 @@ export function callProgress(boss) {
 }
 
 /**
- * How far through whatever it is showing it stands - the spokes, the door or the call, whichever
- * it is. The body's own core light is driven off this so that it says "something is coming" either
- * way (render/boss.js), which is the one question a frame may ask without knowing what a boss's
- * attack plan turns out to be.
+ * How far through whatever it is showing it stands - the spokes, the door, the call or the mass,
+ * whichever it happens to be. The body's own core light is driven off this so that it says
+ * "something is coming" whatever the boss's plan turns out to be, which is the one question a
+ * frame may ask without knowing what a boss's attack plan is.
+ *
+ * It is `beatProgress` with the ride taken out of it: every beat is a hold of a known length,
+ * and which one it is does not change how far through it the boss stands.
  */
 export function windupProgress(boss) {
-  return Math.max(spokeProgress(boss), gapProgress(boss), callProgress(boss));
+  return boss.stage === RIDING ? 0 : beatProgress(boss);
 }
 
 /** How far through the beat it stands, whether it is riding or holding - the bar's breathing. */

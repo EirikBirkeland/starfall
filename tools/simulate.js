@@ -103,7 +103,11 @@ function reportLine(summary) {
     // A boss worth naming: which one, how much of it was left when the run stopped, and how many
     // came down (game/bosses.js). Without this a boss fight is invisible in the report.
     + (s.boss !== '' ? '  boss ' + s.boss + ' @' + Math.round(s.bossHull * 100) + '% phase ' + s.bossPhase : '')
+    + (s.bossCells > 0 ? ' mass ' + s.bossCells : '')
     + (s.bossesDown > 0 ? '  bosses down ' + s.bossesDown : '')
+    // And, when the run ended, what it ended of: a swarm, a wall, a spoke. The tally keeps it
+    // (game/tally.js) and it is the difference between a balance number and a guess.
+    + (summary.died ? '  killed by ' + (s.killedBy || 'nothing') : '')
     // What the run was built from, in the order game/upgrades.js lists the lines.
     + '  build ' + Object.values(s.ranks).join('/');
 }

@@ -229,6 +229,13 @@ export function makeEnemy(world, type, x, y, opts) {
     // derived is what is *in* it - the middle, the heading, the beat - and those are
     // worked out again every step.
     flock: chosen(opts, 'flock', null),
+    // The body this one is part of, and its place round it. Everything that flies with a pack
+    // has a `flock` above; this is the other kind of relationship a body can have - a cell of
+    // the mass a boss is built out of knows the core it keeps its place beside, and which of the
+    // six places round it is its own (game/bosses.js `holdsItsPlace`). null for every body that
+    // is a body of its own, which is nearly every body in the game.
+    hub: chosen(opts, 'hub', null),
+    seat: chosen(opts, 'seat', 0),
     ix: chosen(opts, 'ix', 0),
     iy: chosen(opts, 'iy', 0),
     ambient: false,
@@ -260,8 +267,11 @@ export function makeEnemy(world, type, x, y, opts) {
  * chilled body cannot do under its own engines it can still be made to do by something
  * hitting it, which is what keeps a knot of frozen bodies a thing you can push clear instead
  * of a wall you have to fly around.
+ * Exported for the boss walks (game/bosses.js): a boss is stepped by the crowd, so it gets
+ * the same treatment - frost off the walking, a shove carried, drag spent - and there is no
+ * second copy of those rules for a future session to get wrong.
  */
-function glide(enemy, step, dx, dy, pace) {
+export function glide(enemy, step, dx, dy, pace) {
   const walk = pace * (1 - enemy.frost);
   enemy.x += (dx * walk + enemy.ix) * step.dt;
   enemy.y += (dy * walk + enemy.iy) * step.dt;
@@ -272,9 +282,10 @@ function glide(enemy, step, dx, dy, pace) {
 /**
  * Walk this enemy one step along the line to the ship, `swerve` radians off it,
  * at `pace` px/s or at its own if nothing is given. Answers the direction it
- * walked, which is where a nose points unless the kind says so.
+ * walked, which is where a nose points unless the kind says so. A negative `pace` is walking
+ * backwards along that line, which is how a boss that wants the room backs off (game/bosses.js).
  */
-function advance(enemy, step, swerve, pace) {
+export function advance(enemy, step, swerve, pace) {
   const heading = Math.atan2(step.ship.y - enemy.y, step.ship.x - enemy.x);
   glide(enemy, step, Math.cos(heading + swerve), Math.sin(heading + swerve),
     pace === undefined ? enemy.speed : pace);

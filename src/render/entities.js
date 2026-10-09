@@ -17,9 +17,9 @@ import {
   isSpitting, lungeReach,
 } from '../game/kinds.js';
 import {
-  isBossBody, armedCount, bossTint, callAngle, callBody, callCount, callProgress, callStand,
-  callStep, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf, spokeProgress,
-  spokeStep,
+  isBossBody, isBossPart, armedCount, bossTint, callAngle, callBody, callCount, callProgress,
+  callStand, callStep, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf,
+  spokeProgress, spokeStep,
 } from '../game/bosses.js';
 import { drawBoss } from './boss.js';
 import { frostOf, isFrozen } from '../game/chill.js';
@@ -993,6 +993,11 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   // (render/boss.js). Asked of the fight and not of the body's type name, because the boss is
   // not one of the kinds (game/bosses.js) and nothing here should have to learn its id.
   if (isBossBody(world, enemy)) { drawBoss(ctx, world.boss, enemy, alpha); return; }
+  // And a cell of a boss's mass is drawn with its boss as well, in one pass over the whole
+  // honeycomb: it is a body of the crowd in every way that matters - it is hurt, it pays out, it
+  // walks - but a lone hexagon of wax is not a thing a player can read, and seven of them joined
+  // up by one painter is a mass (render/boss.js, game/bosses.js `isBossPart`).
+  if (isBossPart(world, enemy)) return;
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
   // moves, this says what it is made of. A new kind that is not a plain polygon
   // gets a branch here as well as its row there.

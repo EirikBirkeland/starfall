@@ -205,6 +205,10 @@ export function updateEnemies(world, dt) {
     // Soft separation, so the crowd spreads out instead of stacking.
     for (let j = i - 1; j >= 0; j--) {
       const other = world.enemies[j];
+      // A body that is part of another body is one thing with it: a cell of a boss's mass and the
+      // core it keeps its place beside overlap on purpose, and room-making between the parts of
+      // one object would have the mass jostling its own centre out of place (game/bosses.js).
+      if (other === enemy.hub || enemy === other.hub) continue;
       const dx = enemy.x - other.x;
       const dy = enemy.y - other.y;
       const radii = enemy.r + other.r;

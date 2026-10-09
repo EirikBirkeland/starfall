@@ -690,6 +690,16 @@ When every item above is ticked, go back to the first unchecked item of mileston
       not a third clock it keeps. `test/warden.test.mjs` owns all of it, and
       `test/bosses.test.mjs` holds every beat of every phase to `telegraphMin`.)
 - [ ] The Hive, one phase per session.
+      (Phases 1 and 2 are in, and so are the three permissions they cost the framework: a row
+      names its `rhythm` (`ring` for the Warden, `mass` for this one), a boss may walk, and a
+      boss may be made of bodies. The Hive is a core with six rooted hex cells round it, and its
+      one beat is an opening - a share of the cells that are still standing light for `windup`,
+      then each of them lets out a pack of swarmlings out of the side facing away from the core.
+      Breaking a cell takes a share of the hull off the bar, costs the hive a mouth, and pays its
+      own score and shards, which is the whole of the reason the honeycomb is there. Owed: the
+      third phase as PLAN describes it, which breaks the hive into three smaller hives - phase 3
+      currently opens every mouth the hive has left instead. `test/hive.test.mjs` and the mass
+      tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
 - [ ] Victory screen and the endless mode that follows.
 - [ ] Release.

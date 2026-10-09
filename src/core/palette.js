@@ -82,6 +82,15 @@ export const PALETTE = {
   // must be - and a player who conflates them would hug a wall with a door on the far side.
   bossGap: '#9fe8ff',
   bossGapLine: '#eafcff',
+  // The Hive's mass (PLAN 3.4's 10:00, game/bosses.js). Its cells are set in a wax - a warm
+  // brown that is the Warden's amber gone dry, so the two bosses cannot be mistaken for one
+  // another even in a screenshot, and is nowhere near the scarlet of the swarm that comes out
+  // of them. What lights up is the phase's own tint, the same rule every other boss light
+  // obeys; the wax is only the material the thing is built out of, and so never changes colour
+  // between one phase and the next.
+  hiveWax: '#7a5319',
+  hiveCell: '#e8b25a',
+  hiveCellFill: 'rgba(232,178,90,0.13)',
 
   // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
   // the floor, so it is cool-coloured like everything else the ship owns even though what it does
