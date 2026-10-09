@@ -313,6 +313,7 @@ export function playOneRun(game, options) {
 
   let frames = 0;
   let died = false;
+  let won = false;
   const trace = [];
   // Where the boss fight stood the last time the trace looked, for the lines below
   // (game/bosses.js).
@@ -383,8 +384,16 @@ export function playOneRun(game, options) {
         bossCores = stats.bossCores;
       }
     }
-    if (game.stats().state === game.STATE.OVER) {
+    const ended = game.stats().state;
+    if (ended === game.STATE.OVER) {
       died = true;
+      break;
+    }
+    // The other ending a run can reach (game/run.js `winRun`): the schedule is out and the ship is
+    // still standing. It is not "still flying at the cap" either - the run finished, and a batch
+    // that counted it as a survival would be claiming the bot outlasted a window it never tried.
+    if (ended === game.STATE.WON) {
+      won = true;
       break;
     }
   }
@@ -395,6 +404,7 @@ export function playOneRun(game, options) {
 
   return {
     died: died,
+    won: won,
     policy: opts.policy === undefined ? DEFAULT_POLICY : opts.policy,
     seed: game.world.seed,
     // What the run was made of, counted as it went (game/tally.js). The run keeps
@@ -432,8 +442,10 @@ export function endingItAt(seconds) {
   return function finishIt(game, frames) {
     if (frames * FRAME_MS < seconds * 1000) return;
     // Once the run has ended there is nothing left to end, and a hull written back to
-    // one after the death would be a lie in whatever the test reads off the summary.
-    if (game.world.state === game.STATE.OVER) return;
+    // one after the death would be a lie in whatever the test reads off the summary. And a
+    // won run has ended too - outlasting the schedule is an ending, and killing the ship
+    // afterwards to make the test's point would be a lie of the same shape.
+    if (game.world.state === game.STATE.OVER || game.world.state === game.STATE.WON) return;
     const ship = game.player;
     ship.hull = 1;
     ship.invuln = 0;

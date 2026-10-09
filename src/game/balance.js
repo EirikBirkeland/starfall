@@ -3112,6 +3112,30 @@ export const BALANCE = {
     sound: { notes: [520, 392, 262], dur: 0.32, wave: 'sawtooth', vol: 0.16 },
   },
 
+  // The end of the schedule (PLAN 3.4: "after the Eclipse, the run is won"), and the moment it
+  // is made of. game/run.js spends it the step the last fight comes down, and a win is an ending
+  // the same way a death is: the arena stops, and nothing in it can hurt anything again.
+  victory: {
+    // How long the arena holds still before the card goes up. The fight's own going-down chord
+    // (`bosses.sound.down`) is 1.6 s long and is the first half of the moment; the card landing on
+    // its tail is the second half. A card on the same frame as the kill is a cut, and a card two
+    // seconds late is a wait - this is the difference between the two.
+    hush: 1.6,
+    // The win's own noise, written to sit *on top of* that going-down chord and not after it: the
+    // boss's is a C-major arpeggio and this is the same shape an octave open above it, so the two
+    // together are one fanfare rather than two arguments. There is deliberately no second cue
+    // when the card lands - the run has stopped stepping by then, and the simulation has no
+    // business knowing when a card goes up.
+    sound: { notes: [784, 1046, 1318, 1568], dur: 1.8, wave: 'triangle', vol: 0.12 },
+    // Three things out of the ship, which is where the win happened: the shape a death makes (a
+    // burst, two rings, a shudder) in the colours a win wears - the ship's own cyan, white, and the
+    // gold a reward is written in.
+    burst: { count: 70, speed: 520, life: 1.1 },
+    ring: { radius: 10, speed: 760, life: 0.9 },
+    wideRing: { radius: 34, speed: 300, life: 1.4 },
+    shake: 16,
+  },
+
   levelUp: {
     burst: { count: 22, speed: 280, life: 0.7 },
     ring: { radius: 10, speed: 340, life: 0.55 },

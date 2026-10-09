@@ -45,6 +45,7 @@ const SCREEN = {
   [STATE.PLAY]: 'playing',
   [STATE.LEVEL]: 'choosing',
   [STATE.OVER]: 'over',
+  [STATE.WON]: 'won',
 };
 
 /** The keys the ship answers to, and what `move` calls them. */
@@ -208,6 +209,9 @@ function describeRun(world) {
     // player is shown spells this out in words (game/upgrades.js `describeRanks`).
     build: describeRanksTaken(world),
     // Why it ended, in the game's own words (game/tally.js), and what it cost what.
+    // `won` is the other half of that answer: a run that outlasted the whole schedule ended as
+    // well as one that ran out of hull did, and the two are not the same event.
+    won: tally.won,
     died: {
       killedBy: tally.killedBy,
       hullLost: tally.hullLost,
@@ -318,6 +322,11 @@ export function createSession(game, options) {
     };
     if (world.state === STATE.OVER) {
       out.restartIn = Math.max(0, +(BALANCE.runOver.restartGuard - world.overTimer).toFixed(2));
+    }
+    // Over a win the wait is not the key guard but the card: the hush is what has to pass before
+    // the game will take somewhere else (game/run.js `victoryCardIsUp`).
+    if (world.state === STATE.WON) {
+      out.restartIn = Math.max(0, +(BALANCE.victory.hush - world.overTimer).toFixed(2));
     }
     return out;
   }
@@ -520,9 +529,12 @@ export function createSession(game, options) {
     game.key('Space', false);
     notice();
     if (game.world.state !== STATE.PLAY) {
-      refuse('the game did not start' + (game.world.state === STATE.OVER
+      const why = game.world.state === STATE.OVER
         ? '; it has only just ended, so let it be for ' + BALANCE.runOver.restartGuard + 's and try again'
-        : ''));
+        : game.world.state === STATE.WON
+          ? '; it was won, and its card has ' + BALANCE.victory.hush + 's of hush still on it'
+          : '';
+      refuse('the game did not start' + why);
     }
     return { screen: 'playing', seed: game.world.seed, weapon: weaponName(game.world) };
   }
@@ -555,6 +567,13 @@ export function createSession(game, options) {
         // take another: let that tick by, and come back as soon as it would.
         reason = 'died';
         if (game.world.overTimer > BALANCE.runOver.restartGuard) break;
+      }
+      if (screen === 'won') {
+        // A won run has the same one business and a longer wait: the hush the card arrives on
+        // (game/run.js `winRun`). An agent that steps over a win would otherwise sit through the
+        // whole window watching an arena that has stopped.
+        reason = 'won';
+        if (game.world.overTimer > BALANCE.victory.hush) break;
       }
     }
     return { advanced: +(run * FRAME_SECONDS).toFixed(2), reason: reason, status: status() };

@@ -76,6 +76,7 @@ const SCREEN = {
   [STATE.PLAY]: 'a run',
   [STATE.LEVEL]: 'an upgrade choice',
   [STATE.OVER]: 'game over',
+  [STATE.WON]: 'a won run',
 };
 
 function readArgs(argv) {

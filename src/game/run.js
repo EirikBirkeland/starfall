@@ -8,7 +8,7 @@ import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
 import { burst, ring, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
-import { newTally } from './tally.js';
+import { newTally, noteVictory } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
 import { applyShip } from './ships.js';
@@ -163,15 +163,23 @@ export function startRun(world) {
   burst(world, world.player.x, world.player.y, PALETTE.player, spec.burst.count, spec.burst.speed, spec.burst.life);
 }
 
-/** The ship is gone. Bank the score and let the screen show it. */
-export function endRun(world) {
-  world.state = STATE.OVER;
-  world.overTimer = 0;
+/**
+ * Bank the score. Both endings go through here: a run that stopped and a run that finished are
+ * two ways of being over, and the best score does not care which one it was.
+ */
+function bankBest(world) {
   world.newBest = world.score > world.best;
   if (world.newBest) {
     world.best = world.score;
     saveBest(world.best);
   }
+}
+
+/** The ship is gone. Bank the score and let the screen show it. */
+export function endRun(world) {
+  world.state = STATE.OVER;
+  world.overTimer = 0;
+  bankBest(world);
 
   const spec = BALANCE.runOver;
   burst(world, world.player.x, world.player.y, PALETTE.player,
@@ -186,8 +194,59 @@ export function endRun(world) {
   cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
 }
 
-/** Restart is blocked for a moment so the death key press is not eaten. */
+/**
+ * The last fight on the schedule has come down and the ship is still standing: the run is won
+ * (PLAN 3.4). game/bosses.js asks for this the step that happens and nobody else does.
+ *
+ * It is an ending and not a reward round: the arena stops exactly as it stops for a death, so
+ * nothing in it can take a hull off a ship that has already finished. What a death does not get
+ * is the hush - a moment of frozen arena with nothing over it, which is where the fight's own
+ * going-down is heard, and the only reason `BALANCE.victory.hush` exists.
+ */
+export function winRun(world) {
+  // Only a run that is flying can be won. The crowd is walked before the boss framework
+  // (game/world.js), so a fight can take the run's last hull in the same step it loses its own,
+  // and a wreck does not get to be a win as well (test/victory.test.mjs).
+  if (world.state !== STATE.PLAY) return;
+
+  world.state = STATE.WON;
+  world.overTimer = 0;
+  bankBest(world);
+  noteVictory(world);
+
+  const spec = BALANCE.victory;
+  const ship = world.player;
+  burst(world, ship.x, ship.y, PALETTE.player, spec.burst.count, spec.burst.speed, spec.burst.life);
+  ring(world, ship.x, ship.y, PALETTE.white, spec.ring.radius, spec.ring.speed, spec.ring.life);
+  ring(world, ship.x, ship.y, PALETTE.elite, spec.wideRing.radius, spec.wideRing.speed,
+    spec.wideRing.life);
+  shakeIt(world, spec.shake);
+  cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
+}
+
+/**
+ * Is the win's card up? It goes up `BALANCE.victory.hush` after the fight came down, and it is
+ * the only thing that says the win is over: until it is, the run is still holding still in front
+ * of an arena nobody has been told about yet.
+ *
+ * The frame asks this to know when to put the card on the glass, and `canStartRun` asks it to
+ * know when the player is allowed to be somewhere else - one number, one answer, so the card and
+ * the key that dismisses it cannot come apart.
+ */
+export function victoryCardIsUp(world) {
+  return world.state === STATE.WON && world.overTimer > BALANCE.victory.hush;
+}
+
+/**
+ * Restart is blocked for a moment after an ending: over a wreck so the key that died is not eaten
+ * on the way to the next run, and over a win because the card has to be up before the run can be
+ * left (game/run.js `victoryCardIsUp`).
+ */
 export function canStartRun(world) {
   if (world.state === STATE.START) return true;
-  return world.state === STATE.OVER && world.overTimer > BALANCE.runOver.restartGuard;
+  if (world.state === STATE.OVER) return world.overTimer > BALANCE.runOver.restartGuard;
+  // A won run cannot be left before its card is up. The hush is not a guard to wait out on the
+  // way to somewhere else; it is the win happening, and the card is what ends it.
+  if (world.state === STATE.WON) return victoryCardIsUp(world);
+  return false;
 }

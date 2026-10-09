@@ -133,6 +133,11 @@ export function newTally() {
     hullLost: 0,
     hurtBy: {},        // 'body:tank' -> how many hulls that cost
     killedBy: '',      // what took the last hull, so: why the run ended
+    // Did this run finish, or did it only stop? A run that outlasted the whole schedule is the
+    // only kind that was *won* (game/run.js `winRun`), and a report that cannot tell the two
+    // apart cannot tell a hard run from a long one.
+    won: false,
+    wonAt: -1,         // the run's clock when it was won; -1 when it never was
     kinds: {},         // kind name -> the row above
   };
 }
@@ -237,4 +242,13 @@ export function noteHullLoss(world, cause) {
   tally.hullLost++;
   tally.hurtBy[label] = (tally.hurtBy[label] || 0) + 1;
   if (world.player.hull <= 0) tally.killedBy = label;
+}
+
+/**
+ * The run outlasted every fight it was scheduled. Nothing reads this back - it is a fact about
+ * how the run ended, written next to the facts about what it was made of (game/tally.js).
+ */
+export function noteVictory(world) {
+  world.tally.won = true;
+  world.tally.wonAt = world.elapsed;
 }

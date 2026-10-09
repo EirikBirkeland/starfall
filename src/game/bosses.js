@@ -64,8 +64,16 @@
 //     ship, every shot in the air, and the fight's own bodies (render/darkness.js). No boss ever
 //     has to put the room back: a phase that wrote no `dark` row asks for a bright room, and so does
 //     an arena with no fight in it, so the light always comes back by itself and there is nothing to
-//     reset. It is paint the simulation is asked to describe and never to obey: nothing in game/
-//     reads it back, so a fight may take the room away without moving one thing in it.
+//     reset - which is why the ramp is stepped by the world and not by the fight, and keeps walking
+//     back over a run that has stopped. It is paint the simulation is asked to describe and never to
+//     obey: nothing in game/ reads it back, so a fight may take the room away without moving one
+//     thing in it.
+//
+//   **The end of the schedule.** The list is the length of the game, and walking it to the end is
+//     winning: when the last fight on it comes down and the ship is still standing, the run is
+//     over and it was won, and the framework hands the ending over to game/run.js (`winRun`).
+//     That is the only thing the schedule is ever asked besides who walks in, and the only thing
+//     this file knows about the run it is fighting in.
 //
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
@@ -84,6 +92,11 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { TAU, clamp } from '../core/math.js';
 import { logic } from '../core/rng.js';
+// The run's own life cycle, for the one thing this file has to say about the run it is fighting in:
+// that the schedule has run out. It is a two-way import (game/run.js reaches back here for
+// `resetBosses`) and it is safe for the reason every cycle is safe - neither file uses the other at
+// the moment it is evaluated, only later, from inside a function.
+import { winRun } from './run.js';
 import { glide, makeEnemy } from './kinds.js';
 import { damageEnemy, killEnemy } from './enemies.js';
 import { noteArrival } from './tally.js';
@@ -1531,6 +1544,12 @@ function bossDown(world, boss) {
   addText(world, where.x, where.y - enemy.r, boss.row.name + ' IS DOWN', PALETTE.elite);
   cueChord(spec.sound.down.notes, spec.sound.down.dur, spec.sound.down.wave, spec.sound.down.vol);
   world.spawnTimer = Math.max(world.spawnTimer, spec.resume);
+
+  // And if this was the last fight the schedule had, that is the run over - won. The schedule is
+  // the whole length of the game (PLAN 3.4: "after the Eclipse, the run is won"), the run walks it
+  // once, and `bossIndex` has just moved past this one, so "last" is one comparison. `winRun` is
+  // the one that asks whether the ship is still standing to be won (game/run.js).
+  if (boss.index + 1 >= spec.schedule.length) winRun(world);
 }
 
 /**
@@ -1552,17 +1571,20 @@ function darknessAsked(boss) {
 /**
  * Walk the room's light one step towards what the fight asked for.
  *
- * It is stepped here, first, and on every step there is a boss system at all - including the steps
- * on which there is no fight in the arena - because the one thing this must never need is a reset.
- * A run that wins in the dark, a run that dies in it, a run whose browser tab is punted: in every
- * one of them the room is on its way back to bright and there is no loose end to tidy.
+ * The world steps this (game/world.js `stepWorld`) and not `updateBosses`, and that is the whole of
+ * the reason a room can always be handed back: the step is taken while a run is flying *and* while
+ * it lies still over an ending, and it is held only by the two things that genuinely stop the world
+ * - a hit-stop, and the cards. A run that wins in the dark, a run that dies in it, a run whose tab
+ * is punted: in every one of them the room is on its way back to bright and there is no loose end
+ * to tidy. Over a won run that is more than tidy-up - the sun has come down and the night lets go
+ * of the room while the card is arriving, which is the reward the row's own comment promises.
  *
  * It is a step of the simulation and not of the frame, so a hit-stop holds the night still with
  * everything else and a level-up pause does not let it creep ahead of the fight it belongs to.
  * And it is only ever looked at by the eye: nothing in game/ reads `world.darkness` back, so a boss
  * may take the room away without moving one thing in it (render/darkness.js).
  */
-function stepDarkness(world, dt) {
+export function stepDarkness(world, dt) {
   const want = darknessAsked(world.boss);
   const ramp = BALANCE.bosses.dark;
   if (want > world.darkness) {
@@ -1582,7 +1604,6 @@ function stepDarkness(world, dt) {
  * the player's favour, which is the same direction every other telegraph in the game breaks.
  */
 export function updateBosses(world, dt) {
-  stepDarkness(world, dt);
   const boss = world.boss;
   if (boss === null) {
     startWarning(world);

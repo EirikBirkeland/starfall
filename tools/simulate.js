@@ -22,9 +22,11 @@
 //   node tools/simulate.js --trace            print a state fingerprint over time
 //   node tools/simulate.js --audio            boot with a fake audio device
 //
-// One run prints what that run was. A batch adds a line for the set: how many were
-// still flying when the window shut, and the *middle* run of it, with the mean beside
-// it. The middle is what PLAN's survival check is written against and a mean is not
+// One run prints what that run was: a wreck, a win (the schedule out and the ship still
+// standing, game/run.js `winRun`), or a run still flying when the window shut. A batch adds a
+// line for the set: how many were still flying when the window shut, and the *middle* run of it,
+// with the mean beside it. The middle is what PLAN's survival check is written against and a mean
+// is not
 // that number - a batch of runs is lopsided, two early wrecks drag the average down
 // and say nothing about the run in the middle of the set. `--need` is that check as an
 // exit code instead of an eye test.
@@ -87,13 +89,14 @@ function readArgs(argv) {
   return opts;
 }
 
-function reportLine(summary) {
+/** What one finished run was, as one line. Exported so a test can read the line without a run. */
+export function reportLine(summary) {
   const s = summary.stats;
   return 'seed ' + summary.seed
     + '  ' + summary.policy
     + '  ship ' + summary.stats.ship
     + '  gun ' + summary.stats.weapon
-    + '  ' + (summary.died ? 'died' : 'alive at the cap')
+    + '  ' + (summary.won ? 'WON' : summary.died ? 'died' : 'alive at the cap')
     + '  ' + clock(summary.seconds)
     + '  score ' + s.score
     + '  level ' + s.level
@@ -154,7 +157,10 @@ export function aggregate(summaries, cap) {
     ship: summaries[0].stats.ship,
     weapon: summaries[0].stats.weapon,
     cap: cap,
-    atCap: summaries.filter((summary) => !summary.died).length,
+    atCap: summaries.filter((summary) => !summary.died && !summary.won).length,
+    // A win is an ending and not a survival, and a batch that had one in it should say so: it is
+    // the only number here that says the schedule was beaten at all (game/bosses.js).
+    wins: summaries.filter((summary) => summary.won).length,
     seconds: spread(summaries, (summary) => summary.seconds),
     score: spread(summaries, (summary) => summary.stats.score),
     level: spread(summaries, (summary) => summary.stats.level),
@@ -174,6 +180,7 @@ export function batchLine(batch) {
     + ': median ' + clock(batch.seconds.median)
     + ', mean ' + clock(batch.seconds.mean)
     + ', worst ' + clock(batch.seconds.worst)
+    + (batch.wins > 0 ? ', ' + batch.wins + ' won' : '')
     + ', ' + batch.atCap + '/' + batch.runs + ' still flying at the ' + clock(batch.cap) + ' cap';
 }
 
@@ -204,7 +211,12 @@ if (isMain) {
     onRun: (summary) => {
       console.log(reportLine(summary));
       if (opts.trace) console.log('trace ' + summary.trace.join(' '));
-      if (!summary.died) console.log('note: the bot survived the whole ' + opts.seconds + 's window.');
+      // Only a run that ran out of window gets the note: a death and a win both finished, and
+      // saying the bot "survived the whole window" over one of either would be reading the cap
+      // onto an ending that had one of its own.
+      if (!summary.died && !summary.won) {
+        console.log('note: the bot survived the whole ' + opts.seconds + 's window.');
+      }
     },
   });
 

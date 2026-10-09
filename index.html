@@ -119,6 +119,34 @@
   .newbest.hidden { opacity: 0; visibility: hidden; }
   .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
   .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }
+  /* The win. Mint and not pink: the arena's whole colour language says warm is the thing trying to
+     kill you and mint is the thing that paid you (the shards, the level ring, NEW BEST), and a win
+     written in the death's own hue would be read backwards for a second every time. */
+  .win-title {
+    margin: 0; font-size: clamp(30px, 7vw, 64px); font-weight: 800;
+    letter-spacing: .2em; text-indent: .2em; color: #eafff4;
+    text-shadow: 0 0 12px rgba(88,255,161,.9), 0 0 46px rgba(88,255,161,.45);
+  }
+  .win-sub {
+    margin: 10px 0 0; font-size: clamp(10px, 1.8vw, 14px);
+    letter-spacing: .52em; text-indent: .52em; color: #7ff0b6;
+    text-shadow: 0 0 14px rgba(88,255,161,.5);
+  }
+  /* The fights the run went through to get here, built out of the schedule itself (game/bosses.js)
+     so the card can never name a fight the game did not schedule. */
+  .cleared {
+    margin-top: 22px; font-size: 12px; letter-spacing: .22em; text-indent: .22em;
+    color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  /* An ended run's card is a tall column on a short window - the win's is taller still than the
+     death's - and every one of these lines is one the player came here to read. */
+  @media (max-height: 620px) {
+    .win-sub { margin-top: 8px; }
+    .score-big { margin-top: 8px; }
+    .best-line { margin-top: 10px; }
+    .cleared { margin-top: 10px; }
+    .stats { margin-top: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -150,6 +178,19 @@
   <div class="stats" id="finalStats"></div>
   <div class="build" id="finalBuild"></div>
   <div class="hint">PRESS SPACE OR CLICK TO RESTART</div>
+</div>
+
+<div id="winScreen" class="screen hidden">
+  <h2 class="win-title">ARENA CLEARED</h2>
+  <p class="win-sub">THE RUN IS WON</p>
+  <div class="score-label">FINAL SCORE</div>
+  <div class="score-big" id="winScore">0</div>
+  <div class="best-line">BEST <span id="winBest">0</span></div>
+  <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
+  <div class="cleared" id="winCleared"></div>
+  <div class="stats" id="winStats"></div>
+  <div class="build" id="winBuild"></div>
+  <div class="hint">PRESS SPACE OR CLICK TO FLY AGAIN</div>
 </div>
 
 <script type="module" src="src/main.js"></script>

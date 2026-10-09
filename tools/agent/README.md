@@ -80,7 +80,7 @@ Everything the game will do for you. Coordinates are arena pixels, y going down;
 
 | Tool | What it does |
 | --- | --- |
-| `status` | Where the game is - `title`, `playing`, `choosing`, `over` - with the run's score, wave, hull, level, the build so far, the cards on the table, and how long until it will take a new run. |
+| `status` | Where the game is - `title`, `playing`, `choosing`, `over`, `won` - with the run's score, wave, hull, level, the build so far, the cards on the table, and how long until it will take a new run. |
 | `observe` | The ship, the nearest bodies and what each has promised to do, the shots in the air and when they arrive, the shards on the floor, the nova clock. `nearest` (default 10, up to 40) says how many of each sort to name, and it says how many it left out. |
 | `move` | `dx` and `dy` from -1 to 1, x right and y down. The ship has no slow: outside a small dead zone, that way it goes. Both zero stops. |
 | `aim` | Point at an arena point. The ship faces the cursor, so this is where the shots go. |
@@ -90,7 +90,7 @@ Everything the game will do for you. Coordinates are arena pixels, y going down;
 | `reroll` | Deal the whole table again. Costs one of the run's rerolls (one per run), and is refused - ask kept - when there is nothing else to deal. |
 | `banish` | Take card `number` out of the run for good, so that line is never dealt again this run. Costs one of its banishes (one per run), and fills the slot with a fresh card. |
 | `choose_weapon` | Which primary the next run flies. Between runs only - a run does not swap its gun mid-flight. |
-| `start` | Begin a run, from the title or from the game-over card. Answers back the seed it played. |
+| `start` | Begin a run, from the title or from either card a run ends on - the wreck or the win. Answers back the seed it played. |
 | `step` | Let up to 30 seconds of game time go by, and get the state afterwards. Stops early, and says why, if the run ends or a card is dealt and nobody is flying. |
 | `autopilot` | Hand the flying to the headless bot (`aware`, or `naive`) so a slow player can still play the decisions. It holds the fire button too; `on: false` gives everything back. |
 | `run_result` | What the finished run was, including what killed the ship. |

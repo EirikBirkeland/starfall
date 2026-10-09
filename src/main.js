@@ -2,7 +2,7 @@
 // module that is allowed to know about all of them at once.
 
 import { world, stepWorld } from './game/world.js';
-import { startRun, resetRun, canStartRun } from './game/run.js';
+import { startRun, resetRun, canStartRun, victoryCardIsUp } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
@@ -29,7 +29,7 @@ import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
-import { initScreens, hideScreens, showGameOver, showShip } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, showShip } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -55,6 +55,11 @@ function addressSeed() {
 // one before boot. Unlocked visits pick a fresh seed for every run, so a
 // restart never replays the same arena.
 let seedIsPinned = false;
+
+// Whether this win has had its card put up yet. The card is a frame thing - it goes up a beat
+// after the run is won, not on the step it is - so the frame loop is what has to remember that it
+// has happened once, and it forgets again the moment the world is on any other screen.
+let victoryCardShown = false;
 
 /** Start a run if the screen accepts one right now. */
 function pressAction() {
@@ -100,9 +105,9 @@ function onPickCard(number, banishing) {
   }
   // The same keys, on the two screens that are not a run: the title picks the ship to fly,
   // and with it the primary that ship brings (game/ships.js), because there is no hangar
-  // yet (PLAN 3.2, milestone 5). The game-over card takes it too, which is what "press 2,
-  // press Space, fly the scatter" means. Mid-run the keys are nobody's: a run does not get
-  // to swap its body or its gun between two frames.
+  // yet (PLAN 3.2, milestone 5). The two cards a run ends on take it too - the death's and the
+  // win's - which is what "press 2, press Space, fly the scatter" means. Mid-run the keys are
+  // nobody's: a run does not get to swap its body or its gun between two frames.
   if (world.state === STATE.PLAY) return;
   // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
   // taken, not to a key that was pressed.
@@ -172,7 +177,19 @@ function frame(now) {
   // a dash that goes off three seconds after the key was pressed is not a gift.
   if (heard || world.state === STATE.LEVEL) consumeInput();
 
+  // The game-over card lands on the same frame the run stops: there is nothing left to see.
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
+  // A win is not. The arena holds still for `BALANCE.victory.hush` with nothing over it, so the
+  // fight's own going-down is the first half of the moment and the card is the second
+  // (game/run.js `winRun`, `victoryCardIsUp`).
+  if (world.state === STATE.WON) {
+    if (!victoryCardShown && victoryCardIsUp(world)) {
+      showVictory(describeRun());
+      victoryCardShown = true;
+    }
+  } else {
+    victoryCardShown = false;
+  }
   consumeCues(world.state);
   renderFrame(tick, input, mouse);
 

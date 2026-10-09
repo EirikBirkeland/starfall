@@ -215,7 +215,12 @@ function makeAudioContextStub(log, now) {
   return stub;
 }
 
-const ELEMENT_IDS = ['game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats', 'finalBuild', 'shipRow'];
+const ELEMENT_IDS = [
+  'game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats',
+  'finalBuild', 'shipRow',
+  // The win's card (index.html), read the same way the death's is.
+  'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
+];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -281,7 +286,10 @@ export async function bootGame(options) {
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
-    elements[id] = makeElement('div', ['screen', id === 'overScreen' ? 'hidden' : ''].filter(Boolean));
+    // Which screens start out hidden is in the markup, and the stub says the same thing the
+    // browser does: the title is up and both of the cards a run ends on are not.
+    const startsHidden = id === 'overScreen' || id === 'winScreen';
+    elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
     elements[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: width, height: height });
@@ -482,11 +490,19 @@ export async function bootGame(options) {
       return {
         startHidden: elements.startScreen.classList.contains('hidden'),
         overHidden: elements.overScreen.classList.contains('hidden'),
+        winHidden: elements.winScreen.classList.contains('hidden'),
         finalScore: elements.finalScore.textContent,
         finalBest: elements.finalBest.textContent,
         stats: elements.finalStats.textContent,
         build: elements.finalBuild.textContent,
         newBestShown: !elements.newBest.classList.contains('hidden'),
+        // The win's card, in the same shape, so a test can ask either one what it is showing.
+        winScore: elements.winScore.textContent,
+        winBest: elements.winBest.textContent,
+        winCleared: elements.winCleared.textContent,
+        winStats: elements.winStats.textContent,
+        winBuild: elements.winBuild.textContent,
+        winNewBestShown: !elements.winNewBest.classList.contains('hidden'),
         // The title's ships, as the player reads them: one line each, naming the ship and
         // the gun it brings, and which one is lit up (game/ships.js is what they are built
         // from).

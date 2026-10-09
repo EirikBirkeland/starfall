@@ -208,7 +208,9 @@ async function measure(game, condition, id, opts) {
   const extras = opts.statKeys.map((key) => median(summaries.map((s) => s.stats[key] || 0)));
   return {
     condition,
-    atCap: summaries.filter((s) => !s.died).length,
+    // A win is an ending and not a survival (game/run.js `winRun`), so it does not belong in the
+    // count of runs the window cut short.
+    atCap: summaries.filter((s) => !s.died && !s.won).length,
     runs: summaries.length,
     score: median(summaries.map((s) => s.stats.score)),
     damage: median(summaries.map(damageOf)),

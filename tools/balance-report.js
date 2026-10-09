@@ -210,6 +210,7 @@ function newReport() {
     elitePeak: 0,
     seconds: 0,          // game seconds simulated, across every run
     alive: 0,            // how many runs were still flying when the window shut
+    won: 0,              // ... and how many had outlasted the whole schedule (game/run.js `winRun`)
   };
 }
 
@@ -230,7 +231,7 @@ function fold(report, summary, crowd) {
   report.lines.push({
     seed: summary.seed,
     player: summary.policy,
-    end: summary.died ? 'died' : 'alive',
+    end: summary.won ? 'won' : summary.died ? 'died' : 'alive',
     seconds: summary.seconds,
     score: stats.score,
     level: stats.level,
@@ -241,7 +242,8 @@ function fold(report, summary, crowd) {
     diedOf: summary.died ? tally.killedBy : '',
   });
   report.seconds += summary.seconds;
-  if (!summary.died) report.alive++;
+  if (!summary.died && !summary.won) report.alive++;
+  if (summary.won) report.won++;
 
   for (const type of Object.keys(tally.kinds)) {
     const row = tally.kinds[type];
@@ -453,7 +455,7 @@ function hurtLines(report) {
   const labels = Object.keys(report.hurtBy).sort((a, b) => report.hurtBy[b] - report.hurtBy[a]);
   let hulls = 0;
   for (const label of labels) hulls += report.hurtBy[label];
-  const runs = report.lines.length - report.alive;
+  const runs = report.lines.length - report.alive - report.won;
 
   const rows = labels.map((label) => [
     label,
@@ -524,17 +526,24 @@ export async function gather(options) {
     });
     fold(report, summary, crowd.finish());
     process.stderr.write('  seed ' + summary.seed + '  '
-      + (summary.died ? 'died at ' : 'still flying at ') + clock(summary.seconds) + '\n');
+      + (summary.won ? 'won at ' : summary.died ? 'died at ' : 'still flying at ')
+      + clock(summary.seconds) + '\n');
   }
   game.stop();
+
+  // How the batch ended, as one sentence: a run can end three ways now and a header that named
+  // only two of them would be reading the cap onto whichever one it left out.
+  const endings = [];
+  if (report.won > 0) endings.push(report.won + ' run(s) outlasted the whole schedule');
+  if (report.alive > 0) endings.push(report.alive + ' run(s) were still flying when the window shut');
+  if (endings.length === 0) endings.push('every run ended in a wreck');
 
   const header = [
     'STARFALL BALANCE REPORT',
     opts.runs + ' runs of the ' + policy + ' bot, seeds ' + seeds[0] + '-' + seeds[seeds.length - 1]
       + ', each cut short at ' + clock(opts.seconds) + '.',
     'Simulated ' + clock(report.seconds) + ' of game in ' + clock((Date.now() - started) / 1000)
-      + (report.alive ? ' - ' + report.alive + ' run(s) were still flying when the window shut.'
-        : ' - every run ended in a wreck.'),
+      + ' - ' + endings.join('; ') + '.',
   ].join('\n');
   return renderReport(report, header);
 }

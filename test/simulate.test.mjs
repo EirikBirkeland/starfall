@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun, endingItAt } from '../tools/headless/bot.js';
-import { median, aggregate, batchLine, batchStatsLine } from '../tools/simulate.js';
+import { median, aggregate, batchLine, batchStatsLine, reportLine } from '../tools/simulate.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SIMULATE = path.join(ROOT, 'tools', 'simulate.js');
@@ -113,12 +113,21 @@ test('--bot picks which player sits down at the keyboard', () => {
 });
 
 /** A finished run, as small as a test can make it and still be one. */
-function runOf(seconds, score, level, kills, died) {
+function runOf(seconds, score, level, kills, died, won) {
   return {
     policy: 'aware',
     seconds: seconds,
     died: died,
-    stats: { ship: 'wisp', weapon: 'pulse', score: score, level: level, kills: kills },
+    won: won === true,
+    stats: {
+      ship: 'wisp', weapon: 'pulse', score: score, level: level, kills: kills,
+      // The run line names the fight that was standing when it stopped, and what ended it if it
+      // ended (tools/simulate.js `reportLine`), so even a fixture this small has to be able to
+      // answer both - empty on most of these, and a shape away from a lie.
+      boss: '', bossCells: 0, bossCores: 0, bossesDown: 0,
+      killedBy: died ? 'body:drifter' : '',
+      ranks: {},
+    },
   };
 }
 
@@ -162,6 +171,27 @@ test('the batch line names the middle run and the ship it was flown on', () => {
   assert.match(stats, /score median 300 mean 433\.3/);
   assert.match(stats, /level median 5 mean 5\.3/);
   assert.match(stats, /kills median 40 mean 46\.7/);
+});
+
+test('a run line names which of the three endings it was', () => {
+  const wreck = reportLine(runOf(60, 100, 2, 10, true));
+  assert.match(wreck, /died/);
+  assert.match(wreck, /killed by body:drifter/, 'and what it ended of');
+
+  assert.match(reportLine(runOf(900, 900, 9, 90, false)), /alive at the cap/);
+
+  const won = reportLine(runOf(900, 900, 9, 90, false, true));
+  assert.match(won, /WON/);
+  assert.equal(won.includes('killed by'), false, 'a win was not killed by anything');
+});
+
+test('a win is an ending in the batch and not a survival', () => {
+  const one = aggregate([runOf(60, 100, 2, 10, true), runOf(900, 900, 9, 90, false, true)], 900);
+  assert.equal(one.wins, 1);
+  assert.match(batchLine(one), /1 won/);
+  // A batch with no win in it must not say there was one: that is the difference between a zero
+  // and a number nobody looked at.
+  assert.equal(batchLine(aggregate(BATCH, 900)).includes('won'), false);
 });
 
 test('a batch of runs prints its middle after the runs', () => {

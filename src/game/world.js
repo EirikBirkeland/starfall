@@ -29,7 +29,7 @@ import { newShock } from './shock.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
-import { updateBosses } from './bosses.js';
+import { updateBosses, stepDarkness } from './bosses.js';
 import { openField } from './field.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
@@ -58,7 +58,7 @@ function createWorld() {
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
     steps: 0,         // how many fixed steps this run has been asked for (a hit-stop step counts)
-    overTimer: 0,     // time since the run ended
+    overTimer: 0,     // time since the run ended, whichever way it ended
     // How long until the wave director is next allowed to spend (game/waves.js).
     spawnTimer: BALANCE.runStart.spawnDelay,
     // How many waves this run has seen. The HUD will want it (PLAN section 4).
@@ -257,12 +257,15 @@ export const world = createWorld();
 
 /**
  * The two clocks that are not the run's, so they keep ticking through a hit-stop:
- * the trauma the frame is shaken by, and the guard on restarting after a death -
- * one belongs to the frame being drawn, the other to the player's finger.
+ * the trauma the frame is shaken by, and the clock over an ended run - one belongs to
+ * the frame being drawn, the other to the player's finger, and neither of them to the
+ * arena that has stopped. An ended run is two endings now and both of them count: over a
+ * death the wait is on the player's key, and over a win it is on the card the game puts
+ * up (`victory.hush`).
  */
 function tickFrameClocks(world, dt) {
   world.shake = Math.max(0, world.shake - BALANCE.screen.shakeDecay * dt);
-  if (world.state === STATE.OVER) world.overTimer += dt;
+  if (world.state === STATE.OVER || world.state === STATE.WON) world.overTimer += dt;
 }
 
 /**
@@ -296,6 +299,12 @@ export function stepWorld(dt, input) {
   // arena does not, and the answer is "no step happened" - so a dash pressed while the
   // cards are up waits for the run instead of being thrown away.
   const paused = world.state === STATE.LEVEL;
+  // The room's own light, walked here rather than inside the fight so that it keeps walking back
+  // over a run that has stopped (game/bosses.js `stepDarkness`). It is held by the two things that
+  // genuinely stop the world and by nothing else: the freeze went past above, the cards go past
+  // here, and an ended run is not a stop of that kind - it is a room nobody is fighting in, which
+  // is exactly the thing the dark lets go of.
+  if (!paused) stepDarkness(world, dt);
   if (world.state === STATE.PLAY) stepRun(dt, input);
   else if (!paused) updateAmbient(world, dt);
 
