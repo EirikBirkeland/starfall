@@ -10,8 +10,9 @@ The Eclipse's second phase: at a third of the sun's hull the room goes dark, and
   flare started rather than something that happens afterwards.
 - **The dark is a promise the fight has to keep.** Your own light reaches 300 px, which is over a
   second of the fastest body's walk at you and so comfortably more than the six-tenths of a second
-  that every attack in this game has to be shown for before it lands. Every shot carries its own lantern, so a shell is a ring of lights coming and not
-  a rumour, whoever threw it and however far away it was thrown. And the door of a shell is let out of
+  that every attack in this game has to be shown for before it lands. Every shot carries its own
+  lantern, so a shell is a ring of lights coming and not a rumour, whoever threw it and however far
+  away it was thrown. And the door of a shell is let out of
   the very same wedge its light is drawn from, because a promise the dark has eaten is no promise -
   the room being black is no excuse for showing you a volley a second late.
 - **Nobody has to put the light back.** A phase asks for the night and the framework walks the room
