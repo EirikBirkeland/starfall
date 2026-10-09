@@ -6384,3 +6384,125 @@ quarter of the noise off the frames that were the problem. That is the shape thi
 - **This wants a release** - the mix is audible in every build and every release after it will be a
   quieter, less clipped game. It was not cut here because another session's unfinished work was in
   the tree. Once that has landed: CHANGELOG, `tools/release.sh 0.4.22 "..."`.
+
+---
+
+## Session 53 (2026-10-09) — Lance: the fourth primary, a line of light down the whole arena. Released **0.5.0**
+
+Milestone 5's fourth primary, one per session as planned. It also finished the job session 52 had to
+leave half-finished in the work tree: this release carries **both** the lance and the voice budget,
+because the audio work was sitting uncommitted, unread by any commit, and it was good - session 52 had
+tested it (7 tests) and asked for exactly this in its own entry. `git status` is clean and the menu
+offers 0.5.0.
+
+### The decisions, since nobody will remember them
+
+- **The band tracks the nose for the whole wind-up**, which is the opposite of the sniper's lock
+  (`game/beams.js`, frozen the instant it starts) and the two are opposite for good reasons. A sniper's
+  telegraph is a promise about a *place*, so leaving the place is the answer to it; a lance's is a
+  promise about where *you* are pointing, so lining it up better is the answer, and that is the whole
+  skill of the gun. `windUp` keeps only the fan's **offsets** (`line.spreads`), never directions, and
+  `discharge` re-reads `ship.angle`. That one inversion is the difference between a lance and a bad
+  sniper.
+- **The drawn line is the paid line.** `beam.width` *is* `beam.halfWidth` and the hit test is
+  `axisDistance(...) <= beam.width` - a body's **centre** has to be on the line, with no radius added,
+  which is exactly how `game/beams.js` does it and how `test/lance-art.test.mjs` can hold the renderer
+  to it (widest stroke = `halfWidth * 2`, three passes and one light stamp per line).
+- **The pull is spent at the trigger, the shot is paid at the discharge.** `windUp` answers **false**
+  to `game/weapons.js`: the cooldown, the split rank, the overcharge's multiplier and whether the gun
+  was loaded are all settled when the trigger moves - a card taken afterwards does not rewrite a shot
+  already on its way - but the kick, muzzle flash, report, shake and spent charge all belong to the
+  moment the gun actually went off, and `discharge` pays them. That is why the lance's recoil (220, the
+  heaviest in the game) arrives 0.12 s after the click, and why the split fan is one event and not six.
+- **`wind` and `halfWidth` are a pair and the crowd priced them**, not feel: a body you pointed at when
+  the trigger moved must still be on the line when the light arrives. A drifter crosses 9 px in 0.12 s,
+  inside the 16 px half-width, so walking bodies need no lead; a darter's lunge crosses 21 px and does,
+  and it comes straight at you so leading it is just holding the line where it is going. PLAN's 0.2 s
+  would have put the *drifter* at 15 px - a gun that misses what it was aimed at is not slow, it is
+  broken. This is what `tools/gun-clock.js` exists to answer (one body, a parked cursor, the crowd's four
+  own paces) and it is the tool the Swarm will be measured with too.
+- **Damage 5, priced on the near field** - the knot that prices a gun because it is one body at a time.
+  4.4 hull/s against the pulse's 4.3 and the scatter's 5.9, and *that is the whole defence of the number*:
+  the ring (20.0) and the column (26.3) are four and six times the pulse, which is what a line is for, and
+  the knots cannot see the aiming skill the line costs. PLAN's own ratio (60 at 0.9/s against the pulse's
+  10 at 6/s, i.e. nine tenths of the plain gun) is what the number was reached from, so this is the plan's
+  lance and not a nerf of it.
+- **Three of the eighteen lines buy nothing here, on purpose** - pierce (a line pierces by definition),
+  ricochet and bullet speed (nothing travels). Same reading that leaves them off the arc. What `split`
+  buys is another **line** at another angle and its own share, and `shotsPerPull` is what makes a gun's
+  "one more" mean its own kind of one more; `fire()` now reads a row's `beam` / `chain` / neither, which
+  is the same three-way split `test/weapons.test.mjs` reads the rack with.
+- **Two rules the harness taught me**, both recorded in `test/lance.test.mjs`: read `armed` wind *after*
+  the step, not before (`updateLance` runs inside the step and the wind is gone by the time you look);
+  and a split fan is only separable at range - at 200 px the six lines are 17 px apart and a body is
+  caught by two of them, so the fan test plants its bodies 400 px out.
+
+### What the numbers say
+
+| | near field | ring | column | one body crossing at a drifter's pace, 2 s |
+|---|---|---|---|---|
+| pulse | 4.3 | 4.3 | 4.3 | 0.2 hull |
+| scatter | 5.9 | 12.2 | 13.0 | 2.8 |
+| arc | 3.9 | 11.6 | 11.6 | 8.0 |
+| **lance** | **4.4** | **20.0** | **26.3** | **5.0** |
+
+`tools/power-ladder.js --weapon lance` for the first three columns, `tools/gun-clock.js` for the last.
+The reference run (`--seed 20261006`, 600 s, score 62418, level 39, kills 3641) is **byte-identical** to
+before the lance existed, which is the check that a new primary has not disturbed a run flying another one.
+
+A whole run under the bot, 180 s, six seeds: lance **score 4 162, level 5.5, 296 kills** against the
+pulse's 9 880 / level 19 / 650. That is the number this session ended unhappy about, and here is the
+honest reading of it: XP is paid per **kill**, and a 5-hull beam spread down a line kills fewer bodies a
+second than twelve 1-hull shots concentrated on one - so a slow heavy gun levels slower even when its
+hull-per-second is level, and the bot is a *bad* lance driver besides (it parks the cursor on the nearest
+body, never sweeps a lane onto a column, and averages 1.5 bodies a beam in a real run where the column knot
+says four or six is available). The tuning took it from level ~5 at 90 s to this. Nobody should read the
+bot's lance number as the gun's ceiling, and nobody should pretend it is not a real signal either: if the
+Swarm lands and also mediates under half the pulse's score, the answer is in the XP curve and not in the
+gun. **A `line-up` policy for `tools/headless/bot.js` - park the cursor where a lane of bodies is, rather
+than on one body - is the measurement that would actually price this gun, and it is worth a session.**
+
+### What surprised me
+
+- **A fourth primary needed a fourth key and nobody had one.** `src/input/keyboard.js` carried
+  `PICK_KEYS = {Digit1..Digit3}` - a table of three - while the title screen builds its rows from
+  `WEAPONS`. The lance was listed and unpickable. The number is read out of the key now, and
+  `test/weapon-pick.test.mjs` has a test that presses every number the rack offers, which is the test
+  that would have caught this a release ago. `test/draw-cost.test.mjs` and the art tests would not: a
+  row that no key answers draws fine.
+- **`beam.width = spec.width` is how a weapon ships doing zero damage.** The first live run of the lance
+  fired beams through crowds and scored nothing, because the record's `width` was being filled from a
+  field the balance row does not have. It is why `payOut` reads `beam.width` and nothing else, and why
+  the art test and the damage test both quote `BALANCE.weapons.lance.beam.halfWidth` - one number, three
+  places checked against each other.
+- **`loaded` cannot be inferred from the weight.** `weight > gun.damage` is also true of a run that owns
+  two ranks of the damage line, so `windUp` takes `charged` as its own argument (`boost > 1`) the way
+  `shootFan` has always taken `charged`. A charged-looking beam that was only a damage rank is the sort of
+  cosmetic lie that survives forever if it is allowed in at the door.
+- Session 52's warning was right and worth repeating: **two agent sessions can be in this folder at once.**
+  This one started with the tree already carrying the audio work and a NOTES entry that was not its own,
+  which read like corruption for about a minute. `git add` by name, and read `NOTES.md` to the end first.
+- The `AGENTS.md` section about a worker model on the owner's desktop was sitting **uncommitted** in the
+  tree when this session started. No session used it and nothing here needed it; it is committed verbatim
+  in 72671b2 so that the owner's words are not lost to a `git checkout -- .` and so that
+  `tools/release.sh` could run at all. If it was not meant to be there, `git revert 72671b2` and the
+  release that followed is unaffected.
+- `tools/headless/tables.js`'s `table()` **returns** a string; it does not print. A tool that calls it
+  and then looks puzzled at its own output has just thrown a table away. Also: no `python3` on this box -
+  `sed` and `perl` are the sweep tools.
+
+### For the next session
+
+- **Swarm is the last of the five primaries** (PLAN 3.2), and now there are two instruments for pricing it
+  and a fourth primary's worth of pattern to follow: `game/lance.js`'s header, `tools/power-ladder.js
+  --weapon swarm`, `tools/gun-clock.js`, and `test/weapons.test.mjs`'s three-way read of a row.
+- **The Railgun synergy has nothing left to wait for** - but its stated reward needs re-reading first:
+  "the charged lance crosses the whole arena" describes what a *plain* lance already does. What an
+  overcharged pull should buy is the open question (the wind-up going away for a loaded pull is the
+  candidate this session likes: `charged` is already carried on every beam, and `LANCE_CHARGED` already
+  paints it hotter). Session 50's list still has storm, the saw ring and the minefield as unbuilt too.
+- Milestone 7's music is still where session 52 left it: the buses want writing with the step sequencer,
+  and the fake audio device has a clock that moves so a sequencer can be tested at all.
+- If a lance run ever needs its own tell on the build rail or the HUD, `STARFALL.stats()` already answers
+  `lanceWind` (0-1 through the wind-up), `lanceBeams`, `lancePulls`, `lanceFired`, `lanceCaught` and
+  `lanceDealt`.
