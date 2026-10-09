@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 0.6.4 — 2026-10-09
+The Hive's last phase: it comes apart into three smaller hives, and one hull bar stays one fight.
+- **At a third of the hull the fight stops being one body.** The flare that opens the last phase
+  *is* the coming apart: the mass pulls itself to pieces where it stands, and three smaller hives
+  stand up in its place, each with a honeycomb of its own and each breathing brood on its own
+  clock. Nothing in the numbers tells you the fight you have been having for four minutes just
+  restarted - the pieces divide the hull the fight has *left*, their maximums add back up to the
+  one it arrived with, and the bar reads the same share in the frame after the split as in the
+  frame before it. That is why this is a phase and not three bosses.
+- **Three bodies, one beat.** Every hive lights a mouth and opens it on the same countdown, so
+  three hives opening is one thing to read and not three, and the brood arrive out of three places
+  at once instead of one. A fragment with no cells left opens its own core, so the rhythm never
+  grows a hole in it - and a fragment is worth a third of the bar and no more, because there are
+  three of them now.
+- **Each one takes a side of the room and keeps it.** A piece is told which side of the ship to
+  keep when the mass breaks and holds that bearing as you run, so the three settle round you like
+  a triangle instead of following you about like a swarm. And they hold it against the crowd: a
+  body that has made a promise with a direction in it does not give way to a seven-pixel bee
+  leaning on it, which is the same rule the Warden has always lived by. A shove still moves one -
+  your gun, your dash, a blast - and it walks back afterwards.
+- **What the framework had to learn.** A fight is now made of one or more *bodies*: the hull, the
+  phase and the clock of a beat belong to the fight and are the sum of its bodies, while the place
+  in the room, the facing and the honeycomb belong to a body. One flare, one going-down and one bar
+  are spent by all of them together, the light of a beat is spent at a body that is still standing,
+  and the fight is over when the last of its bodies is - which is also the moment the run is paid.
+- **The tools can see it now.** A traced run says when a fight broke into pieces and how many
+  bodies it is standing on, and the sim prints the same count when there is more than one. The
+  Warden's fights are byte-for-byte unchanged by all of this, checked at `--at 295` and over a
+  full ten minutes.
+
 ## 0.6.3 — 2026-10-09
 The second boss: The Hive. A mass of cells you can shoot pieces off.
 - **The thing at ten minutes is not a bigger ring, it is a wall.** The Hive is a core with six hex
