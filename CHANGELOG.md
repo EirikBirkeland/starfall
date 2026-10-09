@@ -1,5 +1,28 @@
 # Starfall — changelog
 
+## 0.6.1 — 2026-10-09
+The Warden has a second beat: a ring of shots with a door in it.
+- **Phase 2 is a new attack and not only a faster one.** Between its spoke volleys the ring now
+  stops, lights a wedge across the room for most of a second, and then throws a ring of shots
+  with every bearing filled except that wedge. The two beats take turns - spokes, ring, spokes,
+  ring - so the fight keeps one rhythm and grows a second thing to read inside it instead of
+  becoming a different game halfway through.
+- **The door opens where you are already standing.** The wedge is aimed at your bearing when the
+  ring stops and then holds still; it does not follow you, because a promise that chases you is a
+  wall. A ship that does nothing at all is inside it. What costs a hull is sliding out of it and
+  not coming back, and the moment it is lit is the moment to correct.
+- **It is drawn cool, and it is drawn exactly.** The wedge is the only cool light a boss makes -
+  warm is what is coming, cool is the place to be - and it is drawn from the same three numbers
+  the shots are thrown from, so the door you were shown is the door that arrives, edge for edge.
+- **Phase 3 keeps both and prices them harder**: 26 shots instead of 22, a narrower door, a
+  shorter read, on top of eight spokes. Every beat of every phase is still shown for at least six
+  tenths of a second, which is now a rule the tests hold every boss to and not a sentence.
+- **The room is the wall for the ring as well as for you.** A boss's shots stop at the cage, the
+  same way its beams already did: the far side of the room is not free for nothing, and no part
+  of the fight leaks out through a wall you cannot cross.
+- Under the hood: 13 new tests (1082 green), a shot can now belong to the room it was fired in,
+  the headless bot reads the lit wedge and slides onto it, and the reference run is byte-identical.
+
 ## 0.6.0 — 2026-10-09
 Bosses: the framework, and something waiting for you at five minutes.
 - **At 5:00 the arena warns you and then shuts a room round the duel.** A low siren, a name on the
