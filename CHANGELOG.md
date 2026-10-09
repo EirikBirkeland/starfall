@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 0.6.0 — 2026-10-09
+Bosses: the framework, and something waiting for you at five minutes.
+- **At 5:00 the arena warns you and then shuts a room round the duel.** A low siren, a name on the
+  glass, two and a half seconds to let go of whatever you were doing - and then the walls close to
+  a box round your ship, the crowd stops being dealt, and the Warden walks in. You cannot run the
+  fight out of the room, and the room is where you were standing when it arrived.
+- **The Warden is a ring that turns, stops dead, shows its spokes and fires down them.** Stops
+  dead and not slows down, on purpose: the lines of light it draws are the lines that hurt, edge
+  for edge, and a ring still turning between the promise and the firing would move them. Eight
+  spokes in its last phase is a fifth of the room to stand in, and the far side of the ring is
+  always safe, which is the only place that is.
+- **Three phases, each one the same fight and a harder one.** At full hull, at two thirds, at a
+  third: four spokes then six then eight, riding faster, waiting less, and showing its work for a
+  shorter moment each time - never less than six tenths of a second, which is the floor every
+  telegraph in the game is held to. Opening a phase is a beat and not a flicker: it flares, it
+  cannot be hurt for a moment, and it drops the volley it was holding, which is a promise it never
+  got to make and so one the run keeps.
+- **The hull bar says what phase you are in, in the colour the ring is wearing**, notched where the
+  next one opens, so the fight has a shape on the glass instead of only a length. It mends a hull
+  when it goes down, it is worth more than anything else in the game, and the arena is quiet for
+  three seconds afterwards so you can go and collect what it dropped.
+- **A boss is an enemy and nothing else**, which is what makes it safe to add more: every gun,
+  blast, bolt, fire, drone and nova in the game hurts it without any of them having been told it
+  exists. Two of them had to be relearned to make that true - the collision broad phase now
+  measures the fattest body actually standing in the arena instead of reading a constant off the
+  kinds table, so a 60 px ring cannot be shot through, and a run that never meets one never pays
+  for the wider search.
+- Under the hood: 38 new tests (1069 green), and `tools/simulate.js --at 295` starts a headless
+  run's clock five minutes in, which is the only way a bot that dies at a minute can be used to
+  measure a five-minute fight at all.
+
 ## 0.5.2 — 2026-10-09
 Ships: five hulls to fly, each one the gun it was built around.
 - **The title screen now asks which ship you are**, with the same number keys it used to spend on
