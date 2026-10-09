@@ -7558,3 +7558,116 @@ Released again as **0.6.7** rather than touching `releases/v0.6.6/`, which stays
 The lesson for the next full-screen pass, and there will be one: a layer of this shape has *two*
 coordinate systems in it and the seam between them is exactly one `translate`. Check which one every
 coordinate in it belongs to, and give the seam a test that would notice the difference.
+
+## Session 63 (2026-10-09) — The Eclipse's last phase lifts an arm: fans of blades, shown whole and then swept. Released **0.6.8**
+
+PLAN 3.4's Eclipse row owed two things: "sweeping arms" and "bullet walls with moving gaps". This
+session took the first and left the second, deliberately: a sweep and a moving gap are both doors that
+travel, and doing both in one session would have meant one of them was rushed.
+
+### What landed
+- **`src/game/arms.js`**, a blade's own file and a pool of them in the world (`world.arms`, stepped in
+  `game/world.js` after the beams and before the fight itself). Four decisions in it, each with a test:
+  a blade is **loose** (it follows the body that loosed it while that body stands and finishes its sweep
+  over the wreck when it does not), it **hurts the ship and nothing else** (the crowd is not what a
+  boss's arm is for, and a second damage source with no number beside it is a number nobody measured),
+  **the blade drawn is the blade that hurts** (`half` once, `inner`..`reach` once, for the light and the
+  harm together), and it **spends no randomness** (a blade starts on the body's own facing, which the
+  ride turned there and the framework held still).
+- **The ARMING beat** in `game/bosses.js`: `showArms` writes the row's numbers onto the fight and
+  `letArmsLoose` looses one blade per fan per living body. Beat selection is now `beatsOf(phase)` -
+  spokes, shell, blades, derived from the rows a phase actually wrote - which replaced the two-way
+  `if (phase.spokes === undefined) return RINGING ...` that only ever had to be right about two beats.
+  `leadBeat` opens a phase that has a sweep with the sweep, and `putThePromiseDown()` is now one
+  function shared by `rideAgain` and `openPhase` instead of two lists that could drift by a line.
+- **`src/render/arms.js`**: one file answers *where is a fan* and *where is a blade*, and both the
+  frame (`render/renderer.js`) and the night (`render/darkness.js`) ask it. This is the load-bearing
+  decision of the feature: the two painters of a hazard that travels cannot be allowed to disagree,
+  because both of them would look right. Fans go under the crowd like a shell's door; blades go over the
+  crowd and under the ship like a beam, drawn with the same `bandPasses` every other band in the game
+  uses, at `2 * half` - which is the width the harm is paid out at, and a test says so.
+- **The phase-3 night leaves both of them out.** `punchBlades` cuts the fan wedges and the blade
+  rectangles out of the veil with `destination-out`, from `fansOf`/`bladesOf`. The blade carve is a
+  **rectangle and not a tapered wedge**: a blade is one width, and a hole that tapered would be a glow
+  with a hole in it. Nothing is culled on the blade side, on purpose - a blade is 560 px long and its
+  middle can be off the window while its tip is not.
+- **`game/tally.js`: a fifth way to lose a hull**, `arm:eclipse`, blaming the fight that loosed the
+  blade and not the blade, because by the time a sweep comes round the body may be a wreck.
+- **`tools/headless/threats.js`: the bot reads a fan.** A wedge has no side to step off, so there are
+  two answers and it picks between them by arithmetic: slide round past the edge if `toEdge <=
+  fanSlide * timeLeft`, otherwise dive *in*, inside the rim the blades start from - the one place in
+  the room a blade can never reach, and the reason a sweep is a puzzle rather than a coin toss. A loose
+  blade is the spoke's ask again. It insists on `duckRoom` clearance from the body before diving, so it
+  does not dive into a sun that hurts on contact.
+- **Balance**: `eclipse.phases[2].sweep` - 3 arms, 0.9 rad each, 0.8 rad/s, reach 560, half 20, windup
+  0.85 s, and the row argues all of it in the file. Three fans sweep 2.7 rad of 6.28, so more than half
+  the sky is never touched; `rate` is slower than a ship close in (256 px/s at the near edge of the
+  band) and faster than one out at the far edge (368 px/s), which is the whole of the fight's texture:
+  turn with them in close, leave them out wide, and the drag leans you into the slower one. Plus
+  `dark.light.blade: 0.86`, the share of the night a blade takes off.
+
+### The harness got two things out of it
+- `measure()` (tools/headless/harness.js) now returns **where** the painted thing drew as well as what
+  it cost: `widths`, `points`, `circles`, `rects`. Without it the claim "a blade is drawn at exactly
+  twice the width it hurts at" had to be made by differencing two whole frames' stroke lists, which is
+  fragile in a way that silently passes (it was: it said 12 against an expected 9 for a reason that had
+  nothing to do with blades).
+- `pointsOffscreen()`: the night's own sheet logs the **paths** it was cut with, not just stamps and
+  arcs. That is the only way to claim a blade was left out of the dark and not merely that something
+  happened to the dark. The blade carve's four corners are then measured by their *distance from the
+  sun*, which is interpolation-proof - the painted angle wobbles a fraction of a radian between steps
+  and a blade's corners are `hypot(reach, half)` from the pivot whatever the angle is.
+
+### Surprises, and one of them was a whole test file's worth
+- **Every claim in `test/arms-art.test.mjs` passed with `drawBlades` deleted from the renderer.** They
+  all measured a painter on a canvas of its own, which is the right way to measure a blade and the wrong
+  way to notice it had been unhooked from the frame. Mutation-checking found it; there is now a test that
+  counts bands of a blade's width in the *frame's own* draw log, and asserts the count is zero after
+  `world.arms.clear()`.
+- **Standing a ship beside a blade is not the two-line thing it looks like.** Three separate traps, all
+  of them showing up as "a blade took a hull off a ship standing clear of it": the Eclipse parks itself
+  against whatever wall it chose, so some blades of a sweep run through the wall and a ship placed there
+  is *clamped into the room* - which slid it 43 px sideways in one step and straight into the blade; a
+  blade turns between being placed-beside and paying out, so the ship has to be put on the bearing it
+  **will** have, not the one it has; and a "quiet moment" in phase 3 is usually a shell windup, where
+  the door is also cutting the night. The helpers now try the outermost reach first and walk in until
+  they find room, and the quiet-moment test waits for `armedCount() === 0` too.
+- **`offTheBlade` at exactly `half` returns 19.99999999999997.** The edge claim is an inequality now.
+- Adding `texts` to `measure()`'s return **silently broke `tools/headless/frame-cost.js`**: the counters
+  and the draw log use the same word for a count and a list, so my array overwrote the HUD's `texts`
+  count, the interface subtraction went NaN, and `test/orbitals-art.test.mjs` failed with "the ring is
+  drawn at all" - which was three files away from what I had touched. The log's word lists are not
+  exposed; the comment says why.
+
+### Numbers
+- 1157 tests → **1186**, all passing. New: `test/arms.test.mjs` (16, the hazard and its promise),
+  `test/arms-art.test.mjs` (9, the two painters and the dark), 4 in `test/dodge.test.mjs` (the bot).
+  Every new claim was mutation-checked - I broke each thing it claims, one at a time, and watched only
+  the tests that should go red go red.
+- `node tools/simulate.js --seconds 960 --runs 6`: 5 of 6 still flying at the 16-minute cap, one died
+  at 2m36s to a drifter before any boss; seed 13 was fighting the Eclipse's phase 3 at 17% hull when
+  the clock ran out. No throws anywhere. The plain 600 s run is unchanged (65279, same fingerprint as
+  before this session - the arms cannot be reached that early).
+
+### Decisions, so nobody relitigates them
+- A blade lives in its own pool rather than on the boss, and `updateArms` is its own step. The
+  alternative (a beam fired every step of a sweep) was tried in the planning and thrown out: a flash's
+  cost paid once per step for a second, with hit-stop and a sound each time.
+- Blades do not touch the crowd. `game/arms.js` argues it; the short version is that a duel has no
+  crowd in it and a second harm source nobody priced is worse than no harm source.
+- The bot is allowed to know about a fan because the fan is on the glass. `threats.js` still reads no
+  number the player is not shown.
+- `sweep.half` is 20 px against the ship's 6 px hit radius: a blade is a place you leave, not a hair's
+  width you stand on, and the same number paints it.
+
+### For the next session
+- **Bullet walls with moving gaps** are the last unshipped line of 3.4's Eclipse. It is a fairness
+  question before it is a bullet question: every door in this game is opened on the ship's *own* bearing
+  and then held still, because "a promise that moves is not a promise" (game/bosses.js header). A wall
+  whose gap travels has to decide which side of that rule it is on - my guess is "the gap moves, but the
+  wall shows the gap's whole path first", which is exactly what this session's fans do for a bearing,
+  and would be a `gapArc` on the shell's row rather than a new beat. `test/eclipse.test.mjs` owns the
+  door and would be where it is argued.
+- Still open and smaller: the Hive's owed spiral (session 60's note), the mid-build measurement gap, the
+  four unbuilt synergies, milestone 7's music buses, and `tools/agent/session.js` having `choose_weapon`
+  and no `choose_ship`.
