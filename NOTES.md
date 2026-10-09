@@ -6506,3 +6506,131 @@ than on one body - is the measurement that would actually price this gun, and it
 - If a lance run ever needs its own tell on the build rail or the HUD, `STARFALL.stats()` already answers
   `lanceWind` (0-1 through the wind-up), `lanceBeams`, `lancePulls`, `lanceFired`, `lanceCaught` and
   `lanceDealt`.
+
+---
+
+## Session 54 (2026-10-09) — Swarm: the fifth and last of PLAN 3.2's primaries. Released **0.5.1**
+
+`src/game/missiles.js` (the hunt, the blast, and the three decisions below), `BALANCE.weapons.swarm`,
+`hunts`/`splash` on every bullet and on every spawner that throws one (`game/bullets.js`,
+`game/weapons.js`, `game/turret.js`, `tools/headless/scripted.js`, `test/bullet-art.test.mjs`), the dart
+in `render/entities.js`, `test/missiles.test.mjs` (14) and `test/missile-art.test.mjs` (5), the missile
+branch in `test/weapons.test.mjs`, and milestone 5's first item ticked: **all five primaries are in.**
+Suite is **1013 green**, `tools/simulate.js --weapon swarm --audio` plays a whole run to its end without throwing (one seed died at 5m37s, which is a result and not a fault), and
+`--seed 20261006 --trace` is byte-identical to what it was before this session (checked against the same
+command run on the tree at the start of it - a run that never picks the Swarm is the same run, which is
+the only claim a new primary has to make).
+
+**Another session was in this folder while this one worked.** It landed the lance and the voice budget and
+released **0.5.0** at 06:16-06:17, roughly in the middle of this session's reading of the tree. Nothing
+was stepped on - this session held off committing until the tree was clean again and then `git add`ed only
+its own files by name, which is what session 52's warning was for - but it is why the reference trace was
+re-taken rather than trusted, and why nothing here was released until 0.5.1.
+
+### The decisions, since nobody will remember them
+
+- **A missile is a bullet with two fields, not a system.** `hunts` (this shot steers) and `splash` (how
+  wide it goes off where it lands) ride on the shot, and `game/missiles.js` exports exactly two
+  functions for `game/bullets.js` to call: `hunt(world, bullet, dt)` between the move and the hit test,
+  and `detonate(world, bullet, spared)` where a hit lands. There is no `world.swarm`, no clock, no
+  `resetSwarm` in `game/run.js` - which is a real difference from the arc, the lance and the nova, and
+  the reason is that those four own things that outlive a shot (a bolt fading, a wind-up held, a front
+  travelling). A missile is born and it dies; only the bullet pool knows it happened.
+- **Everything else about the missile is read off its row, not off the shot.** `BALANCE.weapons.swarm.missile`
+  carries the turn rate, the reach and the whole blast; a bullet carries only the two things that would
+  be *wrong* on a recycled shot. That is a deliberate small lie - if a second homing gun ever arrives
+  those numbers move onto the shot - and `test/missiles.test.mjs` asserts exactly one primary has a
+  `missile` block, so the assumption cannot rot unnoticed.
+- **The blast spares the body it hit.** game/blast.js pays a corpse and everything near it, which is
+  right for a bomber and wrong here: making the aimed body pay `damage + damage x share` prices one gun
+  with two numbers at once and quietly makes the point-blank shot the heaviest one, which is a trade
+  nobody can see on screen. Spare it and each number means one thing - `damage` is the shell, `share` is
+  the crowd around it - and the test reads them apart (`lost(hit) === damage`, `lost(inside) === damage
+  x share`, `lost(outside) === 0`). The ship is never asked, which is the game/nova.js and game/lance.js
+  argument again: a gun that goes off in your own face is a gun you are punished for firing.
+- **It hunts and never gives up - and it is slower than you are.** One rate (`turn` rad/s, capped per
+  step, so the turn is a rate and not a snap), one rule (the nearest body whose *skin* is inside `reach`),
+  no acquisition, no lock to break, no release. What makes that fair rather than a searchlight is
+  `speed: 300`, under the ship's 320: a missile can be walked out of, run out of, and led. Every other
+  option considered (acquire-and-hold, a turn that also sped the shot up, a fuse that homes only for the
+  first second) was a second number to price for the same effect, and would have made the aim smaller
+  rather than bigger.
+- **Two lines buy nothing and one buys more than anywhere else.** Pierce and ricochet are the business of
+  a shot that keeps flying, and this one detonates on the first body it meets - so a Swarm run that
+  takes them got a card that does nothing, which `test/missiles.test.mjs` now states as a promise (same
+  hull off both bodies with both lines maxed) instead of leaving as a surprise. `bulletSpeed` buys the
+  entire flight: 0.61 s against 1.28 s for the same hit at five ranks, the best return any line gives
+  any gun. That is on the row's comment and on the changelog, and it is the thing a player should be told
+  if a card ever gets weapon-aware text.
+
+### What the numbers say, and where they moved
+
+Priced on the knots every gun is priced on (`tools/power-ladder.js --weapon swarm`, 20 s, six seeds),
+against the plain gun's 4.3 on all three:
+
+| knot | first pass (damage 1, share 0.6) | shipped (damage 1.5, share 0.35) | the pulse | the scatter | the lance |
+|---|---|---|---|---|---|
+| the near field | 3.0 | **4.5** | 4.3 | 5.9 | 4.3 |
+| the ring | 13.8 | **13.9** | 4.3 | 12.2 | 20.0 |
+| the column | 11.8 | **12.2** | 4.3 | 13.0 | 26.3 |
+
+- The first pass was PLAN's ratio honestly applied (its 6 against the pulse's 10 is a third of the plain
+  gun's DPS) and it read as a *worse* gun, not a slow one: 3.0 on the near field, a bot median of 4m27s
+  over ten runs against the pulse's 5m00s, and a level 9 against 17. The lesson is the one session 34
+  wrote about the scatter in another form: **a knot below the plain gun on the near field is a tax, not
+  a trade**, because that knot is what a press actually looks like. So the shell got heavier (1.5, i.e.
+  "a missile is one and a half plain shots") and the blast lighter (0.6 -> 0.35) together, which lifted
+  the knot that was too low almost exactly to parity and left the crowd knots where they were - which is
+  what `share` is for: it is the multiplier on the two knots that were already too high to grow.
+- The bot over ten 300 s runs: swarm median 4m51s, 5/10 still flying at the cap, score median 6397,
+  level 13; the lance is 3m52s / 0/10 / 5101 / 7; the pulse 5m00s / 9/10 / 13873 / 17. Session 53's note
+  about a bot that cannot drive a lance applies here too but milder - a swarm does its own aiming, so the
+  naive bot loses less than it did with a beam. The pulse remaining far ahead on kills and level is the
+  shape of a bot that parks its cursor: it is not evidence about the guns, and it is why the knots are the
+  instrument and the runs are the smell test.
+- What the hunt costs (throwaway, `/tmp/bench-hunt.mjs`): 600 bodies heaped round the ship and eighteen
+  hunting shots in the air, **0.19 ms of a step** for the extra grid query - about 2% of a 60 fps frame at
+  the load PLAN section 2 asks about, and a normal run keeps three to six missiles in the air. The number
+  is in `hunt`'s doc comment so nobody has to measure it again. `simulate.js --weapon swarm` is *faster*
+  in wall clock than the pulse, because those runs are emptier.
+
+### What surprised me
+
+- **The new fields would have leaked silently if the spawners had not all been swept.** Adding `hunts`
+  and `splash` to `makeBullet` touches three spawners in the game and one in the harness, and the tests
+  that would have caught a missed one are the *generic* ones in `test/weapons.test.mjs` ("a pull writes
+  every field a bullet has, whichever gun fired it") - which only assert `!== undefined`, and `false` and
+  `0` are defined, so a turret shell left inheriting a hunt would have passed it. What catches it is a
+  test written on purpose: "a plain shot fired after a missile does not inherit the hunt". Every time a
+  field is added to a pooled shape, write the inheritance test as well as the field test.
+- **Two mutation checks were worth more than a rerun.** Both new behaviours were verified by breaking them
+  on purpose - `if (false) hunt(...)` and `if (false) { detonate(...) }` - and reading which tests went
+  red (three each, and not the three a moment's thought would have predicted: `bullet speed` goes red when
+  nothing hunts, because its shot never arrives). The drawing promise got the same treatment. It is two
+  minutes and it is the only proof that a green suite means something.
+- **The title screen grew a fifth row and nothing had to change.** The lance session's fix (the number
+  read out of the key instead of a table of three, and the list built off the rack) meant the only thing
+  this session had to do for the UI was add the row to `WEAPONS` - and `test/weapon-pick.test.mjs`, which
+  walks the rack and presses each number, picked up `5` by itself.
+- **The art test is about the trail, not the dart.** The interesting drawing promise was not "a missile has
+  a shape" (that is two fills and a rotate) but "a missile drags the trail *its own speed* earns and no
+  other" - the same streak sprite every shot is stamped with, stretched to the shot, so the picture cannot
+  promise a speed the simulation does not have. `test/bullet-art.test.mjs` already had that promise for
+  two guns; it now holds it for a third, and no new sprite was baked, so `test/draw-cost.test.mjs`'s holder
+  budget did not move.
+
+### For the next session
+
+- **Milestone 5's remaining items: ships with different hull, speed, weapon and drawn shape** (PLAN 3.2
+  names six: Brood starts with Orbitals, Volt a short dash cooldown - and the primaries are now all here
+  to hand out), then the milestone's release. Note that `world.weapon` is a per-visit pick, not a per-run
+  one (`resetRun` leaves the rack alone), so a ship select has to decide where a ship's gun and a player's
+  pick meet; session 8's note on `drawR`/`r` per ship still applies.
+- **Four synergies are still unbuilt** (storm, the saw ring, the minefield, and the railgun question session
+  53 left open). None of them touches the primaries' files, so any of them is a clean parallel session.
+- Milestone 7's music is still where session 52 left it: the buses want writing with the step sequencer,
+  and the fake audio device has a clock that moves so a sequencer can be tested at all.
+- If the Swarm ever wants its own tell on the build rail or the HUD, there is nothing to read yet: a
+  missile leaves no counter behind. `world.bullets` filtered on `hunts` is the only answer, and if a
+  session wants a real one it should add the scorecard the other lines keep (`pulls`, `caught`, `dealt`)
+  rather than filter the pool from the painter.
