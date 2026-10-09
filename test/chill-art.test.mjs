@@ -29,6 +29,7 @@ import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { stats as glowStats } from '../src/render/glow.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 // One device pixel to the CSS pixel, so a stamp can be compared with the numbers in
@@ -60,24 +61,12 @@ function clearTheSky() {
   ship.invuln = Infinity;
 }
 
-/** What one frame cost to draw, and how many sprites it had to bake to do it. */
-function frameCost() {
-  const before = game.drawCalls();
-  const beforeBakes = game.bakeCalls();
-  game.step();
-  const after = game.drawCalls();
-  const afterBakes = game.bakeCalls();
-  return {
-    fills: after.fills - before.fills,
-    strokes: after.strokes - before.strokes,
-    images: after.images - before.images,
-    texts: after.texts - before.texts,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: afterBakes.canvases - beforeBakes.canvases,
-    stamps: game.stamps(),
-  };
-}
+/**
+ * What one frame of the arena cost, and how many sprites it had to bake to do it. The interface
+ * is not part of the answer and the run's build is part of it, so it is measured apart: see
+ * tools/headless/frame-cost.js.
+ */
+const frameCost = makeFrameCost(game);
 
 /** One body of `type` standing still at (x, y), cold by `frost` if one is given. */
 function plant(type, x, y, frost) {
@@ -128,9 +117,10 @@ function crowd(count, frost, spot) {
 
 test('ranks are not rime: a ship that took the card and hit nothing paints nothing', () => {
   // The same crowd twice, once with the line taken and once without. Nothing has been hit in
-  // either, so nothing is cold, and the frame may not know the difference: this is the one
-  // promise that stops a bought line from quietly drawing itself whether or not it is doing
-  // anything.
+  // either, so nothing is cold, and the arena may not know the difference: this is the one
+  // promise that stops a bought line from quietly freezing bodies whether or not it has hit
+  // anything. (The interface does know, and says so on the build rail - render/hud.js - which is
+  // why this measures the arena and not the whole frame.)
   const plain = crowd(6, undefined);
   field.upgrades.chill = BALANCE.upgrades.chill.ranks;
   assert.ok(field.enemies.every((body) => body.frost === 0),

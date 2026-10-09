@@ -26,6 +26,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { TAU } from '../src/core/math.js';
@@ -47,22 +48,12 @@ field.player.invuln = Infinity;
 field.enemies.length = 0;
 field.player.dashCd = 0;      // a ready dash is one circle; a cooling one is three
 
-/** Paint one frame and report what it asked the canvas for. */
-function paintFrame() {
-  const before = game.drawCalls();
-  const baked = game.bakeCalls();
-  game.step();
-  const after = game.drawCalls();
-  const now = game.bakeCalls();
-  return {
-    strokes: after.strokes - before.strokes,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: now.canvases - baked.canvases,
-    circles: game.circles(),
-    words: game.words(),
-  };
-}
+/**
+ * Paint one frame and report what it asked the arena for. The interface is painted on every frame
+ * and one mark of it belongs to every line the run owns, which is not what this file is measuring,
+ * so it is measured apart: tools/headless/frame-cost.js.
+ */
+const paintFrame = makeFrameCost(game);
 
 /**
  * Put `shards` shards' worth in the bank at `ranks` ranks, then settle for two frames so whatever

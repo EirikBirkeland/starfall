@@ -1,13 +1,17 @@
-// The in-run interface: score, hull, the XP bar, and the frame rate.
-// Everything here reads the world; nothing here changes it.
+// The in-run interface: score, hull, the XP bar, the lines the run is built out of, and the
+// frame rate. Everything here reads the world; nothing here changes it.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
-import { clamp } from '../core/math.js';
+import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
 import { hasLeech } from '../game/leech.js';
-import { leechCostOf } from '../game/upgrades.js';
+import { leechCostOf, LINES, maxRanksOf, rankOf } from '../game/upgrades.js';
 import { weaponName } from '../game/weapons.js';
+import { dueOf as frontDue } from '../game/nova.js';
+import { dueOf as dropDue } from '../game/mines.js';
+import { dueOf as crewDue } from '../game/turret.js';
 import { polygon, roundRect } from './shapes.js';
+import { drawIcon, tintOf } from './icons.js';
 import { glowFor, paintGlow } from './glow.js';
 import { view } from './canvas.js';
 
@@ -206,5 +210,176 @@ export function drawHUD(ctx, fps) {
   ctx.font = FONT_FPS;
   ctx.fillText(Math.round(fps) + ' FPS', W - PAD, H - 28);
   ctx.textAlign = 'left';
+
+  drawBuildRail(ctx);
   ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// The rail: what the run is built out of, down the left edge (PLAN section 4).
+//
+// One row per line the run has taken, in the deck's own order, so the column reads as the rack
+// does: DAMAGE above FIRE RATE above SPLIT SHOT, in the shapes the cards sold them in (the icons
+// live in render/icons.js for exactly that reason). A row is the mark, then one pip per rank it
+// has - the same pips the card drew, minus the next-rank pulse, which is a promise about a card and
+// so belongs on the card.
+//
+// Three of the lines hand a thing out on a wait that the arena cannot show - the next nova front,
+// the next row of mines, the next turret crew - and those three wear an arc that closes over the
+// wait, the same message the dash's cooldown ring round the ship gives. The other lines have no
+// wait to be told about: they are either always on (the gun lines, the orbital ring, the fire and
+// the frost) or they already have a meter of their own somewhere the eye already goes - the
+// overcharge and the magnetar field round the hull, the leech under the hull pips.
+//
+// Nothing is written here about *which* lines: a row exists because `rankOf` is above zero, so a
+// line that is maxed, banished after being taken, or a synergy the run found is on the rail like
+// anything else.
+// ---------------------------------------------------------------------------
+
+const RAIL_LEFT = PAD + 6;    // the rail's left edge, in line with the score
+const RAIL_TOP = 116;         // clear of the score, BEST, TIME and GUN lines
+const RAIL_BOTTOM = 52;       // the room the XP bar and its label keep at the bottom
+const STRIDE_MAX = 26;        // one row at the size the marks were drawn to be ...
+const STRIDE_MIN = 15;        // ... and the smallest they may get before the rail wraps
+const ICON_OF = 0.36;         // the mark's size, as a share of a row
+const RING_OF = 0.46;         // ... and the wait ring's radius
+const PIP_R = 2.1;            // a rank pip and its pitch: one pip per rank the line has, which is
+const PIP_STEP = 5.6;         //   five for everything in the deck bar the one-line synergy
+const PIP_ROOM = 6;           // px of air between a mark and its first pip
+const DEEPEST = LINES.reduce((deepest, line) => Math.max(deepest, maxRanksOf(line.id)), 1);
+const PIP_BLOCK = PIP_STEP * (DEEPEST - 1) + PIP_R * 2;   // the widest row of pips it can be asked for
+const RING_SOFT = 0.19;       // the wide faint pass under the wait ring, as a share of a row
+const RING_LINE = 0.077;
+
+/**
+ * The lines that wait on a beat, and who answers for it. Three modules own these waits and each
+ * one answers the same question about its own, so the rail does not have to know that a nova keeps
+ * `wait` against a beat it was armed with while a mine counts down the deck's whole cycle.
+ */
+const WAITS = new Map([['nova', frontDue], ['mines', dropDue], ['turret', crewDue]]);
+
+/**
+ * Where every row of the rail lands, for `count` owned lines in a window of W x H.
+ *
+ * The whole row is a share of its own stride, and the stride is whatever the window's left edge
+ * can give: a tall window gets rows at the size the marks were drawn to be, a short one pays in
+ * smaller rows rather than fewer of them - a run's build is never cut short to fit the screen.
+ * When even the smallest row will not fit going down, the rail wraps into a second column beside
+ * the first, and a third if it must.
+ *
+ * Exported because the frame that draws it and the tests that measure it must never disagree
+ * about where a row is (the same bargain render/cards.js strikes with `cardLayout`).
+ */
+export function buildRailLayout(count, W, H) {
+  const room = Math.max(STRIDE_MIN, H - RAIL_TOP - RAIL_BOTTOM);
+  const stride = clamp(room / Math.max(1, count), STRIDE_MIN, STRIDE_MAX);
+  const pitch = stride * RING_OF * 2 + PIP_ROOM + PIP_BLOCK;
+  // A column holds as many rows as the window is tall; a second one starts beside it when it will
+  // not hold them all. The rail may never eat more than half the window, though: past that the
+  // arena is behind a wall of pips, and a run that owns that many lines has been playing a long
+  // time and can afford to read small ones.
+  const perColumn = Math.max(1, Math.floor(room / stride));
+  const columns = clamp(Math.ceil(count / perColumn), 1,
+    Math.max(1, Math.floor((W * 0.5 - RAIL_LEFT) / pitch)));
+  const rows = Math.max(1, Math.ceil(count / columns));
+
+  const places = [];
+  for (let i = 0; i < count; i++) {
+    const left = RAIL_LEFT + stride * RING_OF + Math.floor(i / rows) * pitch;
+    places.push({
+      x: left,
+      y: RAIL_TOP + stride * ((i % rows) + 0.5),
+      stride: stride,
+      icon: stride * ICON_OF,
+      ring: stride * RING_OF,
+      pips: left + stride * RING_OF + PIP_ROOM,
+    });
+  }
+  return places;
+}
+
+/** The lines this run has taken, in the deck's order. */
+function ownedLines() {
+  const owned = [];
+  for (const line of LINES) {
+    if (rankOf(world, line.id) > 0) owned.push(line);
+  }
+  return owned;
+}
+
+/**
+ * Where a row's rank pips are drawn: `ranks` of them, evenly pitched to the right of its mark.
+ * Exported for the same reason as the layout above - the test that counts a row's pips and the row
+ * that draws them must never disagree about where one sits.
+ */
+export function pipsOf(place, ranks) {
+  const xs = [];
+  for (let i = 0; i < ranks; i++) xs.push(place.pips + i * PIP_STEP);
+  return xs;
+}
+
+function drawBuildRail(ctx) {
+  const owned = ownedLines();
+  if (owned.length === 0) return;
+
+  const places = buildRailLayout(owned.length, view.W, view.H);
+  for (let i = 0; i < owned.length; i++) {
+    drawBuildRow(ctx, owned[i], places[i]);
+  }
+}
+
+function drawBuildRow(ctx, line, place) {
+  const tint = tintOf(line.icon);
+  const wait = WAITS.get(line.id);
+  if (wait !== undefined) {
+    drawWaitRing(ctx, place, wait(world), tint);
+  }
+
+  drawIcon(ctx, line.icon, place.x, place.y, place.icon, tint);
+
+  // Taken ranks are filled in the line's own colour, the room that is left is a faint outline:
+  // the row says how deep the run went, and a maxed line is a row with nothing faint left in it.
+  const total = maxRanksOf(line.id);
+  const have = rankOf(world, line.id);
+  const pips = pipsOf(place, total);
+  for (let i = 0; i < total; i++) {
+    polygon(ctx, pips[i], place.y, PIP_R, 4, Math.PI / 4);
+    if (i < have) {
+      ctx.fillStyle = withAlpha(tint, 0.95);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = withAlpha(tint, 0.26);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+}
+
+/**
+ * The wait, as an arc closing round the line's mark: a track, then a wide faint pass under a thin
+ * bright one, which is how anything here shines without a blur (render/glow.js). Whole means the
+ * next one is happening now. It is the same three strokes the dash's cooldown, the overcharge and
+ * the magnetar field spend round the hull, in the line's own colour at a row's worth of pixels.
+ */
+function drawWaitRing(ctx, place, due, tint) {
+  ctx.lineWidth = Math.max(1, place.stride * RING_LINE);
+  ctx.strokeStyle = withAlpha(tint, 0.22);
+  ctx.beginPath();
+  ctx.arc(place.x, place.y, place.ring, 0, TAU);
+  ctx.stroke();
+
+  const sweep = TAU * clamp(due, 0, 1);
+  if (sweep <= 0) return;
+
+  ctx.lineWidth = Math.max(2, place.stride * RING_SOFT);
+  ctx.strokeStyle = withAlpha(tint, 0.26);
+  ctx.beginPath();
+  ctx.arc(place.x, place.y, place.ring, -Math.PI / 2, -Math.PI / 2 + sweep);
+  ctx.stroke();
+
+  ctx.lineWidth = Math.max(1, place.stride * RING_LINE);
+  ctx.strokeStyle = withAlpha(tint, 0.95);
+  ctx.beginPath();
+  ctx.arc(place.x, place.y, place.ring, -Math.PI / 2, -Math.PI / 2 + sweep);
+  ctx.stroke();
 }

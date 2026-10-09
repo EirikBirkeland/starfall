@@ -22,6 +22,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 
@@ -42,23 +43,12 @@ game.step();
 field.spawnTimer = Infinity;
 field.player.invuln = Infinity;
 
-/** Paint one frame and report what it asked the canvas for. */
-function paintFrame() {
-  const before = game.drawCalls();
-  const baked = game.bakeCalls();
-  game.step();
-  const after = game.drawCalls();
-  const now = game.bakeCalls();
-  return {
-    strokes: after.strokes - before.strokes,
-    fills: after.fills - before.fills,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: now.canvases - baked.canvases,
-    circles: game.circles(),
-    words: game.words(),
-  };
-}
+/**
+ * Paint one frame and report what it asked the arena for. The interface is painted on every frame
+ * and one mark of it belongs to every line the run owns, which is not what this file is measuring,
+ * so it is measured apart: tools/headless/frame-cost.js.
+ */
+const paintFrame = makeFrameCost(game);
 
 /**
  * Dash to the right, through the game's own door: the right mouse button. The cooldown is

@@ -3,7 +3,7 @@
 // There is no browser here, so this cannot say a mine on the arena floor reads as "yours, and it
 // waits". What it can say is the four promises that make the line an honest piece of the picture:
 //
-//   an empty field costs a frame nothing at all - no ring, no shell, no eye, because the mines
+//   an empty field costs the arena nothing at all - no ring, no shell, no eye, because the mines
 //     standing in the arena are the whole of the line's drawing state;
 //   the ring on the floor is the reach that sets the mine off and never more: it is born at the mine
 //     and grows out to `trigger`, so a circle a player is shown is never bigger than the reach the
@@ -25,6 +25,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 
@@ -32,6 +33,8 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const MINES = BALANCE.upgrades.mines;
 const game = await bootGame({ root: ROOT, seed: 44, dpr: 1 });
 const field = game.world;
+// What a frame cost the arena, with the interface taken back out of it. tools/headless/frame-cost.js.
+const frameCost = makeFrameCost(game);
 
 // Start a run, then leave the arena empty and the wave director out of it: this file counts what a
 // standing mine costs, and a wave arriving mid-measurement would be a different measurement every
@@ -47,24 +50,25 @@ field.player.invuln = Infinity;
 field.enemies.length = 0;
 
 /**
- * Paint one frame and report what it asked the canvas for. The mine drop is parked first, so the
- * field holds exactly what the test put in it whatever the frame clock says.
+ * Paint one frame and report what it asked the arena for. The mine drop is parked first, so the
+ * field holds exactly what the test put in it whatever the frame clock says, and the interface -
+ * which paints a mark for every line the run owns, and so costs more the more of the line has been
+ * bought - is measured apart: tools/headless/frame-cost.js.
  */
 function paintFrame() {
-  const before = game.drawCalls();
-  const baked = game.bakeCalls();
-  field.mines.wait = Infinity;
-  game.step();
-  const after = game.drawCalls();
-  const now = game.bakeCalls();
+  const cost = frameCost(() => {
+    field.mines.wait = Infinity;
+    game.step();
+  });
   return {
-    strokes: after.strokes - before.strokes,
-    stamps: after.images - before.images,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: now.canvases - baked.canvases,
-    circles: game.circles(),
-    words: game.words(),
+    strokes: cost.strokes,
+    // What this file counts as a stamp, the helper calls an image.
+    stamps: cost.images,
+    gradients: cost.gradients,
+    shadows: cost.shadows,
+    baked: cost.baked,
+    circles: cost.circles,
+    words: cost.words,
   };
 }
 
@@ -113,7 +117,7 @@ function bare() {
   return paintFrame();
 }
 
-test('an empty field costs a frame nothing at all', () => {
+test('an empty field costs the arena nothing at all', () => {
   const empty = bare();
   field.upgrades.mines = 4;
   const ranksAndNoMines = paintFrame();
@@ -121,7 +125,7 @@ test('an empty field costs a frame nothing at all', () => {
 
   assert.equal(field.mines.laid.count, 0, 'the mines standing are the whole of the state');
   assert.equal(ranksAndNoMines.strokes, empty.strokes,
-    'so ranks with nothing standing cost a frame nothing: ' + empty.strokes + ' strokes against '
+    'so ranks with nothing standing cost the arena nothing: ' + empty.strokes + ' strokes against '
     + ranksAndNoMines.strokes);
 });
 test('a standing mine is a ring, a shell and an eye', () => {

@@ -42,7 +42,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { dist2 } from '../core/math.js';
+import { dist2, clamp } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
@@ -188,6 +188,21 @@ export function updateNova(world, dt) {
   if (nova.wait > 0) return;
   nova.wait = nova.beat;
   throwFront(world, spec);
+}
+
+/**
+ * How near the ship is to throwing another front: 0 the step one went out and 1 when the next
+ * one is due. The arena shows every front already in the air and nothing at all about the wait,
+ * so this is the one answer a run can get about the next ring - and the only place that asks is
+ * the HUD, which closes an arc round the nova's own mark as this climbs (render/hud.js).
+ *
+ * A run with no ranks of the line has no wait, and answers 1: the first front a card buys is
+ * thrown on the very next step, so "due now" is the truth rather than a division by zero.
+ */
+export function dueOf(world) {
+  const nova = world.nova;
+  if (nova.beat <= 0) return 1;
+  return clamp(1 - nova.wait / nova.beat, 0, 1);
 }
 
 /**

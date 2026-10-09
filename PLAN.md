@@ -626,7 +626,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
       banish tab would be, and the two parents named where a line's rank pips are - both parents' colours
       and no new hue and no new sprite, because the glow cache had no room for one.) (The frame and the first of the six are in -
       `game/shock.js`, and the table above says which four are left and what each is waiting for.)
-- [ ] Owned-upgrade icons on the HUD.
+- [x] Owned-upgrade icons on the HUD.
+      (The rail: one row per line the run has taken, down the left edge, in the deck's own order,
+      wearing the mark the card sold it in with one pip per rank - `render/hud.js`. The icon shapes
+      and tints moved out of `render/cards.js` into `render/icons.js` so the rack and the rail name
+      the same thing with the same picture, and a line's own module now answers how near its next
+      beat is (`dueOf` in `game/nova.js`, `game/mines.js`, `game/turret.js`), which the three lines
+      the arena cannot show - a nova front already in the air, mines dropped behind the ship, the
+      gap after the last crew - wear an arc over. Rows shrink with a short window and the rail wraps
+      into another column rather than cut a build short. `test/build-rail.test.mjs` owns it, and the
+      art files now measure the arena with the interface subtracted (`tools/headless/frame-cost.js`),
+      because a frame costs a mark for every line a run owns.)
 - [ ] Release.
 
 ### Milestone 5: weapons and ships

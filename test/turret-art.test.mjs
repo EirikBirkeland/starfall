@@ -4,7 +4,7 @@
 // of it reads as "that is mine, and it is aiming". What it can say is the four promises that make the
 // drawing an honest piece of the picture:
 //
-//   no guns standing cost a frame nothing at all - no mount, no barrel, no light - because the guns
+//   no guns standing cost the arena nothing at all - no mount, no barrel, no light - because the guns
 //     standing in the arena are the whole of the line's drawing state, ranks included;
 //   **the sight line is the reach**: the line drawn out of the muzzle stops at exactly `reach`, which is
 //     the distance game/turret.js will aim at and the distance its shell is given flight for - the light
@@ -25,6 +25,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { makeEnemy } from '../src/game/kinds.js';
@@ -36,6 +37,9 @@ const GUN_AT = 300;              // px east of the ship the guns of a test stand
 const PREY_AT = 200;             // px down the nose of the nearest one, for the frames that have a lock
 const game = await bootGame({ root: ROOT, seed: 47, dpr: 1 });
 const field = game.world;
+// What a frame cost the arena, with the interface taken back out of it: a frame paints a mark for
+// every line the run owns (render/hud.js) and this file is measuring guns. tools/headless/frame-cost.js.
+const frameCost = makeFrameCost(game);
 
 // Start a run, then empty the arena and take the wave director out of it: this file counts what a gun
 // costs, and a wave arriving mid-measurement would be a different measurement every time. Every gun
@@ -112,23 +116,22 @@ function paintFrame(state) {
   const at = state === undefined ? {} : state;
   plant(at.count === undefined ? 1 : at.count, at);
   const hold = at.hold === undefined ? null : still(at.hold);
-  const before = game.drawCalls();
-  const baked = game.bakeCalls();
-  if (hold !== null) hold();
-  game.step();
-  if (hold !== null) hold();
-  const after = game.drawCalls();
-  const now = game.bakeCalls();
+  const cost = frameCost(() => {
+    if (hold !== null) hold();
+    game.step();
+    if (hold !== null) hold();
+  });
   return {
-    strokes: after.strokes - before.strokes,
-    stamps: after.images - before.images,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: now.canvases - baked.canvases,
+    strokes: cost.strokes,
+    // What this file counts as a stamp, the helper calls an image.
+    stamps: cost.images,
+    gradients: cost.gradients,
+    shadows: cost.shadows,
+    baked: cost.baked,
     // The log holds the one frame that was just drawn (tools/headless/harness.js), so this is that
     // frame's own points and nothing older than it.
-    points: game.points(),
-    words: game.words(),
+    points: cost.points,
+    words: cost.words,
   };
 }
 
@@ -178,7 +181,7 @@ function marks(seen) {
     .filter((v, i, all) => i === 0 || v !== all[i - 1]);
 }
 
-test('no guns standing costs a frame nothing at all', () => {
+test('no guns standing costs the arena nothing at all', () => {
   const empty = bare();
   field.upgrades.turret = 5;
   field.turret.wait = Infinity;          // and no crew of its own going down mid-measurement
@@ -188,7 +191,7 @@ test('no guns standing costs a frame nothing at all', () => {
 
   assert.equal(field.turret.stands.count, 0, 'the guns standing are the whole of the state');
   assert.equal(ranksAndNoGuns.strokes, empty.strokes,
-    'so five ranks with nothing planted cost a frame nothing: ' + empty.strokes + ' strokes against '
+    'so five ranks with nothing planted cost the arena nothing: ' + empty.strokes + ' strokes against '
     + ranksAndNoGuns.strokes);
   assert.equal(ranksAndNoGuns.stamps, empty.stamps, 'and no light of their own');
 });

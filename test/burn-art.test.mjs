@@ -29,6 +29,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { ignite } from '../src/game/burn.js';
 import { stats as glowStats } from '../src/render/glow.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 // One device pixel to the CSS pixel, so a stamp can be compared with the numbers in
@@ -62,24 +63,12 @@ function clearTheSky() {
   ship.invuln = Infinity;
 }
 
-/** What one frame cost to draw, and how many sprites it had to bake to do it. */
-function frameCost() {
-  const before = game.drawCalls();
-  const beforeBakes = game.bakeCalls();
-  game.step();
-  const after = game.drawCalls();
-  const afterBakes = game.bakeCalls();
-  return {
-    fills: after.fills - before.fills,
-    strokes: after.strokes - before.strokes,
-    images: after.images - before.images,
-    texts: after.texts - before.texts,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: afterBakes.canvases - beforeBakes.canvases,
-    stamps: game.stamps(),
-  };
-}
+/**
+ * What one frame of the arena cost, and how many sprites it had to bake to do it. The interface
+ * is not part of the answer and the run's build is part of it, so it is measured apart: see
+ * tools/headless/frame-cost.js.
+ */
+const frameCost = makeFrameCost(game);
 
 /** One body of `type` standing still at (x, y), and alight if the line has been taken. */
 function plant(type, x, y, lit) {
@@ -117,9 +106,10 @@ function crowd(count, lit, spot) {
 
 test('ranks are not flames: a ship that took the card and hit nothing paints nothing', () => {
   // The same crowd twice, once with the line taken and once without. Nothing has been hit in
-  // either, so nothing is alight, and the frame may not know the difference: this is the one
-  // promise that stops a bought line from quietly drawing itself whether or not it is doing
-  // anything.
+  // either, so nothing is alight, and the arena may not know the difference: this is the one
+  // promise that stops a bought line from quietly setting bodies alight whether or not it has hit
+  // anything. (The interface does know, and says so on the build rail - render/hud.js - which is
+  // why this measures the arena and not the whole frame.)
   const plain = crowd(6, false);
   field.upgrades.burn = 1;
   assert.equal(field.fires.count, 0, 'the card is taken and nothing has been hit');

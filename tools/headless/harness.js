@@ -349,6 +349,20 @@ export async function bootGame(options) {
     /** Draw counters, so a test can tell that something was actually painted. */
     drawCalls() { return Object.assign({}, counters); },
     /**
+     * Paint something on a canvas of its own and say what it cost: `{ fills, strokes, images,
+     * texts, gradients, shadows }`. Nothing about the run or the frame being measured is touched
+     * - not the counters, not the last frame's draw log - so a test can hold one part of the
+     * picture still while it measures another (see tools/headless/frame-cost.js).
+     */
+    measure(paint) {
+      const spent = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
+      const blank = {
+        translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [],
+      };
+      paint(makeContextStub(spent, blank));
+      return Object.assign({}, spent);
+    },
+    /**
      * The canvas the game draws into - the stub, in other words, and with it the honest measure of
      * how wide a word is at the size a font string says to draw it. A test that wants to paint one
      * thing on its own (the card rack, say) hands this to the painter that normally only main.js

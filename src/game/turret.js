@@ -369,6 +369,22 @@ export function reloadingOf(turret) {
 }
 
 /**
+ * How near the ship is to planting another crew: 0 the step one was set down and 1 when the next
+ * one is due. A gun stands where it was planted and fades as its ten seconds run out, so the
+ * arena does say which guns are still holding ground - but it cannot say anything about the two
+ * seconds *after* the last one goes out, which is the gap a run has to plan around. The HUD
+ * closes an arc round the turret's own mark over that wait (render/hud.js).
+ *
+ * A run with no ranks of the line has no wait and answers 1: the first crew a card buys is
+ * planted on the very next step.
+ */
+export function dueOf(world) {
+  const cycle = BALANCE.upgrades.turret.cycle;
+  if (cycle <= 0) return 1;
+  return clamp(1 - world.turret.wait / cycle, 0, 1);
+}
+
+/**
  * Count one body that a turret's shell came round. Called by game/bullets.js from the one place in
  * the game that knows a shell landed, because a shell is a bullet and bullets are spent there and
  * not here; a turret that counted its own hits would have to guess them from the crowd.

@@ -6201,3 +6201,85 @@ worth more than either measurement:
   in `render/cards.js` about there being no room for a colour of its own). The card-fit work is text
   and did not either. If a card ever needs a new hue and that test fails, that is the budget talking,
   and the fix is to reuse something rather than to raise the cap.
+
+## Session 51 (2026-10-09) — The build rail: what the run is built out of, down the left edge. Released **0.4.21**
+
+Milestone 4's last item that was not waiting on another milestone: **owned-upgrade icons on the HUD**
+(PLAN section 4, "small icons for owned upgrades down the left edge"). The rail is one row per line
+the run has taken, in the deck's own order, wearing the mark the card sold it in, with one pip per
+rank it has - and for the three lines whose beat the arena cannot show, an arc that closes over the
+wait. `test/build-rail.test.mjs` (11 tests) owns the whole thing; the suite is 960 and green and
+`tools/simulate.js` still plays a full 600 s run.
+
+### The decisions, since nobody will remember them
+
+- **The icon shapes moved out of `render/cards.js` into `render/icons.js`** (901 lines out of a 1478-line
+  file, which is left at 612). Rack and rail now name the same thing with the same picture because they
+  read the same `drawIcon(ctx, kind, cx, cy, size, tint)` and the same `tintOf(icon)` - which is the
+  only reason the split exists. As a side effect the glow bake radius is canonical (one `GLOW_BAKE = 64`
+  sprite per tint, scaled to whatever size is asked for) instead of one per (tint, size) pair, and
+  **`test/draw-cost.test.mjs`'s holder count fell from 34 to 25 of the 35 cap**: there is room for a
+  colour of someone's own again, after two sessions of "no room left".
+- **A rank is one pip, not a numeral.** `maxRanksOf(id)` pips per row, filled for the ranks taken and
+  faint outlines for the room left, so a maxed row is a row with nothing faint in it. No words: the
+  rail is a column of shapes you read at a glance while flying, and a column of words is a second
+  screen you have to stop to read. `test/build-rail.test.mjs` says both of those.
+- **Three lines wear a wait ring: nova, mines, turret** - `WAITS` in `render/hud.js`. Chosen because
+  those are the beats the arena is silent about: a nova front is in the air and gone, a row of mines
+  falls out of the wake *behind* the ship, and the two seconds after the last crew goes out are
+  nothing at all to look at. The rest are either always on (the gun lines, the ring, fire and frost)
+  or already have a meter where the eye goes (overcharge and the magnetar field round the hull, the
+  leech under the hull pips). Each of the three modules now answers `dueOf(world)` - 0 the step it
+  handed one out, 1 when the next is due - rather than the HUD reaching into `nova.wait` and
+  `mines.wait` and `turret.wait`, which are three different shapes of clock.
+- **It fits before it is pretty.** A row's whole geometry is a share of its stride; the stride is what
+  the left edge can give (26 px down to 15) and below that the rail **wraps into another column**
+  rather than cut a line off, and never eats more than half the window. A run's build is the last
+  thing that should get cropped. `buildRailLayout(count, W, H)` and `pipsOf(place, ranks)` are
+  exported so the painter and the test can never disagree about where a row or a pip is, which is the
+  same bargain `cardLayout` strikes.
+
+### The thing to know about the art tests
+
+Owning a line now paints something every frame, so thirteen promises across eight `*-art` files - "a
+ship that took the card and hit nothing paints nothing", "no guns standing costs a frame nothing" -
+went red at once. Every one of them was still a good promise; what had changed is that they were
+counting the **whole frame** while meaning the **arena**. So:
+
+- `tools/headless/frame-cost.js` exports `makeFrameCost(game)`: it steps a frame, paints the
+  interface a second time on a scratch canvas over the world state the frame just left, and subtracts
+  it. What a caller gets is the arena and nothing else, plus the frame's own draw log.
+- The scratch canvas is `game.measure(fn)` in `tools/headless/harness.js` - a second stub context with
+  its own counters and its own log, so measuring the interface does not touch the frame's counters,
+  its `strokeWidths()`, or its positional logs.
+- `burn, chill, orbitals, turret, tether, magnetar, mines, afterimage` art files now build their
+  `frameCost`/`paintFrame` on that helper. Four test *names* changed from "costs a frame nothing" to
+  "**costs the arena nothing**" because that is what they say now; the assertions are unchanged in
+  strength. The interface's own cost is `test/build-rail.test.mjs`'s business.
+
+### What surprised me
+
+- **The broken tests were the point.** Thirteen red at once looked like the rail was wrong. It was the
+  first time the suite had a claim that "the HUD is a constant, so a frame's cost difference is all
+  arena", and the rail made that claim explicit instead of implicit. Fixing it properly meant naming
+  what each file measures, which the files did not previously say out loud.
+- **You cannot cluster the pips.** A pip's own corners are 3.0 px apart and the pips are 5.6 px apart,
+  so the gap *within* a pip is bigger than nothing useful and any x-clustering test is a coin toss.
+  That is why `pipsOf` is exported: the question "were five pips drawn" needs the same coordinates
+  the painter used, not a guess at them.
+- **"Five pips" was the wrong promise.** `thermalShock` is one rank deep, so its row wears one pip.
+  The honest rule is one pip per rank the line has, and the rail already drew that correctly - it was
+  the test that was wrong.
+- A row costs one glow stamp whatever its rank, because a taken pip is a `fill` and an untaken one is
+  a `stroke` of the same four corners: a maxed line is no dearer than a line that was just taken.
+
+### For the next session
+
+- **Milestone 4 is finished.** Milestone 5 starts: weapon definitions as data and the five primaries
+  from 3.2, one per session. `game/weapons.js` already exists (the title screen lets you pick one and
+  the HUD names it), so the first job is reading it cold and turning the pulse into data rather than
+  writing a new system beside it.
+- **Four synergies can still be built now** (storm, the saw ring, the minefield - session 50's list
+  minus thermal shock). They are independent of milestone 5 if a session wants a smaller job.
+- If a new card ever needs a hue of its own, `test/draw-cost.test.mjs` now has nine holders of spare
+  cache after the icon split. That is the budget talking either way: spend it deliberately.

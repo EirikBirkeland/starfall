@@ -23,6 +23,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { lerp } from '../src/core/math.js';
@@ -59,20 +60,12 @@ function clearTheSky() {
   ship.invuln = Infinity;
 }
 
-/** What one frame cost to draw. */
-function frameCost() {
-  const before = game.drawCalls();
-  game.step();
-  const after = game.drawCalls();
-  return {
-    fills: after.fills - before.fills,
-    strokes: after.strokes - before.strokes,
-    images: after.images - before.images,
-    texts: after.texts - before.texts,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-  };
-}
+/**
+ * What one frame of the arena cost. The interface is painted on every frame and one mark of it
+ * belongs to every line the run owns, which is not what this file is measuring, so it is measured
+ * apart: tools/headless/frame-cost.js.
+ */
+const frameCost = makeFrameCost(game);
 
 function total(cost) {
   return cost.fills + cost.strokes + cost.images + cost.texts;

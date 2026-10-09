@@ -50,7 +50,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { Pool } from '../core/pool.js';
-import { dist2 } from '../core/math.js';
+import { dist2, clamp } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
@@ -324,4 +324,20 @@ export function fusingOf(mine) {
   const spec = BALANCE.upgrades.mines;
   if (mine.fuse < 0) return 0;
   return 1 - mine.fuse / spec.fuse;
+}
+
+/**
+ * How near the ship is to dropping another row of mines: 0 the step a row fell out and 1 when the
+ * next one is due. Every mine already lying in the road is drawn in the arena and fades on its own
+ * clock, but the beat itself is invisible - a row drops out of the ship's wake, behind it, where
+ * a player is not looking - so this is what the HUD closes an arc round the mine's own mark with
+ * (render/hud.js).
+ *
+ * A run with no ranks of the line has no wait and answers 1, because the first mine a card buys
+ * falls out on the very next step.
+ */
+export function dueOf(world) {
+  const cycle = BALANCE.upgrades.mines.cycle;
+  if (cycle <= 0) return 1;
+  return clamp(1 - world.mines.wait / cycle, 0, 1);
 }

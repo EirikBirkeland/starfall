@@ -4,7 +4,7 @@
 // and this is the road it burns". What it can say is the four promises that make the line an honest
 // piece of the picture:
 //
-//   nothing tied costs a frame nothing at all - no band, no knot, no light - because the threads
+//   nothing tied costs the arena nothing at all - no band, no knot, no light - because the threads
 //     standing between the knots and the ship are the whole of the line's drawing state, ranks
 //     included;
 //   the band is drawn at exactly `reach` either side of the axis and never wider, which is the reach a
@@ -26,6 +26,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
+import { makeFrameCost } from '../tools/headless/frame-cost.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 
@@ -34,6 +35,9 @@ const TETHER = BALANCE.upgrades.tether;
 const BAND = TETHER.reach * 2;         // px: the whole width of the road a thread burns
 const game = await bootGame({ root: ROOT, seed: 46, dpr: 1 });
 const field = game.world;
+// What a frame cost the arena, with the interface taken back out of it: a frame paints a mark for
+// every line the run owns (render/hud.js) and this file is measuring threads. tools/headless/frame-cost.js.
+const frameCost = makeFrameCost(game);
 
 // Start a run, then leave the arena empty and the wave director out of it: this file counts what a
 // tied tether costs, and a wave arriving mid-measurement would be a different measurement every time.
@@ -48,27 +52,26 @@ field.player.invuln = Infinity;
 field.enemies.length = 0;
 
 /**
- * Paint one frame and report what it asked the canvas for. `live` is how much of its two seconds the
+ * Paint one frame and report what it asked the arena for. `live` is how much of its two seconds the
  * tether has left, and the default - forever - is what keeps a measurement from being interrupted by
  * the tether letting go halfway through it.
  */
 function paintFrame(live) {
-  const before = game.drawCalls();
-  const baked = game.bakeCalls();
-  field.tether.live = live === undefined ? Infinity : live;
-  game.step();
-  const after = game.drawCalls();
-  const now = game.bakeCalls();
+  const cost = frameCost(() => {
+    field.tether.live = live === undefined ? Infinity : live;
+    game.step();
+  });
   const widths = game.strokeWidths();
   return {
-    strokes: after.strokes - before.strokes,
-    stamps: after.images - before.images,
-    gradients: after.gradients - before.gradients,
-    shadows: after.shadows - before.shadows,
-    baked: now.canvases - baked.canvases,
+    strokes: cost.strokes,
+    // What this file counts as a stamp, the helper calls an image.
+    stamps: cost.images,
+    gradients: cost.gradients,
+    shadows: cost.shadows,
+    baked: cost.baked,
     widest: widths.length ? Math.max(...widths) : 0,
-    paths: game.points(),
-    words: game.words(),
+    paths: cost.points,
+    words: cost.words,
   };
 }
 
@@ -98,7 +101,7 @@ function bare() {
   return paintFrame();
 }
 
-test('nothing tied costs a frame nothing at all', () => {
+test('nothing tied costs the arena nothing at all', () => {
   const empty = bare();
   field.upgrades.tether = 5;
   const ranksAndNoThreads = paintFrame();
@@ -106,7 +109,7 @@ test('nothing tied costs a frame nothing at all', () => {
 
   assert.equal(field.tether.cords.count, 0, 'the threads standing are the whole of the state');
   assert.equal(ranksAndNoThreads.strokes, empty.strokes,
-    'so five ranks with nothing tied cost a frame nothing: ' + empty.strokes + ' strokes against '
+    'so five ranks with nothing tied cost the arena nothing: ' + empty.strokes + ' strokes against '
     + ranksAndNoThreads.strokes);
   assert.equal(ranksAndNoThreads.stamps, empty.stamps, 'and no light of their own');
 });
