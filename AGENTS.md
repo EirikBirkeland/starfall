@@ -75,3 +75,14 @@ This is not a prototype and nothing here is rushed. There is no deadline. Days o
 - Keep the game playable at every commit. A half-built feature stays behind a flag or unreachable until it works.
 - If a plan item turns out to be a bad idea, say why in `NOTES.md`, mark it `[skipped]` in `PLAN.md`, and move on.
 - Do not ask questions. Decide, write the decision in `NOTES.md`, and continue.
+
+## A helper on the owner's desktop
+
+The owner's desktop has an RTX 5090 running Gemma 4 31B, and you may use it as a worker. It is fast (100+ tokens a second) and knows nothing about this project.
+
+- Ask it with curl: POST http://192.168.8.201:8888/v1/chat/completions with JSON {"model": "unsloth/gemma-4-31B-it-GGUF", "messages": [{"role": "user", "content": "..."}]}.
+- Use only that model id.
+- It holds about 40,000 tokens per request and has two slots, which the owner also uses for work. One request at a time, and keep them short.
+- Good for self-contained jobs that fit in one message: draft one function or one test from a short spec, review a diff, summarise a long log.
+- It sees only what you paste. Whatever it returns is a draft: read it, run the checks, and fix it before you commit.
+- If it does not answer, carry on without it. It is the owner's work machine and is not always free.
