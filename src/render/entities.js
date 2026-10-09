@@ -12,8 +12,15 @@ import { polygon, shipPath, shipShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
-import { aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
-import { isBossBody, armedCount, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../game/bosses.js';
+import {
+  aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging,
+  isSpitting, lungeReach,
+} from '../game/kinds.js';
+import {
+  isBossBody, armedCount, bossTint, callAngle, callBody, callCount, callProgress, callStand,
+  callStep, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf, spokeProgress,
+  spokeStep,
+} from '../game/bosses.js';
 import { drawBoss } from './boss.js';
 import { frostOf, isFrozen } from '../game/chill.js';
 import { beamReach } from '../game/beams.js';
@@ -364,6 +371,17 @@ const DOOR_EDGE_LIGHT = 0.5;
 const DOOR_RIM = 3;             // px, the arc across its far end: this far, and no further
 const DOOR_RIM_LIGHT = 0.35;
 
+// The call's marks (game/bosses.js `windCall`): a tick out of the hoop, a pool of light where the
+// body will be, and a ring the size of it. Sizes are fixed px, not shares of the ring's radius,
+// because the glow holder is memoised on its radius (render/glow.js) and a mark that grew with
+// the boss would bake a sprite per frame.
+const CALL_TICK = 2;            // px, the line from the rim to the mark
+const CALL_TICK_LIGHT = 0.5;
+const CALL_GLOW = 1.6;          // the mark's pool of light, as a multiple of the body's own radius
+const CALL_LIGHT = 0.5;
+const CALL_EDGE = 2;
+const CALL_EDGE_LIGHT = 0.8;
+
 /**
  * One band of harm across the arena, from (x0, y0) to (x1, y1), `half` px each side of
  * the axis, at `light` of its full brightness, in `edge` with `core` down the middle.
@@ -424,9 +442,10 @@ export function drawLocks(ctx, list, alpha) {
 }
 
 /**
- * Everything a boss is promising right now, which is one of two things: the spokes it is holding,
- * or the door it is arming a ring of shots with. Both are drawn here because both are floor
- * markings under the crowd, and neither may be hidden by a body standing in the way of it.
+ * Everything a boss is promising right now, which is one of three things: the spokes it is holding,
+ * the door it is arming a ring of shots with, or the marks of a call it is filling. All three are
+ * drawn here because all three are floor markings under the crowd, and none of them may be hidden
+ * by a body standing in the way of it.
  *
  * The spokes: one band each, out of the hub to whatever wall stops it, drawn at exactly the width
  * its beam is paid out at (game/bosses.js `spokeHalf` is the one number both read) and reaching
@@ -447,6 +466,7 @@ export function drawBossLocks(ctx, boss, alpha) {
   const y = paintY(enemy, alpha);
   drawSpokes(ctx, boss, enemy, x, y);
   drawTheDoor(ctx, boss, x, y);
+  drawTheCall(ctx, boss, enemy, x, y);
 }
 
 function drawSpokes(ctx, boss, enemy, x, y) {
@@ -515,6 +535,53 @@ function drawTheDoor(ctx, boss, x, y) {
   ctx.beginPath();
   ctx.arc(x, y, reach, from, to);
   ctx.stroke();
+}
+
+/**
+ * The call it is making: one mark on the rim per body it is about to send (game/bosses.js
+ * `windCall`), fanned across the half of the hoop turned away from the ship, at exactly the
+ * stand-off the bodies are born at and along exactly the bearings they come out of.
+ *
+ * It is drawn under the crowd for the same reason the door is - it is a floor marking, a place
+ * where something will be - but it wears the phase's own warm light and not the door's cool one,
+ * because it is the opposite promise: the door is where to stand and this is where not to have
+ * stood when the light finishes filling up.
+ */
+function drawTheCall(ctx, boss, enemy, x, y) {
+  const count = callCount(boss);
+  if (count === 0) return;
+
+  const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * callProgress(boss);
+  const tint = bossTint(boss);
+  const body = callBody(boss);
+  const middle = (count - 1) / 2;
+  const near = enemy.r;
+  const far = enemy.r + callStand(boss);
+
+  for (let i = 0; i < count; i++) {
+    const angle = callAngle(boss) + (i - middle) * callStep(boss);
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const mx = x + dx * far;
+    const my = y + dy * far;
+    if (!onScreen(mx, my, body * CALL_GLOW)) continue;
+
+    // A line out of the hoop to the mark - the way the body is coming - and then the mark itself,
+    // a ring the size of the body that will fill it, both of them brighter as the light runs out.
+    ctx.beginPath();
+    ctx.moveTo(x + dx * near, y + dy * near);
+    ctx.lineTo(mx - dx * body, my - dy * body);
+    ctx.lineWidth = CALL_TICK;
+    ctx.strokeStyle = withAlpha(tint, CALL_TICK_LIGHT * light);
+    ctx.stroke();
+
+    paintGlow(ctx, glowFor(tint, body * CALL_GLOW), mx, my, CALL_LIGHT * light);
+    ctx.beginPath();
+    ctx.arc(mx, my, body, 0, TAU);
+    ctx.lineWidth = CALL_EDGE;
+    ctx.strokeStyle = withAlpha(tint, CALL_EDGE_LIGHT * light);
+    ctx.stroke();
+  }
 }
 
 // The lance's own two halves (game/lance.js): the band the gun is aiming while it winds up, and the

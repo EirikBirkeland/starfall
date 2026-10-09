@@ -1246,6 +1246,18 @@ export const BALANCE = {
       // before it met a wall would leave the far side of the room free for nothing. They wear
       // the phase's own `tint` rather than a colour of their own, so the bar, the spokes, the
       // flare and the shots are all the same sentence: this is how far into the fight you are.
+      //
+      // A phase with a `call` row sends bodies out of its own hoop as well (PLAN 3.4's phase 3,
+      // "spins faster and summons Darters"): `count` of them, `step` radians apart, `gap` px
+      // clear of the rim so a body is born outside the thing that hurts you and not inside it,
+      // fanned across the half of the hoop turned away from the ship. The fan is centred on the
+      // bearing taken when the wind-up starts and then held, exactly like the door, and the marks
+      // on the rim are the bearings the bodies come out of, edge for edge.
+      //
+      // A call is made when nothing is left of the last one standing and not otherwise: a second
+      // pack thrown over one that is still hunting the ship is not a boss being clever, it is a
+      // boss ignoring its own room (game/bosses.js `takeBeat`). Nothing in it is a roll, so a run
+      // of one seed calls its darters to the same bearings and to the same side of the ring.
       phases: [
         {
           spokes: 4, turn: 0.55, wait: 2.5, windup: 0.95, tint: PALETTE.amber,
@@ -1312,6 +1324,35 @@ export const BALANCE = {
               shake: 8,
               ring: { radius: 46, speed: 660, life: 0.4 },
               sound: { freq: 520, dur: 0.28, wave: 'sawtooth', vol: 0.1, slide: 90 },
+            },
+          },
+          // The third beat, and the one thing phase 3 has that phase 2 does not. Three darters,
+          // a degree or so apart either side of the bearing the ring is turned away on, thrown out
+          // of the hoop at the far side from the ship so that every one of them has to come all
+          // the way round to reach you - the fight is a room with a gun in the middle of it and
+          // these are the bodies that make you leave the corner you are hiding in. `windup` is how
+          // long the three marks are lit on the rim for, and is held to `bosses.telegraphMin`.
+          //
+          // They are the crowd's own darter and nothing about them is special (game/bosses.js
+          // `sendCall` builds them with the same `makeEnemy` the wave director uses, at the same
+          // hull the clock has brought them to), which is the point: a summon that was a new kind
+          // of body would be a third thing to learn on top of the two the ring already teaches.
+          call: {
+            type: 'darter', count: 3, step: 0.95, gap: 26, windup: 0.9,
+            wind: { sound: { freq: 300, dur: 0.75, wave: 'square', vol: 0.038, slide: 900 } },
+            fire: {
+              shake: 6,
+              ring: { radius: 40, speed: 520, life: 0.42 },
+              spark: { count: 12, speed: 340, life: 0.32 },
+              impulse: 260,
+              sound: { freq: 640, dur: 0.24, wave: 'square', vol: 0.09, slide: 260 },
+            },
+            // And how it ends, when the ring goes down: each body still standing comes apart in a
+            // jet along its own nose (game/bosses.js `dismissCall`) and the whole pack is one chord
+            // rather than one per body, because they are one event - the ring letting go.
+            dismiss: {
+              spark: { count: 14, speed: 360, life: 0.34, spread: 0.7 },
+              sound: { notes: [392, 262], dur: 0.5, wave: 'triangle', vol: 0.07 },
             },
           },
         },

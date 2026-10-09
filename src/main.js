@@ -8,7 +8,7 @@ import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } fro
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
-import { bossHullShare, bossName, bossPhase, bossWarning } from './game/bosses.js';
+import { bossHullShare, bossName, bossPhase, bossSummons, bossWarning } from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
@@ -287,6 +287,7 @@ window.STARFALL = {
       bossHull: world.boss === null ? 0 : bossHullShare(world.boss),
       bossPhase: world.boss === null ? 0 : bossPhase(world.boss),
       bossWarn: world.boss === null ? 0 : bossWarning(world.boss),
+      bossSummons: world.boss === null ? 0 : bossSummons(world.boss),
       bossesDown: world.bossesDown,
       caged: fieldIsCaged(world),
       // The nova (game/nova.js): how many fronts are in the air, and how long until the

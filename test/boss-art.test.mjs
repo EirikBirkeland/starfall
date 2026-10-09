@@ -18,9 +18,10 @@ import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { beamReach } from '../src/game/beams.js';
 import {
-  armedCount, bossFlare, bossPhase, cageRise, gapAngle, gapHalf,
-  spokeAngle, spokeCount, spokeHalf,
+  armedCount, bossFlare, bossPhase, bossTint, cageRise, callAngle, callBody, callCount,
+  callStand, callStep, gapAngle, gapHalf, spokeAngle, spokeCount, spokeHalf,
 } from '../src/game/bosses.js';
+import { PALETTE } from '../src/core/palette.js';
 import { bandPasses } from '../src/render/entities.js';
 import { bossBarLayout } from '../src/render/hud.js';
 
@@ -353,5 +354,126 @@ test('the door is drawn exactly as wide as the ring leaves it', () => {
     assert.ok(p.x >= near.x - 1 && p.x <= off.x + 1 && p.y >= near.y - 1 && p.y <= off.y + 1,
       'the door reaches outside the room');
   }
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------
+// The call's marks (game/bosses.js `windCall`, render/entities.js `drawTheCall`)
+// ---------------------------------------------------------------------------
+
+/** Step it into phase 3 and wait out the flare that opened it. */
+function toPhaseThree(boss) {
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 3 && guard < 600) { game.step(16); guard++; }
+  guard = 0;
+  while (bossFlare(boss) > 0 && guard < 600) { game.step(16); guard++; }
+  assert.equal(bossPhase(boss), 3, 'it never got to phase 3');
+  return boss;
+}
+
+/** Step until it is standing still with a call lit on the rim. */
+function catchItCalling(boss) {
+  let guard = 0;
+  while (callCount(boss) === 0 && guard < 1500) { game.step(16); guard++; }
+  if (callCount(boss) === 0) throw new Error('the ring never made a call');
+  return boss;
+}
+
+/**
+ * The marks on the glass: whole circles standing `callStand` px outside the hoop, one per body
+ * the call will send, each drawn at `callBody` - the radius of the body that will arrive at it.
+ *
+ * Whole is what tells them from the door's rim, which is a part-arc round the ring's own middle;
+ * the distance is what tells them from everything the ring draws on itself; the size is what
+ * tells them from the dozen small circles a busy frame happens to be drawing at that distance.
+ * Distances come from the ring's middle *on the glass*, because that is where the drawn points
+ * are (the camera and the device ratio are already in them).
+ */
+function marksOnTheGlass(boss) {
+  const enemy = boss.enemy;
+  const body = callBody(boss);
+  const eye = game.screenOf(enemy.x, enemy.y);
+  const want = enemy.r + callStand(boss);
+  const out = [];
+  for (const c of game.circles()) {
+    const dx = c.at.x - eye.x;
+    const dy = c.at.y - eye.y;
+    const d = Math.hypot(dx, dy);
+    if (Math.abs(d - want) > 1) continue;
+    if (c.to - c.from < TAU - 1e-9) continue;
+    if (Math.abs(c.r - body) > 1e-9) continue;
+    out.push({ bearing: Math.atan2(dy, dx), out: d, r: c.r });
+  }
+  return out;
+}
+
+/** The bearings the bodies will be sent from, which is the promise the marks must match. */
+function promisedBearings(boss) {
+  const middle = (callCount(boss) - 1) / 2;
+  const out = [];
+  for (let i = 0; i < callCount(boss); i++) out.push(callAngle(boss) + (i - middle) * callStep(boss));
+  return out;
+}
+
+/**
+ * Park the ship a known distance to the left of the ring and let the camera settle, before the
+ * call is caught: a mark that is off the glass is culled like everything else (render/camera.js)
+ * and a test that counts marks has to be looking at a ring that is entirely on it. The fan is
+ * centred on the bearing away from the ship, i.e. to the right, so all three of them sit well
+ * inside the window. The ship has no controls and no engines on, so it stays where it is put and
+ * the camera - which follows the ship one for one - stays settled with it.
+ */
+function standBesideTheRing(boss) {
+  const ship = field.player;
+  const park = () => {
+    ship.x = boss.enemy.x - 240;
+    ship.y = boss.enemy.y;
+    ship.px = ship.x;
+    ship.py = ship.y;
+  };
+  park();
+  for (let i = 0; i < 40; i++) { game.step(16); park(); }
+}
+
+test('no marks are on the glass while no call is being made', () => {
+  clearTheSky();
+  const boss = toPhaseThree(bringItOut());
+  standBesideTheRing(boss);
+  assert.equal(callCount(boss), 0, 'it came out of the flare already making a call');
+
+  game.step(16);
+  assert.equal(marksOnTheGlass(boss).length, 0, 'a mark is lit for a call nobody is making');
+  clearTheSky();
+});
+
+test('a call lights one mark per body, on the bearings it sends them from', () => {
+  clearTheSky();
+  const boss = toPhaseThree(bringItOut());
+  standBesideTheRing(boss);
+  catchItCalling(boss);
+
+  const before = game.drawCalls();
+  game.step(16);
+  const spent = diff(game.drawCalls(), before);
+  assert.equal(spent.shadows, 0, 'something asked the canvas for a blur to light the call');
+  assert.equal(spent.gradients, 0, 'something asked the canvas for a gradient to light the call');
+
+  const found = marksOnTheGlass(boss);
+  assert.equal(found.length, callCount(boss), 'the ring lit ' + found.length + ' marks for a call of '
+    + callCount(boss) + ': ' + JSON.stringify(found.map((m) => [m.bearing.toFixed(2), m.r])));
+  assert.equal(callBody(boss), BALANCE.kinds[WARDEN.phases[2].call.type].radius,
+    'the marks are not drawn the size of the bodies they promise');
+
+  const promised = promisedBearings(boss);
+  for (const mark of found) {
+    const on = promised.some((a) => Math.abs(fold(mark.bearing - a)) < 1e-6);
+    assert.ok(on, 'a mark was lit on ' + mark.bearing.toFixed(3)
+      + ' rad, which is not a bearing the call will use');
+  }
+
+  // And they are warm: a mark is a place a body arrives at, which is the opposite of the door
+  // (PLAN section 4). The phase tint is what the bar, the spokes and the shots all wear.
+  assert.notEqual(bossTint(boss), PALETTE.bossGap, 'the phase tint is the door\'s cool blue');
   clearTheSky();
 });

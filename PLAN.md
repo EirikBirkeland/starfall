@@ -678,14 +678,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
       `bosses.atHull` each with a flare, a moment of immunity and a volley dropped.
       `test/bosses.test.mjs`, `test/warden.test.mjs`, `test/boss-art.test.mjs`, and
       `tools/simulate.js --at <seconds>` to measure a run that starts at five minutes.)
-- [ ] The Warden, one phase per session.
-      (Phase 1 is shipped and it is the whole attack: a ring that rides, stops dead, shows its
-      spokes and fires down them. Phase 2 is in with it: between the spokes it now throws a ring
-      of shots with a door in it, lit as a wedge for `bullets.windup` before it leaves, opened on
-      the ship's own bearing and then held - and the two beats take turns, so one rhythm holds
-      two things to read. Phase 3 keeps both and prices them harder, and what is left of PLAN 3.4
-      for it is the Darter summons. `test/warden.test.mjs` owns all of it, and
-      `test/bosses.test.mjs` now holds every beat of every phase to `telegraphMin`.)
+- [x] The Warden, one phase per session.
+      (Shipped, all three. Phase 1 is the whole attack in miniature: a ring that rides, stops
+      dead, shows its spokes and fires down them. Phase 2 throws a ring of shots with a door in it
+      between the spoke volleys, lit as a wedge for `bullets.windup` before it leaves, opened on
+      the ship's own bearing and then held - two beats taking one another's turns, so one rhythm
+      holds two things to read. Phase 3 prices both harder and adds the third beat: a call of
+      darters out of its own hoop, telegraphed as marks on the rim at the exact bearings and size
+      of the bodies that come out of them, on the far side of the ring from the ship, and made
+      only when nothing is left of the last call - so the summons are a beat the ring borrows and
+      not a third clock it keeps. `test/warden.test.mjs` owns all of it, and
+      `test/bosses.test.mjs` holds every beat of every phase to `telegraphMin`.)
 - [ ] The Hive, one phase per session.
 - [ ] The Eclipse, one phase per session, including the darkness effect.
 - [ ] Victory screen and the endless mode that follows.

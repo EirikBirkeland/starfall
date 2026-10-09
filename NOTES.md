@@ -6963,3 +6963,88 @@ HEAD, which is the claim that the phase-1 ring is untouched.
   nothing but tests reads them. If the F3 overlay (M10) wants a boss card, they are the scorecard.
 - The four unbuilt synergies, the music buses, and `tools/agent/session.js` still having
   `choose_weapon` and no `choose_ship` are all untouched and still parallel work.
+
+## Session 58 (2026-10-09) — The Warden's third beat: it calls Darters out of its own hoop. Released **0.6.2**
+
+`phase.call` (new, on the Warden's phase 3 row) is PLAN 3.4's last unwritten Warden line - "spins
+faster and summons Darters" - and milestone 6's Warden is now finished and ticked. The ring rides,
+fires its spokes, throws its ring of shots, and **when nothing is left of the last call it stops
+and lights three marks on the rim**, one per dart, and then those three darters come out of the
+rim at exactly those bearings. Suite is **1094 green** (was 1082): ten in `test/warden.test.mjs`,
+two in `test/boss-art.test.mjs`. `--seed 20261006 --trace` is **byte-identical** to the previous
+commit, checked in a worktree at HEAD, which is the claim that phases 1 and 2 are untouched.
+
+### The decisions, since nobody will remember them
+
+- **The call is a third beat that borrows a ride, not a third clock.** `takeBeat` returns `CALLING`
+  only when `liveCall(boss)` is 0 - nothing of the last call is still standing - and otherwise the
+  phase-2 alternation runs exactly as before. So a second pack can only arrive once the run has
+  answered the first, which is a rule read off the crowd and not off a timer, and it bounds the
+  arena at `count` extra bodies by construction. I thought first about an `every: <seconds>` gate
+  as well and left it out: measured over four fights the ring called 7-10 times in a fight with at
+  most 3 summons out at any moment, so a second gate would be tuning nothing.
+- **The bodies are ordinary crowd.** `makeEnemy(world, spec.type, x, y, null)`, pushed on
+  `world.enemies`, `noteArrival`ed for the tally - the tank's `hatch` is the precedent. That is
+  the whole of their integration: every gun, blast, fire, bolt and mine in the game already hits
+  them, they walk at the crowd's speed, they are worth their kind's score and shards, and the
+  grid takes them the next step like any body born mid-step. A summon of a new kind would have
+  been a third thing to learn on top of the two the ring already teaches.
+- **Far side of the ring, and held.** `callAngle` is the bearing the ring is turned *away* from the
+  ship on, taken at the wind-up and then not moved - the door's rule for the same two reasons: a
+  dart born on the near side is born on top of the ship, and a promise that chose its bearings
+  after being shown would not be a promise. Nothing in the call is a roll, so one seed calls its
+  darters to the same bearings twice over.
+- **The marks are the bodies, edge for edge.** One tick and one ring per dart, drawn at
+  `enemy.r + call.gap` from the hub on the promised bearings, with the ring drawn at
+  `callBody(boss)` - the called kind's real radius, read off the kinds table - because that is the
+  rule every telegraph here obeys. A summons cannot promise *where* its body will be once it is
+  moving, so it promises its size and its birthplace instead.
+- **The ring lets go of what it called when it goes down** (`dismissCall`, from `bossDown`): the
+  bodies were the fight's and not the arena's, and a duel that ended with one of them still
+  nibbling would end on a loose end and not on the chord. They are not paid for - the run did not
+  kill them - and they get one chord for the whole pack and a jet of wreckage each.
+- **Phase 3's flare leads with the call** (`takeBeat` prefers it over the alternation), so the
+  flare announces the thing it is announcing. Phases 1 and 2 cannot reach a `call` row at all,
+  which is what the byte-identical trace is for.
+
+### Surprises
+
+- **`killEnemy` does not empty the hull.** `damageEnemy` sets `hp = 0` before it calls it; a death
+  that comes from nowhere else has to write the zero itself, or the body leaves the crowd while
+  still reading as alive. It took a test (`what the ring called goes down with the ring`) to find
+  that, because everything else in the game dies through `damageEnemy`.
+- **The structure test caught the tuning numbers in my code**, as it is there to: the dismissal's
+  spray (`14, 360, 0.34, 0.7`) was hard-coded in `bosses.js` and is now `call.dismiss` in the row,
+  which is also where its chord belongs - the chord is the call's ending, not the framework's.
+- **`windupProgress` is asked by the body's own core light** (render/boss.js) and knew about two
+  beats, so during a call the ring looked like nothing was about to happen. It now folds in
+  whatever beat the phase says is next, and `test/warden.test.mjs`'s telegraph-floor test picks the
+  call up on its own because it walks every field of every phase row.
+- **Camera culling ate the art test**: the marks are floor markings and `onScreen` declines them,
+  so the test had to park the ship next to the ring (`standBesideTheRing`) before asking the glass
+  what is lit on it. The harness's `circles()` filter also had to be tightened onto
+  `callBody(boss)`'s radius or it collects unrelated 1 px dots.
+- **The boss's death holds the world breathless** (`row.death.hitStop`), so a test that kills the
+  ring and looks at the crowd the same step sees nothing: the dismissal is real but the step has
+  not been spent. `steps(0.4)` after the killing blow, and the comment says why.
+- **The bot is not troubled by the summons** - four `--at 295` seeds all bring the ring down, as
+  they did at HEAD, and two of them are still standing at the 8-minute cap where at HEAD none
+  were, because three 6-hp darters are three bundles of shards. The fight is ~4 minutes of window
+  and phase 3 is the last ~80 s of it; that length is the 560 hull and not the new beat, and it is
+  the third session running that NOTES has said the hull may want cutting. Measured, not fixed.
+
+### For the next session
+
+- **The Hive** (the next line of milestone 6), one phase per session: a hex-celled mass, spawns
+  swarms from its cells, cells destructible. It is where `stepRing`, `arrive` and `holdsItsGround`
+  find out how Warden-shaped they are - it walks and it spawns, and `phase.call` may want a per-boss
+  beat of its own with cells instead of a rim. Do not pre-empt it: read `bosses.js` cold first, the
+  seam shows up in the second boss and not the first.
+- If the Hive wants to spawn on a timer rather than on an empty ring, `takeBeat` is the one function
+  that decides when a phase's beats come round and `call` is the row that says what a summon beat
+  is worth. Neither should have to grow a special case; say so here if it does.
+- `boss.rings` / `boss.shots` / `boss.volleys` / `boss.beams` / `boss.calls` / `boss.summons`
+  counters exist on the fight and nothing but tests and `STARFALL.stats()` reads them. If the F3
+  overlay (M10) wants a boss card, they are the scorecard.
+- The four unbuilt synergies, the music buses, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship` are all untouched and still parallel work.

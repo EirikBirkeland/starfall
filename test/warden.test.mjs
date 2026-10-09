@@ -1,21 +1,24 @@
 // The Warden (BALANCE.bosses.warden): the first boss, and the one the framework was written
 // around. One attack, escalating over three phases (PLAN 3.4): a ring that rides round, stops
 // dead, shows its spokes, and fires down them - and from phase 2, a second beat between the
-// spokes: a ring of shots with a door in it, thrown down the same grammar of stop-show-fire.
+// spokes: a ring of shots with a door in it, thrown down the same grammar of stop-show-fire. And
+// from phase 3, a third: a call of darters sent out of the hoop itself.
 //
 // The framework - the schedule, the cage, the phases as beats, the going down - is
 // test/bosses.test.mjs. What is proved here is the ring: that it points where it says it
 // points, that the lines it draws are the lines that hurt, that the volley is a volley, that
-// the door it lights is the door that arrives, and that each phase is the same attack and a
-// harder one.
+// the door it lights is the door that arrives, that the marks it lights are the bodies that
+// come, and that each phase is the same attack and a harder one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BALANCE } from '../src/game/balance.js';
 import { axisDistance } from '../src/game/beams.js';
+import { damageEnemy } from '../src/game/enemies.js';
 import {
-  armedCount, bossAngle, bossPhase, gapAngle, gapHalf, gapProgress,
-  spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep,
+  armedCount, bossAngle, bossPhase, callAngle, callCount, callProgress, callStand, callStep,
+  gapAngle, gapHalf, gapProgress, isBossBody, spokeAngle, spokeCount, spokeHalf, spokeProgress,
+  spokeStep, windupProgress,
 } from '../src/game/bosses.js';
 import {
   bossOnTheField, enemyAt, scriptedRun, stepTheWorld,
@@ -613,4 +616,284 @@ test('phase 3 keeps the ring, and throws it harder', () => {
   for (const bearing of bearings) {
     assert.ok(Math.abs(fold(bearing - door)) >= gapHalf(boss), 'phase 3 filled the door');
   }
+});
+
+// ---------------------------------------------------------------------------
+// The third beat: a call of darters out of the hoop (phase 3)
+// ---------------------------------------------------------------------------
+
+/** Walk it into phase 3 and drop the hull to where that mark is. */
+function phaseThree(field) {
+  const boss = bossOnTheField();
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  steps(BALANCE.bosses.phaseBreak.time + STEP);
+  assert.equal(bossPhase(boss), 3, 'it did not get to phase 3');
+  return boss;
+}
+
+/** Step until it is standing still with a call lit on the rim, and hand back the boss. */
+function catchItCalling(boss) {
+  let guard = 0;
+  while (callCount(boss) === 0 && guard < 4000) {
+    stepTheWorld();
+    guard++;
+  }
+  if (callCount(boss) === 0) throw new Error('the ring never made a call');
+  return boss;
+}
+
+/** Step until `said` is true, and say whether it ever was. */
+function walkUntil(said, limit) {
+  let guard = 0;
+  while (!said() && guard < limit) {
+    stepTheWorld();
+    guard++;
+  }
+  return said();
+}
+
+/** The bearings of the marks it is showing, in the order they are lit. */
+function markBearings(boss) {
+  const out = [];
+  const middle = (callCount(boss) - 1) / 2;
+  for (let i = 0; i < callCount(boss); i++) out.push(callAngle(boss) + (i - middle) * callStep(boss));
+  return out;
+}
+
+/** The darters in the arena. In a scripted world the only ones there are what was called. */
+function dartsOn(field) {
+  return field.enemies.filter((e) => e.type === 'darter');
+}
+
+test('no call comes out of the ring before phase 3', () => {
+  // The call is what the phase-3 flare has to announce (game/bosses.js). A ring that had been
+  // throwing darters since it arrived would be announcing something the run already knew, and
+  // PLAN 3.4 puts the summons in the last phase on purpose: they are the reason to move when
+  // everything else in the fight is a reason to stand still.
+  const field = scriptedRun(90);
+  const boss = bossOnTheField();
+  steps(WARDEN.phases[0].wait + WARDEN.phases[0].windup + 0.5);
+  assert.ok(boss.beams > 0, 'phase 1 stopped firing its spokes');
+  assert.equal(boss.calls, 0);
+  assert.equal(boss.summons, 0);
+  assert.equal(dartsOn(field).length, 0);
+
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[1] * 0.99;
+  steps(BALANCE.bosses.phaseBreak.time + 20);
+  assert.equal(bossPhase(boss), 2);
+  assert.ok(boss.rings > 0, 'phase 2 stopped throwing its rings');
+  assert.equal(boss.calls, 0, 'phase 2 already had the phase-3 attack');
+  assert.equal(dartsOn(field).length, 0);
+});
+
+test('phase 3 opens with its call, and its call alone', () => {
+  const field = scriptedRun(91);
+  const boss = phaseThree(field);
+  assert.equal(boss.calls, 0, 'the flare itself sent bodies');
+
+  catchItCalling(boss);
+  assert.equal(boss.calls, 0, 'it made a call before the marks had been lit');
+  assert.equal(callCount(boss), WARDEN.phases[2].call.count);
+
+  // The one question the body's own light asks without knowing what the attack plan turns out to
+  // be (render/boss.js): is something coming? A call is something coming. It reads 0 the instant
+  // the marks light, like the door's own countdown does, so it is asked halfway through.
+  assert.equal(windupProgress(boss), 0, 'it lit the marks already half-fired');
+  steps(WARDEN.phases[2].call.windup * 0.5);
+  assert.ok(windupProgress(boss) > 0.4, 'the ring looked like nothing was about to happen');
+  assert.equal(callCount(boss), WARDEN.phases[2].call.count, 'it stopped showing them halfway');
+});
+
+test('the marks it lights are the bodies that come out of them', () => {
+  const field = scriptedRun(92);
+  const boss = phaseThree(field);
+  const spec = WARDEN.phases[2].call;
+  const enemy = boss.enemy;
+  catchItCalling(boss);
+
+  assert.equal(callStep(boss), spec.step);
+  assert.equal(callStand(boss), spec.gap);
+  assert.ok(spec.windup >= BALANCE.bosses.telegraphMin,
+    'the marks are lit for less than any boss may show a thing');
+  assert.ok(callProgress(boss) < 0.2, 'it was already most of the way through its call');
+
+  const shown = markBearings(boss);
+  const crowd = field.enemies.length;
+
+  // The step the call fires on, and not one step more: what is being measured is where the
+  // bodies were born, and a dart walks from the moment it exists.
+  walkUntil(() => boss.summons > 0, 2000);
+  assert.equal(boss.summons, spec.count, 'it sent a different number of bodies than it lit');
+  assert.equal(field.enemies.length, crowd + spec.count);
+  assert.equal(callCount(boss), 0, 'it is still showing marks after it sent them');
+  assert.equal(callAngle(boss), null, 'it has a bearing to point at with no call being made');
+
+  for (const body of field.enemies.slice(crowd)) {
+    const bearing = Math.atan2(body.y - enemy.y, body.x - enemy.x);
+    const onAMark = shown.some((a) => Math.abs(fold(bearing - a)) < 1e-9);
+    assert.ok(onAMark, 'a dart came out of a bearing that was never lit');
+    const out = Math.hypot(body.x - enemy.x, body.y - enemy.y);
+    assert.ok(out >= enemy.r + spec.gap - 1e-6,
+      'a dart was born inside the hoop that is hurt on contact: ' + out);
+  }
+});
+
+test('a call is made on the far side of the ring, and the marks hold', () => {
+  const field = scriptedRun(93);
+  const boss = phaseThree(field);
+  const enemy = boss.enemy;
+  const ship = field.player;
+
+  // Anywhere off the ring: what matters is the bearing the ring is turned away on.
+  ship.x = enemy.x + 300;
+  ship.y = enemy.y - 180;
+  ship.px = ship.x;
+  ship.py = ship.y;
+  catchItCalling(boss);
+
+  const shipBearing = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+  for (const mark of markBearings(boss)) {
+    assert.ok(Math.abs(fold(mark - shipBearing)) > Math.PI / 2,
+      'a dart was lit on the near side, where the ship stands when it is dodging spokes');
+  }
+
+  // And held, exactly like the door: the marks are a promise and not a searchlight, so whatever
+  // the ship does now the bodies come out of the places it was shown.
+  const shown = markBearings(boss);
+  ship.x = enemy.x - 500;
+  ship.y = enemy.y + 400;
+  ship.px = ship.x;
+  ship.py = ship.y;
+  steps(WARDEN.phases[2].call.windup * 0.5);
+  const still = markBearings(boss);
+  for (let i = 0; i < shown.length; i++) {
+    assert.equal(still[i], shown[i], 'the marks chased the ship');
+  }
+});
+
+test('it calls again when the run has answered the last call, and not before', () => {
+  const field = scriptedRun(94);
+  const boss = phaseThree(field);
+  catchItCalling(boss);
+  steps(WARDEN.phases[2].call.windup + STEP);
+  assert.equal(boss.calls, 1);
+  assert.equal(dartsOn(field).length, WARDEN.phases[2].call.count);
+
+  // A minute of the fight with three darters still hunting: the room already has what it called,
+  // and a ring that stacked a second pack on them would be filling the cage with its own
+  // summons instead of fighting the ship (game/bosses.js `takeBeat`).
+  steps(60);
+  assert.equal(boss.calls, 1, 'it called again over a call that was still standing');
+  assert.ok(boss.volleys > 1 && boss.rings > 0, 'and stopped fighting while it waited');
+
+  // Answer it, and it calls again on the next ride.
+  for (const dart of dartsOn(field)) damageEnemy(field, dart, 999, true);
+  assert.equal(dartsOn(field).length, 0);
+  assert.ok(walkUntil(() => boss.calls > 1, 4000), 'the ring went quiet once its darters died');
+  assert.equal(dartsOn(field).length, WARDEN.phases[2].call.count);
+});
+
+test('a call does not disturb the two beats it is made between', () => {
+  const field = scriptedRun(95);
+  const boss = phaseThree(field);
+  let spokes = boss.volleys;
+  let rings = boss.rings;
+  let calls = boss.calls;
+  let order = '';
+
+  for (let i = 0; i < 4000; i++) {
+    stepTheWorld();
+    if (boss.rings > rings) { rings = boss.rings; order += 'R'; }
+    if (boss.volleys > spokes) { spokes = boss.volleys; order += 'S'; }
+    if (boss.calls > calls) { calls = boss.calls; order += 'C'; }
+  }
+
+  assert.ok(calls >= 1 && spokes >= 3 && rings >= 3, 'a beat never came round: ' + order);
+  assert.equal(order[0], 'C', 'a new phase did not open with whatever is new about it');
+
+  // Take the calls out and what is left is the phase-2 rhythm, untouched: the call is a beat the
+  // ring borrows when its own call is empty, not a third of a new one it has learned to count.
+  const beats = order.split('').filter((c) => c !== 'C');
+  for (let i = 1; i < beats.length; i++) {
+    assert.notEqual(beats[i], beats[i - 1], 'the two beats lost their turn: ' + order);
+  }
+});
+
+test('a dart out of a call is one of the crowd', () => {
+  // Not a boss minion kind, not a second body to learn: `makeEnemy` with the crowd's own darter
+  // at the hull the run's clock has brought it to (game/bosses.js `sendCall`). Which is what
+  // makes every gun, blast, fire and bolt in the game already know how to hit it.
+  const field = scriptedRun(96);
+  const boss = phaseThree(field);
+  catchItCalling(boss);
+  steps(WARDEN.phases[2].call.windup + STEP);
+
+  const dart = dartsOn(field)[0];
+  assert.ok(dart !== undefined, 'no dart came out of the call');
+  assert.equal(dart.type, 'darter');
+  assert.equal(isBossBody(field, dart), false);
+  assert.ok(dart.hp > 0);
+  // It was counted as an arrival, so the balance tables see it and do not mistake it for a drifter.
+  const row = field.tally.kinds.darter;
+  assert.ok(row.arrived > 0, 'the tally never heard about it');
+
+  const score = field.score;
+  const kills = field.kills;
+  assert.equal(damageEnemy(field, dart, 999, true), true, 'nothing hurts it');
+  assert.ok(field.score > score && field.kills > kills, 'it died without being paid for');
+  assert.equal(dartsOn(field).length, WARDEN.phases[2].call.count - 1, 'it is still in the crowd');
+});
+
+test('what the ring called goes down with the ring', () => {
+  // The bodies were the fight's and not the arena's. A duel that ended with one of them still
+  // going at the ship would end on a loose end and not on the chord (game/bosses.js `dismissCall`).
+  const field = scriptedRun(97);
+  const boss = phaseThree(field);
+  catchItCalling(boss);
+  steps(WARDEN.phases[2].call.windup + STEP);
+  const darts = dartsOn(field);
+  assert.ok(darts.length > 0);
+
+  damageEnemy(field, boss.enemy, boss.enemy.maxhp * 10, true);
+  // The ring's own death is the biggest in the game, and it holds the world breathless while it
+  // happens (row.death.hitStop): the going-down is a beat, not an instant.
+  steps(0.4);
+  assert.equal(field.boss, null);
+  for (const dart of darts) {
+    assert.ok(dart.hp <= 0, 'one of its darters is still hunting the ship');
+    assert.equal(field.enemies.includes(dart), false);
+  }
+});
+
+test('a call it never sent is a call the run never sees', () => {
+  // The same rule the held volley and the half-armed ring are held to: a promise broken in the
+  // run's favour. The marks go out with the ring that was lighting them.
+  const field = scriptedRun(98);
+  const boss = phaseThree(field);
+  catchItCalling(boss);
+  assert.equal(boss.calls, 0, 'the marks were lit after the call had already been made');
+  assert.equal(dartsOn(field).length, 0);
+
+  damageEnemy(field, boss.enemy, boss.enemy.maxhp * 10, true);
+  steps(0.4);
+  assert.equal(field.boss, null);
+  assert.equal(boss.calls, 0, 'it sent the call it was still lighting');
+  assert.equal(dartsOn(field).length, 0, 'the bodies it was about to send came anyway');
+  // And nothing about the retired fight is reachable any more: the world is the only door the
+  // frame and the framework read, and it has no boss in it to light marks or make calls.
+  assert.equal(field.enemies.length, 0, 'something outlived the fight');
+});
+
+test('the call is priced like the phase it belongs to', () => {
+  const rows = WARDEN.phases;
+  assert.equal(rows[0].call, undefined, 'phase 1 already had the summons');
+  assert.equal(rows[1].call, undefined, 'phase 2 already had the summons');
+  const spec = rows[2].call;
+  assert.ok(spec.windup >= BALANCE.bosses.telegraphMin);
+  assert.ok(spec.windup < rows[2].windup + 0.3, 'the call takes the whole of the phase to make');
+  assert.equal(spec.type, 'darter', 'PLAN 3.4 says darters');
+  assert.ok(spec.count <= 4, 'a call of ' + spec.count + ' is a swarm and not a summons');
+  // The fan reaches from the bearing it is centred on by (count-1)/2 steps each way, and it must
+  // stay on the far half of the hoop or a body is lit on the near side (test above).
+  assert.ok(((spec.count - 1) / 2) * spec.step < Math.PI / 2, 'the fan wraps round onto the ship');
 });

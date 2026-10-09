@@ -33,8 +33,9 @@
 //   **The beats.** What a boss does with its turn is its own row's business; what the framework
 //     owns is the rhythm of one - ride, stop dead, show it, fire it. A phase may hold more than
 //     one beat (the Warden's phase 2 throws a ring of shots between its spoke volleys, taking
-//     turns), and a phase change starts from whichever of them is new, which is what the flare
-//     is announcing. Every beat of every phase is shown for `bosses.telegraphMin` at least.
+//     turns; its phase 3 sends a call of bodies out of its own hoop as well), and a phase change
+//     starts from whichever of them is new, which is what the flare is announcing. Every beat of
+//     every phase is shown for `bosses.telegraphMin` at least.
 //
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
@@ -54,9 +55,11 @@ import { PALETTE } from '../core/palette.js';
 import { TAU, clamp } from '../core/math.js';
 import { logic } from '../core/rng.js';
 import { makeEnemy } from './kinds.js';
+import { killEnemy } from './enemies.js';
+import { noteArrival } from './tally.js';
 import { fireBeam } from './beams.js';
 import { enemyShotAt } from './enemyshots.js';
-import { addText, burst, hitStop, ring, shakeIt } from './effects.js';
+import { addText, burst, hitStop, ring, shakeIt, spray } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
 import { closeField, openField } from './field.js';
 import { healPlayer } from './player.js';
@@ -65,11 +68,14 @@ import { healPlayer } from './player.js';
  * What a boss does between one phase and the next: it rides round, and it stops dead to strike.
  * How it strikes is the beat, and a phase may have more than one - the Warden's phase 2 rides,
  * fires its spokes, rides again, throws a ring of shots with a door in it, and rides again:
- * one rhythm with two things in it, which is a fight a player can learn.
+ * one rhythm with two things in it, which is a fight a player can learn. Phase 3 grows a third
+ * beat inside that same rhythm: a call of bodies sent out of the hoop itself, on the same
+ * grammar of stop, show it, do it.
  */
 const RIDING = '';
 const LOCKING = 'lock';
 const RINGING = 'ring';
+const CALLING = 'call';
 
 /** The row of a boss by id. A name nobody wrote is an error, not a silent no-op. */
 function rowOf(id) {
@@ -110,10 +116,16 @@ function newFight(id, index) {
     armed: 0,         // how many shots the ring it is arming is made of; 0 is nothing is armed
     gapAngle: 0,      // the bearing the door it is showing is centred on
     gapHalf: 0,       // and how wide each side of that door is, in radians
+    callCount: 0,     // how many bodies a call is sending; 0 is no call is being made
+    callAngle: 0,     // the bearing that fan of marks is centred on
+    callStep: 0,      // and how far apart two of them stand, in radians
+    called: [],       // whatever the last call sent that is still standing (`liveCall` below)
     volleys: 0,       // counters, like every line in the deck keeps
     beams: 0,
     rings: 0,
     shots: 0,
+    calls: 0,
+    summons: 0,
   };
 }
 
@@ -264,6 +276,7 @@ function openPhase(world, boss) {
   boss.stage = RIDING;
   boss.spokes = 0;
   boss.armed = 0;
+  boss.callCount = 0;
   boss.timer = phase.wait;
   boss.beat = phase.wait;
   // Whatever is new about this phase gets the first beat, so the flare that announced it is
@@ -320,11 +333,20 @@ function stepRing(world, boss, dt) {
     return;
   }
 
+  if (boss.stage === CALLING) {
+    if (boss.timer > 0) return;
+    sendCall(world, boss, phase);
+    rideAgain(boss, phase);
+    return;
+  }
+
   boss.angle += phase.turn * dt;
   if (boss.angle > TAU) boss.angle -= TAU;
   if (boss.timer > 0) return;
 
-  if (takeBeat(boss, phase) === RINGING) windRing(world, boss, phase);
+  const beat = takeBeat(boss, phase);
+  if (beat === CALLING) windCall(world, boss, phase);
+  else if (beat === RINGING) windRing(world, boss, phase);
   else lockSpokes(boss, phase);
 }
 
@@ -333,20 +355,77 @@ function rideAgain(boss, phase) {
   boss.stage = RIDING;
   boss.spokes = 0;
   boss.armed = 0;
+  boss.callCount = 0;
   boss.timer = phase.wait;
   boss.beat = phase.wait;
 }
 
 /**
- * Which beat the ride that has just ended hands over to. A phase with a `bullets` row
- * alternates - spokes, ring, spokes, ring - which is what keeps one rhythm under a fight that
- * has two things in it; a phase with one beat always gets that beat.
+ * Which beat the ride that has just ended hands over to.
+ *
+ * A phase with a `bullets` row alternates - spokes, ring, spokes, ring - which is what keeps one
+ * rhythm under a fight that has two things in it; a phase with one beat always gets that beat.
+ *
+ * A phase with a `call` row makes its call whenever nothing is left of the last one, and takes
+ * its ordinary turn otherwise: a second pack sent over one that is still hunting the ship would
+ * be the ring ignoring its own room, and a beat spent on nothing at all would be a hole in the
+ * rhythm the ship has learned. So the call is what happens when the run has answered it, which
+ * is a rule a player can read off the crowd rather than off a clock.
  */
 function takeBeat(boss, phase) {
+  if (phase.call !== undefined && liveCall(boss) === 0) return CALLING;
   if (phase.bullets === undefined) return LOCKING;
   const beat = boss.nextBeat;
   boss.nextBeat = beat === LOCKING ? RINGING : LOCKING;
   return beat;
+}
+
+/**
+ * Whatever the last call sent that is still standing, compacted in place. Its length is the
+ * whole of the summoning rule (`takeBeat`), and it is the list the ring lets go of when it goes
+ * down (`bossDown`), so nothing else in the game has to know a boss can make bodies.
+ *
+ * Dead ones are dropped here and nowhere else: a body leaves the crowd by dying, so `hp` is the
+ * whole of the question and this is called once per ride, which is cheap enough to be honest
+ * about and often enough that the list is never a pile of corpses.
+ */
+function liveCall(boss) {
+  const live = boss.called;
+  let n = 0;
+  for (let i = 0; i < live.length; i++) {
+    if (live[i].hp <= 0) continue;
+    live[n] = live[i];
+    n++;
+  }
+  live.length = n;
+  return n;
+}
+
+/**
+ * The call's wind-up: `count` marks are lit on the hoop, and then they are.
+ *
+ * The fan is centred on the bearing the ring is turned *away* from the ship on, taken here and
+ * held for the whole of it - the same rule the door lives by (game/bosses.js `windRing`), for
+ * the same reason twice over. A body may not arrive in the ship's face: standing between a
+ * hoop and the wall is where a ship stands when it is dodging spokes, so a dart born on the near
+ * side would be born on top of it. And a promise that chose its bearings after it was shown
+ * would not be a promise, so the marks on the rim are the bearings the bodies come out of and
+ * nothing about them wanders once lit. The bearing is no more a roll than the door's is.
+ */
+function windCall(world, boss, phase) {
+  const spec = phase.call;
+  const enemy = boss.enemy;
+  const ship = world.player;
+
+  boss.stage = CALLING;
+  boss.timer = spec.windup;
+  boss.beat = spec.windup;
+  boss.callCount = spec.count;
+  boss.callStep = spec.step;
+  boss.callAngle = Math.atan2(enemy.y - ship.y, enemy.x - ship.x);
+
+  const sound = spec.wind.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
 /** The spokes beat: hold still with the rays drawn, then send them. */
@@ -430,6 +509,86 @@ function throwRing(world, boss, phase) {
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
+/**
+ * One call sent: `count` bodies of the kind the phase asked for, born on the marks that were
+ * just lit, `gap` px outside the hoop and thrown outwards from it.
+ *
+ * They are built the way a tank's hatchlings are (game/kinds.js `hatch`) - `makeEnemy`, pushed
+ * on the crowd, noted for the tally - which says everything a summon needs to say: it is a body
+ * of the crowd, hurt by every gun that hurts a body, worth its kind's score and its kind's
+ * shards, and hunting the ship the moment it exists. It joins the collision world on the next
+ * step like every body that arrives mid-step, and it is born clear of the hoop so that one step
+ * of not being shootable is not a free pass in the middle of a duel.
+ *
+ * Nothing here is a roll. Where the ring calls is a function of where the ship was standing when
+ * the marks lit, so a seed calls its darters to the same bearings twice over.
+ */
+function sendCall(world, boss, phase) {
+  const spec = phase.call;
+  const enemy = boss.enemy;
+  const middle = (boss.callCount - 1) / 2;
+
+  for (let i = 0; i < boss.callCount; i++) {
+    const bearing = boss.callAngle + (i - middle) * boss.callStep;
+    const dx = Math.cos(bearing);
+    const dy = Math.sin(bearing);
+    const x = enemy.x + dx * (enemy.r + spec.gap);
+    const y = enemy.y + dy * (enemy.r + spec.gap);
+    const body = makeEnemy(world, spec.type, x, y, null);
+    // Out of the hoop and clear of it, which is the only shove it gets: what comes out of a call
+    // walks the rest of the way on its own engines, so its speed is the crowd's and not the
+    // ring's, and a dart thrown hard enough to reach the ship in one bound would be a shot.
+    body.ix = dx * spec.fire.impulse;
+    body.iy = dy * spec.fire.impulse;
+    world.enemies.push(body);
+    noteArrival(world, body);
+    boss.called.push(body);
+    boss.summons++;
+    burst(world, x, y, phase.tint, spec.fire.spark.count,
+          spec.fire.spark.speed, spec.fire.spark.life);
+  }
+  boss.calls++;
+
+  const fire = spec.fire;
+  ring(world, enemy.x, enemy.y, phase.tint, fire.ring.radius, fire.ring.speed, fire.ring.life);
+  shakeIt(world, fire.shake);
+  const sound = fire.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * The ring letting go of what it called: every body still standing out of its last call comes
+ * apart where it is, at the same instant the ring stops existing.
+ *
+ * This is not a mercy, it is authorship. Those bodies were the fight and not the arena's, and a
+ * duel that ended with one of them still nibbling at the ship would end on a loose end rather
+ * than on the chord. They are not paid for - the run did not kill them - but they make a wreck
+ * and a noise of their own, because a body coming apart is what a body does.
+ */
+function dismissCall(world, boss) {
+  if (boss.called.length === 0) return;
+  const phase = phaseOf(boss);
+  const spec = phase.call.dismiss;
+
+  for (let i = 0; i < boss.called.length; i++) {
+    const body = boss.called[i];
+    if (body.hp <= 0) continue;
+    // `killEnemy` takes a body out of the crowd; it is the caller that empties it, and every
+    // other death in the game comes through `damageEnemy`, which does exactly that first. Here
+    // nothing hurt them, so the hull has to be written to zero by hand - a body that has stopped
+    // existing and still reads as alive is a lie the next reader of `hp` would believe.
+    body.hp = 0;
+    const spark = spec.spark;
+    spray(world, body.x, body.y, phase.tint, spark.count, spark.speed, spark.life,
+          body.rot, spark.spread);
+    killEnemy(world, body, false);
+  }
+  boss.called.length = 0;
+
+  const sound = spec.sound;
+  cueChord(sound.notes, sound.dur, sound.wave, sound.vol);
+}
+
 /** A boss that has stopped existing: the room opens, the run is paid, the arena quiets. */
 function bossDown(world, boss) {
   const spec = BALANCE.bosses;
@@ -439,6 +598,7 @@ function bossDown(world, boss) {
   world.bossIndex = boss.index + 1;
   world.bossesDown++;
   openField(world);
+  dismissCall(world, boss);
 
   // The body is already paid for by `killEnemy` - score, shards, the wreck, the noise of
   // it. What a boss gets on top of that is the framework's, and the one thing worth money
@@ -545,6 +705,15 @@ export function bossPhase(boss) {
   return boss.phase + 1;
 }
 
+/**
+ * How many bodies the fight has sent out of its own hoop (game/bosses.js `sendCall`). A headless
+ * run has no other way to see a summon beat happen at all: the bodies are ordinary crowd once
+ * they are out, and this is the one number that says the ring made them.
+ */
+export function bossSummons(boss) {
+  return boss.summons;
+}
+
 export function bossPhaseCount(boss) {
   return boss.row.phases.length;
 }
@@ -628,13 +797,59 @@ export function gapProgress(boss) {
 }
 
 /**
- * How far through whatever it is showing it stands - the spokes or the door, whichever it is.
- * The body's own core light is driven off this so that it says "something is coming" either way
- * (render/boss.js), which is the one question a frame may ask without knowing what a boss's
+ * How many bodies the call it is making will send - 0 when it is not making one. The count, the
+ * bearing the fan is centred on, the step between two of them and how far outside the hoop they
+ * will stand are that telegraph entire, and they are the same four numbers the bodies are born
+ * from: the marks on the rim are the places they arrive at, edge for edge.
+ */
+export function callCount(boss) {
+  return boss.stage === CALLING ? boss.callCount : 0;
+}
+
+/** The bearing the fan of marks is centred on, or null while no call is being made. */
+export function callAngle(boss) {
+  return boss.stage === CALLING ? boss.callAngle : null;
+}
+
+/** Radians between two marks of the fan, or null with no fan to space out. */
+export function callStep(boss) {
+  return boss.stage === CALLING ? boss.callStep : null;
+}
+
+/** How far outside the hoop the bodies will stand, in px - or 0 while no call is being made. */
+export function callStand(boss) {
+  return boss.stage === CALLING ? phaseOf(boss).call.gap : 0;
+}
+
+/**
+ * How big the body at the end of a mark is, in px - or 0 while no call is being made.
+ *
+ * The frame draws each mark the size of the thing that will arrive at it (render/entities.js),
+ * which is the same promise every telegraph here makes edge for edge: the door is the door, the
+ * spoke is the spoke, and a summons - which is the one attack that cannot promise where its body
+ * will be, only what it is - promises its size instead. It is read off the kinds table rather
+ * than kept on the call because it is a fact about the crowd: the crowd's darter is what
+ * `sendCall` builds, at the hull the run's clock has brought it to.
+ */
+export function callBody(boss) {
+  if (boss.stage !== CALLING) return 0;
+  return BALANCE.kinds[phaseOf(boss).call.type].radius;
+}
+
+/** How far through the call's wind-up it stands, 0 when it is not making one. */
+export function callProgress(boss) {
+  if (boss.stage !== CALLING) return 0;
+  return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How far through whatever it is showing it stands - the spokes, the door or the call, whichever
+ * it is. The body's own core light is driven off this so that it says "something is coming" either
+ * way (render/boss.js), which is the one question a frame may ask without knowing what a boss's
  * attack plan turns out to be.
  */
 export function windupProgress(boss) {
-  return Math.max(spokeProgress(boss), gapProgress(boss));
+  return Math.max(spokeProgress(boss), gapProgress(boss), callProgress(boss));
 }
 
 /** How far through the beat it stands, whether it is riding or holding - the bar's breathing. */
