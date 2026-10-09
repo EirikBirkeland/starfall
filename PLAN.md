@@ -654,8 +654,19 @@ When every item above is ticked, go back to the first unchecked item of mileston
 
 ### Milestone 7: sound
 - [ ] Audio engine: context start on first input, master compressor, music and effects buses.
+      (The compressor is in - `buildMaster` in `audio/engine.js` runs the master bus through one
+      and falls back to a bare gain on a browser that has no `createDynamicsCompressor`. The two
+      buses are the part left, and they go in with the music that needs them.)
 - [ ] Effects for shots, hits, explosions, pickups, level-up, dash, player hit, UI.
-- [ ] Voice limiting.
+- [x] Voice limiting.
+      (`audio/mix.js`: the master bus is allowed `MIX.headroom` worth of sounding voice volume,
+      priced in each cue's own `vol`, and a voice pays for as long as it can be heard - so a sky
+      of hit ticks is deep and a sky of wrecks fills in four, which is the difference PLAN asked
+      for between "how many sounds" and how much sound. A frame's cues are looked at all together
+      and spent loudest first, so the bomber goes off and the thirtieth shard ping does not, and a
+      chime is never turned away because a chime is the run talking and not another tick. A real
+      three-minute run now peaks at 16 sounds in a frame instead of 21 and spends 14% less overall;
+      `test/mix.test.mjs` owns all of it, including the machine with no compressor.)
 - [ ] The step sequencer and the base music pattern.
 - [ ] Intensity layers, boss music, low-hull variation.
 - [ ] Volume settings and mute.

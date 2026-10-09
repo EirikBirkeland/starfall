@@ -6283,3 +6283,104 @@ counting the **whole frame** while meaning the **arena**. So:
   minus thermal shock). They are independent of milestone 5 if a session wants a smaller job.
 - If a new card ever needs a hue of its own, `test/draw-cost.test.mjs` now has nine holders of spare
   cache after the icon split. That is the budget talking either way: spend it deliberately.
+
+## Session 52 (2026-10-09) — The voice budget: how much of one sound may be sounding at once.
+
+**Read this before any other part of it: a second agent session was working in this same folder at
+the same time as this one.** It was mid-way through the lance (milestone 5's fourth primary) when
+this one started, and it finished `test/weapons.test.mjs` around the middle of this session. That is
+why the tree looked broken at the start of it - four red tests in `test/weapons.test.mjs`, which
+were not this session's and which that session fixed itself - and why the two sessions' work is
+split across the commits rather than landing together: this session committed only its own files
+(`git add` by name, not `-A`) so it would not sweep up a half-finished weapon, and it made **no
+release**, because the tree was not clean and `tools/release.sh` is right to refuse when it is not.
+If you find two "Session 52" entries in this file, that is the same collision and neither of them
+is wrong. Do not go looking for damage in the other one's work: `node --test` ended at **994 green**
+with both sessions' files in the tree, and `tools/simulate.js` still plays a full run with
+`--audio`. If you are the lance session reading this: the audio layer is yours to build on, the
+fake audio device now has a clock that moves, and `git status` is about to look odd for a moment.
+
+Milestone 7's "voice limiting", then: PLAN section 5's one line about the mix - "limit how many of
+the same sound play at once, or the mix turns to mush at 500 enemies". `src/audio/mix.js` is the
+whole policy and `test/mix.test.mjs` (7 tests) owns it.
+
+### The decisions, since nobody will remember them
+
+- **The budget is loudness and not a count.** The sky may hold `MIX.headroom` (0.5) worth of
+  *sounding voice volume*, priced in each cue's own `vol`, and that is the only ceiling there is.
+  A count would have been the obvious rule and the wrong one: the mud is a sum of amplitudes, so
+  forty hit ticks at 0.014 and four wrecks at 0.11 are not the same problem and should not get the
+  same answer. Under the loudness rule they do not: the ticks fill the sky thirty-five deep and
+  the wrecks fill it in four, and the first voice in a frame is free while the tenth pays for the
+  nine that came first. `MASTER_GAIN` is 0.22, so the worst case the bus can now reach is about a
+  tenth of full scale - a mix with headroom rather than a wall.
+- **A voice is held against the sky for exactly as long as it is audible** - `dur` plus the 0.03 s
+  tail the synthesiser stops it with - and the clock it is priced on is `AudioContext.currentTime`,
+  because that is the clock the voice is scheduled on. Nothing about a frame budget is measured in
+  frames, which is what makes a dropped frame, a slow tab and a backgrounded tab all honest.
+- **A frame is looked at whole before a single voice starts.** `consumeCues` collects the frame's
+  cues, sorts them loudest first (a stable sort, so a chime's three notes stay in order), and
+  spends the budget down that list. That is the only way to know that a frame contains one bomber
+  and thirty shard pings rather than thirty-one pings, and it is what the mix test checks: the
+  bomber always gets in and everything turned away is a ping.
+- **A chime is never turned away** (`takeVoice`'s `must`), and the ceiling bends for it visibly -
+  `peakLoad` is allowed over `headroom` and the test asserts that it is. Three notes of a level-up
+  are the run telling you something about itself; they are not another tick in the mud, and a
+  chime that arrives with a full sky is the one the player was waiting for.
+- **The compressor is optional and that is a tested promise.** `buildMaster` in `audio/engine.js`
+  runs the master bus through a `DynamicsCompressorNode` (gentle: -18 dBFS, ratio 4, 4 ms in,
+  180 ms out) when the browser has one and straight to the destination when it does not, and it is
+  exported so a test can hand the engine an old browser rather than hope nobody ever ships one.
+  The fake device answers `createDynamicsCompressor` unless it is booted with `audio: 'raw'`.
+- **`MIX.plainVol` is the synthesiser's own long-standing `vol || 0.15` default**, moved out of the
+  middle of `beep` so the price a voice costs and the volume it is played at cannot disagree. Every
+  call site in the game does pass a volume today; the default is what one that forgets is worth.
+- **There is no `resetMix`.** The ledger is a score for the page visit, because the voices it is
+  counting are the browser's and they outlive a run whatever this module decides to remember; a
+  test that wants to know what it caused takes `ledgerOf()` before and after and subtracts. A reset
+  that nothing in the game would ever call is the sort of thing that then lives forever.
+
+### What the numbers say
+
+The same instrument both times - the fake browser, a three-minute run, the bot's own pickups and
+firing, counting the synthesiser's calls per frame (two per voice: an oscillator and a gain):
+
+| | voices total | median/frame | p99 | loudest frame |
+|---|---|---|---|---|
+| before | 15 000 | 0 | 16 | 42 (21 sounds) |
+| after | 12 846 | 0 | 12 | 32 (16 sounds) |
+
+So it costs nothing in a normal fight - the median frame is silent either way - and it takes a
+quarter of the noise off the frames that were the problem. That is the shape this was for.
+
+### What surprised me
+
+- **The fake audio device's clock was frozen at zero.** `currentTime: 0` on a stub is harmless
+  while nothing asks what time it is, and fatal the moment a budget needs to know whether a voice
+  has finished: every voice ever played would still be sounding. `tools/headless/harness.js` now
+  gives the device the frame clock, which is what the music sequencer of milestone 7 needs anyway.
+- **The unit questions and the live game share one sky**, so a test that fills the budget at
+  `t = 3600` has filled it for the rest of the file: those voices end in the *future* of a real
+  clock that is still at four seconds. The test file's clock runs an hour *before* the page opened
+  (`T = -3600`) for exactly that reason, which reads strangely until you see it fail.
+- **Three comments in the game were already begging for this**: "the mix has no voice limiting yet
+  (milestone 7)" on the ricochet tick and the orbital bite in `balance.js` and on a kind's death
+  volume in `enemies.js`. The `enemies.js` one is rewritten; the **two in `balance.js` are still
+  stale and waiting for whoever next has that file open** - which was not going to be this session,
+  with another session editing it. They are comments only; no number should move because voice
+  limiting exists. A quiet drone bite is still worth being quiet.
+- Three minutes of a bot's run is not 500 enemies. The cap bites here, but the case PLAN was
+  writing about is still ahead of the measurement, and `ledgerOf()` is the thing that will say how
+  much - it counts `asked`, `played`, `dropped`, `peakLoad`, `peakVoices` and the loudest thing
+  turned away, which is also what an `F3` overlay of milestone 10 should show.
+
+### For the next session
+
+- **Milestone 7's music is next and it now has somewhere to land**: the buses (a music gain and an
+  effects gain under the master) want writing with the step sequencer, not before it, and the fake
+  device has a clock that moves so a sequencer can be tested at all.
+- **Fix the two stale comments** in `balance.js` (ricochet `sound`, orbitals `sound`) if the lance
+  session has finished with that file.
+- **This wants a release** - the mix is audible in every build and every release after it will be a
+  quieter, less clipped game. It was not cut here because another session's unfinished work was in
+  the tree. Once that has landed: CHANGELOG, `tools/release.sh 0.4.22 "..."`.

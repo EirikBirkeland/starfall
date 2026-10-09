@@ -91,8 +91,10 @@ export function killEnemy(world, enemy, byPlayer) {
     addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
       enemy.elite ? PALETTE.elite : stats.color);
     cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave,
-      // A kind can ask for a quieter death than the crowd's default: twenty swarmlings
-      // can come apart in one frame and the mix has no voice limiting yet (milestone 7).
+      // A kind can ask for a quieter death than the crowd's default: twenty swarmlings can
+      // come apart in one frame. audio/mix.js turns the quietest of a frame's voices away
+      // once the bus is full, which is what keeps a swarm going out a sound rather than a
+      // wall - but a kind that knows it arrives in twenties should still price itself down.
       stats.sound.vol || death.sound.vol, death.sound.slide);
     // A kill the kind calls big gets the run to hold its breath for a moment.
     if (stats.death.shake) shakeIt(world, stats.death.shake);
