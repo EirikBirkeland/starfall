@@ -6872,3 +6872,94 @@ phase 3 and walk away with two hull pips.
 - Balance watch: at 5:00 with a bare pulse gun the fight is ~2 minutes of a 5-minute-or-longer run,
   which is long. If it still feels long after phases 2 and 3 land, the first thing to cut is
   `hull`, not `wait` - the reading time is the part worth keeping.
+
+---
+
+## Session 57 (2026-10-09) — The Warden's second beat: a ring of shots with a door in it. Released **0.6.1**
+
+`phase.bullets` (new, on the Warden's phase 2 and 3 rows) and `boss.armed/gapAngle/gapHalf` are
+milestone 6's second phase: the ring now has **two beats and takes turns with them**. Ride, fire
+the spokes, ride, light a wedge, throw a ring of shots with every bearing but that wedge filled,
+ride. Phase 3 keeps both and prices them harder, which is what PLAN 3.4 asks for and not what I
+first wrote. Suite is **1082 green** (was 1069) with nine new tests in `test/warden.test.mjs`, two
+in `test/boss-art.test.mjs`, one in `test/spitter.test.mjs`, one in `test/dodge.test.mjs`, and the
+framework's telegraph test now walking every beat of every phase instead of just the spokes'.
+`--seed 20261006 --trace` is **byte-identical** to the previous commit, checked in a worktree at
+HEAD, which is the claim that the phase-1 ring is untouched.
+
+### The decisions, since nobody will remember them
+
+- **A phase may hold more than one beat, and they alternate.** `takeBeat` flips between `LOCKING`
+  and `RINGING` and a phase with no `bullets` row always gets `LOCKING`, so phase 1 is exactly what
+  it was - the byte-identical trace is that promise's test. Strict alternation, not a roll and not
+  a timer per beat, because one rhythm with two things in it is a fight a player can learn and a
+  clump of rings followed by a clump of spokes is two fights wearing one hull bar.
+- **A phase change leads with whatever is new about it.** `arrive` starts on the spokes (the
+  signature - a boss that opens with its strangest trick has nothing left to say) but `openPhase`
+  starts on the ring, so the flare that announces phase 2 is followed by the thing the flare was
+  announcing and not by one more round of the old. `test/warden.test.mjs` reads the order string
+  and asserts its first letter is the ring.
+- **The door opens on the ship's own bearing and then holds.** This is the one decision the whole
+  attack rests on. It cannot follow the ship - a promise that chases you is a wall, not a door -
+  and aiming it anywhere else would ask the ship to cross a room in 0.9 s, which at any real
+  distance it cannot do. So the ask is "be where you already are, and stop sliding out of it",
+  which is honest at a 0.9 s telegraph. Two comments I wrote before thinking that through claimed
+  the door was "priced against what the ship can cross in `windup`", which is false at any
+  distance over ~90 px; they now say what is true, and the tests measure the true thing.
+- **The shots belong to the room.** A shot row may say `caged: true` and then the live box
+  (`game/field.js`) is what stops it, with two sparks. The alternative was a ring sailing out
+  through the cage and wandering about the arena - the far side of the room free for nothing, and
+  half the ring outside the fight. It is per-shot and not a rule about all shots because the crowd
+  was never caged either: a spitter hanging in the far corner keeps its arena-wide shot, and the
+  test for that rule still owns it. Same reasoning that made `game/beams.js` clip to the box.
+- **The shots wear the phase's `tint` and not a colour of their own**, filled into one scratch
+  `SHOT` spec per volley, so the bar, the spokes, the flare and the ring of shots are one sentence
+  - this is how far into the fight you are - and a volley allocates nothing.
+- **The wedge is cool** (`PALETTE.bossGap`, `#9fe8ff`) and it is the only cool thing a boss draws.
+  Warm is what is coming, cool is where to be (PLAN section 4), and the door is the only part of a
+  boss attack that is the second one. Deliberately *not* the cage's colour: one is a wall you will
+  not be hurt by, this is a place you must be, and a player who conflated them would hug a wall
+  with a door on the far side of the room.
+- **`spokeProgress` grew a sibling rather than a generalisation.** `armedCount / gapAngle /
+  gapHalf / gapProgress` mirror `spokeCount / spokeAngle / spokeHalf / spokeProgress` one for one,
+  and one new export (`windupProgress`, the max of the two) drives the body's core light so the
+  frame can ask "how close is the thing you are about to do" without knowing what it is. NOTES
+  last session said do not generalise the framework until The Hive says where the seam is; this
+  stays inside that letter - `stepRing` still knows about exactly two beats and one boss.
+
+### Surprises
+
+- **The obvious art test measured window pixels, not arena ones.** `game.points()` and
+  `game.circles()[].at` come back through the camera and the device-pixel ratio, so comparing them
+  with `boss.enemy.x` finds nothing at all - the door test drew an empty list and said so. The
+  house rule is `game.screenOf(...)`, and NOTES has now said it twice.
+- **Reading `boss.enemy` before checking it exists is a crash the warning hands you.** Folding the
+  door into `drawBossLocks` meant reading the body before the "nothing is held, go away" return,
+  and for `warn.time` of every boss there is no body yet. Five boss-art tests went red at once;
+  the fix is one line at the top and a comment about why.
+- **A test that steps "until the ring lands" also steps into the next beat.** Two of the live hit
+  tests failed at first because the observation window was long enough for a spoke volley to fire
+  into the same ship. The honest fix was to make the window the flight time of the ring itself
+  (`(radius - enemy.r) / speed`), which is shorter than `wait` + `windup` and says so in a comment.
+- **`'R' + 'RS'.repeat((n - 1) / 2)` is not how you assert an alternating sequence**, and
+  `walkUntil` is in `spitter.test.mjs` and not in `dodge.test.mjs`. Both were my own bugs, not the
+  game's, and both were caught by a failing assert rather than by reading.
+- **The bot now kills the Warden outright** on 3 of 4 `--at 295` seeds (last session it got to 5%
+  of phase 3). Giving the boss a second attack made it *easier*, because half its volleys are now
+  one the ship is handed a door for, and because the bot reads the door. That is the intended
+  direction - readable beats punish less - but it is the second session in a row saying the hull
+  may want cutting. It is 560, ~127 s of a bare pulse gun, and the fight is the milestone.
+
+### For the next session
+
+- **Phase 3's Darter summons** (PLAN 3.4's last Warden row). It will be the first thing in the
+  game that spawns bodies out of a boss's own walk, so the "the grid is this step's" rule from
+  session 56 wants thinking about again, and `takes a beat per summon` wants deciding (a summon
+  as a third beat, or as a side effect of the flare that opens phase 3?).
+- **Then The Hive**, which is where `stepRing`, `arrive` and `holdsItsGround` will find out how
+  Warden-shaped they are: it walks, it spawns, and its cells are destructible bodies. The seam
+  will show up there; do not pre-empt it here either.
+- `boss.rings` / `boss.shots` / `boss.volleys` / `boss.beams` counters exist on the fight and
+  nothing but tests reads them. If the F3 overlay (M10) wants a boss card, they are the scorecard.
+- The four unbuilt synergies, the music buses, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship` are all untouched and still parallel work.
