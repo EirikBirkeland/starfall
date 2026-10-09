@@ -5,7 +5,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
-import { bossFlare, bossHullShare, bossName, bossPhase, bossPhaseCount, bossTint, bossWarning } from '../game/bosses.js';
+import { bossBlurb, bossFlare, bossHullShare, bossName, bossPhase, bossPhaseCount, bossTint, bossWarning } from '../game/bosses.js';
 import { hasLeech } from '../game/leech.js';
 import { leechCostOf, LINES, maxRanksOf, rankOf } from '../game/upgrades.js';
 import { weaponName } from '../game/weapons.js';
@@ -14,6 +14,7 @@ import { dueOf as dropDue } from '../game/mines.js';
 import { dueOf as crewDue } from '../game/turret.js';
 import { polygon, roundRect } from './shapes.js';
 import { drawIcon, tintOf } from './icons.js';
+import { fitOneLine } from './fit.js';
 import { glowFor, paintGlow } from './glow.js';
 import { view } from './canvas.js';
 
@@ -251,6 +252,10 @@ const BAR_PIP_STEP = 11;
 const BAR_NOTCH_LIGHT = 0.75;
 const WARN_NAME = '800 46px "Segoe UI", system-ui, sans-serif';
 const WARN_MARK = '700 13px "Segoe UI", system-ui, sans-serif';
+const WARN_LINE = 13;         // px of the line that says what is coming
+const WARN_LINE_FLOOR = 9;    // below this it is unreadable, so it gets cut short instead
+const WARN_MARGIN = 28;       // px of window kept clear at each edge for that line
+const warnLineFont = (size) => '600 ' + Math.round(size) + 'px "Segoe UI", system-ui, sans-serif';
 const WARN_AT = 0.34;         // where down the window the name lands, as a share of its height
 const WARN_PULSE = 9;         // rad/s of anxious pulse on the warning
 
@@ -336,7 +341,12 @@ function drawBossBar(ctx, W, boss) {
   if (filled > 1) paintGlow(ctx, glowFor(tint, 26), first, bar.y + bar.h / 2, 0.35);
 }
 
-/** The name before the thing is: the siren made visible, for exactly as long as the siren runs. */
+/**
+ * The name before the thing is: the siren made visible, for exactly as long as the siren runs - and
+ * under it, in one line, what the fight is going to do. That line (`blurb` on the boss's row) is the
+ * only words the arena ever spends on a boss, and the only moment a player is told anything before it
+ * starts: the Eclipse drags, which is the one thing about it you cannot read off a shape.
+ */
 function drawBossWarning(ctx, W, boss) {
   const pulse = 0.6 + 0.4 * Math.sin(world.time * WARN_PULSE);
   const y = view.H * WARN_AT;
@@ -347,6 +357,16 @@ function drawBossWarning(ctx, W, boss) {
     withAlpha(PALETTE.bossBar, 0.5));
   ctx.font = WARN_MARK;
   haloText(ctx, 'INCOMING', W / 2, y + 24, withAlpha(PALETTE.bossWarn, pulse * 0.8),
+    withAlpha(PALETTE.bossBar, 0.4));
+  // Quieter than the alarm above it on purpose: the name and the pulse are the warning, and this is
+  // only the sentence you get to read while you still have time to read it. It is fitted to the
+  // window rather than to the width the sentence was written at (render/fit.js) - a warning that
+  // runs off the edge explains nothing.
+  const line = fitOneLine(ctx, bossBlurb(boss), {
+    widest: W - WARN_MARGIN * 2, size: WARN_LINE, minSize: WARN_LINE_FLOOR,
+    fontFor: warnLineFont,
+  });
+  haloText(ctx, line.text, W / 2, y + 46, withAlpha(PALETTE.uiText, pulse * 0.75),
     withAlpha(PALETTE.bossBar, 0.4));
   ctx.textAlign = 'left';
 }

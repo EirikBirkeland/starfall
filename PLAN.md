@@ -706,6 +706,23 @@ When every item above is ticked, go back to the first unchecked item of mileston
       a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
+      (Shipped so far: the arrival, the drag, and the shell - three phases, one bar, one flare each.
+      It asked the framework for one new permission and one new rhythm: **a fight may move the ship**.
+      A phase row may carry `pull`, spent once per step along the line from the ship to whichever of
+      the fight's bodies is standing, as a *place* the ship is taken to and not as a force on its
+      engines (game/player.js `dragShip`) - the engines are steered back to the controls every step
+      and would veto a force, which is not the bargain a dark sun offers. It stops at the rim of the
+      body that hurts on contact, so it can never feed the ship into the fight, and it is off through
+      a phase flare. The rhythm is `sun`: it turns on the spot like the ring *and* holds a band like
+      the mass, which is why it is a third rhythm; and it is the first boss whose one beat is not
+      alternated with another, so a beat a phase never wrote is now never taken (game/bosses.js
+      `alternateBeats`). The beat is a shell of shots out of the rim with the Warden's own door, held
+      open on your bearing - and because the drag points at the body it can only ever carry you down
+      the door you were shown, never out of it. NOT SHIPPED from 3.4's Eclipse row: phase 2's
+      darkening of the arena to what is lit by the ship and the shots, and phase 3's sweeping arms
+      and bullet walls with moving gaps - the three phases today are the drag harder and the shell
+      faster, which is how the first two bosses were built too. `test/eclipse.test.mjs` and the sun
+      tests of `test/boss-art.test.mjs` own what is here.)
 - [ ] Victory screen and the endless mode that follows.
 - [ ] Release.
 

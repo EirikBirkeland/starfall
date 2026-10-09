@@ -1101,12 +1101,11 @@ export const BALANCE = {
   // (game/bosses.js). Then one row per boss, which is its body and its phases.
   //
   // The schedule is the run's spine: one entry per boss, in the order they arrive. PLAN's
-  // marks are 5:00, 10:00 and 15:00 - the Warden and the Hive are written, the Eclipse joins
-  // this list with its own row and its own mark when it is.
+  // The Eclipse joins the list with its own row, so all three of PLAN's marks are spent.
   // `test/bosses.test.mjs` holds the list in the order it is played and every entry pointing
   // at a row that exists, which is the one way a schedule could lie.
   bosses: {
-    schedule: [{ at: 300, boss: 'warden' }, { at: 600, boss: 'hive' }],
+    schedule: [{ at: 300, boss: 'warden' }, { at: 600, boss: 'hive' }, { at: 900, boss: 'eclipse' }],
 
     // The warning, before the cage closes: the siren, the name on the glass, and a shudder
     // in the frame. Long enough to read and to let go of whatever you were doing, short
@@ -1611,6 +1610,147 @@ export const BALANCE = {
               shake: 12,
               hitStop: 0.09,
               sound: { notes: [147, 110, 82], dur: 0.9, wave: 'sawtooth', vol: 0.14 },
+            },
+          },
+        },
+      ],
+    },
+
+    // The Eclipse (PLAN 3.4's 15:00): a dark sun. It is the last fight in a run, and the one that
+    // takes something away instead of adding something - it pulls. Everything else about it the
+    // other two bosses already do: it holds a band the way the hive does, it turns the way the
+    // ring does, and its shells are the ring's own beat, thrown with a door in them on your own
+    // bearing. What is new is that the middle of the room is now somewhere you are always falling
+    // towards, and that every one of those familiar things has to be answered while swimming.
+    //
+    // THE DRAG, and what its numbers are. `force` is px/s of steady fall: it is spent as a *place*
+    // the ship is moved to and not as a force on its velocity, because the ship's velocity is
+    // steered back to the controls every step and a push there would be corrected away before it
+    // was felt (game/player.js `dragShip`). It is priced in px/s and not as a share of the ship's
+    // own speed for one reason: a run that has bought the Move speed line out-swalls the sun, and a
+    // run that bought nothing has to buy its way out with a dash. `floor` is how near the middle it
+    // will let you get: outside the sun's own body plus the ship's, and the pull stops there -
+    // a drag that walked the ship into the thing that hurts it on contact would be the fight
+    // paying out damage it never promised, so past the rim the ship is on its own and only ever
+    // gets hurt where it let itself be dragged to.
+    //
+    // The drag is not telegraphed, and it is not a hole in the rule: `telegraphMin` is about an
+    // attack, and a pull is not an attack, it is the sun being there. It is shown the way
+    // everything else about this boss is - the light of its own corona falling inwards
+    // (render/boss.js), from the moment it arrives.
+    //
+    // NOT SHIPPED from 3.4's Eclipse row, written here so it is not lost: phase 2's darkening of
+    // the arena to what is near the ship and near the shots, and phase 3's sweeping arms and bullet
+    // walls with moving gaps. What is shipped is the drag and one beat, priced three ways - the
+    // same shape the first two bosses were built in (one beat per session), and the same two phase
+    // rows where the darkness and the arms will go.
+    eclipse: {
+      name: 'THE ECLIPSE',
+      blurb: 'a dark sun that drags you in and bursts in every direction',
+      // Which beat-machine the framework runs for it (game/bosses.js `RHYTHMS`): `sun` - turn on
+      // the spot like the ring, walk to a band like the mass, and spend the turn it is given on a
+      // shell. It is the third rhythm because it is the first boss that wants to do all three.
+      rhythm: 'sun',
+      // 58 px and not bigger, for the reason the Warden's 60 is 60: the collision broad phase
+      // queries with the widest body in the arena and every shot in the game pays that number
+      // (game/enemies.js). It has no mass to be wide with, so this is the whole of it.
+      radius: 58,
+      // The same bare-gun length as the other two, and not more: 191 s of a plain pulse gun.
+      // A third boss at 15:00 is later in *game* terms and not in bare-gun ones - the run that
+      // gets here has had three times as long to buy damage, and what makes this fight hard is
+      // not the bar. `score` and `drop` are what `killEnemy` pays; `reward` is the framework's.
+      hull: 840,
+      // It walks, and slowly. A sun that sat still would be a fixed drainhole you could plan a
+      // whole fight round; one that drifts to keep its band can lean you towards a wall, and the
+      // drag is what does the leaning. It is slower than the hive on purpose - the drag is its
+      // movement, and it does not need to be fast as well.
+      speed: 40,
+      approach: { near: 320, far: 460, park: 16 },
+      cost: 40,
+      score: 4000,
+      drop: 40,
+      color: PALETTE.eclipseRim,
+      fill: PALETTE.eclipseRimFill,
+      glow: 70,
+      sides: 0,          // a disc; the crowd's polygon painter never sees this body anyway
+      reward: { hull: 1 },
+      death: {
+        particles: 110, speed: 700, debris: 48, debrisSpeed: 420,
+        ringSpeed: 1000, ringScale: 2.6, shake: 17, hitStop: 0.14,
+      },
+      sound: { freq: 55, dur: 0.9, vol: 0.17 },
+      arrival: {
+        gap: 420,
+        ring: { radius: 40, speed: 900, life: 0.5 },
+        burst: { count: 58, speed: 580, life: 0.75 },
+        shake: 12,
+        hitStop: 0.06,
+      },
+      // One row per phase, opening at `bosses.atHull`, as they are for the other two.
+      //
+      // `turn` is how fast the whole body rides between shells, rad/s; `wait` how long it rides
+      // before taking the next one; `bullets` is the shell - `count` shots thrown out of the rim,
+      // evenly over every bearing except the wedge `gap` radians each side of the door, which is
+      // opened on the ship's own bearing and then held exactly as the Warden's ring opens its door
+      // (game/bosses.js `windRing`): the ask is "stay in the door you were shown", and the drag is
+      // what makes staying anywhere a cost. `tint` is the phase the player is looking at, and the
+      // bar wears it.
+      //
+      // There is no `spokes` row anywhere in here, and that is the difference between this fight
+      // and the Warden's rather than an oversight: a sun has no hoop to draw rays across, so its
+      // one beat is the shell and it takes it every turn (game/bosses.js `alternateBeats`).
+      phases: [
+        {
+          tint: PALETTE.eclipseRim,
+          turn: 0.3, wait: 2.6,
+          pull: { force: 130, floor: 92 },
+          bullets: {
+            count: 18, gap: 0.7, windup: 0.95,
+            shot: { speed: 200, radius: 8, life: 6, caged: true },
+            wind: { sound: { freq: 150, dur: 0.85, wave: 'triangle', vol: 0.05, slide: 560 } },
+            fire: {
+              shake: 7,
+              ring: { radius: 52, speed: 520, life: 0.45 },
+              sound: { freq: 380, dur: 0.32, wave: 'sawtooth', vol: 0.09, slide: 80 },
+            },
+          },
+        },
+        {
+          tint: PALETTE.magenta,
+          turn: 0.46, wait: 2.2,
+          pull: { force: 180, floor: 92 },
+          bullets: {
+            count: 24, gap: 0.58, windup: 0.85,
+            shot: { speed: 225, radius: 8, life: 6, caged: true },
+            wind: { sound: { freq: 170, dur: 0.75, wave: 'triangle', vol: 0.055, slide: 640 } },
+            fire: {
+              shake: 8,
+              ring: { radius: 56, speed: 600, life: 0.42 },
+              sound: { freq: 450, dur: 0.3, wave: 'sawtooth', vol: 0.095, slide: 80 },
+            },
+          },
+        },
+        {
+          // The last phase of the last fight: the drag at 230 px/s, which is more than most of the
+          // ship rows can out-swim and about what the Wisp can crawl out of, so the answer to the
+          // end of this fight is a dash and a bearing rather than a straight line away. The shells
+          // are the ring's own beat again, and everything from before is here as PLAN asks - the
+          // same two beats, priced as hard as they will go.
+          //
+          // PLAN's arms and moving gaps are the work this row is waiting for, and the turn it is
+          // given is where they will be hung from: `turn` already places the body's facing, which
+          // is what an arm sweeps with.
+          tint: PALETTE.pink,
+          turn: 0.66, wait: 1.85,
+          pull: { force: 230, floor: 92 },
+          bullets: {
+            count: 30, gap: 0.5, windup: 0.72,
+            shot: { speed: 250, radius: 8, life: 6, caged: true },
+            wind: { sound: { freq: 200, dur: 0.62, wave: 'triangle', vol: 0.06, slide: 720 } },
+            fire: {
+              shake: 9,
+              ring: { radius: 60, speed: 680, life: 0.4 },
+              sound: { freq: 540, dur: 0.28, wave: 'sawtooth', vol: 0.1, slide: 80 },
             },
           },
         },

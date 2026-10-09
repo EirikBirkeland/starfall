@@ -74,7 +74,7 @@ import { newPack } from './flock.js';
 import { addText, burst, hitStop, ring, shakeIt, spray } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
 import { closeField, holdInField, openField } from './field.js';
-import { healPlayer } from './player.js';
+import { dragShip, healPlayer } from './player.js';
 
 /**
  * What a boss does between one phase and the next: it rides round, and it stops dead to strike.
@@ -92,13 +92,19 @@ const OPENING = 'open';
 
 /**
  * How a boss spends the ride from one beat to the next, and which beat the ride hands over to.
- * A ring rides by turning on the spot; a mass rides by drifting at the ship and holding a band.
- * Both of them stop dead to strike, and that part is the framework's and not the rhythm's
- (`stepBeat`), so a rhythm only ever gets to say what a ride looks like and what it leads to.
+ * A ring rides by turning on the spot; a mass rides by drifting at the ship and holding a band; a
+ * sun rides by turning on the spot *and* holding a band, which is why it is a third rhythm and not
+ * an adjective on one of the other two. All of them stop dead to strike, and that part is the
+ * framework's and not the rhythm's (`stepBeat`), so a rhythm only ever gets to say what a ride
+ * looks like and what it leads to.
+ *
+ * `first` is the beat an arrival leads with, and `take` is which one the ride that has just ended
+ * hands over to.
  */
 const RHYTHMS = {
-  ring: { ride: rideTheRing, take: takeRingBeat, first: LOCKING },
+  ring: { ride: turnsInPlace, take: alternateBeats, first: LOCKING },
   mass: { ride: driftTheMass, take: takeMassBeat, first: OPENING },
+  sun: { ride: turnsInPlace, take: alternateBeats, first: RINGING },
 };
 
 /**
@@ -226,7 +232,7 @@ function coreOf(boss, enemy) {
 
 /** How far one body reaches: from its own middle out to the outside edge of its mass, or no further
  * than its own skin if it has no mass. It is what the cage holds a walking body by
- * (`holdsItsMass`) and what the frame culls with, so that no cell can be standing in the arena with
+ * * (`holdsItsBand`) and what the frame culls with, so that no cell can be standing in the arena with
  * its boss off the window and therefore undrawn (render/boss.js).
  */
 export function coreReach(core) {
@@ -276,20 +282,23 @@ function holdsItsGround(enemy, step) {
 }
 
 /**
- * The walk the Hive's core is given, which is the thing a second boss asked the framework for:
- * a boss may *walk*. The Warden's whole attack is a ring that turns on the spot, so the walk
- * used to be hard-coded to nothing but turning. The mass drifts at the ship and keeps the band
- * its row likes - everything it sends is faster than it is, and a hive that walks into your
- * face has nothing left to do - and it stands perfectly still while it is showing you
- * something, which is the same rule the ring rides by and the one that makes the cell you
+ * The walk a boss body that *does* walk is given, which is the thing a second boss asked the
+ * framework for: a boss may *walk*. The Warden's whole attack is a ring that turns on the spot, so
+ * the walk used to be hard-coded to nothing but turning. A walking body drifts at the ship and
+ * keeps the band its row likes - everything the Hive sends is faster than it is, and a hive that
+ * walks into your face has nothing left to do - and it stands perfectly still while it is showing
+ * you something, which is the same rule the ring rides by and the one that makes the cell you
  * watched light be the cell the brood come out of, in the place you saw it standing.
  *
  * It is not `rooted`: a body with a hull bar is entitled to be shoved by the things that are
  * hitting it, and a shove is the only way it will ever move sideways. Its *fragments* are (see
  * game/balance.js `split.body`), because a body that has been told which side of the ship to keep
- * has made a promise with a direction in it, and the crowd would lean that out of it.
+ * has made a promise with a direction in it, and the crowd would lean that out of it. The Eclipse's
+ * sun walks this same walk and is no more rooted than the hive: it holds a *distance* from the ship,
+ * so a crowd that leaned it a few px sideways has leaned the direction of its drag by a few px -
+ * a wobble that corrects itself, and not the lie a fragment would swallow.
  */
-function holdsItsMass(enemy, step) {
+function holdsItsBand(enemy, step) {
   const boss = step.world.boss;
   if (boss === null) return;
   const core = coreOf(boss, enemy);
@@ -375,9 +384,12 @@ function holdsItsPlace(enemy, step) {
 
 /**
  * What walks a boss body, per rhythm: the same keys as `RHYTHMS`, because a rhythm that rides
- * by turning and a rhythm that rides by walking are two different walks and no more.
+ * by turning and a rhythm that rides by walking are two different walks and no more. `mass` and
+ * `sun` share one, because a body that holds a band off the ship holds it the same way whatever it
+ * is holding a band from; what differs between them is the beat the ride leads to, and not the
+ * walking.
  */
-const WALKS = { ring: holdsItsGround, mass: holdsItsMass };
+const WALKS = { ring: holdsItsGround, mass: holdsItsBand, sun: holdsItsBand };
 
 /** The body's row: the boss's own numbers, with the walk its rhythm asked for attached. */
 function kindOfBoss(row) {
@@ -624,15 +636,19 @@ function stepBeat(world, boss, dt) {
   BEATS[rhythm.take(boss, phase)].enter(world, boss, phase);
 }
 
-/** The Warden's ride: the whole ring turns, and the spokes it will fire are turned with it. */
-function rideTheRing(world, boss, phase, dt) {
+/**
+ * The Warden's ride, and the Eclipse's: the whole body turns where it stands, and the spokes or the
+ * shell it is going to fire are turned with it. A sun turns because it has a face - the corona
+ * turns, and the arms a later phase of it is written about will be placed by the same angle.
+ */
+function turnsInPlace(world, boss, phase, dt) {
   for (const core of boss.cores) core.angle = turned(core.angle, phase.turn * dt);
 }
 
 /**
  * The Hive's ride: the mass turns slowly, and the cells that light for the next opening are
  * placed by that turning - which is the same reason the ring's spokes are, and the reason the
- * mass holds its turn as well as its drift while a beat is running (`holdsItsMass`).
+ * mass holds its turn as well as its drift while a beat is running (`holdsItsBand`).
  */
 function driftTheMass(world, boss, phase, dt) {
   for (const core of boss.cores) core.angle = turned(core.angle, phase.spin * dt);
@@ -667,8 +683,13 @@ function rideAgain(boss, phase) {
  * rhythm the ship has learned. So the call is what happens when the run has answered it, which
  * is a rule a player can read off the crowd rather than off a clock.
  */
-function takeRingBeat(boss, phase) {
+function alternateBeats(boss, phase) {
   if (phase.call !== undefined && liveCall(boss) === 0) return CALLING;
+  // A beat a phase does not have is never taken. "It alternates" is a rule about the beats there
+  // are to alternate, and taking one the row never wrote would be a rest with a telegraph on it:
+  // the Warden's phases all have spokes so it never had to be said out loud, and the Eclipse - a
+  // shell and nothing else - is what said it.
+  if (phase.spokes === undefined) return RINGING;
   if (phase.bullets === undefined) return LOCKING;
   const beat = boss.nextBeat;
   boss.nextBeat = beat === LOCKING ? RINGING : LOCKING;
@@ -686,6 +707,39 @@ function takeMassBeat(boss, phase) {
 }
 
 /**
+ * A fight may drag the ship: PLAN 3.4's Eclipse, "a dark sun that pulls the player inwards".
+ *
+ * It is spent once per step, and it is spent here rather than in game/player.js because the pull is
+ * the fight's and not the room's: the phase's own row says how hard (`pull.force`, px/s of steady
+ * fall) and the framework decides when it is on. It is on for every step of a fight whose phase rows
+ * carry a `pull` row and never mentioned by the ones that do not, and it is off through a phase
+ * flare, which is the one moment a fight has agreed to stop doing anything at all.
+ *
+ * It is drawn along the line from the ship to whichever of the fight's bodies is still standing
+ * (`liveCore`) - a drag out of a corpse would be a promise about nothing - and that is what makes it
+ * safe to run alongside the ring's fairness rule: a pull that points at the body can only ever carry
+ * the ship *down* the bearing a door was opened on, never off it, so a ship that was shown a door and
+ * does nothing is still in that door however hard the sun is pulling.
+ *
+ * And it stops at `floor` px from that body's middle, which is the whole of its fairness: a drag that
+ * walked the ship into the body that hurts it on contact would be paying out damage the fight never
+ * promised. Past the rim the ship is on its own, and it gets hurt only where it let itself go.
+ */
+function holdTheShip(world, boss, dt) {
+  const spec = phaseOf(boss).pull;
+  if (spec === undefined) return;
+
+  const body = liveCore(boss).enemy;
+  const ship = world.player;
+  const dx = body.x - ship.x;
+  const dy = body.y - ship.y;
+  const away = Math.hypot(dx, dy);
+  if (away === 0 || away <= spec.floor) return;
+
+  dragShip(world, dx / away, dy / away, spec.force, dt);
+}
+
+/**
  * Which beat a phase change leads with: whatever the new phase has that the one before it had
  * not. A phase with a `spawn` row is a mass, and a mass has one beat - and so has a phase with a
  * `split` row, which is a mass that has just grown more of itself; a Warden phase leads on
@@ -698,7 +752,7 @@ function leadBeat(phase) {
 
 /**
  * Whatever the last call sent that is still standing, compacted in place. Its length is the
- * whole of the summoning rule (`takeRingBeat`), and it is the list the ring lets go of when it
+ * whole of the summoning rule (`alternateBeats`), and it is the list the ring lets go of when it
  * goes down (`bossDown`), so nothing else in the game has to know a boss can make bodies.
  *
  * Dead ones are dropped here and nowhere else: a body leaves the crowd by dying, so `hp` is the
@@ -1361,8 +1415,12 @@ export function updateBosses(world, dt) {
   }
 
   stepBeat(world, boss, dt);
+  // And then the thing that is not a beat. A fight whose phase rows carry a `pull` row spends its drag
+  // here and nowhere else, once per step (game/bosses.js `holdTheShip`); a fight in its phase flare
+  // took its step back above and let go of everything, the pull included.
+  holdTheShip(world, boss, dt);
   // The bodies wear the rhythm's facing at the end of the step as well as during the crowd's own
-  // (game/bosses.js `holdsItsGround`, `holdsItsMass`), so a frame or a contact test that reads
+  // (game/bosses.js `holdsItsGround`, `holdsItsBand`), so a frame or a contact test that reads
   // `rot` never finds it a step behind a ring that was turned after the crowd was walked.
   for (const core of boss.cores) core.enemy.rot = core.angle;
 }
@@ -1409,8 +1467,9 @@ export function isBossPart(world, enemy) {
 }
 
 /**
- * Which art a boss wears: the ring's or the mass's. The frame asks this rather than matching on
- * the boss's id, so a third boss is a row and not an edit (render/boss.js).
+ * Which art a boss wears: the ring's, the mass's, or the sun's. It is the rhythm's own name, because
+ * what a fight looks like and how it spends its ride are the same decision. The frame asks this rather
+ * than matching on the boss's id, so a third boss is a row and not an edit (render/boss.js).
  */
 export function bossShape(boss) {
   return boss.row.rhythm;
@@ -1484,6 +1543,16 @@ export function cellProgress(cell) {
 /** The name on the bar and on the warning. */
 export function bossName(boss) {
   return boss.row.name;
+}
+
+/**
+ * The line the warning shows under the name: what this boss is going to do to you, in one line,
+ * before it does it (`blurb` on the boss's own row in game/balance.js). The shape of a fight is
+ * something a player reads in the first seconds of it, and the one moment the game is allowed to say
+ * something in words is the warning - so this is where the words go.
+ */
+export function bossBlurb(boss) {
+  return boss.row.blurb;
 }
 
 /** How much of the boss is left, 0..1 - what the hull bar is filled to. */
@@ -1646,6 +1715,18 @@ export function callProgress(boss) {
  */
 export function windupProgress(boss) {
   return boss.stage === RIDING ? 0 : beatProgress(boss);
+}
+
+/**
+ * Is the fight riding between two beats, and so showing nothing at all?
+ *
+ * The drag does not care (a sun pulls while it rides, which is what `holdTheShip` is for) and the
+ * drawing does not care either, because `windupProgress` already answers zero while riding. It is
+ * here because a test that measures one step has to know which stage of the beat it is standing in,
+ * and "is it riding" is not a question anything outside this file may answer for itself.
+ */
+export function bossRiding(boss) {
+  return boss.stage === RIDING;
 }
 
 /** How far through the beat it stands, whether it is riding or holding - the bar's breathing. */

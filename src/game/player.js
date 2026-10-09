@@ -70,6 +70,27 @@ function fly(world, ship, spec, input, dt) {
 }
 
 /**
+ * The world moves the ship: `speed` px/s of it, along the unit vector (`ux`, `uy`), for one step.
+ *
+ * This is the door for anything that moves the ship without the player asking it to - today the
+ * Eclipse's drag (game/bosses.js `holdTheShip`) and nothing else. It moves the ship's *place*
+ * rather than adding to its velocity on purpose: the velocity is steered back toward whatever the
+ * controls point at on every step (see `steer`), so a force written into `vx` would be corrected
+ * away before the player had felt it. Spent as a place, a drag cannot be vetoed by the engines -
+ * all an engine can do is out-swim it - which is the whole of the bargain a dark sun offers.
+ *
+ * It is called after the ship has been moved and is clamped by the same live box the engines are,
+ * so the worst a pull can ever do is press the ship against a wall.
+ */
+export function dragShip(world, ux, uy, speed, dt) {
+  if (speed <= 0 || (ux === 0 && uy === 0)) return;
+  const ship = world.player;
+  ship.x += ux * speed * dt;
+  ship.y += uy * speed * dt;
+  holdInField(world, ship, ship.drawR);
+}
+
+/**
  * Where a dash without a held direction goes: at the cursor, and straight ahead
  * if the cursor is sitting on the ship. A lean always wins over the aim, because
  * that is the direction the ship was already being driven.

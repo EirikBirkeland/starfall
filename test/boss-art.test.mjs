@@ -64,6 +64,9 @@ function bringItOut(index) {
 /** The second boss: the Hive, which is drawn as one mass and not as a ring. */
 function bringTheHiveOut() { return bringItOut(1); }
 
+/** The third boss: the Eclipse, which is a disc of nothing with a rim and a pull. */
+function bringTheEclipseOut() { return bringItOut(2); }
+
 /** The cells of a mass that are lit for an opening. */
 function litCells(boss) {
   return bossCells(boss).filter((cell) => cellOpening(cell) && cell.hp > 0);
@@ -241,6 +244,28 @@ test('before it arrives there is a name and no bar', () => {
   assert.ok(words.includes('INCOMING'));
   assert.equal(words.some((w) => w.indexOf('PHASE') === 0), false,
     'there is a hull bar for a boss that is not there yet');
+
+  // And a line saying what it is. `blurb` sits on the boss's row next to its numbers and is the only
+  // sentence the arena ever spends on a fight, so it has to actually be on the glass: the Eclipse
+  // drags, and that is not a thing you can read off a shape.
+  const name = game.texts().find((t) => t.text === WARDEN.name && !t.stroke);
+  const line = game.texts().find((t) => t.text === WARDEN.blurb && !t.stroke);
+  assert.ok(line !== undefined, 'the warning did not say what was coming: '
+    + JSON.stringify(WARDEN.blurb) + ' is not on the glass');
+  assert.equal(line.align, 'center');
+  assert.ok(line.y > name.y && line.y - name.y < 70,
+    'the line is not under the name it belongs to: ' + line.y + ' against ' + name.y);
+
+  // And it is fitted to the window it is drawn in rather than to the width the sentence was written
+  // at (render/fit.js), because a warning that runs off the edge explains nothing. Small window, same
+  // warning: the words are still there and still inside the glass.
+  game.setViewport(400, 300);
+  game.step(16);
+  const narrow = game.texts().filter((t) => t.text.indexOf('a ring that turns') === 0 && !t.stroke);
+  assert.equal(narrow.length, 1, 'the line was not drawn in a small window at all');
+  assert.ok(narrow[0].w <= 400 - 2 * 28,
+    'the line does not fit the window it was drawn in: ' + Math.round(narrow[0].w) + ' px of 400');
+  game.setViewport(1280, 720);
 });
 
 test('the cage is drawn when there is a cage', () => {
@@ -678,5 +703,127 @@ test('a fight that has come apart is drawn as three hives and not one with bits 
   assert.ok(words.includes(HIVE.name), 'the bar stopped saying who the fight is');
   assert.ok(words.includes('PHASE ' + bossPhase(boss) + '/' + HIVE.phases.length),
     'the bar does not say how far into it the fight is: ' + JSON.stringify(words));
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------
+// The Eclipse: a rim round a hole, and a pull that is drawn rather than explained
+// ---------------------------------------------------------------------------
+
+/**
+ * Park the ship in the middle of the room the fight is being held in, and stand the sun 360 px east
+ * of it. That is inside the band the sun holds, so it stays where it is put, and it leaves every part
+ * of the picture out in open sky: a ring can be measured round the body without the cage's own wall
+ * crossing into it, which is the difference between this and `standBesideTheMass` - the ship is being
+ * dragged the whole time, so both of them are re-parked on every step.
+ */
+function standBesideTheSun(boss) {
+  const body = boss.enemy;
+  const box = field.field;
+  const ship = field.player;
+  const park = () => {
+    ship.x = (box.x0 + box.x1) / 2;
+    ship.y = (box.y0 + box.y1) / 2;
+    ship.px = ship.x;
+    ship.py = ship.y;
+    body.x = ship.x + 360;
+    body.y = ship.y;
+    body.px = body.x;
+    body.py = body.y;
+  };
+  park();
+  for (let i = 0; i < 40; i++) { game.step(16); park(); }
+}
+
+/** Every circle the last frame drew round the sun's own middle - whole ones included, unlike
+ *  `arcsRound`, which is looking for a door and so only wants part-arcs. */
+function circlesRound(boss) {
+  const at = game.screenOf(boss.enemy.x, boss.enemy.y);
+  return game.circles().filter((c) => Math.hypot(c.at.x - at.x, c.at.y - at.y) < 2);
+}
+
+/** How many path points the last frame put between `from` and `to` shares of a body's radius. */
+function pointsRound(x, y, radius, from, to) {
+  const at = game.screenOf(x, y);
+  return game.points().filter((p) => {
+    const off = Math.hypot(p.x - at.x, p.y - at.y);
+    return off > radius * from && off < radius * to;
+  });
+}
+
+/** Step until it is riding and so drawing nothing but itself. */
+function catchItRiding(boss) {
+  let guard = 0;
+  while (armedCount(boss) > 0 && guard < 900) { game.step(16); guard++; }
+  assert.equal(armedCount(boss), 0, 'it never stopped arming a shell');
+}
+
+test('the dark sun is a rim round a hole, and the rim is where it hurts', () => {
+  clearTheSky();
+  const boss = bringTheEclipseOut();
+  const sun = boss.enemy;
+  standBesideTheSun(boss);
+  catchItRiding(boss);
+
+  const before = game.drawCalls();
+  game.step(16);
+  const spent = diff(game.drawCalls(), before);
+  assert.ok(spent.strokes > 0 && spent.fills > 0, 'the sun was not drawn at all');
+  assert.equal(spent.shadows, 0, 'the sun asked the canvas for a blur');
+  assert.equal(spent.gradients, 0, 'the sun asked the canvas for a gradient');
+
+  // The shape you can shoot is the shape you can see, held to a body that is a hole instead of a
+  // hull: the edge of the disc is drawn at the radius the body is hurt by, within a tenth of it,
+  // which is where the Warden puts its hoop and for the same reason.
+  const r = sun.r;
+  const round = circlesRound(boss);
+  const rim = round.filter((c) => Math.abs(c.r - r) < r * 0.1);
+  assert.ok(rim.length > 0, 'nothing the size of the sun was drawn: '
+    + JSON.stringify(round.map((c) => c.r.toFixed(1))));
+
+  // And the disc of it is painted *over* the sky, not added to it. The whole arena pass is additive
+  // (render/renderer.js), so a dark fill laid down additively is a faint violet smear with the stars
+  // still shining through it rather than the hole this boss is; the only way to ask that question with
+  // no pixels to look at is which composite the arc was asked for under. The rim next to it is light
+  // and must still be added, so the two of them have to disagree - a blanket `source-over` over the
+  // body would be a black disc with no corona on it.
+  assert.ok(rim.some((c) => c.mode !== 'lighter'),
+    'the sun was painted onto the sky instead of cut out of it: '
+    + JSON.stringify(rim.map((c) => c.mode)));
+  assert.ok(rim.some((c) => c.mode === 'lighter'),
+    'the rim went dark with the disc: ' + JSON.stringify(rim.map((c) => c.mode)));
+
+  // And inside that edge there is nothing at all - no hub, no honeycomb, no spokes. The ring and the
+  // mass both paint a body in the middle of theirs; the Eclipse paints one pinprick of light, and
+  // that is a stamp and not a shape. A dark sun with something drawn in the middle of it is just
+  // another boss with a black coat on.
+  const inside = pointsRound(sun.x, sun.y, r, 0.2, 0.75);
+  assert.equal(inside.length, 0,
+    'something was drawn inside the sun: ' + JSON.stringify(inside.map((p) => [p.x, p.y])));
+  clearTheSky();
+});
+
+test('the pull it spends on the ship is drawn, as light falling in', () => {
+  clearTheSky();
+  const boss = bringTheEclipseOut();
+  const sun = boss.enemy;
+  standBesideTheSun(boss);
+  catchItRiding(boss);
+  const r = sun.r;
+
+  // The drag is the one thing about this boss that is not a shot, so it is the one thing that has to
+  // be drawn rather than promised: ticks of pale light outside the rim, streaming inward across the
+  // corona. They are counted over eight frames because they are *moving* - one frame can catch the
+  // whole ring of them at the far edge and faint - and the claim is that something is always out
+  // there. Nothing else the sun wears is painted past its own edge, so whatever is in that ring is
+  // the pull: the hole in the middle of the body is the test above, and the cage is out of range by
+  // how the ship and the sun were put down.
+  let least = Infinity;
+  for (let i = 0; i < 8; i++) {
+    game.step(16);
+    standBesideTheSun(boss);
+    least = Math.min(least, pointsRound(sun.x, sun.y, r, 1.05, 1.6).length);
+  }
+  assert.ok(least > 0, 'nothing was drawn out where the drag is spent');
   clearTheSky();
 });

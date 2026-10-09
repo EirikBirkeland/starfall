@@ -134,7 +134,13 @@ function makeContextStub(counters, drawLog) {
     // the rings round the ship are meters drawn as a part of a circle (render/entities.js)
     // and a test cannot tell a quarter-filled meter from a whole one on the radius alone.
     arc: (x, y, r, from, to) => {
-      drawLog.circles.push({ x: x, y: y, r: r, from: from, to: to, at: onto(x, y) });
+      // The composite it was asked for is logged as well, because that is the only way to tell a body
+      // that *covers* the sky from one that adds to it: there is no pixel here to look at, and the
+      // arena is painted additively (render/renderer.js), so a dark body is only a hole if it said so.
+      drawLog.circles.push({
+        x: x, y: y, r: r, from: from, to: to, at: onto(x, y),
+        mode: target.globalCompositeOperation,
+      });
     },
     arcTo: noop,
     closePath: noop,
@@ -411,7 +417,11 @@ export async function bootGame(options) {
      * after the transforms around it - which is how big a drawn shape is, measured.
      */
     points() { return drawLog.points.slice(); },
-    /** Every circle the last frame asked for, with its radius, in arena coordinates. */
+    /**
+     * Every circle the last frame asked for, with its radius, in arena coordinates, and with `mode`
+     * - the composite it was asked for under, which is how a test can tell a body that covers the sky
+     * from one that adds to it (the arena is painted additively, render/renderer.js).
+     */
     circles() { return drawLog.circles.slice(); },
     /** Every string the last frame put on the canvas, in the order it put them there. */
     words() { return drawLog.words.slice(); },

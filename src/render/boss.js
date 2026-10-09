@@ -100,6 +100,22 @@ const BROOD_MOUTH = 0.42;      // px of white in the mouth of a cell that is ope
 const MASS_CORE = 0.8;         // the core's own body, as a share of the radius it is hurt by
 const BREATH_MASS = 1.8;       // rad/s of breathing on the core, so the mass is never a dead light
 
+// The Eclipse's body (game/bosses.js `eclipse`): a disc of nothing with all of its light in the
+// rim, and its drag drawn as the corona's own light falling inwards across the sky round it.
+const DISC = 0.94;             // the dark body: where the rim is, and so where you get hurt
+const RIM_SOFT = 10;           // px, the soft pass of the rim ...
+const RIM_BODY = 4;            // px, the body of it ...
+const RIM_LINE = 1.5;          // px, and the thin line just inside them both
+const RIM_IN = 0.88;           // ... where that inner line sits, as a share of the radius
+const FALL_COUNT = 12;         // how many ticks of light the drag is drawn with
+const FALL_OUT = 2.05;         // how far out they start, as a share of the radius ...
+const FALL_IN = 1.02;          // ... and where they land: the rim, where the pull stops
+const FALL_LEN = 0.2;          // a tick's own length, as a share of the radius
+const FALL_RATE = 0.5;         // cycles/s: how fast the light falls in
+const FALL_STEP = 0.11;        // how far out of step two neighbours are, so they stream
+const FALL_LIGHT = 0.45;
+const SUN_CORE = 0.3;          // px of light in the middle of the disc, as a share of the radius
+
 /** The four sides of a box the window can see, in the order the wall is stroked. */
 const SIDES = [
   { horizontal: true, at: 0, from: 0, to: 0, inward: 1 },
@@ -309,6 +325,109 @@ function drawTheMass(ctx, boss, core, alpha) {
   paintGlow(ctx, glowFor(PALETTE.white, enemy.r * MASS_CORE), x, y, coreLight * breath);
 }
 
+/**
+ * The dark sun (PLAN 3.4's 15:00). It is drawn the other way round from every other body here:
+ * the light is painted first and then a disc of opaque nothing is laid over the middle of it, so
+ * what you are looking at is a ring of corona with a hole in it and no stars behind. That is the
+ * whole of the shape - and it is the shape the collision test uses as well, because the disc is
+ * painted at `enemy.r` like everything else.
+ *
+ * Two of its lights are doing a job and not just being a sun. The rim is the countdown: it is the
+ * phase's own tint, and it brightens across whatever the fight is promising (`windupProgress`),
+ * which is the same question the ring's spokes and the mass's cells answer. And the light falling
+ * inwards across the sky round it is the drag - the one thing about this boss that is not a shot,
+ * and so the one thing that has to be drawn rather than explained.
+ */
+function drawTheSun(ctx, boss, core, alpha) {
+  const enemy = core.enemy;
+  const x = paintX(enemy, alpha);
+  const y = paintY(enemy, alpha);
+  const r = enemy.r;
+  const tint = bossTint(boss);
+  const flare = bossFlare(boss);
+  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const shout = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
+
+  // The corona: the phase's light, all of it out where the rim is, and the widest thing the body
+  // wears - which is also what the cull in `drawBoss` is measured by.
+  paintGlow(ctx, glowFor(tint, r * HALO_REACH), x, y, HALO_LIGHT + shout * 0.3);
+  if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, r * HALO_REACH), x, y, flash * FLASH_LIGHT);
+  if (flare > 0) {
+    // The same shell going out the ring and the mass wear at a phase change, in the colour of the
+    // phase it is on the way to.
+    paintGlow(ctx, glowFor(PALETTE.white, r * FLARE_HALO), x, y, Math.sin(flare * Math.PI));
+    ctx.lineWidth = FLARE_LINE;
+    ctx.strokeStyle = withAlpha(PALETTE.white, (1 - flare) * 0.8);
+    ctx.beginPath();
+    ctx.arc(x, y, r * (FLARE_RING_FROM + (FLARE_RING_TO - FLARE_RING_FROM) * flare), 0, TAU);
+    ctx.stroke();
+  }
+
+  // The drag, and it is drawn falling *in*: ticks of pale light that start out past the corona and
+  // are spent at the rim, each one a little behind its neighbour so the ring of them streams. It is
+  // the same direction the ship is being taken, which is the only way a pull can be shown to somebody
+  // who is not being pulled yet.
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < FALL_COUNT; i++) {
+    const angle = enemy.rot + i * TAU / FALL_COUNT;
+    const frac = (world.time * FALL_RATE + i * FALL_STEP) % 1;
+    const from = r * (FALL_OUT - (FALL_OUT - FALL_IN) * frac);
+    const to = from - r * FALL_LEN;
+    // In and out of existence over its own fall, so nothing pops at either end.
+    const light = FALL_LIGHT * Math.sin(frac * Math.PI);
+    if (light <= 0.01) continue;
+    ctx.strokeStyle = withAlpha(PALETTE.eclipseFall, light);
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(angle) * from, y + Math.sin(angle) * from);
+    ctx.lineTo(x + Math.cos(angle) * to, y + Math.sin(angle) * to);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  // The body: a disc of nothing, laid over the middle of all that light. It is opaque on purpose -
+  // a sun you can see stars through is a smudge and not a hole - and its edge is at DISC of the
+  // radius it is hurt by, which is where the Warden puts its hoop: the rim you can see is the edge
+  // that stops you, edge for edge.
+  //
+  // And it has to be laid down with the canvas *covering*: everything in the arena is painted additively
+  // (render/renderer.js sets `lighter` for the whole world pass), and under that a fill of `eclipseDisc`
+  // does not hide the sky, it *adds* its little bit of light to it - which is a faint violet smear with
+  // every star still showing through it, and not the one shape this boss is. A hole is not a dark colour,
+  // it is the pixels under it being gone, and `source-over` is the only composite that can say so. What
+  // falls into it goes with them: the shots are drawn before the boss and the ship after it, so the sun
+  // swallows a bullet and never hides the thing being dragged.
+  const sky = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = PALETTE.eclipseDisc;
+  ctx.beginPath();
+  ctx.arc(x, y, r * DISC, 0, TAU);
+  ctx.fill();
+  ctx.globalCompositeOperation = sky;
+
+  // And the rim, in three passes like every other light here (render/glow.js): a soft wide one, the
+  // body of it, and a thin line inside. The rim is what a player is being asked to aim at, so it is
+  // the brightest thing on the body, and it brightens with the countdown.
+  ctx.beginPath();
+  ctx.arc(x, y, r * DISC, 0, TAU);
+  ctx.lineWidth = RIM_SOFT;
+  ctx.strokeStyle = withAlpha(tint, 0.14 + shout * 0.2);
+  ctx.stroke();
+  ctx.lineWidth = RIM_BODY;
+  ctx.strokeStyle = withAlpha(tint, 0.5 + shout * 0.45);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, r * RIM_IN, 0, TAU);
+  ctx.lineWidth = RIM_LINE;
+  ctx.strokeStyle = withAlpha(PALETTE.white, 0.2 + shout * 0.5);
+  ctx.stroke();
+
+  // The countdown, in the middle of the hole: a pinprick of the corona showing through, which is the
+  // one thing in the middle of this body that is not nothing.
+  const breath = 0.8 + 0.2 * Math.sin(world.time * BREATH);
+  paintGlow(ctx, glowFor(PALETTE.white, r * SUN_CORE), x, y, shout * breath);
+}
+
 /** One spoke's bar: a solid line of the ring's own frame, from `from` to `to` of its radius. */
 function spokeBar(ctx, angle, radius, from, to, width) {
   ctx.beginPath();
@@ -331,10 +450,10 @@ export function drawBoss(ctx, boss, enemy, alpha) {
   const x = paintX(enemy, alpha);
   const y = paintY(enemy, alpha);
 
-  // Two shapes, because a boss may be a ring that turns on the spot or a mass that walks, and the
-  // frame asks which (game/bosses.js `bossShape`) rather than learning any boss's name. Both of
-  // them wear the phase's tint, so the colour a player is looking at answers "how far into the
-  // fight am I" whoever is doing the fighting.
+  // Three shapes, because a boss may be a ring that turns on the spot, a mass that walks, or a sun
+  // that turns *and* walks - and the frame asks which (game/bosses.js `bossShape`) rather than
+  // learning any boss's name. All of them wear the phase's tint, so the colour a player is looking
+  // at answers "how far into the fight am I" whoever is doing the fighting.
   if (bossShape(boss) === 'mass') {
     // Culled by the mass's own reach and not by the body the fight is measured by: a cell can be
     // standing well outside the core's radius, and a hive that lost its left hand at the edge of
@@ -342,6 +461,16 @@ export function drawBoss(ctx, boss, enemy, alpha) {
     const core = bossCoreOf(boss, enemy);
     if (!onScreen(x, y, coreReach(core) * MASS_LIGHT + 20)) return;
     drawTheMass(ctx, boss, core, alpha);
+    return;
+  }
+
+  if (bossShape(boss) === 'sun') {
+    // Culled by where the drag's light starts, which is the widest thing the sun wears: the pull is
+    // the one part of this boss that is not a shot, and it must not go off the glass while it is
+    // still being spent on the ship.
+    const core = bossCoreOf(boss, enemy);
+    if (!onScreen(x, y, coreReach(core) * FALL_OUT + 20)) return;
+    drawTheSun(ctx, boss, core, alpha);
     return;
   }
 

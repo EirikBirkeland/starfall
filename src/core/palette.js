@@ -91,6 +91,19 @@ export const PALETTE = {
   hiveWax: '#7a5319',
   hiveCell: '#e8b25a',
   hiveCellFill: 'rgba(232,178,90,0.13)',
+  // The Eclipse's body (PLAN 3.4's 15:00, game/bosses.js): a hole with a corona. It is the only
+  // body in the game whose middle is darker than the sky behind it - the disc is painted over the
+  // stars and the light is all rim - so the shape a player is being asked to shoot is the ring of
+  // it and not the middle. The hue is a pale violet, paler and cooler than the drifter's: a boss
+  // is alone in the arena while it is being fought, so the hue it has to be told from is the other
+  // bosses' (amber, dried honey) and not the crowd's.
+  eclipseDisc: '#0a0620',
+  eclipseRim: '#c9a6ff',
+  eclipseRimFill: 'rgba(201,166,255,0.10)',
+  // The drag it spends on the ship (game/bosses.js `holdTheShip`): shown as light falling inwards
+  // across the corona, because the pull is the one thing about this boss that is not a shot and
+  // has to be read anyway. Cool-neutral and faint: it is the room talking, not another hazard.
+  eclipseFall: '#e6dcff',
 
   // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
   // the floor, so it is cool-coloured like everything else the ship owns even though what it does
