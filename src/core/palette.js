@@ -75,6 +75,13 @@ export const PALETTE = {
   bossWarn: '#ffd9df',
   cageWall: '#bfe9ff',
   cageTick: '#eafcff',
+  // The door a boss's bullet ring leaves open (game/bosses.js, render/entities.js). Cool, and the
+  // only cool light a boss makes: every other bearing is about to be full of something warm, and
+  // this wedge is the place the room is telling you to stand. It is not the cage's colour because
+  // it is not the same message - one is a wall you will not be hurt by, this one is a place you
+  // must be - and a player who conflates them would hug a wall with a door on the far side.
+  bossGap: '#9fe8ff',
+  bossGapLine: '#eafcff',
 
   // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
   // the floor, so it is cool-coloured like everything else the ship owns even though what it does

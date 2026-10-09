@@ -680,9 +680,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
       `tools/simulate.js --at <seconds>` to measure a run that starts at five minutes.)
 - [ ] The Warden, one phase per session.
       (Phase 1 is shipped and it is the whole attack: a ring that rides, stops dead, shows its
-      spokes and fires down them. Phases 2 and 3 are the same attack priced harder - more spokes,
-      a faster turn, a shorter read - and what is left is what PLAN 3.4 gives them on top: the
-      expanding bullet rings with gaps in phase 2, and the Darter summons in phase 3.)
+      spokes and fires down them. Phase 2 is in with it: between the spokes it now throws a ring
+      of shots with a door in it, lit as a wedge for `bullets.windup` before it leaves, opened on
+      the ship's own bearing and then held - and the two beats take turns, so one rhythm holds
+      two things to read. Phase 3 keeps both and prices them harder, and what is left of PLAN 3.4
+      for it is the Darter summons. `test/warden.test.mjs` owns all of it, and
+      `test/bosses.test.mjs` now holds every beat of every phase to `telegraphMin`.)
 - [ ] The Hive, one phase per session.
 - [ ] The Eclipse, one phase per session, including the darkness effect.
 - [ ] Victory screen and the endless mode that follows.

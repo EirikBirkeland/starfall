@@ -17,7 +17,10 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { beamReach } from '../src/game/beams.js';
-import { cageRise, spokeAngle, spokeCount, spokeHalf } from '../src/game/bosses.js';
+import {
+  armedCount, bossFlare, bossPhase, cageRise, gapAngle, gapHalf,
+  spokeAngle, spokeCount, spokeHalf,
+} from '../src/game/bosses.js';
 import { bandPasses } from '../src/render/entities.js';
 import { bossBarLayout } from '../src/render/hud.js';
 
@@ -249,5 +252,106 @@ test('a boss body is drawn as a ring and not as a drifter', () => {
   // radius (render/boss.js), and the crowd's bodies are polygons, which draw no circles at all.
   const hoop = arcs.filter((c) => Math.abs(c.r - r) < r * 0.1);
   assert.ok(hoop.length > 0, 'nothing the size of the ring was drawn: ' + JSON.stringify(arcs.slice(0, 8)));
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------------------
+// The door (game/bosses.js `windRing`, render/entities.js `drawTheDoor`): the one wedge a
+// bullet ring leaves open, lit while it is being promised. It is the only place in the attack
+// that is not about to hurt, so it is drawn cool and it is drawn exactly - the wedge shown is
+// the wedge that arrives, edge for edge, the same promise every band in the game makes.
+// ---------------------------------------------------------------------------------------
+
+const TAU = Math.PI * 2;
+
+/** An angle folded into [-PI, PI], which is all the door's bearings are ever compared by. */
+function fold(angle) {
+  let a = angle;
+  while (a > Math.PI) a -= TAU;
+  while (a < -Math.PI) a += TAU;
+  return a;
+}
+
+/** Step it into phase 2 and wait out the flare that opened it. */
+function toPhaseTwo(boss) {
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[1] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 2 && guard < 600) { game.step(16); guard++; }
+  guard = 0;
+  while (bossFlare(boss) > 0 && guard < 600) { game.step(16); guard++; }
+  assert.equal(bossPhase(boss), 2, 'it never got to phase 2');
+  return boss;
+}
+
+/** Step until it is standing still with a ring armed. */
+function catchItArming(boss) {
+  let guard = 0;
+  while (armedCount(boss) === 0 && guard < 900) { game.step(16); guard++; }
+  if (armedCount(boss) === 0) throw new Error('the ring never armed a volley');
+  return boss;
+}
+
+/** The part-arcs drawn round the ring's own middle - the door, and nothing else the boss draws.
+ *  Drawn points come back in window coordinates (the harness logs them through the camera), so
+ *  the ring's own middle is asked for through `screenOf` - the same trade the cage test makes. */
+function arcsRound(boss) {
+  const at = game.screenOf(boss.enemy.x, boss.enemy.y);
+  return game.circles().filter((c) =>
+    Math.hypot(c.at.x - at.x, c.at.y - at.y) < 2 && c.to - c.from > 0 && c.to - c.from < TAU - 1e-9);
+}
+
+test('no door is on the glass while nothing is being armed', () => {
+  clearTheSky();
+  const boss = toPhaseTwo(bringItOut());
+  assert.equal(armedCount(boss), 0, 'it came out of the flare already arming');
+
+  game.step(16);
+  assert.equal(arcsRound(boss).length, 0, 'a door is drawn for a ring nobody is throwing');
+  clearTheSky();
+});
+
+test('the door is drawn exactly as wide as the ring leaves it', () => {
+  clearTheSky();
+  const boss = toPhaseTwo(bringItOut());
+  catchItArming(boss);
+
+  const before = game.drawCalls();
+  game.step(16);
+  const spent = diff(game.drawCalls(), before);
+  assert.equal(spent.shadows, 0, 'something asked the canvas for a blur to light the door');
+  assert.equal(spent.gradients, 0, 'something asked the canvas for a gradient to light the door');
+
+  const half = gapHalf(boss);
+  const at = gapAngle(boss);
+  const enemy = boss.enemy;
+  const parts = arcsRound(boss);
+  const door = parts.find((c) => Math.abs((c.to - c.from) - half * 2) < 1e-9);
+  assert.ok(door !== undefined,
+    'nothing the width of the door was drawn: ' + JSON.stringify(parts.map((c) => [c.from, c.to])));
+  assert.ok(Math.abs(fold(door.from + half - at)) < 1e-9, 'the door is drawn round the wrong bearing');
+
+  // Its two edges are drawn down the door's own two edges, and out past the body that draws
+  // them: a wedge the size of the ring would be a colour change and not a place to stand.
+  const eye = game.screenOf(enemy.x, enemy.y);
+  for (const edge of [at - half, at + half]) {
+    const onEdge = game.points().some((p) => {
+      const d = Math.hypot(p.x - eye.x, p.y - eye.y);
+      return d > enemy.r && Math.abs(fold(Math.atan2(p.y - eye.y, p.x - eye.x) - edge)) < 1e-6;
+    });
+    assert.ok(onEdge, 'the door was not edged along ' + edge.toFixed(3) + ' rad');
+  }
+
+  // And the whole of it is inside the room the fight is being fought in: the reach is clipped to
+  // the cage (game/field.js), so it never promises a place the ship cannot get to. The room's own
+  // edges are asked for through `screenOf` because that is where the drawn points are.
+  const box = field.field;
+  const near = game.screenOf(box.x0, box.y0);
+  const off = game.screenOf(box.x1, box.y1);
+  for (const p of game.points()) {
+    const d = Math.hypot(p.x - eye.x, p.y - eye.y);
+    if (d <= enemy.r || Math.abs(fold(Math.atan2(p.y - eye.y, p.x - eye.x) - at)) > half) continue;
+    assert.ok(p.x >= near.x - 1 && p.x <= off.x + 1 && p.y >= near.y - 1 && p.y <= off.y + 1,
+      'the door reaches outside the room');
+  }
   clearTheSky();
 });

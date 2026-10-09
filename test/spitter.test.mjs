@@ -6,7 +6,8 @@
 // shot then goes the way it was pointing when it *stopped*, never the way it points
 // when the shot leaves. The other belongs to the shots themselves: they fly, they
 // despawn at the edge of the world or at the end of their life, one costs one hull, and
-// a ship that cannot be hurt right now is let through rather than billed twice.
+// a ship that cannot be hurt right now is let through rather than billed twice. A boss's
+// shots are in it too, for the one way they are different: they stop at its cage.
 //
 // Seconds are what is measured, on the scripted world at the game's own step, as in
 // test/darter.test.mjs.
@@ -14,6 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
+import { closeField } from '../src/game/field.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { spawnEnemy } from '../src/game/waves.js';
@@ -238,6 +240,28 @@ test('a shot ends at the edge of the world, and at the end of its life', () => {
   walk(0.3);
   assert.ok(shortLived.life <= 0, 'this one ran out of life');
   assert.equal(field.enemyShots.count, 0, 'and went');
+});
+
+test('a shot the room owns stops at its own wall', () => {
+  // game/enemyshots.js `caged`: a boss fights you inside a cage it shut round the duel
+  // (game/field.js), and the shots it aims at you belong to that room, so the room is what stops
+  // them. A spitter's spit is not caged and keeps the arena-wide rule the test above owns - the
+  // crowd was never shut in with you, and neither was what it throws.
+  const field = scriptedRun(11);
+  closeField(field, { x0: 300, y0: 200, x1: 900, y1: 700 });
+
+  const caged = enemyShotAt(field, 850, 300, 1, 0,
+    { speed: 200, radius: 5, life: 30, color: '#ffffff', caged: true }, 'warden');
+  const loose = enemyShotAt(field, 850, 340, 1, 0,
+    { speed: 200, radius: 5, life: 30, color: '#ffffff' }, 'spitter');
+  const hull = field.player.hull;
+
+  // 0.4 s at 200 px/s is 80 px: ten past the cage's east wall and a long way inside the arena's.
+  walk(0.4);
+  assert.ok(caged.life > 0, 'it had its whole life left, so this one was the wall');
+  assert.equal(field.enemyShots.count, 1, 'the caged shot outlived the wall it was fired at');
+  assert.ok(loose.life > 0, 'and an ordinary shot flew through the same wall, as it should');
+  assert.equal(field.player.hull, hull, 'nothing reached the ship on the way out');
 });
 
 test('a restart clears the air', () => {

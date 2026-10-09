@@ -104,11 +104,16 @@ test('a boss has one phase row for each mark the hull is cut at', () => {
 
 test('no phase of any boss is quicker to read than the telegraph floor', () => {
   // kinds.js refuses a sniper that locks for less than `telegraphMin`; a boss is the same promise
-  // multiplied by however many spokes it holds, so the floor matters more here, not less.
+  // multiplied by however many spokes it holds, so the floor matters more here, not less. Every
+  // beat a phase has is held to it - the spokes, and whatever else the phase grows.
   for (const { id, phase, index } of everyPhase()) {
     assert.ok(phase.windup >= BALANCE.bosses.telegraphMin,
       id + ' phase ' + (index + 1) + ' shows its spokes for ' + phase.windup + 's');
-    assert.ok(phase.wait >= BALANCE.bosses.beatMin || true);
+    for (const beat of Object.values(phase)) {
+      if (beat === null || typeof beat !== 'object' || beat.windup === undefined) continue;
+      assert.ok(beat.windup >= BALANCE.bosses.telegraphMin,
+        id + ' phase ' + (index + 1) + ' shows a beat for only ' + beat.windup + 's');
+    }
   }
 });
 

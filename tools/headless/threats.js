@@ -38,7 +38,11 @@ import {
   isSpitting,
   lungeReach,
 } from '../../src/game/kinds.js';
-import { spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../../src/game/bosses.js';
+import { TAU } from '../../src/core/math.js';
+import {
+  armedCount, gapAngle, gapHalf, gapProgress,
+  spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep,
+} from '../../src/game/bosses.js';
 
 /**
  * How good this player is. Distances are px, times are seconds, weights are only
@@ -78,6 +82,13 @@ export const SKILL = {
   beamRoom: 24,
   beamClear: 130,
   beamWeight: 2.4,
+  // The door a boss's bullet ring is lighting: how much of the wedge counts as "already in it"
+  // (a share of its half-width, so it parks in the middle rather than on an edge) and how loudly
+  // it asks. This is the one ask that pulls instead of pushing, so it is priced against the beam
+  // it competes with: the door is the only answer to the ring and worth more than a step off a
+  // spoke, which is the whole point of a fight with two attacks in it.
+  gapRoom: 0.75,
+  gapWeight: 3,
   blastRoom: 40,
   blastWeight: 1,
   wallRoom: 130,
@@ -311,21 +322,64 @@ function dodgeBoss(world, avoid) {
   const boss = world.boss;
   if (boss === null || boss.enemy === null) return;
   const count = spokeCount(boss);
-  if (count === 0) return;
 
   const ship = world.player;
-  const half = spokeHalf(boss);
-  const room = half + ship.r + SKILL.beamRoom;
-  const clear = room + SKILL.beamClear;
-  const across = Math.hypot(world.arena.w, world.arena.h);
-  const step = spokeStep(boss);
+  if (count > 0) {
+    const half = spokeHalf(boss);
+    const room = half + ship.r + SKILL.beamRoom;
+    const clear = room + SKILL.beamClear;
+    const across = Math.hypot(world.arena.w, world.arena.h);
+    const step = spokeStep(boss);
 
-  for (let i = 0; i < count; i++) {
-    const angle = spokeAngle(boss) + i * step;
-    lineThreat(world, avoid,
-      { x: boss.enemy.x, y: boss.enemy.y, dirX: Math.cos(angle), dirY: Math.sin(angle), reach: across },
-      room, clear, boss.timer, SKILL.beamWeight * (0.35 + spokeProgress(boss)));
+    for (let i = 0; i < count; i++) {
+      const angle = spokeAngle(boss) + i * step;
+      lineThreat(world, avoid,
+        { x: boss.enemy.x, y: boss.enemy.y, dirX: Math.cos(angle), dirY: Math.sin(angle), reach: across },
+        room, clear, boss.timer, SKILL.beamWeight * (0.35 + spokeProgress(boss)));
+    }
   }
+
+  intoTheDoor(world, avoid, boss);
+}
+
+/**
+ * The door a boss is lighting for its ring of shots (game/bosses.js `windRing`): the one bearing
+ * the ring is not going to cover, and once the shots are on their way there is nothing to be done
+ * about them but be somewhere they do not reach.
+ *
+ * This is the only ask in the file that pulls instead of pushing - the ship is told to go *to*
+ * something rather than away from it - and it is as honest as the rest of them for the same
+ * reason: the wedge is on the glass, so a player who reads it is doing exactly this.
+ *
+ * The ask is a slide along the arc. At a fixed distance from the ring a wedge is only reachable
+ * by changing bearing, and the door is opened on the ship's own bearing in the first place, so
+ * most of this ask is *do not slide out of it* rather than cross the room to get in - a ship that
+ * has drifted out of a distant door may need the dash for the last of it, which is what a dash is
+ * for. Once the ring is flying, `dodgeShots` has the whole of the answer by itself.
+ */
+function intoTheDoor(world, avoid, boss) {
+  if (armedCount(boss) === 0) return;
+
+  const ship = world.player;
+  const dx = ship.x - boss.enemy.x;
+  const dy = ship.y - boss.enemy.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return;
+
+  const off = fold(Math.atan2(dy, dx) - gapAngle(boss));
+  if (Math.abs(off) <= gapHalf(boss) * SKILL.gapRoom) return;
+
+  // The tangential step that makes |off| smaller, and nothing else: getting round onto the door
+  // is the whole dodge, and pushing straight in or out buys nothing either way.
+  const side = off > 0 ? 1 : -1;
+  addPush(avoid, dy / dist * side, -dx / dist * side, SKILL.gapWeight * (0.35 + gapProgress(boss)));
+}
+
+/** An angle folded into [-PI, PI]: the gap between two bearings, which is all it is used for. */
+function fold(angle) {
+  if (angle > Math.PI) return angle - TAU;
+  if (angle <= -Math.PI) return angle + TAU;
+  return angle;
 }
 
 /** The edge of the world: a dodge into a wall is not a dodge. */

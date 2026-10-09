@@ -3,11 +3,12 @@
 // Three things live here and they are drawn at three different depths, because a boss is
 // three different promises at once:
 //
-//   the spokes it is holding    a band of light down each one, edge for edge the band that
-//     (drawn under the crowd)     hurts. Same shape and same colours as a sniper's lock
-//                                 (game/beams.js), because it is the same promise and a
-//                                 player should not have to learn a second language for a
-//                                 bigger enemy.
+//   what it is promising      a band of light down each spoke it is holding, or the door it is
+//     (drawn under the crowd)   lighting for a ring of shots: edge for edge the light that hurts,
+//                               or the place that will not. Same shape and same colours as a
+//                               sniper's lock (game/beams.js), because it is the same promise
+//                               and a player should not have to learn a second language for a
+//                               bigger enemy.
 //
 //   the ring itself             a large ring-shaped ship: the hoop, the spokes that are its
 //     (drawn with the crowd)      frame, a hub, and a core whose light is the countdown of
@@ -28,7 +29,7 @@ import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
 import {
-  bossAngle, bossFlare, bossTint, cageRise, spokeCount, spokeProgress,
+  bossAngle, bossFlare, bossTint, cageRise, windupProgress,
 } from '../game/bosses.js';
 import { glowFor, paintGlow } from './glow.js';
 import { camera, onScreen } from './camera.js';
@@ -258,8 +259,8 @@ export function drawBoss(ctx, boss, enemy, alpha) {
   ctx.stroke();
 
   // The hub, and the core inside it: the core is the countdown. Nothing is being held it is a
-  // calm light; a wind-up has it at full, so the ring says what it is about to do even with
-  // the bands culled off the edge of the window.
+  // calm light; any wind-up has it at full - the spokes or the door, whichever it is showing - so
+  // the ring says what it is about to do even with the bands culled off the edge of the window.
   polygon(ctx, 0, 0, r * CELL_REACH, CELL_SIDES, 0);
   ctx.fillStyle = withAlpha(tint, 0.35);
   ctx.fill();
@@ -267,8 +268,7 @@ export function drawBoss(ctx, boss, enemy, alpha) {
   ctx.strokeStyle = withAlpha(tint, 0.9);
   ctx.stroke();
 
-  const shout = spokeCount(boss) > 0 ? spokeProgress(boss) : 0;
-  const core = CORE_CALM + (CORE_SHOUT - CORE_CALM) * shout;
+  const core = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
   const breath = 1 - 0.2 + 0.2 * Math.sin(world.time * BREATH);
   paintGlow(ctx, glowFor(PALETTE.white, r * CORE_REACH), 0, 0, core * breath);
   ctx.restore();

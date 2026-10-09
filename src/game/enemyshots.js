@@ -20,14 +20,21 @@ import { hurtByShot } from './tally.js';
 
 /** The shape of an enemy shot. Every spawner writes every one of these fields. */
 export function makeEnemyShot() {
-  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, r: 0, color: '', from: '' };
+  return { x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, r: 0, color: '', from: '', caged: false };
 }
 
 /**
  * Send one enemy shot out of (x, y) along the unit vector (dx, dy). `spec` is the
- * firing kind's own `shot` numbers: `speed`, `radius`, `life`, `color`. `from` is
- * the kind that fired it, which is the only way anybody can say afterwards who put a
+ * firing kind's own `shot` numbers: `speed`, `radius`, `life`, `color`, and `caged`.
+ * `from` is the kind that fired it, which is the only way anybody can say afterwards who put a
  * hole in the ship (game/tally.js); a shot nobody claims is blamed on nothing.
+ *
+ * `caged` says whose room the shot belongs to. A boss fights you inside a cage it closed round
+ * the duel (game/field.js) and the ship cannot leave it, so a wall of the boss's own making that
+ * sailed straight through that wall would be a promise with a hole in it: the far side of the
+ * room would be free for nothing and half the ring would be wandering about outside the fight.
+ * A caged shot stops at the live box. A spitter's spit is not caged, because the spitter was
+ * never kept in it either.
  */
 export function enemyShotAt(world, x, y, dx, dy, spec, from) {
   const shot = world.enemyShots.spawn();
@@ -41,7 +48,14 @@ export function enemyShotAt(world, x, y, dx, dy, spec, from) {
   shot.r = spec.radius;
   shot.color = spec.color;
   shot.from = from || '';
+  shot.caged = spec.caged === true;
   return shot;
+}
+
+/** Is this shot's centre outside the live box. Only ever asked about a caged shot. */
+function pastTheRoom(world, shot) {
+  const box = world.field;
+  return shot.x < box.x0 || shot.x > box.x1 || shot.y < box.y0 || shot.y > box.y1;
 }
 
 /**
@@ -72,6 +86,15 @@ export function updateEnemyShots(world, dt) {
     shot.life -= dt;
 
     if (shot.life <= 0 || shot.x < left || shot.x > right || shot.y < top || shot.y > bottom) {
+      shots.killAt(i);
+      continue;
+    }
+
+    if (shot.caged && pastTheRoom(world, shot)) {
+      // The room's own edge, and not the arena's: light does not go through a wall the ship
+      // cannot (game/field.js, and game/beams.js clips to the same box for the same reason).
+      const wall = spec.wall;
+      burst(world, shot.x, shot.y, shot.color, wall.count, wall.speed, wall.life);
       shots.killAt(i);
       continue;
     }

@@ -646,6 +646,10 @@ export const BALANCE = {
   enemyShots: {
     despawnMargin: 40,        // this far outside the arena, it is gone
     impact: { count: 6, speed: 200, life: 0.3 },
+    // What a `caged` shot leaves behind when it reaches the cage: a couple of sparks and nothing
+    // else (game/field.js). Small on purpose - a boss's ring can put two dozen of them on the
+    // wall in the same moment and a wall of fireworks would be the picture instead of the ring.
+    wall: { count: 2, speed: 110, life: 0.2 },
   },
 
   // How an enemy kind behaves. Behaviour itself is a small function in
@@ -1227,6 +1231,21 @@ export const BALANCE = {
       // beam's, because a volley is the event - eight spokes going off in the same step is
       // one thing happening and not eight, and eight full flares would be a white hole in
       // the middle of the room.
+      //
+      // A phase that has a `bullets` row throws a second beat as well: an expanding ring of
+      // shots with a door in it (PLAN 3.4's phase 2). The two beats take turns - spokes, ring,
+      // spokes, ring - so the fight keeps one rhythm and grows a second thing to read inside
+      // it. `count` shots are spread evenly over everything except a wedge `gap` radians each
+      // side of the door's bearing, and that bearing is taken from where the ship was standing
+      // when the wind-up began and then held: the ask is "get into the door the ring is
+      // showing you", not "do not move". `windup` is how long the door is shown for and is
+      // held to `bosses.telegraphMin` like every other promise.
+      //
+      // `shot.life` is longer than the ring's own reach on purpose - what stops these shots is
+      // the cage and not an expiry (game/enemyshots.js, `caged`), and a ring that faded out
+      // before it met a wall would leave the far side of the room free for nothing. They wear
+      // the phase's own `tint` rather than a colour of their own, so the bar, the spokes, the
+      // flare and the shots are all the same sentence: this is how far into the fight you are.
       phases: [
         {
           spokes: 4, turn: 0.55, wait: 2.5, windup: 0.95, tint: PALETTE.amber,
@@ -1259,6 +1278,16 @@ export const BALANCE = {
             cut: { count: 4, speed: 250, life: 0.22, spread: 0.5 },
             sound: { freq: 1550, dur: 0.24, wave: 'square', vol: 0.03, slide: 70 },
           },
+          bullets: {
+            count: 22, gap: 0.62, windup: 0.9,
+            shot: { speed: 190, radius: 7, life: 6, caged: true },
+            wind: { sound: { freq: 170, dur: 0.8, wave: 'triangle', vol: 0.05, slide: 640 } },
+            fire: {
+              shake: 7,
+              ring: { radius: 46, speed: 560, life: 0.45 },
+              sound: { freq: 430, dur: 0.3, wave: 'sawtooth', vol: 0.09, slide: 90 },
+            },
+          },
         },
         {
           spokes: 8, turn: 0.95, wait: 1.8, windup: 0.7, tint: PALETTE.red,
@@ -1274,6 +1303,16 @@ export const BALANCE = {
             flare: { count: 7, speed: 380, life: 0.22 },
             cut: { count: 4, speed: 250, life: 0.2, spread: 0.5 },
             sound: { freq: 1700, dur: 0.22, wave: 'square', vol: 0.03, slide: 70 },
+          },
+          bullets: {
+            count: 26, gap: 0.5, windup: 0.72,
+            shot: { speed: 215, radius: 7, life: 6, caged: true },
+            wind: { sound: { freq: 190, dur: 0.65, wave: 'triangle', vol: 0.055, slide: 700 } },
+            fire: {
+              shake: 8,
+              ring: { radius: 46, speed: 660, life: 0.4 },
+              sound: { freq: 520, dur: 0.28, wave: 'sawtooth', vol: 0.1, slide: 90 },
+            },
           },
         },
       ],

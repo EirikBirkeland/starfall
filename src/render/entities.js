@@ -13,7 +13,7 @@ import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
-import { isBossBody, spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../game/bosses.js';
+import { isBossBody, armedCount, gapAngle, gapHalf, gapProgress, spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../game/bosses.js';
 import { drawBoss } from './boss.js';
 import { frostOf, isFrozen } from '../game/chill.js';
 import { beamReach } from '../game/beams.js';
@@ -354,6 +354,16 @@ const LOCK_SHOUT = 1;          // ... and the instant before it fires
 const LOCK_HEAD = 11;          // px of light building in the eye it is being drawn from
 const BEAM_HEAD = 16;          // px of light left at the eye once it has fired
 
+// The door a boss leaves in its bullet ring (game/bosses.js): a wedge of cool light, a faint fill
+// under two edges under the arc that closes it off, brightened by the same countdown the spokes
+// are. Cool, and the only cool thing a boss draws, because it is the one place in its attack that
+// is not about to hurt you (PALETTE.bossGap).
+const DOOR_FILL = 0.07;
+const DOOR_EDGE = 2;            // px, the two lines that make a wedge read at any angle
+const DOOR_EDGE_LIGHT = 0.5;
+const DOOR_RIM = 3;             // px, the arc across its far end: this far, and no further
+const DOOR_RIM_LIGHT = 0.35;
+
 /**
  * One band of harm across the arena, from (x0, y0) to (x1, y1), `half` px each side of
  * the axis, at `light` of its full brightness, in `edge` with `core` down the middle.
@@ -414,23 +424,35 @@ export function drawLocks(ctx, list, alpha) {
 }
 
 /**
- * The spokes a boss is holding: one band each, out of the hub to whatever wall stops it, drawn
- * at exactly the width its beam is paid out at (game/bosses.js `spokeHalf` is the one number both
- * read) and reaching exactly as far as that beam will reach. The same two colours and the same
- * countdown-brightened light as a sniper's lock, because it is the same promise and a player
- * should not have to learn a second language for a bigger enemy.
+ * Everything a boss is promising right now, which is one of two things: the spokes it is holding,
+ * or the door it is arming a ring of shots with. Both are drawn here because both are floor
+ * markings under the crowd, and neither may be hidden by a body standing in the way of it.
  *
- * Under the crowd like every other promise, so a body standing in the way of one cannot hide it.
+ * The spokes: one band each, out of the hub to whatever wall stops it, drawn at exactly the width
+ * its beam is paid out at (game/bosses.js `spokeHalf` is the one number both read) and reaching
+ * exactly as far as that beam will reach. The same two colours and the same countdown as a
+ * sniper's lock, because it is the same promise and a player should not have to learn a second
+ * language for a bigger enemy.
+ *
  * Culled per band and not per body: a band that reaches the far wall is on the glass whatever side
  * of it the ring happens to be standing on.
  */
 export function drawBossLocks(ctx, boss, alpha) {
+  const enemy = boss.enemy;
+  // The warning is already up and the body is not: `world.boss` is the whole fight, and for
+  // `warn.time` of it there is nothing in the arena to draw a promise round (game/bosses.js).
+  if (enemy === null) return;
+
+  const x = paintX(enemy, alpha);
+  const y = paintY(enemy, alpha);
+  drawSpokes(ctx, boss, enemy, x, y);
+  drawTheDoor(ctx, boss, x, y);
+}
+
+function drawSpokes(ctx, boss, enemy, x, y) {
   const count = spokeCount(boss);
   if (count === 0) return;
 
-  const enemy = boss.enemy;
-  const x = paintX(enemy, alpha);
-  const y = paintY(enemy, alpha);
   const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * spokeProgress(boss);
   const half = spokeHalf(boss);
   const step = spokeStep(boss);
@@ -450,6 +472,49 @@ export function drawBossLocks(ctx, boss, alpha) {
   // The hub they are drawn from, lit by the same countdown, so the thing that is about to fire
   // can still be found when the ring is behind a crowd.
   paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
+}
+
+/**
+ * The door it is arming a bullet ring with: the wedge that will be empty, lit while it is being
+ * promised (game/bosses.js `windRing`). It reaches as far as the room lets it along each of its
+ * two edges and no further - a wedge that poked through a wall would be promising a place the
+ * ship cannot get to, and the walls are the cage (game/field.js).
+ *
+ * Nothing here is the shots' own doing: the same three numbers the ring is thrown from are the
+ * three the wedge is drawn from, which is the only way the door shown is the door that arrives.
+ */
+function drawTheDoor(ctx, boss, x, y) {
+  if (armedCount(boss) === 0) return;
+
+  const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * gapProgress(boss);
+  const from = gapAngle(boss) - gapHalf(boss);
+  const to = gapAngle(boss) + gapHalf(boss);
+  const near = beamReach(world, x, y, Math.cos(from), Math.sin(from)).fore;
+  const far = beamReach(world, x, y, Math.cos(to), Math.sin(to)).fore;
+  const reach = Math.min(near, far);
+  if (!Number.isFinite(reach) || reach <= 0 || !onScreen(x, y, reach)) return;
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.arc(x, y, reach, from, to);
+  ctx.closePath();
+  ctx.fillStyle = withAlpha(PALETTE.bossGap, DOOR_FILL * light);
+  ctx.fill();
+
+  ctx.lineWidth = DOOR_EDGE;
+  ctx.strokeStyle = withAlpha(PALETTE.bossGapLine, DOOR_EDGE_LIGHT * light);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + Math.cos(from) * reach, y + Math.sin(from) * reach);
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + Math.cos(to) * reach, y + Math.sin(to) * reach);
+  ctx.stroke();
+
+  ctx.lineWidth = DOOR_RIM;
+  ctx.strokeStyle = withAlpha(PALETTE.bossGap, DOOR_RIM_LIGHT * light);
+  ctx.beginPath();
+  ctx.arc(x, y, reach, from, to);
+  ctx.stroke();
 }
 
 // The lance's own two halves (game/lance.js): the band the gun is aiming while it winds up, and the

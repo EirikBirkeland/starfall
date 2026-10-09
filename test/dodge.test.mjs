@@ -28,7 +28,8 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { makeEnemy, aimProgress, blastRadius, isAiming, isLocking, isLunging, isSpitting } from '../src/game/kinds.js';
-import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
+import { bossOnTheField, scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
+import { armedCount, bossPhase, gapAngle } from '../src/game/bosses.js';
 import { SKILL, escapeDirection } from '../tools/headless/threats.js';
 
 const STEP = BALANCE.sim.step;
@@ -565,4 +566,43 @@ test('two snipers fire at a ship that is not where they were aimed', () => {
 
   assert.equal(took, 0, 'the ship that moved was touched ' + took + ' times in two thirds of a minute');
   assert.ok(hit >= 5, 'the one that stood there took ' + hit + ', and would have taken more');
+});
+
+test('a door a boss is lighting is a place the bot wants to stand', () => {
+  // The one ask in the file that pulls instead of pushing (tools/headless/threats.js
+  // `intoTheDoor`), and it earns its place the same way every other one does: the wedge is on the
+  // glass, so a player who reads it is doing exactly this and for the same reason.
+  const field = parked();
+  const boss = bossOnTheField();
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[1] * 0.99;
+  let guard = 0;
+  while (armedCount(boss) === 0 && guard < 1500) { stepTheWorld(); guard++; }
+  assert.ok(armedCount(boss) > 0, 'phase 2 never armed a ring');
+  assert.equal(bossPhase(boss), 2);
+
+  // Stand the ring in the middle of the world and ask about the door alone: nothing else within
+  // `wallRoom` of the ship, no crowd, and the ring itself further than its own personal space.
+  const enemy = boss.enemy;
+  enemy.x = C.x; enemy.y = C.y; enemy.px = C.x; enemy.py = C.y;
+  const ship = field.player;
+  const place = (bearing) => {
+    ship.x = C.x + Math.cos(bearing) * 300;
+    ship.y = C.y + Math.sin(bearing) * 300;
+    ship.px = ship.x; ship.py = ship.y;
+  };
+
+  place(gapAngle(boss) + Math.PI);          // as far out of the door as it is possible to be
+  const want = escapeDirection(field);
+  const out = { x: (ship.x - C.x) / 300, y: (ship.y - C.y) / 300 };
+  const along = want.x * out.x + want.y * out.y;
+  const round = Math.abs(-want.x * out.y + want.y * out.x);
+  assert.ok(want.pressure > 0.1, 'the door asked nothing of a ship standing outside it');
+  assert.ok(round > 0.5, 'it did not start going round the ring: ' + JSON.stringify(want));
+  assert.ok(Math.abs(along) < 0.4, 'it ran in or out, which is not how you cross onto a wedge');
+
+  // And a ship already in the door is left alone: the door is not a threat to dodge, and while
+  // the ring is arming there is nothing else out there saying anything at all.
+  place(gapAngle(boss));
+  const calm = escapeDirection(field);
+  assert.ok(calm.pressure < 0.01, 'a ship standing in the door was being shoved: ' + calm.pressure);
 });

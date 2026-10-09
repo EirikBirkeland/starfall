@@ -30,6 +30,12 @@
 //     `immune` while it does, and starts its new phase's beat from the top. That is what
 //     makes a phase a beat and not a number in a table.
 //
+//   **The beats.** What a boss does with its turn is its own row's business; what the framework
+//     owns is the rhythm of one - ride, stop dead, show it, fire it. A phase may hold more than
+//     one beat (the Warden's phase 2 throws a ring of shots between its spoke volleys, taking
+//     turns), and a phase change starts from whichever of them is new, which is what the flare
+//     is announcing. Every beat of every phase is shown for `bosses.telegraphMin` at least.
+//
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
 // pays its score and its shards through `killEnemy` like any drifter. That is not a
@@ -49,14 +55,21 @@ import { TAU, clamp } from '../core/math.js';
 import { logic } from '../core/rng.js';
 import { makeEnemy } from './kinds.js';
 import { fireBeam } from './beams.js';
+import { enemyShotAt } from './enemyshots.js';
 import { addText, burst, hitStop, ring, shakeIt } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
 import { closeField, openField } from './field.js';
 import { healPlayer } from './player.js';
 
-/** The two beats of a boss that is not changing phase: riding round, and holding a lock. */
+/**
+ * What a boss does between one phase and the next: it rides round, and it stops dead to strike.
+ * How it strikes is the beat, and a phase may have more than one - the Warden's phase 2 rides,
+ * fires its spokes, rides again, throws a ring of shots with a door in it, and rides again:
+ * one rhythm with two things in it, which is a fight a player can learn.
+ */
 const RIDING = '';
 const LOCKING = 'lock';
+const RINGING = 'ring';
 
 /** The row of a boss by id. A name nobody wrote is an error, not a silent no-op. */
 function rowOf(id) {
@@ -93,8 +106,14 @@ function newFight(id, index) {
     beat: row.phases[0].wait,
     lockAngle: 0,     // the facing the spokes it is holding were drawn from
     spokes: 0,        // how many rays the lock it is holding will fire
-    volleys: 0,       // two counters, like every line in the deck keeps
+    nextBeat: LOCKING,// which of the phase's beats the ride just ended hands over to
+    armed: 0,         // how many shots the ring it is arming is made of; 0 is nothing is armed
+    gapAngle: 0,      // the bearing the door it is showing is centred on
+    gapHalf: 0,       // and how wide each side of that door is, in radians
+    volleys: 0,       // counters, like every line in the deck keeps
     beams: 0,
+    rings: 0,
+    shots: 0,
   };
 }
 
@@ -217,6 +236,10 @@ function arrive(world, boss) {
   boss.angle = -Math.PI / 2;
   boss.timer = phaseOf(boss).wait;
   boss.beat = phaseOf(boss).wait;
+  // And its first beat is its signature. A phase *change* leads with whatever the change is
+  // new (`openPhase`); an arrival leads with the attack the run has already had time to learn
+  // the name of, because a boss that opens with its strangest trick has nothing left to say.
+  boss.nextBeat = LOCKING;
 
   const land = row.arrival;
   ring(world, body.x, body.y, row.color, land.ring.radius, land.ring.speed, land.ring.life);
@@ -233,17 +256,22 @@ function arrive(world, boss) {
  */
 function openPhase(world, boss) {
   const spec = BALANCE.bosses.phaseBreak;
+  const phase = phaseOf(boss);
   const enemy = boss.enemy;
 
   boss.change = spec.time;
   enemy.immune = spec.time;
   boss.stage = RIDING;
   boss.spokes = 0;
-  boss.timer = phaseOf(boss).wait;
-  boss.beat = phaseOf(boss).wait;
+  boss.armed = 0;
+  boss.timer = phase.wait;
+  boss.beat = phase.wait;
+  // Whatever is new about this phase gets the first beat, so the flare that announced it is
+  // followed by the thing the flare was announcing rather than by another round of the old.
+  boss.nextBeat = phase.bullets === undefined ? LOCKING : RINGING;
 
-  ring(world, enemy.x, enemy.y, phaseOf(boss).tint, spec.ring.radius, spec.ring.speed, spec.ring.life);
-  burst(world, enemy.x, enemy.y, phaseOf(boss).tint, spec.burst.count, spec.burst.speed, spec.burst.life);
+  ring(world, enemy.x, enemy.y, phase.tint, spec.ring.radius, spec.ring.speed, spec.ring.life);
+  burst(world, enemy.x, enemy.y, phase.tint, spec.burst.count, spec.burst.speed, spec.burst.life);
   shakeIt(world, spec.shake);
   hitStop(world, spec.hitStop);
   cueBeep(spec.sound.freq, spec.sound.dur, spec.sound.wave, spec.sound.vol, spec.sound.slide);
@@ -267,11 +295,12 @@ function fireSpokes(world, boss, phase) {
 }
 
 /**
- * The ring's own beat: ride, stop dead, show the spokes, fire them, ride again. The stop is
+ * The ring's own beat: ride, stop dead, show what is coming, fire it, ride again. The stop is
  * the telegraph - the same grammar a darter uses to say it is about to commit (game/kinds.js)
  * - and it is a stop rather than a slower turn because the lines drawn have to be the lines
  * that hurt, edge for edge, and a ring still turning between the promise and the firing
- * would move them.
+ * would move them. That is as true of the door it lights for a bullet ring as of the spokes, so
+ * both of them freeze it, and nothing about the ride changes between the two.
  */
 function stepRing(world, boss, dt) {
   const phase = phaseOf(boss);
@@ -280,10 +309,14 @@ function stepRing(world, boss, dt) {
   if (boss.stage === LOCKING) {
     if (boss.timer > 0) return;
     fireSpokes(world, boss, phase);
-    boss.stage = RIDING;
-    boss.spokes = 0;
-    boss.timer = phase.wait;
-    boss.beat = phase.wait;
+    rideAgain(boss, phase);
+    return;
+  }
+
+  if (boss.stage === RINGING) {
+    if (boss.timer > 0) return;
+    throwRing(world, boss, phase);
+    rideAgain(boss, phase);
     return;
   }
 
@@ -291,12 +324,109 @@ function stepRing(world, boss, dt) {
   if (boss.angle > TAU) boss.angle -= TAU;
   if (boss.timer > 0) return;
 
+  if (takeBeat(boss, phase) === RINGING) windRing(world, boss, phase);
+  else lockSpokes(boss, phase);
+}
+
+/** Back to riding, from the top of the phase's own patience. Nothing is being shown. */
+function rideAgain(boss, phase) {
+  boss.stage = RIDING;
+  boss.spokes = 0;
+  boss.armed = 0;
+  boss.timer = phase.wait;
+  boss.beat = phase.wait;
+}
+
+/**
+ * Which beat the ride that has just ended hands over to. A phase with a `bullets` row
+ * alternates - spokes, ring, spokes, ring - which is what keeps one rhythm under a fight that
+ * has two things in it; a phase with one beat always gets that beat.
+ */
+function takeBeat(boss, phase) {
+  if (phase.bullets === undefined) return LOCKING;
+  const beat = boss.nextBeat;
+  boss.nextBeat = beat === LOCKING ? RINGING : LOCKING;
+  return beat;
+}
+
+/** The spokes beat: hold still with the rays drawn, then send them. */
+function lockSpokes(boss, phase) {
   boss.stage = LOCKING;
   boss.timer = phase.windup;
   boss.beat = phase.windup;
   boss.lockAngle = boss.angle;
   boss.spokes = phase.spokes;
   const sound = phase.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * The bullet-ring beat: hold still with a door lit across the ring's own body.
+ *
+ * The door is aimed at the ship's bearing at this instant and then held. It does not follow - a
+ * promise that chases you is not a promise, it is a wall - and that is the whole of the fairness
+ * of it: a ship that does nothing at all is standing in the door the moment it lights. What costs
+ * a hull is sliding out of it and not coming back, and `windup` is the time given to notice and
+ * correct - which is also long enough for a dash to be the answer. The bearing is no more a roll
+ * than the spokes' facing is: a run of one seed throws its rings the same way.
+ */
+function windRing(world, boss, phase) {
+  const spec = phase.bullets;
+  const enemy = boss.enemy;
+  const ship = world.player;
+
+  boss.stage = RINGING;
+  boss.timer = spec.windup;
+  boss.beat = spec.windup;
+  boss.armed = spec.count;
+  boss.gapHalf = spec.gap;
+  boss.gapAngle = Math.atan2(ship.y - enemy.y, ship.x - enemy.x);
+
+  const sound = spec.wind.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * The shot spec handed to game/enemyshots.js: the phase's bullet numbers wearing the phase's
+ * own colour, refilled in place because a ring is not a place to allocate two dozen objects.
+ */
+const SHOT = { speed: 0, radius: 0, life: 0, color: '', caged: false };
+
+/**
+ * One ring thrown: `count` shots spread evenly over every bearing *except* the door it spent
+ * its wind-up showing, going straight out from the rim. The door is honoured exactly - the two
+ * shots either side of it are half a step inside what is left of the circle, so the wedge the
+ * frame lit is empty of light from edge to edge - and the count is the count: a ring may not
+ * arrive with a different number of holes in it than the one it promised.
+ */
+function throwRing(world, boss, phase) {
+  const spec = phase.bullets;
+  const enemy = boss.enemy;
+  const from = boss.gapAngle + boss.gapHalf;   // the first bearing the ring is allowed to cover
+  const step = (TAU - boss.gapHalf * 2) / spec.count;
+
+  SHOT.speed = spec.shot.speed;
+  SHOT.radius = spec.shot.radius;
+  SHOT.life = spec.shot.life;
+  SHOT.color = phase.tint;
+  SHOT.caged = spec.shot.caged === true;
+
+  for (let i = 0; i < spec.count; i++) {
+    // Half a step inside the edge of what is left on each side: the shots do not lean on the
+    // door they were told to leave out, and the arc between the two nearest it is exactly the
+    // door the frame lit.
+    const angle = from + i * step + step / 2;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    enemyShotAt(world, enemy.x + dx * enemy.r, enemy.y + dy * enemy.r, dx, dy, SHOT, boss.id);
+    boss.shots++;
+  }
+  boss.rings++;
+
+  const fire = spec.fire;
+  ring(world, enemy.x, enemy.y, phase.tint, fire.ring.radius, fire.ring.speed, fire.ring.life);
+  shakeIt(world, fire.shake);
+  const sound = fire.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
@@ -471,6 +601,40 @@ export function spokeProgress(boss) {
 /** How far off a spoke's axis the light is drawn and the damage is paid out at - one number. */
 export function spokeHalf(boss) {
   return phaseOf(boss).beam.halfWidth;
+}
+
+/**
+ * How many shots the ring it is arming is made of - 0 when it is not arming one. The count,
+ * the door's bearing and its half-width are the whole of that telegraph, and they are the same
+ * three numbers the shots are thrown from, which is what makes the warning a promise: the door
+ * shown is the door that arrives, edge for edge.
+ */
+export function armedCount(boss) {
+  return boss.armed;
+}
+
+export function gapAngle(boss) {
+  return boss.gapAngle;
+}
+
+export function gapHalf(boss) {
+  return boss.gapHalf;
+}
+
+/** How far through the arming it stands, 0 when it is not arming anything. */
+export function gapProgress(boss) {
+  if (boss.stage !== RINGING) return 0;
+  return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How far through whatever it is showing it stands - the spokes or the door, whichever it is.
+ * The body's own core light is driven off this so that it says "something is coming" either way
+ * (render/boss.js), which is the one question a frame may ask without knowing what a boss's
+ * attack plan turns out to be.
+ */
+export function windupProgress(boss) {
+  return Math.max(spokeProgress(boss), gapProgress(boss));
 }
 
 /** How far through the beat it stands, whether it is riding or holding - the bar's breathing. */
