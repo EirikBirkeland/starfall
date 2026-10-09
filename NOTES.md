@@ -6634,3 +6634,123 @@ against the plain gun's 4.3 on all three:
   missile leaves no counter behind. `world.bullets` filtered on `hunts` is the only answer, and if a
   session wants a real one it should add the scorecard the other lines keep (`pulls`, `caught`, `dealt`)
   rather than filter the pool from the painter.
+
+---
+
+## Session 55 (2026-10-09) — Ships: five hulls, each one the gun it was built around. Released **0.5.2**
+
+`src/game/ships.js` (new) and `BALANCE.ships` (new) say what a ship is - hull, top speed, how long its
+dash takes to come back, the primary it brings, any upgrade rank it arrives with, and the silhouette
+the frame draws it as - and milestone 5 is closed: **the title screen's rack is the ships now**, in the
+primaries' own order. `BALANCE.player` lost `hull`, `maxHull`, `maxSpeed` and `dash.cooldown` to the
+ship rows (one number, one home); `game/run.js` applies the ship to the player at the start of a run;
+`render/shapes.js` grew `SHIP_SHAPES`, five silhouettes, and `render/entities.js` draws whichever one
+the world is flying; `ui/screens.js` and `index.html` print the ships; `tools/simulate.js` grew
+`--ship`. Suite is **1031 green** (was 1013) with `test/ships.test.mjs` (11) and `test/ship-art.test.mjs`
+(6), and `--seed 20261006 --trace` is **fingerprint for fingerprint identical** to the reference run -
+the Wisp is the ship that flew before, to the last digit, which is the only claim any of this had to make.
+
+`BUG_REPORT_README` (text overflowing a card) is stale: that was session 49's `render/fit.js` and
+released in 0.4.20. Checked first, as usual, and there was no live bug to jump the queue for.
+
+### The decisions, since nobody will remember them
+
+- **A ship is its body and its gun in one pick.** PLAN 3.7 hands each ship a primary in parentheses, and
+  the alternative - a ship rack *and* the old primary rack, five hulls by five guns - is twenty-five
+  combinations to price and two lists to keep in step. One key, one row, `2 BULWARK · SCATTER - four
+  hull, slow, and it hits up close`. Because the five ships carry the five primaries between them once
+  each, **the ship pick replaced the gun pick without taking anything off the title screen**: every gun
+  that was pickable before is pickable now, on the back of the ship it was designed around.
+- **The rack is in the primaries' order** - pulse, scatter, arc, lance, swarm - so the number a player
+  presses still means the gun it has meant since the rack existed, and a new ship has to answer the key
+  its gun already had. `test/ship-pick.test.mjs` has a test for exactly that promise, because a ship
+  slotted into the list anywhere else would move a familiar gun's key under somebody's finger and
+  nothing on screen would say so. (`test/weapon-pick.test.mjs` became that file: its real lesson was
+  never the gun, it was *every row answers its own number*, which session 46 learned the hard way.)
+- **The gun is still separately settable, and after the ship.** `setShip` writes `world.weapon` (that is
+  what "brings a gun" means), but `setWeapon` after it is answered, so `tools/power-ladder.js --weapon`
+  and `tools/gun-clock.js` still price one primary on a neutral body and a year of ladder numbers is
+  still comparable. Same per-visit bargain as the gun always had: `world.ship` and `world.weapon` are
+  the visit's, what they write onto the player is the run's, and `resetRun` rewrites the body from
+  scratch so a heal spent in the last run does not come back in this one.
+- **The hitbox is not a ship number, and neither is the drawn radius.** This is the one place this
+  session said no to the obvious design. Every ship is hurt by the same 6 px core and drawn at the same
+  13 px scale: what differs is the silhouette. Three reasons, in order. PLAN 3.1's rule is that the
+  thing that gets hurt is a good deal smaller than the thing you see, and a ship that was harder to hit
+  for being drawn small would be a ship the eye cannot explain. Then: `drawR` is what the walls clamp
+  at, what the dash shoulders the crowd with, and what the dash/overcharge/magnetar rings are drawn
+  from, so one number keeps every one of those promises true for all five hulls at once. Then: a ship
+  that is a bigger target is a ship whose price is paid twice, once in the balance row and once in
+  pixels nobody wrote down. The Bulwark reads heavy because it is a blunt hexagon with its widest point
+  a shoulder, not because it is easier to hit.
+- **`applyShip` goes after `resetRanks`, and it writes the body as well as the ranks.** One place where
+  a ship touches the player, and it has to be after the table is wiped or the Brood's free Orbitals rank
+  would land on the last run's build. Its ranks are handed out through `upgrades.js`'s own `lineOf`, so
+  a row that names a line nobody sells throws instead of quietly adding a rank nothing will read.
+
+### The pricing, which is what the rows are for
+
+| ship | hull | px/s | dash | brings | pays |
+|---|---|---|---|---|---|
+| WISP | 3 | 320 | 2.5 s | PULSE | nothing - the yardstick |
+| BULWARK | 4 | 256 | 2.5 s | SCATTER | a fifth of the speed for a fourth pip |
+| VOLT | 3 | 320 | 1.5 s | ARC | the shortest reach of the five primaries |
+| NEEDLE | 2 | 392 | 2.5 s | LANCE | a pip for a fifth more speed |
+| BROOD | 3 | 300 | 2.5 s | SWARM | 6% of the engines for a rank of Orbitals |
+
+The pip of hull and the fifth of speed are one trade written twice, once each way - the Bulwark sells
+64 px/s for its fourth pip and the Needle buys 72 px/s back for giving one up, and a test holds the two
+rates within a quarter of a fifth of each other so the prose cannot drift away from the numbers. The
+Volt is the interesting row: nothing on it differs from the Wisp except the dash, so its price is
+entirely the arc's 260 px - a ship that must be inside that to land anything, and a dash that is the
+way in and back out. `test/ships.test.mjs` checks the arc really is the shortest-reaching primary
+(reach read the way each kind of gun spends it: `speed x life`, or the chain's first link, or forever
+for a beam) so that claim stays true if a gun is ever re-priced.
+
+### What the bot says, and what it does not say
+
+Same body under all four, gun pinned to the pulse, `--dash`, 4 runs, 420 s cap, seed 5200:
+
+- WISP 3/4 alive at the cap, score median 45,866 · BULWARK 4/4, 46,857 · VOLT 3/4, 47,905 ·
+  NEEDLE 2/4 (median 3m51s), 23,650 · BROOD 3/4, 46,576.
+
+Three of the four bodies measure about the Wisp or a shade better, which is what "priced, not a tax" was
+supposed to look like. The Needle measures worst, and session 53 already wrote the sentence that
+explains it: *what a bot that cannot lead or aim does with a weapon is a fact about the bot.* Speed is
+the coin this bot spends worst of all - it cannot dodge, so +22% speed buys it nothing and 2 hull is all
+it feels. If a human session finds the Needle unplayable the number to move is the hull *cost*, not the
+speed. The measurements that would settle this properly are a human's, and they are not available here.
+
+### Surprises
+
+- **Moving four numbers costs about eighteen references.** `maxSpeed`, `hull`, `maxHull` and
+  `dash.cooldown` were read in ten test files as `BALANCE.player.something`; they are now
+  `BALANCE.ships.wisp.something`, which is more honest (those tests fly the default ship and say so)
+  and was entirely mechanical. `test/movement.test.mjs` merges the two tables into one `spec` with a
+  comment about why; `test/dash.test.mjs` names its `COOLDOWN`.
+- **`scriptedRun` has to put the ship back *before* `resetRun`, not after.** Applying the ship moved
+  inside `resetRun`, so a scripted run that set the ship afterwards would be running with the previous
+  test's hull and the previous test's starting ranks. Same trap `setWeapon` was already avoiding, and
+  now it is written down where it happened.
+- **The headless canvas boots at dpr 2**, so `game.points()` are device pixels while `game.screenOf`
+  answers in CSS pixels, and a filter for "the points the ship painted" finds nothing at all. The
+  orbitals art test has always dodged this with `dpr: 1`; the ship art test does the same.
+- The dash ring needed one divisor changed (`ship.dashWait` rather than the shared cooldown), which is
+  the whole of what a per-ship dash cooldown costs the painter - and the reason the number lives on the
+  *player* as well as the row: the simulation and the ring must count the same one.
+
+### For the next session
+
+- **Milestone 6: bosses.** The framework item is first - phases, a hull bar, an intro warning, a spawn
+  pause, an arena lock - and PLAN 3.6 names the three: the Warden, the Hive, the Eclipse. Nothing here
+  touched any boss code, so that is a clean field.
+- **Four synergies are still unbuilt** (storm, the saw ring, the minefield, and the railgun question
+  session 53 left open). None of them touches a primary's or a ship's files, so any of them is still a
+  clean parallel session.
+- Milestone 7's music is where session 52 left it: the buses want writing with the step sequencer, and
+  the fake audio device has a clock that moves so a sequencer can be tested at all.
+- **The ship rack is the hangar's placeholder.** When milestone 8's hangar arrives it is `setShip` it
+  has to move behind (stardust, six of the seven hulls sold), and `test/ships.test.mjs` is the file that
+  will have to grow the "a ship nobody has bought cannot be picked" promise - which is the same place
+  `setWeapon`'s "is it offered" check lives now. `tools/agent/session.js` also has `choose_weapon` and
+  no `choose_ship` yet; it is a five-line gap in the agent door, not a design problem.
