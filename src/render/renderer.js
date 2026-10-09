@@ -10,6 +10,7 @@ import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
 import { drawCage } from './boss.js';
+import { drawDarkness } from './darkness.js';
 import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawBossLocks, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
@@ -135,6 +136,13 @@ export function renderFrame(tick, input, pointer) {
   // The vignette belongs to the window, not to the arena, so it waits until the
   // camera and the shake have been put back the way they were found.
   ctx.restore();
+
+  // The night, if a fight has put one down: over the whole world pass and under the interface,
+  // because what the dark is asking you to read is the room and not the glass (render/darkness.js).
+  // It comes after the restore for the same reason the vignette beside it does - it belongs to the
+  // window - and it draws nothing at all on any frame it is not dark.
+  drawDarkness(ctx, tick.alpha);
+
   ctx.fillStyle = view.vignette;
   ctx.fillRect(0, 0, W, H);
 

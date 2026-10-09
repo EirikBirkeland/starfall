@@ -14,6 +14,12 @@
 //                             made it (a weapon's trail, the ship's flame, the
 //                             dash's blur) and built by that code once, lazily,
 //                             on the first frame that needs it.
+//   holeFor(radius)         - a disc of *nothing*: full alpha out to most of its
+//                             radius and a soft rim after that. It is the inverse
+//                             of a glow, and it exists to be stamped with
+//                             `destination-out`, which is how a hole is cut in the
+//                             night (render/darkness.js). One radius is baked and
+//                             stamped at any size with `scale`.
 //
 // Sprites are baked at device resolution and stamped at CSS size, so they stay
 // crisp on a HiDPI screen. render/canvas.js reports the pixel ratio on every
@@ -27,6 +33,11 @@ import { clamp } from '../core/math.js';
 
 // How a blob of light falls off from its middle, as [stop, alpha] pairs.
 const FALLOFF = [[0, 1], [0.3, 0.5], [0.62, 0.17], [1, 0]];
+// A hole falls off the other way round: it is *all there* until near its own edge and then goes.
+// A glow's profile would not do - a glow is only half as strong as it is at its middle by a third
+// of the way out, so a hole cut with one would be a dim smear with a bright pinprick in it and its
+// radius would mean nothing you could plan a fight round.
+const HOLE_FALLOFF = [[0, 1], [0.62, 1], [0.8, 0.62], [1, 0]];
 // A streak is a row of those blobs along an axis. These are its shape:
 const STEP_SPACING = 3;    // px of travel per blob
 const BLOB_SPREAD = 1.7;   // how far a blob's soft edge reaches past its size
@@ -35,6 +46,8 @@ const TAIL_ALPHA = 0.3;    // and its brightness
 
 /** colour -> Map(radius -> holder). The memo `glowFor` reads. */
 const glowMemo = new Map();
+/** radius -> holder. The memo `holeFor` reads; a hole has no colour, only alpha. */
+const holeMemo = new Map();
 /** Every holder ever handed out, so a resolution change can empty them all. */
 const holders = [];
 let pixelRatio = 1;
@@ -65,6 +78,24 @@ export function glowFor(color, radius) {
   if (!holder) {
     holder = register({ kind: 'glow', color, radius: r, w: r * 2, h: r * 2 });
     byRadius.set(r, holder);
+  }
+  return holder;
+}
+
+/**
+ * A disc of nothing reaching `radius` px, flat across the middle of it and soft at the edge.
+ *
+ * It is only ever stamped with `destination-out`, where the colour does not matter and the alpha
+ * is the whole of the answer, so one sprite serves every hole in the game and `radius` is the
+ * literal reach of the hole it cuts. Baked at one size and stamped at any other with `scale`:
+ * what scales with it is the softness of the rim, which is what a light's edge is anyway.
+ */
+export function holeFor(radius) {
+  const r = Math.max(1, Math.round(radius));
+  let holder = holeMemo.get(r);
+  if (!holder) {
+    holder = register({ kind: 'hole', color: '#ffffff', radius: r, w: r * 2, h: r * 2 });
+    holeMemo.set(r, holder);
   }
   return holder;
 }
@@ -138,7 +169,8 @@ function register(holder) {
 
 function spriteOf(holder) {
   if (!holder.sprite) {
-    holder.sprite = holder.kind === 'glow' ? bakeGlow(holder) : bakeStreak(holder);
+    if (holder.kind === 'streak') holder.sprite = bakeStreak(holder);
+    else holder.sprite = bakeDisc(holder, holder.kind === 'hole' ? HOLE_FALLOFF : FALLOFF);
   }
   return holder.sprite;
 }
@@ -159,10 +191,10 @@ function bakeSprite(w, h, draw) {
   return { canvas, w, h };
 }
 
-function bakeGlow(holder) {
+function bakeDisc(holder, stops) {
   const r = holder.radius;
   return bakeSprite(holder.w, holder.h, (g) => {
-    blob(g, holder.color, r, r, r, 1);
+    blob(g, holder.color, r, r, r, 1, stops);
   });
 }
 
@@ -186,9 +218,9 @@ function bakeStreak(holder) {
 }
 
 /** Draw one soft round blob of light, additively, into a sprite being baked. */
-function blob(g, color, x, y, radius, alpha) {
+function blob(g, color, x, y, radius, alpha, stops) {
   const grad = g.createRadialGradient(x, y, 0, x, y, radius);
-  for (const [stop, level] of FALLOFF) {
+  for (const [stop, level] of (stops === undefined ? FALLOFF : stops)) {
     grad.addColorStop(stop, withAlpha(color, level * alpha));
   }
   g.fillStyle = grad;

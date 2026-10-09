@@ -504,15 +504,12 @@ function drawSpokes(ctx, boss, enemy, x, y) {
  * three the wedge is drawn from, which is the only way the door shown is the door that arrives.
  */
 function drawTheDoor(ctx, boss, x, y) {
-  if (armedCount(boss) === 0) return;
+  const wedge = doorWedge(boss, x, y);
+  if (wedge === null) return;
+  const { from, to, reach } = wedge;
+  if (!onScreen(x, y, reach)) return;
 
   const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * gapProgress(boss);
-  const from = gapAngle(boss) - gapHalf(boss);
-  const to = gapAngle(boss) + gapHalf(boss);
-  const near = beamReach(world, x, y, Math.cos(from), Math.sin(from)).fore;
-  const far = beamReach(world, x, y, Math.cos(to), Math.sin(to)).fore;
-  const reach = Math.min(near, far);
-  if (!Number.isFinite(reach) || reach <= 0 || !onScreen(x, y, reach)) return;
 
   ctx.beginPath();
   ctx.moveTo(x, y);
@@ -535,6 +532,31 @@ function drawTheDoor(ctx, boss, x, y) {
   ctx.beginPath();
   ctx.arc(x, y, reach, from, to);
   ctx.stroke();
+}
+
+/**
+ * The door a fight is holding open, as a wedge: the two bearings it runs between, and how far out
+ * they may go before a wall is in the way (a wedge that poked through a wall would be promising a
+ * place the ship cannot get to).
+ *
+ * Two painters ask this one question and may never disagree about the answer. One is
+ * `drawTheDoor`, which lights the promise; the other is render/darkness.js, which leaves the night
+ * out of it, because a door that the dark has eaten is not a promise at all and the dark is no
+ * excuse to break `bosses.telegraphMin` (game/balance.js `bosses.dark`).
+ *
+ * Null when nothing is being armed: there is no door between shells, and the bearings the next one
+ * will be opened on are not chosen until it starts being wound.
+ */
+export function doorWedge(boss, x, y) {
+  if (armedCount(boss) === 0) return null;
+
+  const from = gapAngle(boss) - gapHalf(boss);
+  const to = gapAngle(boss) + gapHalf(boss);
+  const near = beamReach(world, x, y, Math.cos(from), Math.sin(from)).fore;
+  const far = beamReach(world, x, y, Math.cos(to), Math.sin(to)).fore;
+  const reach = Math.min(near, far);
+  if (!Number.isFinite(reach) || reach <= 0) return null;
+  return { from: from, to: to, reach: reach };
 }
 
 /**

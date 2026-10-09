@@ -104,6 +104,11 @@ export const PALETTE = {
   // across the corona, because the pull is the one thing about this boss that is not a shot and
   // has to be read anyway. Cool-neutral and faint: it is the room talking, not another hazard.
   eclipseFall: '#e6dcff',
+  // The night it puts over the arena (PLAN 3.4's phase 2, render/darkness.js): the same hue family
+  // as the disc it is cut from, laid over the room translucent so what is left showing is a
+  // silhouette and not nothing. Not pure black on purpose - a room that goes to black reads as a
+  // broken window, and this one is supposed to read as a sun that got in the way.
+  eclipseNight: '#060414',
 
   // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
   // the floor, so it is cool-coloured like everything else the ship owns even though what it does

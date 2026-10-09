@@ -1138,6 +1138,55 @@ export const BALANCE = {
       sound: { freq: 84, dur: 1, wave: 'sawtooth', vol: 0.12, slide: 260 },
     },
 
+    // The darkening (PLAN 3.4's Eclipse, phase 2: "the arena darkens, and only areas near the
+    // player and near bullets are lit"). One row belongs to the framework and one to the boss:
+    // a *phase* may ask for the night (`dark: { level }` on the phase row, game/bosses.js
+    // `darknessAsked`) and the framework owns both the ramp and what makes light. Nothing a boss
+    // has to put back: the room is on its way to whatever the phase standing in it asked for, and
+    // to nothing at all the moment no fight is standing in it - so there is no reset to forget and
+    // a run that dies mid-darkness, or wins mid-darkness, is not left in a room it was never put
+    // back in.
+    //
+    // It is paint and nothing else. `world.darkness` is stepped with the fight and read by
+    // render/darkness.js and by nobody in game/, which is what lets a fight take the room away
+    // without moving one pixel of the simulation - every fingerprint of every run is unchanged by
+    // this row existing.
+    //
+    // `rise` and `fall` are shares of the ask per second, so 0.45 is two seconds of night rolling
+    // in from a bright room and 0.8 is little over a second to let go of it. Asymmetric because
+    // the two moments are not the same: the coming is the sentence "the fight has changed gear",
+    // and it arrives *through* the phase flare rather than after it; the going is the reward for
+    // having won, and a room that brightens instantly throws the reward away.
+    //
+    // What is in `light`, and how each number was picked without a screen to look at:
+    //   ship    how far the ship's own light reaches, in px of arena. The one number that decides
+    //           whether this is a fair fight: a body that walks has to be seen in time to be
+    //           dodged, and the fastest thing that walks is the swarmling - 190 px/s, and 285 once
+    //           the run's clock has finished speeding the crowd up, which is where a fifteen-minute
+    //           fight is being held. 300 px is over a second of its walking, and more than
+    //           `telegraphMin`, which is the floor every promise in this game is held to. It is not
+    //           bigger, because the point of the row is that the room is gone: at 300 you can see
+    //           your own corner of the eclipse and not the eclipse's.
+    //   shot    the same question for the enemy's shot, which is what this fight is mostly made
+    //           of. Every shot in the room carries its own light, so a shell is a ring of lights
+    //           coming and not a rumour, at any distance. It is bigger than a bullet's because a
+    //           shot is what you are being asked to look for.
+    //   bullet  the run's own shots. Small: they are the ship's, they are already going where it
+    //           is looking, and at a level-50 gun there are a great many of them.
+    //   body    a fight's own body, as a share of its reach. The sun is the brightest thing in
+    //           the room it is darkening and it must never be lost in its own night - the rim is
+    //           the countdown and the corona is where the drag is drawn.
+    //   door    how much of the night the door of a shell takes off. It is a share and not a
+    //           radius because a door is already the shape of a light (render/entities.js draws
+    //           it as one): what the night does to it is stop covering it up, and a little of the
+    //           night is left in it so the shaft stays a lit place in a dark room instead of a
+    //           second arena.
+    dark: {
+      rise: 0.45,
+      fall: 0.8,
+      light: { ship: 300, shot: 86, bullet: 58, body: 2.4, door: 0.82 },
+    },
+
     // The sounds of the fight itself, whoever the boss is: the siren that opens the
     // warning, the chord of the cage closing round the duel, and the chord of a boss going
     // down - which is the biggest sound in the game, because it is the biggest thing that
@@ -1639,11 +1688,11 @@ export const BALANCE = {
     // everything else about this boss is - the light of its own corona falling inwards
     // (render/boss.js), from the moment it arrives.
     //
-    // NOT SHIPPED from 3.4's Eclipse row, written here so it is not lost: phase 2's darkening of
-    // the arena to what is near the ship and near the shots, and phase 3's sweeping arms and bullet
-    // walls with moving gaps. What is shipped is the drag and one beat, priced three ways - the
-    // same shape the first two bosses were built in (one beat per session), and the same two phase
-    // rows where the darkness and the arms will go.
+    // SHIPPED, all three phases and both of its permissions: the drag, the shell, and the night.
+    // Phase 2 puts the arena under (`dark`, below) and phase 3 keeps it there and deeper, because
+    // PLAN's phase 3 is "everything from before". NOT SHIPPED from 3.4's Eclipse row, written
+    // here so it is not lost: phase 3's sweeping arms and bullet walls with moving gaps - the
+    // three phases today are the drag, the shell and the dark, priced three ways.
     eclipse: {
       name: 'THE ECLIPSE',
       blurb: 'a dark sun that drags you in and bursts in every direction',
@@ -1716,9 +1765,16 @@ export const BALANCE = {
           },
         },
         {
+          // PLAN's phase 2, and the sentence of it that is not a shot: the room goes dark and what
+          // is left is what the ship, the shots and the sun itself are lit by. `level` is how deep
+          // the night is - the share of the room it covers - and the framework ramps to it over
+          // `bosses.dark.rise`, which is two seconds and about the length of the flare that opens
+          // the phase, so the darkening *is* the phase change and not something that happens after
+          // it (game/bosses.js `darknessAsked`).
           tint: PALETTE.magenta,
           turn: 0.46, wait: 2.2,
           pull: { force: 180, floor: 92 },
+          dark: { level: 0.78 },
           bullets: {
             count: 24, gap: 0.58, windup: 0.85,
             shot: { speed: 225, radius: 8, life: 6, caged: true },
@@ -1737,12 +1793,18 @@ export const BALANCE = {
           // are the ring's own beat again, and everything from before is here as PLAN asks - the
           // same two beats, priced as hard as they will go.
           //
+          // The night stays, and deepens: 0.86 leaves a seventh of the room showing, which is the
+          // difference between a dark arena and an almost-gone one. The drag is at 230 px/s here
+          // and the shells are at their fastest, and being able to see neither where the sun is nor
+          // where the wall is while both of those are true is the end of the game.
+          //
           // PLAN's arms and moving gaps are the work this row is waiting for, and the turn it is
           // given is where they will be hung from: `turn` already places the body's facing, which
           // is what an arm sweeps with.
           tint: PALETTE.pink,
           turn: 0.66, wait: 1.85,
           pull: { force: 230, floor: 92 },
+          dark: { level: 0.86 },
           bullets: {
             count: 30, gap: 0.5, windup: 0.72,
             shot: { speed: 250, radius: 8, life: 6, caged: true },

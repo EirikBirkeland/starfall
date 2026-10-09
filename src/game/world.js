@@ -110,6 +110,11 @@ function createWorld() {
     boss: null,
     bossIndex: 0,
     bossesDown: 0,
+    // How far the room has been put under, 0 to 1: the boss framework's own number, ramped in
+    // game/bosses.js `stepDarkness` towards whatever the phase standing in the arena asked for.
+    // Written by the step and read by the frame only (render/darkness.js) - it is how dark it is,
+    // and nothing in the simulation has ever cared.
+    darkness: 0,
 
     player: {
       x: 0, y: 0, vx: 0, vy: 0,

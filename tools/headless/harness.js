@@ -106,7 +106,10 @@ function makeContextStub(counters, drawLog) {
     },
     drawImage: (image, x, y, w, h) => {
       counters.images++;
-      drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
+      // The composite is logged here as well as on a circle, because the only way to tell a sheet
+      // laid *over* the world from one added to it is the composite it was laid with - which is the
+      // whole difference between a night and a glow (render/darkness.js).
+      drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y), mode: target.globalCompositeOperation });
     },
     translate: (x, y) => {
       counters.translates++;
@@ -264,6 +267,12 @@ export async function bootGame(options) {
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
   const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [] };
+  // The same log for every offscreen canvas the game makes - the glow sprites, and anything that
+  // paints a layer of its own and lays the sheet on the window (render/darkness.js). Cleared with
+  // the frame, like the window's, so a test can ask what the last frame cut. Nothing else stamps or
+  // arcs onto an offscreen canvas: a sprite bake fills soft blobs and nothing more, so on any frame
+  // that meets no new thing to draw, what is in here is the layer's own work.
+  const offLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -308,9 +317,7 @@ export async function bootGame(options) {
     createElement(tag) {
       if (tag !== 'canvas') return makeElement(tag, []);
       bakes.canvases++;
-      const spriteCtx = makeContextStub(bakes, {
-        translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [],
-      });
+      const spriteCtx = makeContextStub(bakes, offLog);
       return { tag: tag, width: 0, height: 0, style: {}, getContext: () => spriteCtx };
     },
   };
@@ -329,14 +336,8 @@ export async function bootGame(options) {
     /** Run one animation frame, `ms` after the previous one. */
     step(ms) {
       clock += ms === undefined ? 16.7 : ms;
-      drawLog.translates.length = 0;
-      drawLog.images.length = 0;
-      drawLog.dashes.length = 0;
-      drawLog.points.length = 0;
-      drawLog.circles.length = 0;
-      drawLog.words.length = 0;
-      drawLog.texts.length = 0;
-      drawLog.strokes.length = 0;
+      for (const key of Object.keys(drawLog)) drawLog[key].length = 0;
+      for (const key of Object.keys(offLog)) offLog[key].length = 0;
       const queue = rafQueue;
       rafQueue = [];
       for (const handler of queue) handler(clock);
@@ -404,8 +405,15 @@ export async function bootGame(options) {
      * transforms around it are applied (`at`, in device pixels).
      */
     translates() { return drawLog.translates.slice(); },
-    /** Every sprite the last frame stamped, and where: { x, y, w, h, at }. */
+    /** Every sprite the last frame stamped, and where: { x, y, w, h, at, mode }. */
     stamps() { return drawLog.images.slice(); },
+    /**
+     * The same for the offscreen canvases: every sprite a layer stamped on its own sheet last frame,
+     * in that sheet's own pixels, and the composite it used (render/darkness.js).
+     */
+    stampsOffscreen() { return offLog.images.slice(); },
+    /** Every circle a layer asked for on its own sheet last frame, with its composite. */
+    circlesOffscreen() { return offLog.circles.slice(); },
     /**
      * The line width of every stroke the last frame made, in order: the only way in here
      * to ask how wide something was drawn, which is how a test can check that a warning

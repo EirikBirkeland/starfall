@@ -10,6 +10,7 @@ import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
+  darknessOf,
 } from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
 import { STATE } from './game/state.js';
@@ -295,6 +296,9 @@ window.STARFALL = {
       // the number that says why the bar is going down in three places at once.
       bossCores: world.boss === null ? 0 : coresStanding(world.boss),
       bossesDown: world.bossesDown,
+      // How far the room has been put under (game/bosses.js `darknessOf`). The frame is the only
+      // thing in the game that acts on it, and a headless run has no other way to know it is dark.
+      dark: darknessOf(world),
       // What the run died of, and what each thing cost it on the way (game/tally.js
       // `noteHullLoss`). A headless run that says "died at 0m35s" and not *of what* is a number
       // nobody can act on, and a boss made of bodies is the first thing that makes the question

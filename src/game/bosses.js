@@ -48,6 +48,15 @@
 //     every phase is shown for `bosses.telegraphMin` at least, and a boss stands perfectly still
 //     while it is showing one: a promise that moves is not a promise.
 //
+//   **The room's light.** A phase may ask for the night to come down - PLAN 3.4's Eclipse phase 2,
+//     "the arena darkens, and only areas near the player and near bullets are lit" - with a `dark`
+//     row, and the framework owns both the ramp to it and what is left standing in the dark: the
+//     ship, every shot in the air, and the fight's own bodies (render/darkness.js). No boss ever
+//     has to put the room back: a phase that wrote no `dark` row asks for a bright room, and so does
+//     an arena with no fight in it, so the light always comes back by itself and there is nothing to
+//     reset. It is paint the simulation is asked to describe and never to obey: nothing in game/
+//     reads it back, so a fight may take the room away without moving one thing in it.
+//
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
 // pays its score and its shards through `killEnemy` like any drifter. That is not a
@@ -1357,6 +1366,45 @@ function bossDown(world, boss) {
 }
 
 /**
+ * What the room is on its way to being, 0 for bright and 1 for whatever the night is worth:
+ * the phase standing in the room's own ask, or nothing at all when no fight is standing in it.
+ *
+ * A phase that never wrote a `dark` row asks for a bright room, which is the same rule every other
+ * row in this table lives by - a thing a phase never wrote is never taken (game/bosses.js
+ * `alternateBeats`). A fight that is still being warned about has no phase yet and asks for nothing;
+ * a fight with no bodies left is not a fight and asks for nothing either, which is what hands the
+ * light back to the run that just won, without anything having to remember to do it.
+ */
+function darknessAsked(boss) {
+  if (boss === null || boss.cores.length === 0) return 0;
+  const spec = phaseOf(boss).dark;
+  return spec === undefined ? 0 : spec.level;
+}
+
+/**
+ * Walk the room's light one step towards what the fight asked for.
+ *
+ * It is stepped here, first, and on every step there is a boss system at all - including the steps
+ * on which there is no fight in the arena - because the one thing this must never need is a reset.
+ * A run that wins in the dark, a run that dies in it, a run whose browser tab is punted: in every
+ * one of them the room is on its way back to bright and there is no loose end to tidy.
+ *
+ * It is a step of the simulation and not of the frame, so a hit-stop holds the night still with
+ * everything else and a level-up pause does not let it creep ahead of the fight it belongs to.
+ * And it is only ever looked at by the eye: nothing in game/ reads `world.darkness` back, so a boss
+ * may take the room away without moving one thing in it (render/darkness.js).
+ */
+function stepDarkness(world, dt) {
+  const want = darknessAsked(world.boss);
+  const ramp = BALANCE.bosses.dark;
+  if (want > world.darkness) {
+    world.darkness = Math.min(want, world.darkness + ramp.rise * dt);
+  } else if (want < world.darkness) {
+    world.darkness = Math.max(want, world.darkness - ramp.fall * dt);
+  }
+}
+
+/**
  * One step of the boss system: whose turn is it, and what is that boss doing about it.
  *
  * It runs at the end of the step (game/world.js), after everything that can hurt a body,
@@ -1366,6 +1414,7 @@ function bossDown(world, boss) {
  * the player's favour, which is the same direction every other telegraph in the game breaks.
  */
 export function updateBosses(world, dt) {
+  stepDarkness(world, dt);
   const boss = world.boss;
   if (boss === null) {
     startWarning(world);
@@ -1430,7 +1479,20 @@ export function resetBosses(world) {
   world.boss = null;
   world.bossIndex = 0;
   world.bossesDown = 0;
+  // The room bright, whatever the last run was left standing in. This is the only place the
+  // darkness is ever *set*; every other place it goes is a step towards what a phase asked for.
+  world.darkness = 0;
   openField(world);
+}
+
+/**
+ * How dark the room is, 0 for bright and 1 for the deepest night any phase has ever asked for.
+ *
+ * The frame asks; nothing else does. It is a share of the darkest the game can be, so a painter
+ * never has to know what level the Eclipse's second phase is (game/balance.js `bosses.dark`).
+ */
+export function darknessOf(world) {
+  return world.darkness;
 }
 
 // ---------------------------------------------------------------------------------------

@@ -706,7 +706,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
-      (Shipped so far: the arrival, the drag, and the shell - three phases, one bar, one flare each.
+      (Shipped: the arrival, the drag, the shell, and the dark - three phases, one bar, one flare each,
+      and PLAN's phase-2 darkness.
       It asked the framework for one new permission and one new rhythm: **a fight may move the ship**.
       A phase row may carry `pull`, spent once per step along the line from the ship to whichever of
       the fight's bodies is standing, as a *place* the ship is taken to and not as a force on its
@@ -718,11 +719,19 @@ When every item above is ticked, go back to the first unchecked item of mileston
       alternated with another, so a beat a phase never wrote is now never taken (game/bosses.js
       `alternateBeats`). The beat is a shell of shots out of the rim with the Warden's own door, held
       open on your bearing - and because the drag points at the body it can only ever carry you down
-      the door you were shown, never out of it. NOT SHIPPED from 3.4's Eclipse row: phase 2's
-      darkening of the arena to what is lit by the ship and the shots, and phase 3's sweeping arms
-      and bullet walls with moving gaps - the three phases today are the drag harder and the shell
-      faster, which is how the first two bosses were built too. `test/eclipse.test.mjs` and the sun
-      tests of `test/boss-art.test.mjs` own what is here.)
+      the door you were shown, never out of it. And phase 2 puts the arena under: a phase row may
+      carry a `dark` ask and the framework owns the ramp to it, so the night arrives *through* the
+      flare that opens the phase and walks back into the light by itself the moment nothing asks for
+      it - there is no reset to forget (game/bosses.js `stepDarkness`, `world.darkness`). It is a
+      **veil** and not a dimming (render/darkness.js): the room is covered up and what is left are the
+      holes cut in the covering by what is shining - the ship, every shot in the air at its own
+      reach, the fight's own bodies, and the door a shell is being promised through, which is let out
+      of the same wedge its light is drawn from or the dark would be eating a promise. The pass is
+      paint the simulation describes and never obeys: nothing in game/ reads `darkness` back, and
+      every fingerprint of every run is unchanged by it. NOT SHIPPED from 3.4's Eclipse row: phase
+      3's sweeping arms and bullet walls with moving gaps - the three phases today are the drag
+      harder, the shell faster, and the room darker. `test/eclipse.test.mjs`, `test/darkness.test.mjs`,
+      `test/darkness-art.test.mjs` and the sun tests of `test/boss-art.test.mjs` own what is here.)
 - [ ] Victory screen and the endless mode that follows.
 - [ ] Release.
 
