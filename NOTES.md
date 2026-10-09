@@ -7903,3 +7903,129 @@ the win card's elements, starts it hidden the way the markup does, and exposes `
   `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
 - Worktree hygiene: `/tmp/s65-base` was named for the session and removed at the end of it. The trace
   comparison against HEAD is what made the darkness regression visible in one command; keep doing it.
+
+## Session 66 (2026-10-09) — Endless is a door, the room learned to sit still, and five seconds nobody may press. Released **0.6.11**
+
+Two of the owner's bugs from `BUG_REPORT_README`, and a half-finished feature found in the tree.
+The report now reads: screen shake makes the game a headache (boss battles only), and clicking a
+button after the last boss throws the final screen away (disable input for 5 s). **Both are fixed.**
+The previous report (card text overflow) was already done and the owner overwrote the file.
+
+### First: the tree had somebody else's unfinished work in it
+`git status` opened with 12 modified files and an untracked `test/endless.test.mjs`: **session 66's
+predecessor had written the endless hand-back (`continueRun`) and never committed it.** It was
+complete - 1238 tests green, the reference trace byte-identical, `--check` clean on every file -
+so the session began by verifying it properly (worktree at HEAD, trace diff, simulate, agent smoke)
+and committing it as its own commit rather than mixing it into mine. Read what is in the tree before
+touching it: that work was good and it would have been a crime to lose or redo it.
+
+### What landed, part one: the win is a door and not a wall (already written, now committed)
+`continueRun(world)` unwinds a `WON` back into `PLAY` with everything it earned; the schedule is
+walked once so an endless run is fought by the wave director and never by a returned boss;
+`world.endless`, `tally.endless`, `BALANCE.endless` (resume grace, one ring, the word ENDLESS,
+a chord), the HUD writing `ENDLESS` beside the clock, Space = keep this run and R = ask for a new
+one, and `STARFALL.stats().endless` so a headless run can say which of the two endings it is in.
+
+### What landed, part two: the shake, measured and then gated
+The owner's rule needs a number attached or it rots the first time somebody adds `shake: 4` to a
+new kind. **`tools/shake-meter.js`** samples `world.shake` every frame of a bot-played run and
+reports the share of frames the window did not move at all (`still`, measured with the renderer's
+own floor), the share visibly rolling, a percentile spread, px·s of travel, crowd apart from boss,
+and the busiest minute. `--runs`/`--need-still` make it a gate.
+
+**Before:** a ten-minute run was still 70% of the time, visibly rolling 19% of it, mean 1.68 px,
+p99 17.8 px, max 29.7 (the old cap), 1008 px·s of travel - and the crowd was shaking the window
+*harder than a boss was* (mean 1.73 px against 0.9 px through a whole fight). **After:** still 99%,
+rolling 0%, mean 0.04 px, 22 px·s of travel, and a boss-heavy run still rolls 8% of its frames with
+peaks at the ceiling. That inversion is the whole bug in one pair of numbers.
+
+The policy is the balance table: **every `shake:` row outside `bosses.*`, `playerHit` and `runOver`
+is 0** - dash, the lance's pull, the swarm's landings, tank/bomber/shielder/sniper deaths and beams,
+nova, magnetar, mines. `shakeCap` came down 30 → 18 and `runOver.shake` 24 → 18 so the ceiling *is*
+the end of a run and nothing asks past it. `playerHit` stays non-zero at 5 (the one routine event
+that must be felt, and less than a boss's arrival). What used to shake says it with hit-stop, rings,
+sparks and a voice instead - the rows say so where they used to argue for a number.
+
+### The thing that had to go: the win's own shake
+`victory.shake: 16` became unreachable the moment the ceiling came down: the last fight's own
+going-down (the Eclipse's is 17) lands on the *same step*, so the two always clamp to 18 and the
+win's 16 could not be measured. A row nobody can measure is a row nobody can keep, so it is gone,
+and `winRun` is burst + two rings + chord. Session 65's "five effects, each with a mutation that
+goes red" is four now, and `test/victory.test.mjs` says which and why.
+
+### What landed, part three: five seconds that belong to the ending
+`BALANCE.victory.guard: 5`, `victoryCardIsAnswerable(world)`, and every door out of the win's card
+refusing until it is spent: Space (keep the run), the click, a number (new ship + new run), and R
+(new run). The card still arrives on the `hush` (1.6 s) so it lands on the tail of the going-down
+chord; the guard is the rest of the five seconds and it is spent *reading* the card, not waiting.
+Session 65 decided "one gate, no second timer" and this had to revisit it - but it is still one
+clock (`world.overTimer`) with two thresholds on it, not a second timer, and the two predicates are
+adjacent in `run.js` with comments saying which asks which. **The card's line of keys now arrives
+with the guard instead of with the card** (`src/ui/screens.js` `revealWinHint`, `#winHint` starting
+hidden): an invitation the game is not allowed to accept is exactly what the guard was asked to
+stop. The agent tool's `restartIn` and `step` now wait on the guard, because that is the wait that
+actually blocks a press.
+
+### Mutation checks, and the one that caught me out
+- The **meter's own test** went red first: making `shakeReport([])` return a printable `worst`
+  sentinel of `{ mean: NaN }` meant `mean > worst.mean` was never true and the busiest minute was
+  always minute 0. Sentinel is `-Infinity` now, and `test/shake-meter.test.mjs` owns the arithmetic
+  (floor equals the painter's floor, `rolling` starts where the eye starts, travel is px·s, a spike
+  is a max and not a p99, an empty pile prints a dash).
+- Deleting `shakeIt` from `winRun` was **not** caught once the ceiling was 18 - the reason the row
+  was deleted rather than left as decoration, and the reason the claim in `victory.test.mjs` is now
+  `peak >= eclipse.death.shake` plus `victory.shake === undefined`.
+- `test/shake-policy.test.mjs` walks `BALANCE` for every non-zero `shake` and refuses anything that
+  is not a boss / the ship being hurt / the wreck, refuses a row above the ceiling, greps every
+  `shakeIt(` in `src/` for an amount that is a literal instead of `something.shake`, and then
+  measures a 90 s crowd run (still >= 95%, rolling <= 2%, crowd peak <= a hit) and a Warden run
+  (the fight shakes more than the crowd did, and the arrival lands).
+- `tools/release.sh` runs `shake-meter --runs 2 --seconds 180 --need-still 95` between the sim and
+  the copy, so the owner's health rule is part of what a release has to pass.
+
+### Numbers
+- **1238 tests → 1260**, all passing. New: `test/shake-policy.test.mjs` (11), `test/shake-meter.test.mjs` (10),
+  plus the endless/victory/victory-card tests rewritten for the guard (the win card now has a test that
+  presses every door - key, click, number, R - and says each one is refused, and that the keys' line is
+  still hidden until the guard lets go).
+- `node tools/simulate.js --seed 20261006 --seconds 600 --trace` is **byte-identical** to session 65's
+  run, checked before the shake work and again after: nothing in the simulation reads trauma back, so
+  the whole change is feel and paint. `git worktree add /tmp/s66-base HEAD` + trace diff did it in one
+  command; worktree removed at the end.
+- Two bombs from the owner's report are closed in one release, with the release gate holding the one
+  that could come back silently.
+
+### Decisions, so nobody relitigates them
+- **The table is the policy.** One place lists who may shake, one test enforces it, one tool measures
+  what it costs. No new "severity" concept at the 22 call sites.
+- **The ceiling belongs to the end of a run** (`shakeCap === runOver.shake`), and a test says no row
+  may ask past it, so a future number cannot be quietly eaten by the cap.
+- **`playerHit` is the one allowed routine shake.** The owner's rule is "boss battles only" and this is
+  a deliberate exception written into the row and the policy test: a run that cannot feel itself being
+  hurt is worse than one that shakes a bit. If the owner says otherwise, it is one row and one test.
+- **The guard is 5 s on the win only.** The death card keeps its 0.35 s `restartGuard`: the complaint
+  was about the ending, and a death you want to fly again from should not make you wait five seconds.
+- **`victoryCardIsUp` paints; `victoryCardIsAnswerable` takes input.** Both read `world.overTimer`;
+  `guard > hush` is asserted, so "answerable" can never mean a card that was never drawn.
+- **The meter's boss/crowd split is a position, not a cause**: a fight's own shake fading after its
+  body is gone shows up in the crowd peak. Said in the tool's doc comment so nobody hunts a phantom.
+
+### For the next session
+- **Endless scaling** is the rest of PLAN 3.4's sentence: "continues with **all values scaling** for as
+  long as the player lasts". The hand-back exists; the scaling does not. `waves.crowdMax` (400),
+  `kinds.hpScaleMax` and `speedScaleMax` all stop growing long before the Eclipse arrives, so endless
+  wants a second, uncapped clock on all three (`BALANCE.endless` is where it belongs), and someone has
+  to decide whether the schedule may ever repeat - nothing says it must, and the Eclipse walking in
+  twice is a design decision. Measuring scaling needs the mid-build gap below first.
+- The **shake's painter** is the next feel lever: `shakeOffset` picks a fresh full-amplitude random
+  offset every frame, which is the worst kind of jitter for a stomach. A lower sample rate (a new
+  offset every other frame) or a curved amplitude would cut the nausea further at zero token cost.
+  Measure with the meter before and after; do not forget `visual.range` is the render RNG and the
+  trace must stay identical.
+- Still open and smaller: the Hive's owed spiral (session 60's note), the mid-build measurement gap
+  (`tools/simulate.js` cannot hand a run ranks, so boss hulls are priced against a level-1 bot and a
+  level-50 bot and nothing between), the four unbuilt synergies, milestone 7's music buses, and
+  `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
+- If the owner's next report mentions the shake again, the dial to reach for is the *amplitude curve*
+  in `render/renderer.js`, not more zeroes: the crowd is already still, so the remaining shake is all
+  boss and endings.
