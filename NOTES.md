@@ -7538,3 +7538,23 @@ the off-window cull removed, and the ramp's fall branch deleted.
 - If a second "cover the world" pass ever shows up, write `coverFor(ctx, paint)` after all - two of
   these is a pattern and three is a layer. The veil's `copy`/`destination-out`/`source-over` trio is
   the shape of it.
+
+### After the release: the covering was filling the wrong corner, and no test could see it
+v0.6.6 shipped with a real bug in the veil, in the one line the harness structurally cannot judge.
+The night was laid with `g.fillRect(camera.x, camera.y, layer.w, layer.h)` **after** resetting the
+sheet's transform to its own identity - so the fill went to wherever the frame is looking, measured
+in sheet pixels, and `copy` cleared everything outside it. In a browser the room would have stayed
+bright in a band down the top and the left of the window, with the sun's dark a rectangle floating in
+the middle of the sky. It fills `0, 0, w, h` now: **a full-window pass is laid in the layer's own
+coordinates, and the camera belongs only to the things placed on it.** Eight tests passed the whole
+time, because every one of them was looking at stamps, arcs and counts.
+
+So the harness now logs a fill as a **rectangle** and not a count (`rects()`, `rectsOffscreen()`), and
+`test/darkness-art.test.mjs` claims the night fills the sheet it is cut on from its own corner - and
+also that the camera was off the corner of the arena while it did, or the claim would have been
+vacuous. Mutation-checked: the old line back turns that one test red and leaves the other seven green.
+Released again as **0.6.7** rather than touching `releases/v0.6.6/`, which stays exactly as it was.
+
+The lesson for the next full-screen pass, and there will be one: a layer of this shape has *two*
+coordinate systems in it and the seam between them is exactly one `translate`. Check which one every
+coordinate in it belongs to, and give the seam a test that would notice the difference.
