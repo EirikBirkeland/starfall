@@ -7675,3 +7675,112 @@ travel, and doing both in one session would have meant one of them was rushed.
 - Still open and smaller: the Hive's owed spiral (session 60's note), the mid-build measurement gap, the
   four unbuilt synergies, milestone 7's music buses, and `tools/agent/session.js` having `choose_weapon`
   and no `choose_ship`.
+
+## Session 64 (2026-10-09) — The Eclipse's last shell walks its door. Released **0.6.9**
+
+PLAN 3.4's Eclipse row owed one line: "bullet walls with moving gaps". It is shipped, the row is
+ticked, and milestone 6 has two items left. The session-63 note guessed the design ("the gap moves,
+but the wall shows the gap's whole path first") and that guess was right, so most of this session was
+holding the guess to the same standard everything else here is held to rather than inventing it.
+
+### What landed
+- **The walking door.** `BALANCE.bosses.eclipse.phases[2].bullets` grows `gapWalk: 1.2` and
+  `gapSettle: 0.26`. The door is opened on the ship's own bearing exactly as every door in the game
+  has always been - so a ship that does nothing is shown a door it is standing in - and then it
+  travels 1.2 rad over the wind-up and **stands still** for the last 0.26 s of it before the wall is
+  thrown round the place it stopped. The framework's "a boss stands still while it shows" rule is
+  kept in the only way it can be: the promise moves, the harm does not. Not one shot curves;
+  `game/enemyshots.js` was not touched, which is the fact that keeps this fair.
+- **`game/bosses.js`**: `gapFrom`/`gapTo`/`gapRun` on the fight, `walkOf` (the direction is
+  `boss.rings % 2`, so every other shell walks the other way: a rhythm a player can learn and not a
+  roll a seed would have to remember), and `walkTheDoor` run as `BEATS[RINGING].show` from a new
+  one-line dispatcher `showThePromise` in `stepBeat`. A beat's `show` is optional and exactly one
+  beat has one, because a telegraph that did something every step would be a clock and not a place
+  on the floor. `gapStart`/`gapEnd` are the new doors for the painters.
+- **`render/entities.js`**: `doorWedge` now answers the *route* (min..max of the two ends, widened
+  by the door) and `doorNow` answers the door where it stands; `drawTheDoor` paints the route faint
+  (0.45 of the door's light) under the door, and skips the route pass entirely when the two are the
+  same wedge - which is what keeps every held door in the game pixel-identical. One `paintWedge`
+  draws both halves, so the route cannot be drawn at a shape the door travelling down it disagrees
+  with.
+- **`render/darkness.js`** cuts both wedges out of the night (and only cuts twice when they differ -
+  a held door is still punched once, and the night's budget is stamps).
+- **The bot needed nothing.** `tools/headless/threats.js` already reads `gapAngle(boss)` live, and a
+  walking `gapAngle` is a walking ask. Two claims added in `test/dodge.test.mjs` say so and would go
+  red the moment it read a stale bearing.
+- **Balance, argued in the row**: the door is 2 × `gap` = 1.0 rad and walks 1.2, so 0.7 rad of
+  bearing is what the ship pays - 224 px of arc at the near edge of the sun's band, 322 px at the
+  far one, over the wind-up plus the wall's own flight (1.8 s and 2.3 s), i.e. 127 and 138 px/s of
+  the 320 the Wisp has. The drag is 230 px/s inwards, so the chase is paid for in ground conceded
+  to the sun. `gapSettle > sim.step` is a test, not a hope: it is the only reason the last bearing
+  the frame ever showed is the exact bearing the hole is left at.
+
+### Two mutation checks that caught me out
+- **A test that counted widths could not see the route being drawn twice.** My first "a door that
+  does not walk lights no route at all" asserted the set of distinct widths was 1. With the route
+  drawn unconditionally - the bug - the held door got its route drawn under it at a fainter light:
+  same width, same radius, so the *set* was unchanged and the test was green against a real change
+  to the picture. A wedge is two logged arcs (a filled path and a rim over it), so the honest claim
+  is a **count**: a held door is painted twice, a walking one four times. Mutation-checked both
+  ways now.
+- **A defensive call no test could see.** I had `walkTheDoor(boss)` at the top of `throwRing` as
+  well as on every step of the wind-up, "to be exact". Deleting it changed nothing in any test,
+  because `gapSettle` means the walk runs out of road 30 steps before the wall is thrown. It is
+  gone: the settle is the mechanism, the row test is what holds it up, and the comment says so.
+
+### A probe that would have proved nothing
+My first attempt at a bot claim *flew* the ship at a walking door and reported "IN, IN, IN" four
+shells running. It measured nothing: the drag had pulled the ship in to r ≈ 100, where the 0.7 rad
+of chase is 25 px of arc and the whole test was a walk to the corner. The claim is now about the
+*ask* (`escapeDirection`'s tangential push points the way the door went, and a ship in the door it
+walked to is left alone), which is the shape the existing door test already used for the same
+reason. Measure what you think you counted - and if a number comes out suspiciously easy, print the
+distance it was paid over.
+
+### Numbers
+- **Nothing else moved.** `--seed 20261006 --seconds 600 --trace`, `--at 295 --seed 11`,
+  `--at 595 --seed 11` and `--at 895 --seed 11` are all byte-identical to a worktree at HEAD
+  (`/tmp/s64-base`). The long `--seed 21 --seconds 1140` run is byte-identical for its first
+  58200 trace marks and differs from there on - and 58200 is a **frame** count, i.e. 970 s, with
+  phase 3 opening at 964 s. That is the first walking shell and nothing before it.
+  (The trace prints one mark per 120 *frames*, ~2 s at 60 fps; the first time I read it as steps I
+  spent ten minutes suspecting the Warden.)
+- **1186 tests → 1200**, all passing. New: 8 in `test/eclipse.test.mjs` (the row, the walk, the
+  rest, the hole, the alternation, "not a roll", and hull paid out two ways), 4 in
+  `test/boss-art.test.mjs` (two wedges on the glass, whole from the first step, none for a held
+  door, no blur), 1 in `test/darkness-art.test.mjs`, 2 in `test/dodge.test.mjs`. Every one was
+  mutation-checked.
+- `node tools/simulate.js --seconds 960 --runs 6`: 5 of 6 still flying at the cap, one died at
+  7m44s to a drifter. Median 16m00s, same as session 63 - the bot neither chases nor fails to
+  chase a door it can see.
+
+### Decisions, so nobody relitigates them
+- **No curving shots.** "Moving gap" could have meant the wall itself rotates; that would be a harm
+  whose hole at your radius is somewhere other than the wedge you were shown, i.e. unpriceable, and
+  it would need a whole new shape in `game/enemyshots.js` for one boss. The gap moves while it is a
+  promise and never again.
+- **Phase 3 only.** The two earlier phases keep the held door, so the fight teaches the ending and
+  PLAN's sentence is about phase 3 in the first place.
+- **`gapSettle` is a row number and not a share of `windup`**, because the thing being promised is a
+  number of seconds and a share would make every future tweak of `windup` silently re-time the rest.
+- **The route's reach and the door's reach are clipped independently.** A route edge can be against a
+  wall that the door itself points away from; both painters then draw what the room allows, and the
+  night cuts both. No wedge may promise a place behind a wall, and each is asked on its own edges.
+- The route is dimmer than the door (0.45), not a different colour: it is the same promise, and a
+  new hue would have to be paid for out of a palette that is already full of warm = danger.
+
+### For the next session
+- **Milestone 6 has two items left: the victory screen and the endless mode that follows** (PLAN:
+  after the Eclipse the run is *won*, and then values keep scaling as long as you last). Nothing in
+  `src/` mentions victory or endless today, so the Eclipse currently just... stops being there, and
+  the wave director picks up. That is a real session and it is the next one: a win state
+  (`STATE` has START/PLAY/OVER/LEVEL today), the glass that says so, the score line, and then the
+  endless scaling that follows the win - plus whatever the tally says about a run that was won.
+- Then Milestone 6's release item, which this session's 0.6.9 has already spent: the next one will be
+  `0.6.10` or, if the win screen lands, `0.6.11`.
+- Still open and smaller: the Hive's owed spiral (session 60's note), the mid-build measurement gap
+  (`tools/simulate.js` cannot hand a run ranks, so every boss hull is priced against a level-1 bot
+  and a level-50 bot and nothing between), the four unbuilt synergies, milestone 7's music buses,
+  and `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
+- Worktree hygiene worked: `/tmp/s64-base` named after the session, and `git worktree remove` it (or
+  just stop reusing one name across sessions, which is what bit session 62).
