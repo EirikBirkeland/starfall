@@ -1,5 +1,28 @@
 # Starfall — changelog
 
+## 0.6.10 — 2026-10-09
+The run can be won. Bring down the last fight on the schedule with the ship still flying and the arena stops: ARENA CLEARED.
+- **A second ending, and not a gold-painted death.** A win freezes the arena exactly where a death does, so nothing still
+  turning in the room can take a hull off a ship that has already finished — a blade mid-sweep, a drifter standing on the
+  wreck. And a run that loses its last hull in the same second the Eclipse does is a wreck and not a win: the pretty name
+  has to be earned standing up.
+- **The hush.** The card does not arrive on the frame the fight comes down. The arena holds still for a second and a half
+  — the going-down chord, the wreck, the night letting go of the room — and then the card lands on the tail of it, which
+  is also the moment the run will take a key again. One number runs both, so the card and the key cannot come apart.
+- **What the card says.** The score, the best, the level, the kills and shards, and the clock it took: `CLEARED IN 15m04s`.
+  Below that, the three fights the schedule actually sent — THE WARDEN · THE HIVE · THE ECLIPSE — read out of the schedule
+  itself, so the card can never advertise a fight the game does not field. Mint and not pink: the arena's whole colour
+  language says warm is what is trying to kill you, and mint is what paid you.
+- **The dark gives the room back over an ending.** The night the Eclipse brings used to only walk away while a run was
+  still flying; now the sun coming down is the last thing that fight does, and the room brightens under the arriving card
+  whether the run is won or lost. That is the reward the row always promised and never paid.
+- **Everything that counts a run can tell the three endings apart now** — the headless simulation prints WON, the balance
+  report separates a win from a survival from a run cut short, the tally writes down that the run was won and when, the
+  agent bridge answers `won` — and 24 new tests hold the ending: that the schedule's last fight wins it and an earlier
+  one does not, that a wreck outranks a win, that the hush cannot be pressed through, that the card says what the run was,
+  and that a won run can be won again. The whole suite is 1224 tests, and every fingerprint of the reference run is
+  unchanged.
+
 ## 0.6.9 — 2026-10-09
 The Eclipse's last shell walks its door: the gap in the wall travels, and you are shown the whole of the way it travels.
 - **A moving gap that is still a promise.** The door of a shell opens on your own bearing as it always did — so a ship
