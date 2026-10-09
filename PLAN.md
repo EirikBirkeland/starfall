@@ -664,8 +664,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       drawn radius are deliberately *not* ship numbers: every ship is hurt by the same 6 px
       core and drawn at the same scale, so the five read differently without one of them being
       a bigger target than another.)
-- [ ] Release.
-      (0.5.2.)
+- [x] Release.
+      (0.5.2 - the five ships, and with them milestone 5.)
 
 ### Milestone 6: bosses
 - [ ] Boss framework: phases, hull bar, intro warning, spawn pause, arena lock.
