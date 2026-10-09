@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.4.19",
+    "date": "2026-10-09",
+    "summary": "Reroll and banish: the deal can be argued with twice a run"
+  },
+  {
     "version": "0.4.18",
     "date": "2026-10-08",
     "summary": "Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see"
