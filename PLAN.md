@@ -706,9 +706,9 @@ When every item above is ticked, go back to the first unchecked item of mileston
       a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
-      (Shipped: the arrival, the drag, the shell, and the dark - three phases, one bar, one flare
-      each, and PLAN's phase-2 darkness. It asked the framework for one new permission and one new
-      rhythm: **a fight may move the ship**.
+      (Shipped: the arrival, the drag, the shell, the dark, and the blades - three phases, one bar,
+      one flare each, PLAN's phase-2 darkness, and PLAN's phase-3 sweeping arms. It asked the
+      framework for one new permission and one new rhythm: **a fight may move the ship**.
       A phase row may carry `pull`, spent once per step along the line from the ship to whichever of
       the fight's bodies is standing, as a *place* the ship is taken to and not as a force on its
       engines (game/player.js `dragShip`) - the engines are steered back to the controls every step
@@ -728,10 +728,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
       reach, the fight's own bodies, and the door a shell is being promised through, which is let out
       of the same wedge its light is drawn from or the dark would be eating a promise. The pass is
       paint the simulation describes and never obeys: nothing in game/ reads `darkness` back, and
-      every fingerprint of every run is unchanged by it. NOT SHIPPED from 3.4's Eclipse row: phase
-      3's sweeping arms and bullet walls with moving gaps - the three phases today are the drag
-      harder, the shell faster, and the room darker. `test/eclipse.test.mjs`, `test/darkness.test.mjs`,
-      `test/darkness-art.test.mjs` and the sun tests of `test/boss-art.test.mjs` own what is here.)
+      every fingerprint of every run is unchanged by it. And the last phase lifts an arm: a beat may
+      now be a **sweep** (`sweep`, game/bosses.js `showArms`), a fan of blades shown as the whole of
+      the way each blade travels and then let go of, after which they are the world's business and not
+      the fight's - one pool of their own (game/arms.js), turning, paying out a hull, still sweeping
+      after the body that loosed them has gone down. A beat's harm that *moves* is the one exception to
+      "a boss stands still while it shows", and it gets round the rule the way every other promise
+      here does: the fan is the harm, edge for edge, and the frame and the night cut it out of the same
+      question (render/arms.js), so the dark this fight brings cannot eat it. NOT SHIPPED from 3.4's
+      Eclipse row: phase 3's bullet walls with moving gaps. `test/eclipse.test.mjs`,
+      `test/darkness.test.mjs`, `test/darkness-art.test.mjs`, `test/arms.test.mjs`,
+      `test/arms-art.test.mjs` and the sun tests of `test/boss-art.test.mjs` own what is here.)
 - [ ] Victory screen and the endless mode that follows.
 - [ ] Release.
 

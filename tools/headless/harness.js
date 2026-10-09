@@ -383,9 +383,13 @@ export async function bootGame(options) {
     drawCalls() { return Object.assign({}, counters); },
     /**
      * Paint something on a canvas of its own and say what it cost: `{ fills, strokes, images,
-     * texts, gradients, shadows }`. Nothing about the run or the frame being measured is touched
-     * - not the counters, not the last frame's draw log - so a test can hold one part of the
-     * picture still while it measures another (see tools/headless/frame-cost.js).
+     * texts, gradients, shadows }`, and where it drew them: `widths`, `points`, `circles` and
+     * `rects`, in the coordinates the painter was writing in. Nothing about the run or the frame
+     * being measured is touched - not the counters, not the last frame's draw log - so a test can
+     * hold one part of the picture still while it measures another (see tools/headless/frame-cost.js),
+     * and can ask how wide a particular thing was drawn without hoping nothing else in the frame drew
+     * a line at that width. The painted words are deliberately not among them: `texts` is a count in
+     * the counters and a list in the log, and a return value cannot be both.
      */
     measure(paint) {
       const spent = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
@@ -394,7 +398,12 @@ export async function bootGame(options) {
         strokes: [], rects: [],
       };
       paint(makeContextStub(spent, blank));
-      return Object.assign({}, spent);
+      return Object.assign({}, spent, {
+        widths: blank.strokes.slice(),
+        points: blank.points.slice(),
+        circles: blank.circles.slice(),
+        rects: blank.rects.slice(),
+      });
     },
     /**
      * The canvas the game draws into - the stub, in other words, and with it the honest measure of
@@ -420,6 +429,12 @@ export async function bootGame(options) {
     stampsOffscreen() { return offLog.images.slice(); },
     /** Every circle a layer asked for on its own sheet last frame, with its composite. */
     circlesOffscreen() { return offLog.circles.slice(); },
+    /**
+     * The points of every path a layer cut on its own sheet last frame, in that sheet's own pixels -
+     * which is how a test can ask where a *cut* went, and not merely that one happened
+     * (render/darkness.js punches blades and fans out of the night with paths, not with stamps).
+     */
+    pointsOffscreen() { return offLog.points.slice(); },
     /** Every rectangle the last frame filled on the window, or on a layer, and how big it was. */
     rects() { return drawLog.rects.slice(); },
     rectsOffscreen() { return offLog.rects.slice(); },

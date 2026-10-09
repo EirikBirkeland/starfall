@@ -29,11 +29,12 @@
 import { BALANCE } from './balance.js';
 import { shotsPerSecond } from './weapons.js';
 
-/** The four ways the ship can lose a hull. */
+/** The five ways the ship can lose a hull. */
 const BODY = 'body';
 const SHOT = 'shot';
 const BLAST = 'blast';
 const BEAM = 'beam';
+const ARM = 'arm';
 
 /** A blast has no attacker to flash and no kind to blame, so it is always the same. */
 const THE_BLAST = { how: BLAST, type: '', enemy: null };
@@ -64,7 +65,16 @@ export function hurtByBeam(type) {
   return { how: BEAM, type: type || '', enemy: null };
 }
 
-/** How a hull loss is written down: `body:tank`, `shot:spitter`, `beam:sniper`, `blast`. */
+/**
+ * A blade names the fight that loosed it, for the same reason a beam names its kind: by the time a
+ * sweep has come round the body that made it may be a wreck (game/arms.js), and the run is entitled
+ * to know whose arm it walked into.
+ */
+export function hurtByArm(type) {
+  return { how: ARM, type: type || '', enemy: null };
+}
+
+/** How a hull loss is written down: `body:tank`, `shot:spitter`, `beam:sniper`, `arm:eclipse`, `blast`. */
 export function hurtLabel(cause) {
   return cause.type ? cause.how + ':' + cause.type : cause.how;
 }

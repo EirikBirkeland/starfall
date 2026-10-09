@@ -10,6 +10,7 @@ import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
+  bossSweeps,
   darknessOf,
 } from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
@@ -295,6 +296,11 @@ window.STARFALL = {
       // How many bodies the fight is standing on. One, until a boss breaks into pieces - and then
       // the number that says why the bar is going down in three places at once.
       bossCores: world.boss === null ? 0 : coresStanding(world.boss),
+      // How many sweeps the fight has let go of, and how many blades are in the air this step
+      // (game/arms.js). A blade leaves no shot and no body behind, so this is the only way a headless
+      // run can tell a sweep happened at all.
+      bossSweeps: world.boss === null ? 0 : bossSweeps(world.boss),
+      arms: world.arms.count,
       bossesDown: world.bossesDown,
       // How far the room has been put under (game/bosses.js `darknessOf`). The frame is the only
       // thing in the game that acts on it, and a headless run has no other way to know it is dark.

@@ -1181,10 +1181,16 @@ export const BALANCE = {
     //           it as one): what the night does to it is stop covering it up, and a little of the
     //           night is left in it so the shaft stays a lit place in a dark room instead of a
     //           second arena.
+    //   blade   the same ask for the two things the Eclipse promises that are not bodies or shots:
+    //           the fan of a sweep while it is being shown and the blade it lets go of afterwards
+    //           (game/arms.js). It is a share for the same reason the door's is, and it is not
+    //           quite 1 because a blade wants to stay a *place* in the night rather than a hole in
+    //           it - but it has to be high, because a promise the dark has eaten is no promise and
+    //           `telegraphMin` does not care how dark the room is.
     dark: {
       rise: 0.45,
       fall: 0.8,
-      light: { ship: 300, shot: 86, bullet: 58, body: 2.4, door: 0.82 },
+      light: { ship: 300, shot: 86, bullet: 58, body: 2.4, door: 0.82, blade: 0.86 },
     },
 
     // The sounds of the fight itself, whoever the boss is: the siren that opens the
@@ -1688,11 +1694,16 @@ export const BALANCE = {
     // everything else about this boss is - the light of its own corona falling inwards
     // (render/boss.js), from the moment it arrives.
     //
-    // SHIPPED, all three phases and both of its permissions: the drag, the shell, and the night.
-    // Phase 2 puts the arena under (`dark`, below) and phase 3 keeps it there and deeper, because
-    // PLAN's phase 3 is "everything from before". NOT SHIPPED from 3.4's Eclipse row, written
-    // here so it is not lost: phase 3's sweeping arms and bullet walls with moving gaps - the
-    // three phases today are the drag, the shell and the dark, priced three ways.
+    // SHIPPED, all three phases and all four of its permissions: the drag, the shell, the night and
+    // the blades. Phase 2 puts the arena under (`dark`, below) and phase 3 keeps it there and
+    // deeper, because PLAN's phase 3 is "everything from before", and it is the phase that grows
+    // the sweeping arms (`sweep`, below) beside its shell.
+    // NOT SHIPPED from 3.4's Eclipse row, written here so it is not lost: the same phase's "bullet
+    // walls with moving gaps". The shells are walls with a door opened on you and then held, and a
+    // gap that travelled after it was shown would be a wall and not a promise - so either the travel
+    // is shown as part of the fan (which is what the arms do) or that half line becomes [skipped]
+    // with the reason. The three phases today are the drag, the shell, the dark and the blades,
+    // priced three ways.
     eclipse: {
       name: 'THE ECLIPSE',
       blurb: 'a dark sun that drags you in and bursts in every direction',
@@ -1798,9 +1809,11 @@ export const BALANCE = {
           // and the shells are at their fastest, and being able to see neither where the sun is nor
           // where the wall is while both of those are true is the end of the game.
           //
-          // PLAN's arms and moving gaps are the work this row is waiting for, and the turn it is
-          // given is where they will be hung from: `turn` already places the body's facing, which
-          // is what an arm sweeps with.
+          // This is the only phase of the only boss with two beats to alternate (game/bosses.js
+          // `beatsOf`): a shell, then a sweep, then a shell, on the one ride the rhythm keeps. It is
+          // why the ride is the longest of the three phases' even though everything in it is priced
+          // the hardest - a ship needs the standing room to spend between a door it has to stand in
+          // and a fan it has to leave, and the drag is what makes spending it cost something.
           tint: PALETTE.pink,
           turn: 0.66, wait: 1.85,
           pull: { force: 230, floor: 92 },
@@ -1813,6 +1826,46 @@ export const BALANCE = {
               shake: 9,
               ring: { radius: 60, speed: 680, life: 0.4 },
               sound: { freq: 540, dur: 0.28, wave: 'sawtooth', vol: 0.1, slide: 80 },
+            },
+          },
+          // PLAN's arms, and the last thing the last phase of the last fight in the game does:
+          // three blades of light out of the sun's own facing, each one sweeping the fan the frame
+          // lit a moment before it came round (game/arms.js, game/bosses.js `showArms`).
+          //
+          // The row is a *fan* and not a line, and that is the whole of its fairness: a hazard that
+          // travels has to show the whole of the way it travels, or the only honest question left in
+          // it is "be somewhere else", which is not a question anybody can answer in 0.85 s.
+          //
+          // `arms` and `arc` together decide whether leaving the fan is a question that can be
+          // answered at all. Three blades stand 2.09 rad apart and each sweeps 0.9 rad, so 2.7 rad of
+          // the sun's 6.28 is being swept at any moment and 3.6 rad of it - more than half the sky -
+          // never is. There is always a place the blades never enter; what the fight charges for
+          // finding it is the drag.
+          //
+          // `rate` is what the dodge costs, and it is worth writing down what it costs at each of the
+          // two places a ship stands. At the near edge of the band the sun holds (320 px) a blade's
+          // edge goes 256 px/s, less than a Wisp's top speed, so in close the answer is to turn with
+          // the blades and stay ahead of them. Out at the far edge (460 px) it is 368 px/s, more than
+          // the ship has, and the answer is the one the fan was drawn for: be out of it. The drag
+          // leans a ship inwards, which is where the blades are the slower, and the sun hurts where it
+          // stands, which is the price of the slower one.
+          //
+          // `reach` is 560 px against a band of 320 to 460, so a blade reaches past where the ship is
+          // usually standing and nowhere near the far side of the room the cage has closed round the
+          // duel (1560x1040). "Swim out beyond the tips" is always an answer and never an easy one,
+          // because it is upstream of the drag. `half` is 20 px: wider than a spoke's 16 or 17, more
+          // than three times the ship's own hit radius, so a blade is a thing you leave and not a
+          // hair's width you stand on - and it is the one number for both the light and the harm.
+          //
+          // It costs a hull, and one: `player.hitInvulnerability` is 1.5 s and a blade is across you
+          // for a fraction of that, so a sweep that catches you takes a pip and not three.
+          sweep: {
+            arms: 3, windup: 0.85, arc: 0.9, rate: 0.8, reach: 560, half: 20,
+            wind: { sound: { freq: 96, dur: 0.8, wave: 'sawtooth', vol: 0.05, slide: 340 } },
+            fire: {
+              shake: 10,
+              ring: { radius: 64, speed: 760, life: 0.5 },
+              sound: { freq: 240, dur: 0.5, wave: 'sawtooth', vol: 0.11, slide: 120 },
             },
           },
         },

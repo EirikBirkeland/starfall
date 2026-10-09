@@ -42,11 +42,17 @@
 //     owns is the rhythm of one - ride, stop dead, show it, fire it. A rhythm says which beats
 //     its phases have and how the ride between them is spent (`ring`: the Warden, which turns on
 //     the spot and fires spokes, bullet rings and calls of bodies; `mass`: the Hive, which
-//     drifts in and lets its cells out), and a phase may hold more than one beat, which is what
+//     drifts in and lets its cells out; `sun`: the Eclipse, which turns and walks and spends its
+//     turn on a shell and, once the room has gone dark, on fans of blades), and a phase may hold
+//     more than one beat, which is what
 //     keeps one rhythm over a fight that has grown two or three things to read. A phase change
 //     starts from whichever of them is new, which is what the flare is announcing. Every beat of
 //     every phase is shown for `bosses.telegraphMin` at least, and a boss stands perfectly still
 //     while it is showing one: a promise that moves is not a promise.
+//
+//     One beat's harm does move - the Eclipse's blades sweep - and it gets round the same rule the
+//     same way every other promise here does: it shows the whole of the way it travels, a fan and
+//     not a line, so what the ship is asked to leave is a place and not a rumour (game/arms.js).
 //
 //   **The room's light.** A phase may ask for the night to come down - PLAN 3.4's Eclipse phase 2,
 //     "the arena darkens, and only areas near the player and near bullets are lit" - with a `dark`
@@ -79,6 +85,7 @@ import { damageEnemy, killEnemy } from './enemies.js';
 import { noteArrival } from './tally.js';
 import { fireBeam } from './beams.js';
 import { enemyShotAt } from './enemyshots.js';
+import { looseArm } from './arms.js';
 import { newPack } from './flock.js';
 import { addText, burst, hitStop, ring, shakeIt, spray } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
@@ -98,6 +105,7 @@ const LOCKING = 'lock';
 const RINGING = 'ring';
 const CALLING = 'call';
 const OPENING = 'open';
+const ARMING = 'arm';
 
 /**
  * How a boss spends the ride from one beat to the next, and which beat the ride hands over to.
@@ -126,6 +134,7 @@ const BEATS = {
   [RINGING]: { enter: windRing, land: throwRing },
   [CALLING]: { enter: windCall, land: sendCall },
   [OPENING]: { enter: lightCells, land: letThemOut },
+  [ARMING]: { enter: showArms, land: letArmsLoose },
 };
 
 /** The row of a boss by id. A name nobody wrote is an error, not a silent no-op. */
@@ -204,11 +213,18 @@ function newFight(id, index) {
     armed: 0,         // how many shots the ring it is arming is made of; 0 is nothing is armed
     gapAngle: 0,      // the bearing the door it is showing is centred on
     gapHalf: 0,       // and how wide each side of that door is, in radians
+    armCount: 0,      // how many blades a sweep it is showing is made of; 0 is none are being shown
+    armStep: 0,       // and how far apart two of them stand, in radians
+    armArc: 0,        // and how far each of them will travel, in radians
+    armReach: 0,      // and how far out it reaches, in px
+    armHalf: 0,       // and how far off its axis a blade hurts, in px
     callCount: 0,     // how many bodies a call is sending; 0 is no call is being made
     callAngle: 0,     // the bearing that fan of marks is centred on
     callStep: 0,      // and how far apart two of them stand, in radians
     called: [],       // whatever the last call sent that is still standing (`liveCall` below)
     volleys: 0,       // counters, like every line in the deck keeps
+    sweeps: 0,
+    blades: 0,
     beams: 0,
     rings: 0,
     shots: 0,
@@ -576,9 +592,7 @@ function openPhase(world, boss) {
   boss.change = spec.time;
   for (const core of boss.cores) core.enemy.immune = spec.time;
   boss.stage = RIDING;
-  boss.spokes = 0;
-  boss.armed = 0;
-  boss.callCount = 0;
+  putThePromiseDown(boss);
   putOutTheMass(boss);
   boss.timer = phase.wait;
   boss.beat = phase.wait;
@@ -672,12 +686,25 @@ function turned(angle, by) {
 /** Back to riding, from the top of the phase's own patience. Nothing is being shown. */
 function rideAgain(boss, phase) {
   boss.stage = RIDING;
+  putThePromiseDown(boss);
+  boss.timer = phase.wait;
+  boss.beat = phase.wait;
+}
+
+/**
+ * Put every beat's promise down: no spokes are being held, no shell is being armed, no call is
+ * being made and no fan of blades is being shown.
+ *
+ * Two places owe it - back to riding after a beat, and the top of a phase flare, where a promise the
+ * fight never got to make is broken in the run's favour (game/bosses.js `openPhase`) - and they owe
+ * exactly the same list, which is why it is one function and not two copies that can drift apart by
+ * one line and leave a fan of blades drawn over a fight that is not promising one.
+ */
+function putThePromiseDown(boss) {
   boss.spokes = 0;
   boss.armed = 0;
   boss.callCount = 0;
-  putOutTheMass(boss);
-  boss.timer = phase.wait;
-  boss.beat = phase.wait;
+  boss.armCount = 0;
 }
 
 /**
@@ -694,15 +721,32 @@ function rideAgain(boss, phase) {
  */
 function alternateBeats(boss, phase) {
   if (phase.call !== undefined && liveCall(boss) === 0) return CALLING;
+  const beats = beatsOf(phase);
   // A beat a phase does not have is never taken. "It alternates" is a rule about the beats there
   // are to alternate, and taking one the row never wrote would be a rest with a telegraph on it:
   // the Warden's phases all have spokes so it never had to be said out loud, and the Eclipse - a
   // shell and nothing else - is what said it.
-  if (phase.spokes === undefined) return RINGING;
-  if (phase.bullets === undefined) return LOCKING;
-  const beat = boss.nextBeat;
-  boss.nextBeat = beat === LOCKING ? RINGING : LOCKING;
+  const at = beats.indexOf(boss.nextBeat);
+  const beat = at < 0 ? beats[0] : beats[at];
+  boss.nextBeat = beats[(at + 1) % beats.length];
   return beat;
+}
+
+/**
+ * Which beats a phase has, in the order it takes them: the spokes, the shell, the blades.
+ *
+ * Derived from the row and never written beside it, for the reason every other row in this table is
+ * read and not copied: a phase's beats *are* the rows it wrote, and a list kept next to them would
+ * be a second answer. A phase that wrote none of them has no business being played, and saying so
+ * here - where a beat is about to be taken - is louder than firing a beat made of nothing.
+ */
+function beatsOf(phase) {
+  const beats = [];
+  if (phase.spokes !== undefined) beats.push(LOCKING);
+  if (phase.bullets !== undefined) beats.push(RINGING);
+  if (phase.sweep !== undefined) beats.push(ARMING);
+  if (beats.length === 0) throw new Error('a phase with no beat to take');
+  return beats;
 }
 
 /**
@@ -756,6 +800,7 @@ function holdTheShip(world, boss, dt) {
  */
 function leadBeat(phase) {
   if (phase.spawn !== undefined || phase.split !== undefined) return OPENING;
+  if (phase.sweep !== undefined) return ARMING;
   return phase.bullets === undefined ? LOCKING : RINGING;
 }
 
@@ -889,6 +934,65 @@ function throwRing(world, boss, phase) {
   boss.rings++;
 
   const fire = spec.fire;
+  ring(world, enemy.x, enemy.y, phase.tint, fire.ring.radius, fire.ring.speed, fire.ring.life);
+  shakeIt(world, fire.shake);
+  const sound = fire.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * The sweep's wind-up: `arms` fans of harm are lit out of the body's own facing, and then a blade
+ * travels down each of them.
+ *
+ * What is shown is a *fan* and not a line, and that is the whole of the fairness of a hazard that
+ * moves: a promise that travels has to show the whole of the way it travels, or the only honest
+ * question left in it is "be somewhere else", which nobody can answer. So the frame lights the
+ * wedge every blade will sweep - from the bearing it is held at to the bearing it dies at, at the
+ * length it reaches and the width it hurts at (game/arms.js) - and the ship has `windup` to be out
+ * of it: across either edge, or out past the tip. The bearings are the body's own facing plus one
+ * step apiece, which the ride turned there and the framework is holding still, because a boss stands
+ * perfectly still while it is showing a beat. Nothing about a fan wanders after it is lit, and none
+ * of it is a roll: a seed sweeps its blades the same way twice over.
+ */
+function showArms(world, boss, phase) {
+  const spec = phase.sweep;
+  boss.stage = ARMING;
+  boss.timer = spec.windup;
+  boss.beat = spec.windup;
+  boss.armCount = spec.arms;
+  boss.armStep = TAU / spec.arms;
+  boss.armArc = spec.arc;
+  boss.armReach = spec.reach;
+  boss.armHalf = spec.half;
+
+  const sound = spec.wind.sound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+}
+
+/**
+ * The fans let go: one blade per fan, out of every body of the fight that is still standing, from
+ * the bearing each fan was lit at and round to the bearing it was lit *to*. From this step on they
+ * are the world's business and not the fight's (game/arms.js), which is why there is nothing here
+ * to keep a sweep alive - no list on the boss, no timer, nothing to put right if a body comes down
+ * halfway through one.
+ *
+ * The count that lands is the count that was shown, which is what every telegraph in this file is
+ * held to, and it is read off the fight rather than off the row for exactly that reason.
+ */
+function letArmsLoose(world, boss, phase) {
+  const spec = phase.sweep;
+  for (const core of boss.cores) {
+    const body = core.enemy;
+    if (body.hp <= 0) continue;
+    for (let i = 0; i < boss.armCount; i++) {
+      looseArm(world, body, core.angle + i * boss.armStep, spec, phase.tint);
+      boss.blades++;
+    }
+  }
+  boss.sweeps++;
+
+  const fire = spec.fire;
+  const enemy = liveCore(boss).enemy;
   ring(world, enemy.x, enemy.y, phase.tint, fire.ring.radius, fire.ring.speed, fire.ring.life);
   shakeIt(world, fire.shake);
   const sound = fire.sound;
@@ -1718,6 +1822,60 @@ export function gapHalf(boss) {
 export function gapProgress(boss) {
   if (boss.stage !== RINGING) return 0;
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How many blades the sweep it is showing is made of - 0 when it is not showing one. The count,
+ * how far apart two of them stand, how far each travels, how far out it reaches and how wide it is
+ * hurt at are that telegraph entire, and they are the same five numbers the blades are loosed from
+ * (game/bosses.js `letArmsLoose`): the fan that is lit is the fan that is swept, edge for edge.
+ *
+ * Which bearings they start on is not here, because it is not the sweep's: each blade starts from
+ * the facing of the body that loosed it (`bossCores`), which the ride turned to and the framework
+ * holds still until the fan lets go.
+ */
+export function armCount(boss) {
+  return boss.stage === ARMING ? boss.armCount : 0;
+}
+
+/** Radians between two of the blades it is showing, or 0 with no sweep to space out. */
+export function armStep(boss) {
+  return boss.stage === ARMING ? boss.armStep : 0;
+}
+
+/** Radians each of those blades will travel, or 0. This is the width of the fan the frame lights. */
+export function armArc(boss) {
+  return boss.stage === ARMING ? boss.armArc : 0;
+}
+
+/** How far out a blade reaches, in px of arena, or 0. */
+export function armReach(boss) {
+  return boss.stage === ARMING ? boss.armReach : 0;
+}
+
+/** How far off a blade's axis the light is drawn and the harm is paid out at - one number. */
+export function armHalf(boss) {
+  return boss.stage === ARMING ? boss.armHalf : 0;
+}
+
+/** How far through the fan's wind-up it stands, 0 when no fan is being shown. */
+export function armProgress(boss) {
+  if (boss.stage !== ARMING) return 0;
+  return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How many sweeps the fight has let go of (game/bosses.js `letArmsLoose`). A headless run has no
+ * other way to see one at all: a blade leaves no shot and no body behind, and the pool it lives in
+ * is empty again before the next beat is even wound.
+ */
+export function bossSweeps(boss) {
+  return boss.sweeps;
+}
+
+/** How many blades the fight has loosed, all the sweeps of this run added up. */
+export function bossBlades(boss) {
+  return boss.blades;
 }
 
 /**

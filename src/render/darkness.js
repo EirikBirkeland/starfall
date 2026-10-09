@@ -4,7 +4,8 @@
 // One pass, laid over the whole world's own pass and under the interface. It is a *veil*, not a
 // dimming: the room is not made darker, it is covered up, and what is left to see are the holes cut
 // in the covering by whatever is shining - the ship, every shot in the air, the fight's own bodies,
-// and the door a shell is being promised through. That is the difference that matters, and it is the
+// the door a shell is being promised through, and the fans and blades of a sweep (render/arms.js).
+// That is the difference that matters, and it is the
 // same lesson the sun's own body had to learn (render/boss.js): a hole is not a dark colour, it is
 // the pixels under it being gone, and `source-over` and `destination-out` are the only composites
 // that can say so. The arena is painted additively, so a night laid down `lighter` would be a faint
@@ -53,6 +54,7 @@ import { view } from './canvas.js';
 import { holeFor, paintGlow } from './glow.js';
 import { paintX, paintY } from './interp.js';
 import { doorWedge } from './entities.js';
+import { bandEnds, bladesOf, fansOf } from './arms.js';
 
 // One hole sprite for every light's size: what `scale` does to it is grow the soft edge along with
 // the light, which is what a light's edge does anyway (render/glow.js).
@@ -154,6 +156,64 @@ function fighting() {
 }
 
 /**
+ * The fans a fight is promising and the blades it has let go, left out of the night.
+ *
+ * The same fairness as the door's, and one degree sharper: a sweep is a promise *and* a hazard that
+ * travels, and a fan the dark has eaten is not a thing to dodge but a wall to be standing inside
+ * when it arrives. Both halves are asked of render/arms.js, which is the one place that knows where
+ * either of them is, so the night cannot disagree with the light about which part of the room is on
+ * fire - and a promise the frame paints and the dark hides is the worst bug this feature has.
+ */
+function punchBlades(g, boss, alpha) {
+  const share = BALANCE.bosses.dark.light.blade;
+
+  const fans = fansOf(boss, alpha);
+  for (let i = 0; i < fans.length; i++) {
+    const fan = fans[i];
+    if (!onScreen(fan.x, fan.y, fan.reach)) continue;
+    g.beginPath();
+    g.moveTo(fan.x, fan.y);
+    g.arc(fan.x, fan.y, fan.reach, fan.from, fan.to);
+    g.closePath();
+    g.globalAlpha = share;
+    g.fill();
+    g.globalAlpha = 1;
+  }
+
+  const blades = bladesOf(world.arms, alpha);
+  for (let i = 0; i < blades.length; i++) {
+    // Nothing is culled here, unlike every other punch in this file: a blade is over 500 px long and
+    // its middle can be off the window while its tip is not, and a hole the tip did not get would be
+    // a blade with a dark end on it.
+    bandOutline(g, bandEnds(blades[i]), blades[i].half);
+    g.globalAlpha = share;
+    g.fill();
+    g.globalAlpha = 1;
+  }
+}
+
+/**
+ * The path of one band: `half` px each side of the line between its two ends.
+ *
+ * A rectangle and not a wedge on purpose - a blade is drawn at a constant width and hurts at one too
+ * (game/arms.js), and a carve that tapered would be a hole wider than the thing it is letting
+ * through, which is a glow and not a blade.
+ */
+function bandOutline(g, ends, half) {
+  const dx = ends.x1 - ends.x0;
+  const dy = ends.y1 - ends.y0;
+  const length = Math.hypot(dx, dy) || 1;
+  const nx = -dy / length * half;
+  const ny = dx / length * half;
+  g.beginPath();
+  g.moveTo(ends.x0 + nx, ends.y0 + ny);
+  g.lineTo(ends.x1 + nx, ends.y1 + ny);
+  g.lineTo(ends.x1 - nx, ends.y1 - ny);
+  g.lineTo(ends.x0 - nx, ends.y0 - ny);
+  g.closePath();
+}
+
+/**
  * Lay the night, if there is any to lay. Called last of the world's own pass and before the
  * interface (render/renderer.js), in window coordinates: it puts one sheet on the canvas and
  * nothing else.
@@ -191,6 +251,7 @@ export function drawDarkness(ctx, alpha) {
   if (fighting()) {
     punchBodies(g, world.boss, alpha);
     punchDoor(g, world.boss, alpha);
+    punchBlades(g, world.boss, alpha);
   }
 
   // And the veil goes on. Window coordinates again, and `source-over`: the one composite in the game

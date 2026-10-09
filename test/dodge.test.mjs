@@ -30,6 +30,9 @@ import { enemyShotAt } from '../src/game/enemyshots.js';
 import { makeEnemy, aimProgress, blastRadius, isAiming, isLocking, isLunging, isSpitting } from '../src/game/kinds.js';
 import { bossOnTheField, scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { armedCount, bossPhase, gapAngle } from '../src/game/bosses.js';
+import {
+  armArc, armCount, armHalf, armStep, bossCores,
+} from '../src/game/bosses.js';
 import { SKILL, escapeDirection } from '../tools/headless/threats.js';
 
 const STEP = BALANCE.sim.step;
@@ -605,4 +608,113 @@ test('a door a boss is lighting is a place the bot wants to stand', () => {
   place(gapAngle(boss));
   const calm = escapeDirection(field);
   assert.ok(calm.pressure < 0.01, 'a ship standing in the door was being shoved: ' + calm.pressure);
+});
+
+// ---------------------------------------------------------------------------
+// The Eclipse's last phase (PLAN 3.4): a fan of blades shown as a wedge and then swept down it. A
+// wedge is a new shape for the bot - there is no side of it to step off - so it gets its own three
+// claims: leave it, and if you cannot, dive under it, and if neither fan nor blade is near you then
+// nobody is asking anything of you at all.
+
+const SWEEP = BALANCE.bosses.eclipse.phases[2].sweep;
+
+/**
+ * The Eclipse with a fan lit, parked in the middle of an empty arena with the ship 300 px out on
+ * `bearing`. Everything the three claims below need is a bearing and a countdown.
+ */
+function underAFan() {
+  const field = parked();
+  const boss = bossOnTheField(2);
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (bossPhase(boss) < 3 && guard++ < 3000) stepTheWorld();
+  assert.equal(bossPhase(boss), 3, 'the last phase never opened');
+  guard = 0;
+  while (armCount(boss) === 0 && guard++ < 3000) stepTheWorld();
+  assert.ok(armCount(boss) > 0, 'the last phase never lit a fan');
+
+  const enemy = boss.enemy;
+  enemy.x = C.x; enemy.y = C.y; enemy.px = C.x; enemy.py = C.y;
+  field.enemies.length = 0;               // the ask on trial is the fan's and nobody else's
+  return { field: field, boss: boss, enemy: enemy };
+}
+
+/** Put the ship on a bearing from the fight and hold it still. */
+function onABearing(ship, from, bearing, dist) {
+  ship.x = from.x + Math.cos(bearing) * dist;
+  ship.y = from.y + Math.sin(bearing) * dist;
+  ship.px = ship.x; ship.py = ship.y;
+}
+
+test('a fan a boss is lighting is a place the bot leaves', () => {
+  const scene = underAFan();
+  const boss = scene.boss;
+  const core = bossCores(boss).find((c) => c.enemy.hp > 0);
+  const mid = core.angle + armArc(boss) / 2;            // the first fan, dead centre
+  const ship = scene.field.player;
+  onABearing(ship, scene.enemy, mid, 300);
+
+  const out = { x: (ship.x - C.x) / 300, y: (ship.y - C.y) / 300 };
+  const want = escapeDirection(scene.field);
+  const round = Math.abs(-want.x * out.y + want.y * out.x);
+  const along = want.x * out.x + want.y * out.y;
+
+  assert.ok(want.pressure > 0.5, 'a ship dead centre in a fan was told nothing: ' + want.pressure);
+  assert.ok(round > 0.5, 'it did not start going round out of the fan: ' + JSON.stringify(want));
+  assert.ok(Math.abs(along) < 0.4, 'it ran in or out, which is not how you leave a wedge');
+});
+
+test('a fan there is no time left to leave is one the bot dives under', () => {
+  // A blade starts at the rim of the body it came out of and never nearer (game/arms.js), so the one
+  // place inside a fan's arc that is safe is inside that rim. With a tenth of a second left there is
+  // no getting round the edge of a wedge this wide from this far out, and the honest answer is in.
+  const scene = underAFan();
+  const boss = scene.boss;
+  const core = bossCores(boss).find((c) => c.enemy.hp > 0);
+  const ship = scene.field.player;
+  onABearing(ship, scene.enemy, core.angle + armArc(boss) / 2, 300);
+  boss.timer = 0.1;
+
+  const out = { x: (ship.x - C.x) / 300, y: (ship.y - C.y) / 300 };
+  const want = escapeDirection(scene.field);
+  const inward = -(want.x * out.x + want.y * out.y);
+  assert.ok(inward > 0.5, 'with no time left it did not dive inside the rim: ' + JSON.stringify(want));
+});
+
+test('a ship in the clear between two fans is left alone', () => {
+  const scene = underAFan();
+  const boss = scene.boss;
+  const core = bossCores(boss).find((c) => c.enemy.hp > 0);
+  const ship = scene.field.player;
+  // The middle of the gap between the first fan and the second, which is what the whole of the
+  // fairness of `sweep.arms` is about (test/arms.test.mjs).
+  onABearing(ship, scene.enemy,
+    core.angle + armArc(boss) + (armStep(boss) - armArc(boss)) / 2, 300);
+
+  const calm = escapeDirection(scene.field);
+  assert.ok(calm.pressure < 0.01,
+    'a ship standing in the clear was being shoved: ' + calm.pressure);
+});
+
+test('a blade already loose is a band the bot steps off', () => {
+  const field = parked();
+  const boss = bossOnTheField(2);
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (field.arms.count === 0 && guard++ < 4000) stepTheWorld();
+  assert.ok(field.arms.count > 0, 'no blade was ever loosed');
+  field.enemies.length = 0;
+
+  const arm = field.arms.items[0];
+  const ship = field.player;
+  onABearing(ship, arm, arm.angle, 300);          // standing on the axis, which is where it hurts
+
+  const axis = { x: arm.dirX, y: arm.dirY };
+  const want = escapeDirection(field);
+  const along = want.x * axis.x + want.y * axis.y;
+  const round = Math.abs(-want.x * axis.y + want.y * axis.x);
+  assert.ok(want.pressure > 0.5, 'a ship standing in a blade was told nothing: ' + want.pressure);
+  assert.ok(round > 0.5, 'it did not step off the blade: ' + JSON.stringify(want));
+  assert.ok(Math.abs(along) < 0.4, 'it ran along the blade, which is the wrong way off a band');
+  assert.ok(arm.half > 0);
 });

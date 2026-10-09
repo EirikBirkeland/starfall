@@ -16,6 +16,7 @@ import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
 import { resetBeams } from './beams.js';
+import { resetArms } from './arms.js';
 import { resetLance } from './lance.js';
 import { resetFires } from './burn.js';
 import { resetLeech } from './leech.js';
@@ -62,6 +63,10 @@ export function resetRun(world) {
   resetArc(world);
   // And every beam a sniper had still been glowing with (game/beams.js).
   resetBeams(world);
+  // And every blade a boss had still been sweeping (game/arms.js). A sweep is under a second long, so
+  // this is nearly always nothing - but a run can end with one travelling, and a blade left standing
+  // in the arena would take a hull off the next one for a fight it never fought.
+  resetArms(world);
   // And whatever the lance of the last run was wound up to do (game/lance.js) - both the light it
   // left and a beam that was still being aimed, which would otherwise go off for a ship that has
   // already been rebuilt at the middle of the arena.

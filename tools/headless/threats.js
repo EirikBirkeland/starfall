@@ -42,6 +42,7 @@ import { TAU } from '../../src/core/math.js';
 import {
   armedCount, gapAngle, gapHalf, gapProgress,
   spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep,
+  armArc, armCount, armProgress, armReach, armStep, bossCores,
 } from '../../src/game/bosses.js';
 
 /**
@@ -89,6 +90,13 @@ export const SKILL = {
   // spoke, which is the whole point of a fight with two attacks in it.
   gapRoom: 0.75,
   gapWeight: 3,
+  // A boss's fan of blades (game/arms.js): what share of a fan's half-arc still counts as being in
+  // it, how many px/s the bot reckons it can slide sideways, and the clearance it insists on before
+  // it will drop inside a blade's root at all. See `outOfTheFans`.
+  fanEdge: 0.9,
+  fanSlide: 300,
+  duckRoom: 16,
+  fanWeight: 3.2,
   blastRoom: 40,
   blastWeight: 1,
   wallRoom: 130,
@@ -340,6 +348,71 @@ function dodgeBoss(world, avoid) {
   }
 
   intoTheDoor(world, avoid, boss);
+  outOfTheFans(world, avoid, boss);
+}
+
+/**
+ * The fans a fight is promising and the blades it has let go of (game/bosses.js `showArms`,
+ * game/arms.js).
+ *
+ * A fan is a *wedge*, which is why it is not the spoke's `lineThreat`: there is no side to step off
+ * a thing that travels the whole of the way it was shown. There are two answers and this chooses
+ * between them by arithmetic and not by hope. If there is time to slide round past the edge, it
+ * slides; if there is not, it goes *in*, inside the rim the blades start from, which is the one place
+ * in the room a blade can never reach - the same hole in the promise the frame shows by leaving the
+ * middle of the room unlit. Which one a fan gets is decided by how far there is to slide, how far
+ * there is to fall and how many seconds the fight has left before it lets go.
+ *
+ * A blade already loose is the spoke's ask again - get off the band - and it is worth asking even
+ * though the fan asked first, because the ship may have wandered into a sweep promised somewhere
+ * else, and a blade outlives the fight that loosed it.
+ */
+function outOfTheFans(world, avoid, boss) {
+  const ship = world.player;
+  const count = armCount(boss);
+
+  if (count > 0) {
+    const arc = armArc(boss);
+    const step = armStep(boss);
+    const reach = armReach(boss);
+    const left = Math.max(0, boss.timer);
+    const shout = armProgress(boss);
+
+    for (const core of bossCores(boss)) {
+      const body = core.enemy;
+      if (body.hp <= 0) continue;
+      const dx = ship.x - body.x;
+      const dy = ship.y - body.y;
+      const dist = Math.hypot(dx, dy);
+      // Past the tip there is nothing to answer, and inside the rim the blades start from there is
+      // nothing to answer either - that is the whole of the dodge, and the reason not to panic in it.
+      if (dist <= body.r + ship.r || dist > reach) continue;
+
+      const urgency = SKILL.idleWeight + (1 - SKILL.idleWeight) * shout;
+      for (let i = 0; i < count; i++) {
+        const off = fold(Math.atan2(dy, dx) - (core.angle + i * step + arc / 2));
+        if (Math.abs(off) > arc / 2 * SKILL.fanEdge) continue;
+
+        const side = off > 0 ? 1 : -1;
+        const toEdge = (arc / 2 - Math.abs(off)) * dist;
+        const canSlide = toEdge <= SKILL.fanSlide * left;
+        const canDuck = dist - (body.r + ship.r) > SKILL.duckRoom;
+        if (canSlide || !canDuck) {
+          addPush(avoid, dy / dist * side, -dx / dist * side, SKILL.fanWeight * urgency);
+        } else {
+          addPush(avoid, -dx / dist, -dy / dist, SKILL.fanWeight * urgency);
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < world.arms.count; i++) {
+    const arm = world.arms.items[i];
+    const room = arm.half + ship.r + SKILL.beamRoom;
+    lineThreat(world, avoid,
+      { x: arm.x, y: arm.y, dirX: arm.dirX, dirY: arm.dirY, reach: arm.reach },
+      room, room + SKILL.beamClear, 0, SKILL.fanWeight);
+  }
 }
 
 /**

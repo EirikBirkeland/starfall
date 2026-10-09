@@ -10,6 +10,7 @@ import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
 import { drawCage } from './boss.js';
+import { drawArmFans, drawBlades } from './arms.js';
 import { drawDarkness } from './darkness.js';
 import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawBossLocks, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
@@ -94,6 +95,10 @@ export function renderFrame(tick, input, pointer) {
     // And under it for the same reason a third time: a boss's spokes are bands across the whole
     // room and nothing standing in the middle of one may hide it (game/bosses.js).
     if (world.boss !== null) drawBossLocks(ctx, world.boss, tick.alpha);
+    // And the fans of blades a fight is promising, for the same reason and in the same place: a fan
+    // is a place on the floor the harm is going to travel across, and nothing standing in the way of
+    // it may hide it (game/arms.js).
+    if (world.boss !== null) drawArmFans(ctx, world.boss, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     // Over the crowd and under the ship: a fire is on the body it is eating, and the one
     // thing it must never do is hide the ship behind somebody else's flames (game/burn.js).
@@ -105,6 +110,9 @@ export function renderFrame(tick, input, pointer) {
     // Under the ship for the same reason: a beam is the loudest light in the arena for a
     // fifth of a second and the ship must never be lost inside it (PLAN section 1).
     drawBeams(ctx);
+    // Over the crowd and under the ship, like the beams: a blade is the loudest thing about to hurt
+    // the hull and must never be the thing the ship is lost inside (game/arms.js).
+    drawBlades(ctx, world.arms, tick.alpha);
     // Under the ship for the same reason, and over the crowd on purpose: a lance's band is where the
     // hull came off, and the ship must never be lost inside the light of its own gun
     // (game/lance.js).

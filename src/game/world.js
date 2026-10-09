@@ -15,6 +15,7 @@ import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
 import { updateBeams, makeBeam } from './beams.js';
+import { updateArms, makeArm } from './arms.js';
 import { newLance, updateLance } from './lance.js';
 import { updateBurn, makeFire } from './burn.js';
 import { updateLeech, newLeech } from './leech.js';
@@ -162,6 +163,11 @@ function createWorld() {
     // is a record of a flash that has already happened - the light is born having hurt
     // everything standing on it - and all that is left for it to do is fade.
     beams: new Pool(makeBeam),
+    // The blades a boss has loosed (game/arms.js): a sweep is a place the fight is holding and not
+    // a flash that already happened, so each one has its own turn to spend and its own step to be
+    // hurt on. Pooled and unordered like everything else that has to be many - no two blades care
+    // about each other, and nothing reads them in order.
+    arms: new Pool(makeArm),
     // The orbital ring (game/orbitals.js): the angle it has turned to and the drones
     // standing on it, kept exactly as long as the line's rank. A plain array and not a
     // pool because a drone's place in the list *is* its place on the ring.
@@ -313,6 +319,10 @@ function stepRun(dt, input) {
   // First of the things that hurt the crowd afterwards, so a beam pays out where the
   // bodies ended up rather than where the collision grid last saw them (game/beams.js).
   if (!updateBeams(world, dt)) return;   // a beam ended the run
+  // And after that the blades, which turn where the crowd left off standing and are the last thing
+  // in the step that can take a hull off the ship before the fight itself is stepped
+  // (game/arms.js).
+  if (!updateArms(world, dt)) return;   // a blade ended the run
   // Last of the things that hurt the crowd, so a drone bites where a body ended up after
   // walking rather than where the collision grid last saw it (game/orbitals.js).
   updateOrbitals(world, dt);
