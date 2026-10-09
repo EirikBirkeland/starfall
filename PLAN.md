@@ -362,6 +362,10 @@ kill 1000 in one run, find every synergy, and so on. Each gives a little stardus
 - Particles: sparks on hit, debris and a shockwave ring on death, thruster trail behind the player,
   shard sparkle, dash streak. Larger enemies leave more.
 - Screen shake with a trauma value that decays, so many small hits add up and fade smoothly.
+  (Milestone 6 put a gate on this on the owner's asking - it is spent on a boss, a hit on the
+  ship and the end of a run, and on nothing else, because a window that moves all run makes a
+  player sick. `BALANCE.screen` says who may shake, `test/shake-policy.test.mjs` holds it, and
+  `tools/shake-meter.js` measures what a run cost. The trauma model below is unchanged.)
 - Hit-stop: freeze the simulation for 40 ms on big kills and 90 ms when the player is hit.
 - Enemies flash white for 60 ms when damaged.
 - Damage numbers float up and fade; critical hits are bigger and gold. They can be switched off in settings.

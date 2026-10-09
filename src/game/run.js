@@ -223,7 +223,9 @@ export function winRun(world) {
   ring(world, ship.x, ship.y, PALETTE.white, spec.ring.radius, spec.ring.speed, spec.ring.life);
   ring(world, ship.x, ship.y, PALETTE.elite, spec.wideRing.radius, spec.wideRing.speed,
     spec.wideRing.life);
-  shakeIt(world, spec.shake);
+  // No shake of its own: the last fight coming down is what shakes this moment, and the room is
+  // held to a ceiling that a second source on the same step would only eat (game/balance.js
+  // `victory`, and test/shake-policy.test.mjs for the ceiling).
   cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
 }
 
@@ -232,13 +234,28 @@ export function winRun(world) {
  * the only thing that says the win is over: until it is, the run is still holding still in front
  * of an arena nobody has been told about yet.
  *
- * The frame asks this to know when to put the card on the glass, and `canStartRun` asks it to
- * know when the player is allowed to be somewhere else - one number, one answer, so the card and
- * the key that dismisses it cannot come apart. It is also the whole of what `continueRun` will
- * accept: the card is up, or the run is not finished being won.
+ * The frame asks this to know when to put the card on the glass. `victoryCardIsAnswerable` below
+ * is the same question asked a few seconds later, and it is what `canStartRun` and `continueRun`
+ * ask: one clock behind both, so the card and the keys that dismiss it cannot come apart.
  */
 export function victoryCardIsUp(world) {
   return world.state === STATE.WON && world.overTimer > BALANCE.victory.hush;
+}
+
+/**
+ * The card has been up long enough to have been read, and so may be answered.
+ *
+ * This is the only moment a won run can be left, and it is the whole of the answer for both of
+ * the ways it can be left - kept flying (`continueRun`) and traded for a new one
+ * (`canStartRun`) - so that a player cannot click past the ending before it has been an ending
+ * (game/balance.js `victory.guard`, and BUG_REPORT_README for the complaint that wrote it).
+ *
+ * It implies `victoryCardIsUp`: the guard is longer than the hush, and a test holds that, so
+ * "answerable" never means a card that was never painted. One clock, `world.overTimer`, is
+ * behind both questions; there is no second timer to fall out of step with the first.
+ */
+export function victoryCardIsAnswerable(world) {
+  return world.state === STATE.WON && world.overTimer > BALANCE.victory.guard;
 }
 
 /**
@@ -254,11 +271,12 @@ export function victoryCardIsUp(world) {
  * (game/bosses.js), so what comes out of the dark from here is the wave director and nobody else.
  * What goes on scaling from here is `BALANCE.endless`'s business, and the next session's.
  *
- * Answers false for a world this does not apply to - a run that is flying, a wreck, a won run whose
- * card is not up yet - so the frame can ask one question and get one answer.
+ * Answers false for a world this does not apply to - a run that is flying, a wreck, a won run
+ * whose card is not up yet, and a won run whose card has not been up long enough to have been
+ * read - so the frame can ask one question and get one answer.
  */
 export function continueRun(world) {
-  if (!victoryCardIsUp(world)) return false;
+  if (!victoryCardIsAnswerable(world)) return false;
 
   const spec = BALANCE.endless;
   const ship = world.player;
@@ -286,8 +304,9 @@ export function continueRun(world) {
 export function canStartRun(world) {
   if (world.state === STATE.START) return true;
   if (world.state === STATE.OVER) return world.overTimer > BALANCE.runOver.restartGuard;
-  // A won run cannot be left before its card is up. The hush is not a guard to wait out on the
-  // way to somewhere else; it is the win happening, and the card is what ends it.
-  if (world.state === STATE.WON) return victoryCardIsUp(world);
+  // A won run cannot be left before its card has been up long enough to read. The hush is not a
+  // guard to wait out on the way to somewhere else; it is the win happening, and the guard after
+  // it is the part where the player is being told something and should not be interrupted.
+  if (world.state === STATE.WON) return victoryCardIsAnswerable(world);
   return false;
 }

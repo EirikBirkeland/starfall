@@ -190,9 +190,11 @@
   <div class="cleared" id="winCleared"></div>
   <div class="stats" id="winStats"></div>
   <div class="build" id="winBuild"></div>
-  <!-- Two keys, because the win's card is a door back into the run and not only out of it: the launch
-       key hands this one back to fly on (game/run.js `continueRun`), and R asks for a new one. -->
-  <div class="hint">PRESS SPACE TO KEEP FLYING &#183; R FOR A NEW RUN</div>
+  <!-- The invitation arrives when it becomes true. The card goes up on the hush and spends the
+       rest of the guard unreadable-but-visible (game/run.js `victoryCardIsAnswerable`), and a line
+       saying "press" while the game is refusing every press would be the one thing the guard was
+       asked to stop. -->
+  <div class="hint hidden" id="winHint">PRESS SPACE TO KEEP FLYING &#183; R FOR A NEW RUN</div>
 </div>
 
 <script type="module" src="src/main.js"></script>

@@ -220,6 +220,7 @@ const ELEMENT_IDS = [
   'finalBuild', 'shipRow',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
+  'winHint',
 ];
 
 /**
@@ -287,8 +288,9 @@ export async function bootGame(options) {
   const elements = {};
   for (const id of ELEMENT_IDS) {
     // Which screens start out hidden is in the markup, and the stub says the same thing the
-    // browser does: the title is up and both of the cards a run ends on are not.
-    const startsHidden = id === 'overScreen' || id === 'winScreen';
+    // browser does: the title is up and both of the cards a run ends on are not - and so is the
+    // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`).
+    const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -503,6 +505,8 @@ export async function bootGame(options) {
         winStats: elements.winStats.textContent,
         winBuild: elements.winBuild.textContent,
         winNewBestShown: !elements.winNewBest.classList.contains('hidden'),
+        // And the line of keys on it, which is hidden until the guard is spent.
+        winHintShown: !elements.winHint.classList.contains('hidden'),
         // The title's ships, as the player reads them: one line each, naming the ship and
         // the gun it brings, and which one is lit up (game/ships.js is what they are built
         // from).

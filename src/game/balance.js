@@ -88,7 +88,10 @@ export const BALANCE = {
       // How long the wait is belongs to the ship (see `dashCooldown` on the rows in
       // `ships` below): one ship's whole idea is a dash that comes back quick, and a
       // number it pays for cannot live in the part of the table everybody shares.
-      shake: 2.5,             // a flick of trauma, so it is felt as well as seen
+      // None. A dash is spent a dozen times a run and the window is not moved a dozen
+      // times a run (`screen`, above); the streak, the start burst and the whoosh are what
+      // say it happened.
+      shake: 0,
       // The crowd is shouldered out of the way as the dash goes through it, which
       // is also what makes a dash that ends inside a mob end somewhere you can
       // stand. Radius is measured from the ship's body plus the enemy's own.
@@ -509,7 +512,9 @@ export const BALANCE = {
         // it, and the small stop that says the gun is heavy. PLAN section 4's hit-stop is for the
         // big events and a lance going off down a loaded column is one.
         flash: { count: 12, speed: 260, life: 0.2, ring: { radius: 10, speed: 520, life: 0.24 } },
-        shake: 5,
+        // None, and the hit-stop below is what carries the weight instead: a primary that
+        // moved the window every pull would move it the whole run (`screen`, above).
+        shake: 0,
         hitStop: 0.03,
         // The wind-up is heard as well as seen: one rising note, started at the trigger and ending
         // when the gun does, which is the whole clock of the thing in one sound. `dur` is the
@@ -616,9 +621,10 @@ export const BALANCE = {
           shove: 90,
           ring: { radius: 8, speed: 240, life: 0.18 },
           flash: { count: 6, speed: 150, life: 0.16 },
-          // Barely felt. Three of these a second is a drumroll of small shocks and a shake of four
-          // would be seasick; a bomber's is four and a nova front's is four.
-          shake: 0.8,
+          // None. Three of these a second is a drumroll of small shocks, and a drumroll of
+          // small shocks is exactly what filled the screen with jitter (`screen`, above).
+          // The ring, the flash and the crack are the whole of a landing now.
+          shake: 0,
           // One small crack per missile that lands, and quieter than the gun's own report, because
           // on a crowd this fires about twice as often as anything else in the game (audio/mix.js).
           sound: { freq: 220, dur: 0.1, wave: 'square', vol: 0.028, slide: 60 },
@@ -759,7 +765,9 @@ export const BALANCE = {
       // `hitStop` marks a kill big enough to stop the run for: the seconds the
       // whole world holds still when this kind goes down (PLAN section 4). A
       // kind that does not ask for one is simply not a big enough event.
-      death: { particles: 30, speed: 340, debris: 14, debrisSpeed: 200, ringSpeed: 420, shake: 6, hitStop: 0.04 },
+      // `shake: 0` because a tank is one body among forty and the window is not moved for
+      // it (`screen`, above); the hit-stop is what says a tank went down.
+      death: { particles: 30, speed: 340, debris: 14, debrisSpeed: 200, ringSpeed: 420, shake: 0, hitStop: 0.04 },
       sound: { freq: 130, dur: 0.24 },
     },
     bomber: {
@@ -787,7 +795,10 @@ export const BALANCE = {
         shove: 260,          // the blast throws the crowd outwards as it goes
         ring: { radius: 12, speed: 760, life: 0.32 },
         flash: { count: 24, speed: 420, life: 0.4 },
-        shake: 9,
+        // None. A bomber goes down several times a wave and this was the loudest of the
+        // routine shakes (`screen`, above). The blast still stops the run and throws the
+        // crowd; it just does not throw the window with it.
+        shake: 0,
         hitStop: 0.05,
         sound: { freq: 84, dur: 0.4, wave: 'sawtooth', vol: 0.16, slide: 34 },
       },
@@ -846,7 +857,10 @@ export const BALANCE = {
         collapse: {
           ring: { radius: 150, speed: -520, life: 0.3 },
           burst: { count: 26, speed: 300, life: 0.5 },
-          shake: 4,
+          // None, for the same reason as the blast above: a field going out is a thing that
+          // happens a dozen times a run (`screen`, above). It is the ring running inwards
+          // that says it, and that one is painted.
+          shake: 0,
           sound: { freq: 320, dur: 0.34, wave: 'triangle', vol: 0.06, slide: 70 },
         },
         // The sound of a hit that never reached the hull.
@@ -961,7 +975,9 @@ export const BALANCE = {
           // An axis through the eye: the beam hurts both ways along the line it locked,
           // which is what a sniper aiming through itself means (game/beams.js).
           through: true,
-          shake: 7, hitStop: 0.04,
+          // No trauma: a sniper firing is routine, and the beam is 0.3 s of the loudest
+          // thing a body can be shown coming (`screen`, above).
+          shake: 0, hitStop: 0.04,
           flare: { count: 26, speed: 460, life: 0.3 },
           cut: { count: 4, speed: 240, life: 0.24, spread: 0.5 },
           sound: { freq: 1700, dur: 0.3, wave: 'square', vol: 0.1, slide: 90 },
@@ -973,7 +989,7 @@ export const BALANCE = {
           sound: { freq: 120, dur: 0.34, wave: 'triangle', vol: 0.07, slide: 62 },
         },
       },
-      death: { particles: 24, speed: 300, debris: 10, debrisSpeed: 210, shake: 5 },
+      death: { particles: 24, speed: 300, debris: 10, debrisSpeed: 210, shake: 0 },
       sound: { freq: 150, dur: 0.22 },
     },
   },
@@ -2161,7 +2177,10 @@ export const BALANCE = {
       // cross forty bodies in a step, and forty notes at this volume in one frame is the shape
       // of a frame the budget was written for (audio/mix.js).
       sound: { freq: 150, dur: 0.28, wave: 'triangle', vol: 0.1, slide: 48 },
-      shake: 4,
+      // None: at the top of the line a nova front crosses the arena every second or so,
+      // and the window is not moved that often (`screen`, above). The front itself is the
+      // thing you watch.
+      shake: 0,
     },
     burn: {
       ranks: 5,
@@ -2557,8 +2576,9 @@ export const BALANCE = {
       // a voice is priced for as long as it sounds (audio/mix.js). It falls rather than rises: the
       // shard pickup above slides *up* with a streak, and this is the pickup spent.
       sound: { freq: 1420, dur: 0.07, wave: 'triangle', vol: 0.02, slide: 430 },
-      // Barely a shake. A nova is one event every few seconds and gets four; this is a metronome.
-      shake: 1.2,
+      // None. A nova was one event every few seconds and this was a metronome, which is
+      // the sound a headache is made of (`screen`, above).
+      shake: 0,
       // And what the whole line is worth, which the ladder cannot say: `tools/power-ladder.js
       // --line magnetar` prints 1.00x, not because the line is weak but because its knot is pinned
       // in place and nothing in it ever dies, so nothing is ever dropped and nothing is ever
@@ -2689,7 +2709,9 @@ export const BALANCE = {
         ring: { radius: 12, speed: 360, life: 0.3 },
         flash: { count: 16, speed: 380, life: 0.34 },
         bite: { count: 3, speed: 170, life: 0.2, spread: 0.8 },
-        shake: 6,
+        // None: mines go off on their own all run, and a mine that moved the window every
+        // time it went off would move it continuously (`screen`, above).
+        shake: 0,
         sound: { freq: 96, dur: 0.32, wave: 'sawtooth', vol: 0.14, slide: 40 },
       },
     },
@@ -3093,7 +3115,13 @@ export const BALANCE = {
     flashSparks: { count: 12, speed: 200, life: 0.5 },
     ring: { radius: 8, speed: 420, life: 0.5 },
     sound: { freq: 150, dur: 0.3, wave: 'sawtooth', vol: 0.2, slide: 60 },
-    shake: 15,
+    // The one thing outside a boss and the end of a run that is allowed to move the
+    // window, and it is allowed because it is never routine noise: the ship itself being
+    // hurt is the event a player has to feel, and it is the only one of the ordinary ones
+    // that a run cannot keep happening to without it meaning something (`screen`, above).
+    // A third of what it was, and less than a boss's arrival, so that a boss is still the
+    // loudest thing in the room.
+    shake: 5,
   },
 
   runStart: {
@@ -3108,7 +3136,9 @@ export const BALANCE = {
     smallBurst: { count: 30, speed: 260, life: 0.9 },
     debris: { count: 12, speed: 240 },
     ring: { radius: 6, speed: 520, life: 0.75 },
-    shake: 24,
+    // The end of a run, which is the loudest thing that happens to you and is now held to
+    // the ceiling rather than being allowed past it (`screen`, above).
+    shake: 18,
     sound: { notes: [520, 392, 262], dur: 0.32, wave: 'sawtooth', vol: 0.16 },
   },
 
@@ -3121,6 +3151,15 @@ export const BALANCE = {
     // its tail is the second half. A card on the same frame as the kill is a cut, and a card two
     // seconds late is a wait - this is the difference between the two.
     hush: 1.6,
+    // How long the win answers to nothing at all, counted from the moment the run ended: no key,
+    // no click, neither of the two things its card will do (game/run.js `victoryCardIsAnswerable`).
+    // The hush alone could not do this - the card arrives at 1.6 s so that it lands on the tail of
+    // the going-down chord, and a player still holding the key that killed the last boss would
+    // spend it before the words had drawn, which is the complaint this row exists to answer
+    // (BUG_REPORT_README: "if the user clicks a button, the final screen is gone ... disable user
+    // input for 5 seconds after game completion"). It is not a wait on the card: the card is up
+    // from the hush and this is three and a half seconds of reading it.
+    guard: 5,
     // The win's own noise, written to sit *on top of* that going-down chord and not after it: the
     // boss's is a C-major arpeggio and this is the same shape an octave open above it, so the two
     // together are one fanfare rather than two arguments. There is deliberately no second cue
@@ -3128,12 +3167,15 @@ export const BALANCE = {
     // business knowing when a card goes up.
     sound: { notes: [784, 1046, 1318, 1568], dur: 1.8, wave: 'triangle', vol: 0.12 },
     // Three things out of the ship, which is where the win happened: the shape a death makes (a
-    // burst, two rings, a shudder) in the colours a win wears - the ship's own cyan, white, and the
+    // burst and two rings) in the colours a win wears - the ship's own cyan, white, and the
     // gold a reward is written in.
     burst: { count: 70, speed: 520, life: 1.1 },
     ring: { radius: 10, speed: 760, life: 0.9 },
     wideRing: { radius: 34, speed: 300, life: 1.4 },
-    shake: 16,
+    // No trauma of its own. The last fight coming down is the shake of this moment - the Eclipse's
+    // own going-down is 17 of the 18 the room is held to, and the win lands on the same step - so a
+    // second shake here would be a number the ceiling quietly ate, and a row nobody can measure is a
+    // row nobody can keep. The win's own half of the moment is light and sound.
   },
 
   // Endless mode (PLAN 3.4: "Endless mode then continues with all values scaling for as long as
@@ -3187,8 +3229,32 @@ export const BALANCE = {
     textCap: 40,
   },
 
+  // Who is allowed to move the window. The owner's rule, as numbers: the room is shaken
+  // *extraordinarily* and not otherwise - a boss, a hit on the ship, the end of a run, and
+  // nothing between (BUG_REPORT_README). Before that was written down, a ten-minute run spent
+  // 30% of its frames with the room moving, 19% of them visibly rolling, and the crowd was
+  // shaking the window harder than a boss was - mean 1.73 px of trauma among the crowd against
+  // 0.9 px through a whole fight (tools/shake-meter.js, NOTES session 66).
+  //
+  // So every `shake:` row in this table outside `bosses`, `playerHit`, `runOver` and
+  // `victory` is 0, and test/shake-policy.test.mjs walks the table and keeps it that way.
+  // What used to shake says what it did some other way: hit-stop, a ring, sparks, a voice.
   screen: {
-    shakeCap: 30,
+    // Trauma below this does not move the window at all (render/renderer.js `shakeOffset`).
+    // It is the floor the stillness is measured against in tools/shake-meter.js, which is
+    // the reason it lives here and not next to the painter: an instrument has to read the
+    // same number the thing it measures does.
+    shakeFloor: 0.1,
+    // How much trauma it takes for the room to be *visibly* travelling rather than
+    // trembling - the amount a player would point at and call "it's shaking". Nothing in
+    // the simulation reads this; the meter reports the share of a run spent above it, and
+    // that share is the one that costs a player their evening.
+    shakeNotice: 3,
+    // The loudest the window is ever moved, in px. This used to be 30 and it used to be
+    // reached by a crowd wiping out around the ship; the ceiling now belongs to the
+    // biggest things in the game - a boss coming down (17) and a run's own wreck - and an
+    // ordinary nothing can reach it no more.
+    shakeCap: 18,
     shakeDecay: 34,
   },
 

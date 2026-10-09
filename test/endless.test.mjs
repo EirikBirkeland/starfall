@@ -26,7 +26,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { PALETTE } from '../src/core/palette.js';
 import { STATE } from '../src/game/state.js';
 import {
-  canStartRun, continueRun, endRun, startRun, victoryCardIsUp,
+  canStartRun, continueRun, endRun, startRun, victoryCardIsAnswerable, victoryCardIsUp,
 } from '../src/game/run.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { drainCues, clearCues } from '../src/game/cues.js';
@@ -36,6 +36,7 @@ const STEP = BALANCE.sim.step;
 const SCHEDULE = BALANCE.bosses.schedule;
 const LAST = SCHEDULE.length - 1;
 const HUSH = BALANCE.victory.hush;
+const GUARD = BALANCE.victory.guard;
 const GRACE = BALANCE.endless.resumeInvulnerability;
 
 let field = null;
@@ -76,11 +77,17 @@ function winTheRun() {
   return field;
 }
 
-/** Step out the hush, so the card is up and the run may be handed back. */
-function waitOutOfHush() {
+/**
+ * Step out the whole of the ending: the hush the card arrives on, and the guard after it during
+ * which the game answers to nothing at all. The hand-back waits on the guard and not the hush,
+ * because a card that can be clicked away before it is read has not been shown (game/run.js
+ * `victoryCardIsAnswerable`).
+ */
+function waitOutOfTheGuard() {
   let waited = 0;
-  while (!victoryCardIsUp(field) && waited < HUSH + 1) waited += step();
-  assert.ok(victoryCardIsUp(field), 'the card never came up');
+  while (!victoryCardIsAnswerable(field) && waited < GUARD + 1) waited += step();
+  assert.ok(victoryCardIsAnswerable(field), 'the card never became answerable');
+  assert.ok(victoryCardIsUp(field), 'and it is still the card that was up while it was waited out');
   return waited;
 }
 
@@ -130,12 +137,20 @@ test('a run that has not been won cannot be handed back', () => {
 
 test('a won run is ready to be handed back when its card is, and not before', () => {
   winTheRun();
-  // The card is the hand-back: before it is up the run is still finishing being won, and one number
-  // holds both doors (game/run.js `victoryCardIsUp`).
+  // The card is the hand-back: on the step the fight came down the run is still finishing being
+  // won, and one clock holds both doors (game/run.js `victoryCardIsAnswerable`).
   assert.equal(continueRun(field), false, 'on the step the fight came down');
   assert.equal(field.state, STATE.WON);
-  waitOutOfHush();
-  assert.equal(continueRun(field), true, 'and as soon as the card is up, it can be');
+
+  let waited = 0;
+  while (!victoryCardIsUp(field) && waited < HUSH + 1) waited += step();
+  assert.ok(victoryCardIsUp(field), 'the card never came up');
+  assert.equal(continueRun(field), false,
+    'and the card being up is not yet an answer: the guard is ' + GUARD + 's from the win');
+
+  while (!victoryCardIsAnswerable(field) && waited < GUARD + 1) waited += step();
+  assert.ok(victoryCardIsAnswerable(field), 'the guard never went away');
+  assert.equal(continueRun(field), true, 'and from there the run can be handed back');
   assert.equal(continueRun(field), false, 'once, and only once: a run flying again is not handed back');
 });
 
@@ -164,7 +179,7 @@ test('the run keeps everything it earned', () => {
     elapsed: field.elapsed,
     ranks: Object.assign({}, field.upgrades),
   };
-  waitOutOfHush();
+  waitOutOfTheGuard();
   assert.equal(continueRun(field), true);
 
   assert.equal(field.state, STATE.PLAY, 'the arena is running again');
@@ -186,7 +201,7 @@ test('the run keeps everything it earned', () => {
 
 test('a new run asked for over the card is new in every way, endless included', () => {
   winTheRun();
-  waitOutOfHush();
+  waitOutOfTheGuard();
   assert.equal(canStartRun(field), true, 'a won run can be left for a new one once the card is up');
   continueRun(field);
   assert.equal(field.endless, true);
@@ -198,7 +213,7 @@ test('a new run asked for over the card is new in every way, endless included', 
 
 test('the hand-back is a ring, a word and a chord, and nothing else', () => {
   winTheRun();
-  waitOutOfHush();
+  waitOutOfTheGuard();
   const spec = BALANCE.endless;
   const before = ringsIn(PALETTE.elite);
   clearCues();
@@ -223,7 +238,7 @@ test('the ship is given the moment the crowd was not', () => {
   enemyAt('drifter', ship.x, ship.y, 999);
   ship.invuln = 0;
   ship.hull = ship.maxHull;
-  waitOutOfHush();
+  waitOutOfTheGuard();
   assert.equal(ship.hull, ship.maxHull, 'and it took nothing for it while the run was won');
 
   assert.equal(continueRun(field), true);
@@ -237,7 +252,7 @@ test('the ship is given the moment the crowd was not', () => {
 
 test('the run runs: its clock, its director, and its danger', () => {
   winTheRun();
-  waitOutOfHush();
+  waitOutOfTheGuard();
   const ship = field.player;
   ship.invuln = Infinity;
   assert.equal(continueRun(field), true);
@@ -252,7 +267,7 @@ test('a run that went on can be lost, and its bigger score is the one kept', () 
   winTheRun();
   const wonScore = field.score;
   assert.equal(field.best, wonScore, 'the win banked what the run had when the schedule ran out');
-  waitOutOfHush();
+  waitOutOfTheGuard();
   const ship = field.player;
   assert.equal(continueRun(field), true);
 
@@ -279,7 +294,7 @@ test('a run that went on can be lost, and its bigger score is the one kept', () 
 
 test('nothing walks in after the last fight', () => {
   winTheRun();
-  waitOutOfHush();
+  waitOutOfTheGuard();
   const ship = field.player;
   ship.invuln = Infinity;
   assert.equal(continueRun(field), true);

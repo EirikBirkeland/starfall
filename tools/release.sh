@@ -58,6 +58,14 @@ if [ -f tools/simulate.js ]; then
   node tools/simulate.js >/dev/null
 fi
 
+if [ -f tools/shake-meter.js ]; then
+  # The owner's health rule, measured on two runs before the release goes out: the window is
+  # shaken extraordinarily and not otherwise (test/shake-policy.test.mjs holds the policy,
+  # this says what a real run did with it).
+  echo "Measuring how much the window moves..."
+  node tools/shake-meter.js --runs 2 --seconds 180 --need-still 95
+fi
+
 destination="releases/$tag"
 mkdir -p "$destination"
 for item in $playable_items; do

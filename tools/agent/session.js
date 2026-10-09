@@ -14,7 +14,7 @@
 
 import { STATE } from '../../src/game/state.js';
 import { BALANCE } from '../../src/game/balance.js';
-import { victoryCardIsUp } from '../../src/game/run.js';
+import { victoryCardIsAnswerable, victoryCardIsUp } from '../../src/game/run.js';
 import { WEAPONS, weaponName } from '../../src/game/weapons.js';
 import { LINES, banishedLines, effectOf, lineOf, maxRanksOf } from '../../src/game/upgrades.js';
 import {
@@ -324,10 +324,12 @@ export function createSession(game, options) {
     if (world.state === STATE.OVER) {
       out.restartIn = Math.max(0, +(BALANCE.runOver.restartGuard - world.overTimer).toFixed(2));
     }
-    // Over a win the wait is not the key guard but the card: the hush is what has to pass before
-    // the game will take somewhere else (game/run.js `victoryCardIsUp`).
+    // Over a win the wait is not the death's key guard but the card: the hush is what has to pass
+    // before the card goes up, and the guard after it is what has to pass before the game will
+    // take somewhere else at all (game/run.js `victoryCardIsAnswerable`). This reports the one
+    // that actually stops a press.
     if (world.state === STATE.WON) {
-      out.restartIn = Math.max(0, +(BALANCE.victory.hush - world.overTimer).toFixed(2));
+      out.restartIn = Math.max(0, +(BALANCE.victory.guard - world.overTimer).toFixed(2));
     }
     return out;
   }
@@ -524,9 +526,9 @@ export function createSession(game, options) {
 
   function start() {
     if (game.world.state === STATE.PLAY || game.world.state === STATE.LEVEL) refuse('a run is already flying');
-    // Over a won run whose card is up, Space no longer means "a new run": it hands that one back to
-    // fly on (game/run.js `continueRun`). This tool asks for a new one, so it says so rather than
-    // pressing a key that would quietly keep the old run and its score.
+    // Over a won run whose card is up, Space no longer means "a new run": it hands that one back
+    // to fly on (game/run.js `continueRun`). This tool asks for a new one, so it says so rather
+    // than pressing a key that would quietly keep the old run and its score.
     if (victoryCardIsUp(game.world)) {
       refuse('that run was won and its card is up: Space would keep it flying, not begin a new one');
     }
@@ -539,7 +541,9 @@ export function createSession(game, options) {
       const why = game.world.state === STATE.OVER
         ? '; it has only just ended, so let it be for ' + BALANCE.runOver.restartGuard + 's and try again'
         : game.world.state === STATE.WON
-          ? '; it was won, and its card has ' + BALANCE.victory.hush + 's of hush still on it'
+          ? '; it was won, and its card is not answerable yet - the hush is '
+            + BALANCE.victory.hush + 's and the guard after it '
+            + BALANCE.victory.guard + 's from the win (game/run.js `victoryCardIsAnswerable`)'
           : '';
       refuse('the game did not start' + why);
     }
@@ -576,11 +580,12 @@ export function createSession(game, options) {
         if (game.world.overTimer > BALANCE.runOver.restartGuard) break;
       }
       if (screen === 'won') {
-        // A won run has the same one business and a longer wait: the hush the card arrives on
-        // (game/run.js `winRun`). An agent that steps over a win would otherwise sit through the
-        // whole window watching an arena that has stopped.
+        // A won run has the same one business and a longer wait: the guard after the card, which
+        // is what has to pass before the game will take anywhere else at all (game/run.js
+        // `victoryCardIsAnswerable`). An agent that steps over a win would otherwise sit through
+        // the whole window watching an arena that has stopped.
         reason = 'won';
-        if (game.world.overTimer > BALANCE.victory.hush) break;
+        if (game.world.overTimer > BALANCE.victory.guard) break;
       }
     }
     return { advanced: +(run * FRAME_SECONDS).toFixed(2), reason: reason, status: status() };

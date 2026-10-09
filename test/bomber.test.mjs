@@ -184,14 +184,15 @@ test('a ship outside the circle, or a ship that cannot be hurt, pays nothing', (
   assert.equal(dasher.hull, dashing.field.player.hull, 'invulnerable means the blast missed');
 });
 
-test('a blast is a big enough event to stop the run for', () => {
+test('a blast stops the run for a moment, and stops there', () => {
   const { field, bomber } = parked(9, 1500, 1000);
   const itsOwn = STATS.death.particles + STATS.death.debris;    // the wreck every kind makes
 
   killEnemy(field, bomber, true);
 
   assert.equal(field.freeze, B.hitStop, 'hit-stop, PLAN section 4');
-  assert.ok(field.shake >= B.shake, 'and trauma: ' + field.shake.toFixed(1));
+  assert.equal(field.shake, 0,
+    'and no trauma: a bomber is a routine death and the window is only moved for a boss');
   assert.equal(field.particles.count, itsOwn + B.flash.count,
     'the corpse sprays its own mess and the blast adds its flash on top: ' + field.particles.count);
   assert.equal(field.rings.count, 2, 'one shockwave for the death and one for the blast');

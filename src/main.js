@@ -2,7 +2,7 @@
 // module that is allowed to know about all of them at once.
 
 import { world, stepWorld } from './game/world.js';
-import { startRun, resetRun, canStartRun, continueRun, victoryCardIsUp } from './game/run.js';
+import { startRun, resetRun, canStartRun, continueRun, victoryCardIsAnswerable, victoryCardIsUp } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
@@ -29,7 +29,7 @@ import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
-import { initScreens, hideScreens, showGameOver, showVictory, showShip } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -60,6 +60,9 @@ let seedIsPinned = false;
 // after the run is won, not on the step it is - so the frame loop is what has to remember that it
 // has happened once, and it forgets again the moment the world is on any other screen.
 let victoryCardShown = false;
+// Has the won run's card been told what its keys do yet? Same bargain as the one above: it happens
+// once, and it is forgotten the moment the world is on another screen.
+let winHintRevealed = false;
 
 /** Begin a new run, if the screen accepts one right now. */
 function beginRun() {
@@ -129,11 +132,11 @@ function onPickCard(number, banishing) {
   if (world.state === STATE.PLAY) return;
   // A won run is still a run, so it does not swap its body either - and its launch key is spent on
   // keeping the run, so a number there is the whole of the other answer instead of half of it: take
-  // this ship and begin again, one press. Over the hush before the card there is no answer to give
+  // this ship and begin again, one press. Until the card can be answered there is no answer to give
   // yet, and a number is refused rather than quietly changing what the run about to be handed back
   // is flying.
   if (world.state === STATE.WON) {
-    if (victoryCardIsUp(world) && setShipByIndex(world, number - 1)) beginRun();
+    if (victoryCardIsAnswerable(world) && setShipByIndex(world, number - 1)) beginRun();
     return;
   }
   // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
@@ -148,7 +151,7 @@ function onPickCard(number, banishing) {
  */
 function onReroll() {
   if (world.state === STATE.LEVEL) rerollOffer(world);
-  else if (victoryCardIsUp(world)) beginRun();
+  else if (victoryCardIsAnswerable(world)) beginRun();
 }
 
 function onResize() {
@@ -219,8 +222,15 @@ function frame(now) {
       showVictory(describeRun());
       victoryCardShown = true;
     }
+    // And the line that says what the card's keys do arrives when the keys start doing it - which
+    // is the end of the guard, not the arrival of the card (src/ui/screens.js `revealWinHint`).
+    if (!winHintRevealed && victoryCardIsAnswerable(world)) {
+      revealWinHint();
+      winHintRevealed = true;
+    }
   } else {
     victoryCardShown = false;
+    winHintRevealed = false;
   }
   consumeCues(world.state);
   renderFrame(tick, input, mouse);

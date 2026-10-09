@@ -319,7 +319,9 @@ test('a shield going out is something you can see', () => {
   assert.ok(field.rings.count >= rings + 1 + 2,
     'the field collapses with a ring of its own and each body pops one: ' + (field.rings.count - rings));
   assert.ok(field.particles.count > sparks, 'and there is light in it');
-  assert.ok(field.shake > shake, 'and it is felt');
+  assert.equal(field.shake, shake,
+    'and it costs the window nothing: a field going out is routine, and the room is only '
+    + 'moved for a boss (test/shake-policy.test.mjs)');
   const closing = field.rings.items.filter((r) => r.vr < 0);
   assert.equal(closing.length, 1, 'one ring, and it runs inwards rather than out');
 });

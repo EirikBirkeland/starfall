@@ -74,6 +74,7 @@ export function initScreens() {
     winCleared: document.getElementById('winCleared'),
     winStats: document.getElementById('winStats'),
     winBuild: document.getElementById('winBuild'),
+    winHint: document.getElementById('winHint'),
     shipRow: document.getElementById('shipRow'),
   };
   shipRows = SHIPS.map(buildShipRow);
@@ -140,5 +141,17 @@ export function showVictory(summary) {
   else el.winNewBest.classList.add('hidden');
   el.winBuild.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
+  // The invitation waits. The card goes up on the hush and the game answers to nothing until the
+  // guard is spent, and a line saying "press" that nothing may be pressed with is the exact thing
+  // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).
+  el.winHint.classList.add('hidden');
   el.win.classList.remove('hidden');
+}
+
+/**
+ * Say what the card's keys do, now that they do it. Called once the win's guard is spent:
+ * `main.js` asks `victoryCardIsAnswerable` and this only ever paints over a card that is up.
+ */
+export function revealWinHint() {
+  el.winHint.classList.remove('hidden');
 }

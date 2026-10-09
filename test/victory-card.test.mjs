@@ -24,6 +24,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 4, audio: true });
 
 const HUSH = BALANCE.victory.hush;
+const GUARD = BALANCE.victory.guard;
 const SCHEDULE = BALANCE.bosses.schedule;
 const LAST = SCHEDULE.length - 1;
 const DUE = SCHEDULE[LAST].at;
@@ -101,6 +102,45 @@ test('the card lands when the hush is spent', () => {
   assert.equal(game.screen.overHidden, true, 'and the death card never came up at all');
 });
 
+test('the card cannot be pressed through either', () => {
+  // The owner's rule, verbatim: "when the user has finished the last boss, if the user clicks a
+  // button, the final screen is gone! This is useless. Disable user input for 5 seconds after game
+  // completion." Every door out of this card is shut until the guard is spent - and the card is up
+  // and readable through all of it, which is what the three and a half seconds are for.
+  game.key('Space', true);
+  game.key('Space', false);
+  game.step(FRAME);
+  assert.equal(game.stats().state, game.STATE.WON, 'the launch key found nothing to answer');
+  assert.equal(game.screen.winHidden, false, 'and the card is still up, still being read');
+  assert.equal(game.screen.winHintShown, false,
+    'and it is not asking to be answered yet either: the line of keys is still hidden');
+
+  game.pressMouse(640, 240);
+  game.releaseMouse();
+  game.step(FRAME);
+  assert.equal(game.stats().state, game.STATE.WON, 'and so the click found nothing to answer');
+
+  game.key('Digit3', true);
+  game.key('Digit3', false);
+  game.step(FRAME);
+  assert.equal(game.stats().state, game.STATE.WON, 'and a number is refused over a won run');
+  assert.notEqual(game.stats().ship, SHIPS[2].id, 'and the ship was not swapped under it');
+
+  game.key('KeyR', true);
+  game.key('KeyR', false);
+  game.step(FRAME);
+  assert.equal(game.screen.winHidden, false, 'and R cannot throw the card away either');
+
+  // And out of the guard, and not before: the card arrived at the hush, so this is the rest of the
+  // five seconds and no more.
+  wait(GUARD - HUSH + 0.1);
+  assert.equal(game.stats().state, game.STATE.WON, 'the guard does not end the win by itself');
+  // The frame loop has to see the guard end to say so, and a frame is a frame long.
+  game.step(FRAME);
+  assert.equal(game.screen.winHintShown, true,
+    'and when the guard is spent the card says what its keys do');
+});
+
 test('the card says what the run was', () => {
   const stats = game.stats();
   const screen = game.screen;
@@ -130,9 +170,10 @@ test('the card hands the arena back to the run that won it', () => {
   const score = game.stats().score;
   const bosses = game.stats().bossesDown;
   const hull = game.stats().hull;
-  // The hush is spent and the ship is about to be on its own again, so the immunity this file put on
-  // it to get here comes off: the grace the hand-back promises should be the only thing between the
-  // ship and the arena, or the claim below is the test's and not the game's.
+  // The guard is spent by the test before this one, so the ship is about to be on its own again;
+  // the immunity this file put on it to get here comes off, because the grace the hand-back promises
+  // should be the only thing between the ship and the arena - or the claim below is the test's and
+  // not the game's.
   ship().invuln = 0;
   game.key('Space', true);
   game.key('Space', false);
@@ -185,7 +226,9 @@ test('a run that has been won can be won again', () => {
 
 test('R over the card asks for a new run instead', () => {
   // The card's launch key keeps this run, so the way out of it needs a key of its own - and a
-  // new run means a fresh sheet in every way, the endless mark included.
+  // new run means a fresh sheet in every way, the endless mark included. The guard first: the win
+  // this card is over has only just arrived, and nothing about it answers to a key yet.
+  wait(GUARD + 0.2);
   game.key('KeyR', true);
   game.key('KeyR', false);
   game.step(FRAME);
@@ -223,6 +266,15 @@ test('a number on the card flies that ship, on a new run', () => {
   assert.notEqual(game.stats().ship, wanted.id, 'and so does the ship');
 
   assert.ok(until(() => game.screen.winHidden === false, HUSH + 1), 'the card never came up');
+  // ... and a number is refused for the rest of the guard too, which is the same rule the launch
+  // key is held to: nothing may be done to a won run before it has been a won run for five seconds.
+  game.key('Digit4', true);
+  game.key('Digit4', false);
+  game.step(FRAME);
+  assert.equal(game.stats().state, game.STATE.WON, 'the guard holds');
+  assert.notEqual(game.stats().ship, wanted.id, 'and the ship is still the one that won');
+
+  wait(GUARD + 0.2);
   game.key('Digit4', true);
   game.key('Digit4', false);
   game.step(FRAME);
@@ -235,12 +287,13 @@ test('a number on the card flies that ship, on a new run', () => {
 test('the card says what its keys do', () => {
   // The copy is in the markup and the keys are in main.js, which is exactly how a card ends up
   // advertising something the game stopped doing. This reads the card off the file the browser
-  // reads, the same way structure.test.mjs reads the sources.
+  // reads, the same way structure.test.mjs reads the sources - and it is why the line starts
+  // hidden: an invitation the game is not allowed to accept is the thing the guard is for.
   const markup = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const card = markup.slice(markup.indexOf('id="winScreen"'), markup.indexOf('<script'));
   assert.ok(card.length > 0, 'the win card is in the markup');
-  const hint = /class="hint">([^<]*)</.exec(card);
-  assert.ok(hint, 'and it has a line saying what its keys do');
+  const hint = /class="hint hidden" id="winHint">([^<]*)</.exec(card);
+  assert.ok(hint, 'and it has a line saying what its keys do, starting hidden');
   const words = hint[1].toUpperCase();
   assert.match(words, /SPACE/, 'the key that keeps the run flying');
   assert.match(words, /\bR\b/, 'and the one that asks for a new run');

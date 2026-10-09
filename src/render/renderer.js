@@ -2,6 +2,7 @@
 // interface.
 
 import { visual } from '../core/rng.js';
+import { BALANCE } from '../game/balance.js';
 import { STATE } from '../game/state.js';
 import { world } from '../game/world.js';
 import { view } from './canvas.js';
@@ -20,7 +21,7 @@ import { drawCards } from './cards.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
 function shakeOffset(amount) {
-  if (amount <= 0.1) return { x: 0, y: 0 };
+  if (amount <= BALANCE.screen.shakeFloor) return { x: 0, y: 0 };
   return { x: visual.range(-amount, amount), y: visual.range(-amount, amount) };
 }
 

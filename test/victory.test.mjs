@@ -26,7 +26,9 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { PALETTE } from '../src/core/palette.js';
 import { STATE } from '../src/game/state.js';
-import { canStartRun, victoryCardIsUp, winRun } from '../src/game/run.js';
+import {
+  canStartRun, victoryCardIsAnswerable, victoryCardIsUp, winRun,
+} from '../src/game/run.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { fieldIsCaged } from '../src/game/field.js';
 import { drainCues, clearCues } from '../src/game/cues.js';
@@ -36,6 +38,7 @@ const STEP = BALANCE.sim.step;
 const SCHEDULE = BALANCE.bosses.schedule;
 const LAST = SCHEDULE.length - 1;
 const HUSH = BALANCE.victory.hush;
+const GUARD = BALANCE.victory.guard;
 
 // The one world this file plays in, rebuilt at the top of every test. `scriptedRun` puts a
 // whole run back to its starting value, the boss schedule included.
@@ -199,15 +202,25 @@ test('the win makes its own light out of where the ship is standing', () => {
   const boss = lastFightOnTheField();
   const spec = BALANCE.victory;
   fell(boss);
-  // Whatever the kill itself shook has already been shaken by the time the body is down; anything
-  // the step that wins puts on top of that is the win's own.
+  // Whatever the kill itself shook is in `shook` before the win lands, and the peak is what the
+  // claims are made on: the last fight's own coming-down is what shakes this moment, and the win
+  // deliberately spends no trauma of its own on top of it, because the room is held to a ceiling
+  // and only one of the two can be the loudest thing in the game (see the row).
   const shook = field.shake;
-  assert.ok(until(() => field.state === STATE.WON, 6), 'the run never got won');
+  let peak = shook;
+  assert.ok(until(() => {
+    peak = Math.max(peak, field.shake);
+    return field.state === STATE.WON;
+  }, 6), 'the run never got won');
   assert.ok(sparksIn(PALETTE.player) >= spec.burst.count,
     'the burst the row asks for, out of the ship, in the ship\u2019s own colour');
   assert.ok(ringsIn(PALETTE.white) >= 1, 'and the two rings: white for the win');
   assert.ok(ringsIn(PALETTE.elite) >= 1, 'and gold, which is what a reward is written in');
-  assert.ok(field.shake > shook, 'and it is felt');
+  assert.ok(peak >= BALANCE.bosses.eclipse.death.shake, 'and the room is shaking on the fight\u2019s '
+    + 'own account: ' + peak.toFixed(1) + ' px');
+  assert.equal(spec.shake, undefined,
+    'and the win asks for no trauma of its own: the fight coming down is already the loudest thing '
+    + 'the ceiling allows, so a second shake on that step is a number the cap quietly eats');
 });
 
 // ---------------------------------------------------------------------------
@@ -218,9 +231,15 @@ test('the hush outlasts the death guard, and outlasts a step', () => {
   assert.ok(HUSH > BALANCE.runOver.restartGuard,
     'the moment is not something a key can run straight through on the way past');
   assert.ok(HUSH > BALANCE.sim.step, 'and it is a span of time and not one frame');
+
+  // The owner's number, kept. "Disable user input for 5 seconds after game completion" was the ask,
+  // and the guard has to be the longer of the two waits or the card would still be splashed by the
+  // key that won it (BUG_REPORT_README).
+  assert.ok(GUARD >= 5, 'five seconds of nobody touching anything, as asked: ' + GUARD);
+  assert.ok(GUARD > HUSH, 'and the card goes up inside the guard, not after it');
 });
 
-test('the card and the key wait on the same hush', () => {
+test('the card goes up on the hush and the keys wait for the guard', () => {
   winTheRun();
   assert.equal(victoryCardIsUp(field), false, 'the card is not up on the step the fight fell');
   assert.equal(canStartRun(field), false, 'and the run cannot be left yet either');
@@ -229,7 +248,13 @@ test('the card and the key wait on the same hush', () => {
   while (!victoryCardIsUp(field) && waited < HUSH + 1) waited += step();
   assert.ok(waited >= HUSH - STEP, 'the card came up early, at ' + waited);
   assert.ok(waited <= HUSH + STEP * 3, 'the card came up late, at ' + waited);
-  assert.equal(canStartRun(field), true, 'and the key is ready with it');
+
+  // ... and the card being up is not the end of it: the ending has to be readable before a key or a
+  // click may spend it, which is the owner's rule and not a taste of ours (BALANCE.victory.guard).
+  assert.equal(canStartRun(field), false, 'the key is not ready with the card');
+  while (!victoryCardIsAnswerable(field) && waited < GUARD + 1) waited += step();
+  assert.ok(waited >= GUARD - STEP, 'the guard let go early, at ' + waited);
+  assert.equal(canStartRun(field), true, 'and the run may be left from there on');
 });
 
 test('a run only wins once', () => {
