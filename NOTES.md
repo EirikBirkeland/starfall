@@ -7414,3 +7414,127 @@ the books; the two scratch probes deleted.
   against a level-1 bot and a level-50 bot and nothing between), the four unbuilt synergies,
   milestone 7's music buses, and `tools/agent/session.js` still having `choose_weapon` and no
   `choose_ship`.
+
+## Session 62 (2026-10-09) — The Eclipse's darkness: the room is covered up, and the lights cut holes in it. Released **0.6.6**
+
+The Eclipse item's remaining half, which every note since session 61 has pointed at: PLAN 3.4's
+phase 2, "the arena darkens, and only areas near the player and near bullets are lit". Session 61's
+sketch was close enough to build from and wrong about one number-bearing thing (below). Suite is
+**1156 green** (was 1137; 12 in `test/darkness.test.mjs`, 7 in `test/darkness-art.test.mjs`).
+
+### What landed
+**A phase may ask for the night, and the framework owns the ramp to it.** `dark: { level }` on an
+Eclipse phase row (0.78 on the second, 0.86 on the third), `BALANCE.bosses.dark` owning the ramp and
+the light list. `world.darkness` is stepped *first* in `updateBosses` - before the "is there a boss"
+check - and walks toward `darknessAsked(boss)`, which is 0 for a phase with no `dark` row, a fight
+still being warned about, or an arena with no fight at all. So there is no reset to forget: a run that
+wins in the dark, dies in it, or never meets a boss is, in all three cases, simply in a room that
+nobody is asking to be dark any more. `rise` 0.45/s and `fall` 0.8/s are deliberately asymmetric: the
+night arrives **through** the phase flare (the ask changes the step the phase flips, and the ramp is
+stepped even while the flare holds the fight back), and the light takes a slower second walking back
+after the win. The ramp is stepped in step time, so a hit-stop and a level-up both hold it still with
+everything else - which is not a side effect, it is the rule, and both are now tested.
+
+**`render/darkness.js` paints a veil, not a dimming.** One window-sized offscreen layer, three
+passes: `copy` lays the flat night (the composite clears as it fills, so that one pass is the whole
+of the layer's own reset, and its alpha *is* the ramp - nothing is built or destroyed while it fades),
+`destination-out` punches the holes, and `source-over` lays the sheet on the window. Lights: the ship
+(300 px), every enemy shot (86), every bullet (58), each standing body of the fight at
+`coreReach * 2.4`, and the door of a shell. Off the window a light is not worth a stamp, and the cull
+is the frame's own `onScreen` with the light's reach as the padding.
+
+**The door is not eaten by the dark.** `render/entities.js` grew an exported `doorWedge(boss, x, y)` -
+the bearings and the wall-clipped reach of the door a fight is holding open - and *both* the lit
+wedge and the hole in the night are cut from it. That is the fairness claim: `telegraphMin` does not
+care how dark it is, and two painters that disagreed about where the door is would be the worst bug
+in the feature because both would look right. The carve is partial (0.82 of the night let through): a
+door is a lit place in a dark room, not a second arena with the crowd standing in it.
+
+**`render/glow.js` grew a third sprite kind, `holeFor`.** A hole's profile is the inverse of a glow's:
+flat out to 62% of the radius and then a soft rim. One radius is baked (96 px) and every light is a
+`scale` of it, so the hole budget is one sprite for the whole game, and `test/draw-cost.test.mjs`'s
+holder bound was never touched (it is built lazily, in the Eclipse only).
+
+**`world.darkness` is read by the frame and nothing else.** `test/darkness.test.mjs` greps for it:
+`darknessOf` may be called from `render/darkness.js` and `main.js` (the stats door) and nowhere else,
+and only `game/bosses.js` may write it. That is the claim that lets a boss take the room away at all,
+and the fingerprint work below is its proof.
+
+### A harness change that outlives this feature
+`tools/headless/harness.js` had no way to see what a layer paints: `document.createElement('canvas')`
+handed back a context whose draw log was thrown away. Now **every** offscreen canvas shares one
+per-frame log (`stampsOffscreen()`, `circlesOffscreen()`, cleared with the frame like the window's),
+and every `drawImage` records the composite it was asked for, the way `arc` already did. Without
+that, "it covers instead of adding" - the exact bug session 61 found in the sun's disc - was
+untestable in a sheet of holes, and the whole feature would have been a hope instead of a claim.
+Mutation-checked: every one of these breaks a test - the final composite set to `lighter`, the
+punches' composite set to `lighter`, the door carve removed, the ship's light given the wrong reach,
+the off-window cull removed, and the ramp's fall branch deleted.
+
+### Surprises
+- **The sketch's "a glow sprite is exactly a hole" was wrong.** `glowFor`'s falloff is at half
+  strength by a third of the way out, so a hole cut with one is a dim smear with a bright pinprick in
+  the middle and its radius means nothing you could price a fight against. Hence `holeFor`. Anything
+  else that wants to *take light away* should ask for the same shape.
+- **A planted bullet with no velocity is a bullet that hits whatever it is standing on, every step.**
+  My first art test parked a shot 60 px "above the ship" to check a bullet gets a hole; the ship is
+  dragged, the sun was that way, and the shot spent the rest of the test chewing a hole in the
+  Eclipse's hull and opening phase 3 mid-assertion. The test went red for a reason that had nothing to
+  do with what it was claiming. Now the near shot is planted at right angles to the bearing to the
+  sun, and the claims are split so nothing waits for a shell with a planted bullet in the world.
+- **`/tmp/old-head` is a stale worktree** left over from an earlier session, and `git worktree add` on
+  the same path fails quietly-ish: three of my five fingerprint diffs were "IDENTICAL" against a tree
+   predating the Eclipse, which proved nothing at all. Made `/tmp/s62-base` at `51e6ee5` and redid
+  them. Next session: name the worktree after the session, or delete the old ones.
+- **A probe that fights a boss has to pick its cards.** A scripted run that reaches a level-up sits in
+  `STATE.LEVEL`, the ramp stops (correctly), and a probe that does not know that reports the ramp as
+  broken. `test/darkness-art.test.mjs`'s `step()` clears the cards as they come out.
+- **The time-bound assertions had to stop measuring wall clock.** "It reaches the ask in `level/rise`
+  seconds" was wrong by exactly the flare's hit-stop, because a freeze is *allowed* to hold the ramp
+  still. The test now measures the rate over a clean half-second and separately asserts it lands on
+  the ask and stops there.
+
+### Numbers
+- **The dark costs the simulation nothing.** Byte-identical to `51e6ee5` at `--seed 20261006 --trace`,
+  the same `--seconds 600`, `--at 295 --seed 11`, `--at 595 --seed 11`, `--at 895 --seed 31/32` and a
+  full `--seed 21 --seconds 1140` (which reaches the Eclipse's phase 2, so the veil ran in every frame
+  of a real 19-minute run without throwing and without moving a hash).
+- **What a dark frame costs the painter** (throwaway probe, dpr 2, 1280x720, Eclipse in phase 2): the
+  window goes from 26.7 to 27.7 stamps a frame - one sheet, one composite - and the layer spends one
+  full-window fill plus ~3 punches. Firing the gun in phase 3: 38.8 window stamps and ~19 punches,
+  all at CSS resolution, where the softness of a hole is a feature and not a loss.
+- **The row's numbers**: `light.ship` 300 px is over a second of a swarmling at full speed scaling
+  (190 -> 285 px/s by `enemies.speedScaleMax`), i.e. a comfortable multiple of `telegraphMin` 0.6;
+  `light.shot` 86 > the sun's own 58, so a shell is visible as a *place* and not a dot; `body` 2.4
+  keeps the corona (drawn out to 2.05 r) inside the lit disc, so the drag stays drawn.
+
+### Decisions, so nobody relitigates them
+- The **light list is the framework's**, not the boss's: "the ship, the shots, and the fight's own
+  bodies" is a generic sentence, and a boss asking for the dark should not have to describe the room.
+  A future boss that wants something else lit will want a row for it, and will write it then.
+- The night is pinned to the window and does not shake with the frame, like the vignette. A dark edge
+  that jitters six pixels reads as a fault in the window. The lights inside it are punched where the
+  *things* stand, so a shake moves the world inside its own lit places, which is what a shaking frame
+  already does at the edges of the screen.
+- The **veil goes over the sky too** (stars, nebula, the arena's walls and cage). It is an eclipse;
+  the sun is in front of the sky. The HUD, the edge arrows, the cards and the boss bar stay above it:
+  the dark is a thing about the room and never about the glass.
+- Shards get no light of their own. `shards.magnetRadius` is 145 and the ship's light is 300, so
+  every shard you can collect is already lit, and every one you cannot is a thing you go and find.
+- The Eclipse item in PLAN stays **unticked** on purpose: phase 3's arms and moving walls are a real
+  session's work, not a note. The parenthetical now says exactly what is in and what is owed.
+
+### For the next session
+- **The arms** are the last unshipped line of 3.4's Eclipse: phase 3's "sweeping arms, bullet walls
+  with moving gaps". `turn` already places the sun's facing (that is what an arm sweeps with) and the
+  shell already has a door, so "a moving gap" is that row with the door taken round the circle
+  *after* it was shown - which is the one thing the door rule has always refused, so it wants thinking
+  about as a fairness question first and a bullet question second. `test/eclipse.test.mjs` owns the
+  door today and would be the place a moving one is argued.
+- Still open and smaller: **the Hive's owed spiral** (session 60's note), the **mid-build measurement
+  gap** (`tools/simulate.js` cannot hand a run ranks, so every boss hull is priced against a level-1
+  bot and a level-50 bot and nothing between), the four unbuilt synergies, milestone 7's music buses,
+  and `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
+- If a second "cover the world" pass ever shows up, write `coverFor(ctx, paint)` after all - two of
+  these is a pattern and three is a layer. The veil's `copy`/`destination-out`/`source-over` trio is
+  the shape of it.
