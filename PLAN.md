@@ -652,8 +652,20 @@ When every item above is ticked, go back to the first unchecked item of mileston
       line (game/lance.js) and the Swarm's shots steer and go off where they land (game/missiles.js).
       `tools/power-ladder.js --weapon` and `tools/gun-clock.js` are the two instruments a new row is
       priced on, and `test/weapons.test.mjs` asks each row for the numbers its own kind of pull needs.)
-- [ ] Ships with different hull, speed, weapon, and drawn shape.
+- [x] Ships with different hull, speed, weapon, and drawn shape.
+      (Done in 0.5.2. `BALANCE.ships` and `game/ships.js` hold what a ship is - hull, top
+      speed, how long its dash takes to come back, the primary it brings, any upgrade rank
+      it arrives with, and the silhouette `render/shapes.js` draws it as - and the title
+      screen's rack is the five ships of 3.7: WISP - PULSE, BULWARK - SCATTER, VOLT - ARC,
+      NEEDLE - LANCE, BROOD - SWARM, in the primaries' own order so a number key still means
+      the gun it always meant. A ship is the body and the gun in one pick, which is what keeps
+      it five combinations to balance rather than twenty-five, and what lets the ship pick
+      replace the gun pick without taking one thing off the title screen. The hitbox and the
+      drawn radius are deliberately *not* ship numbers: every ship is hurt by the same 6 px
+      core and drawn at the same scale, so the five read differently without one of them being
+      a bigger target than another.)
 - [ ] Release.
+      (0.5.2.)
 
 ### Milestone 6: bosses
 - [ ] Boss framework: phases, hull bar, intro warning, spawn pause, arena lock.
