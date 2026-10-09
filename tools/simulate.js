@@ -104,6 +104,9 @@ function reportLine(summary) {
     // came down (game/bosses.js). Without this a boss fight is invisible in the report.
     + (s.boss !== '' ? '  boss ' + s.boss + ' @' + Math.round(s.bossHull * 100) + '% phase ' + s.bossPhase : '')
     + (s.bossCells > 0 ? ' mass ' + s.bossCells : '')
+    // Only when there is more than one, which is only ever a fight that has come apart: the number
+    // is the answer to "how many bodies is it still standing on" (game/bosses.js `coresStanding`).
+    + (s.bossCores > 1 ? ' bodies ' + s.bossCores : '')
     + (s.bossesDown > 0 ? '  bosses down ' + s.bossesDown : '')
     // And, when the run ended, what it ended of: a swarm, a wall, a spoke. The tally keeps it
     // (game/tally.js) and it is the difference between a balance number and a guess.

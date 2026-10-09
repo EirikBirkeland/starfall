@@ -18,8 +18,9 @@ import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { beamReach } from '../src/game/beams.js';
 import {
-  armedCount, bossCells, bossFlare, bossPhase, bossTint, cageRise, callAngle, callBody, callCount,
-  callStand, callStep, cellOpening, gapAngle, gapHalf, spokeAngle, spokeCount, spokeHalf,
+  armedCount, bossCells, bossCores, bossCoreOf, bossFlare, bossPhase, bossTint, cageRise,
+  callAngle, callBody, callCount, callStand, callStep, cellOpening, coreCells, gapAngle, gapHalf,
+  spokeAngle, spokeCount, spokeHalf,
 } from '../src/game/bosses.js';
 import { PALETTE } from '../src/core/palette.js';
 import { damageEnemy } from '../src/game/enemies.js';
@@ -33,6 +34,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 42, dpr: 1 });
 const field = game.world;
 const WARDEN = BALANCE.bosses.warden;
+const HIVE = BALANCE.bosses.hive;
 
 // The title screen draws the menu crowd and no ship, so get a run going first.
 game.pressMouse(640, 360);
@@ -106,16 +108,19 @@ function stampsAt(x, y, r) {
 }
 
 /**
- * Park the ship beside the mass and keep it there: the whole honeycomb has to be on the glass to
- * be measured (render/camera.js culls what is not, and the hive arrives 420 px from the ship,
- * which puts half of it off the window), and the mass gives ground when the ship stands this
+ * Park the ship beside a body of the fight and keep it there: the whole honeycomb has to be on the
+ * glass to be measured (render/camera.js culls what is not, and the hive arrives 420 px from the
+ * ship, which puts half of it off the window), and the mass gives ground when the ship stands this
  * close, so the parking has to be repeated every step to keep the two where they were put.
+ *
+ * It takes a *body* and not a fight, because since the Hive's third phase a fight can be standing
+ * on three of them and the picture has to be measured one at a time.
  */
-function standBesideTheMass(boss) {
+function standBesideTheMass(body) {
   const ship = field.player;
   const park = () => {
-    ship.x = boss.enemy.x - 220;
-    ship.y = boss.enemy.y;
+    ship.x = body.x - 220;
+    ship.y = body.y;
     ship.px = ship.x;
     ship.py = ship.y;
   };
@@ -550,7 +555,7 @@ test('a call lights one mark per body, on the bearings it sends them from', () =
 test('the hive is drawn as a mass of hexes, each one exactly as big as it hurts', () => {
   clearTheSky();
   const boss = bringTheHiveOut();
-  standBesideTheMass(boss);
+  standBesideTheMass(boss.enemy);
   const before = game.drawCalls();
   game.step(16);
   const spent = diff(game.drawCalls(), before);
@@ -574,7 +579,7 @@ test('the hive is drawn as a mass of hexes, each one exactly as big as it hurts'
 test('a cell that has been shot off is not drawn any more', () => {
   clearTheSky();
   const boss = bringTheHiveOut();
-  standBesideTheMass(boss);
+  standBesideTheMass(boss.enemy);
   const cell = bossCells(boss)[0];
 
   // Asked at the cell's own middle, and narrowly: the wax web runs out to the centre of every cell
@@ -584,7 +589,7 @@ test('a cell that has been shot off is not drawn any more', () => {
   const CELL_MARK = 12;
   assert.ok(pointsAt(cell.x, cell.y, CELL_MARK).length > 0, 'nothing was drawn where it stood');
   damageEnemy(field, cell, cell.hp, true);
-  standBesideTheMass(boss);
+  standBesideTheMass(boss.enemy);
 
   // The hole is the whole of the art for a broken mass, so it has to actually be a hole.
   assert.equal(pointsAt(cell.x, cell.y, CELL_MARK).length, 0,
@@ -595,7 +600,7 @@ test('a cell that has been shot off is not drawn any more', () => {
 test('the cell that is opening is lit and the ones that are not are dark', () => {
   clearTheSky();
   const boss = bringTheHiveOut();
-  standBesideTheMass(boss);
+  standBesideTheMass(boss.enemy);
   const open = catchItOpening(boss);
   assert.ok(open.length > 0, 'the hive never lit a cell to open it');
 
@@ -610,5 +615,68 @@ test('the cell that is opening is lit and the ones that are not are dark', () =>
   const calm = stampsAt(dark[0].x, dark[0].y, dark[0].r);
   assert.ok(lit > calm,
     'an opening cell wore ' + lit + ' lights and a whole one ' + calm);
+  clearTheSky();
+});
+
+// ---------------------------------------------------------------------------
+// The Hive's third phase: one fight, three bodies, and one bar still over all of them
+// ---------------------------------------------------------------------------
+
+/**
+ * How near a body's middle a stamp has to be to be counted as one of *its own* lights. A mass
+ * wears two, both painted at its centre (render/boss.js): the halo of the whole honeycomb and the
+ * countdown burning in the core.
+ */
+const OWN_LIGHT = 6;
+
+/** The Hive at its last phase, which is the phase that asks for the `split` row. */
+const HIVE_SPLIT = HIVE.phases[HIVE.phases.length - 1].split;
+
+/**
+ * Break the hive open on the glass: the hull to just under the last mark, and the flare and the
+ * coming apart run out. Counted in frames and not in seconds, because the split stops the world
+ * for a moment of its own and a step the world does not run is not a step the fight spent.
+ */
+function breakTheHiveOpen(boss) {
+  boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+  let guard = 0;
+  while (bossCores(boss).length < 2 && guard < 900) { game.step(16); guard++; }
+  return bossCores(boss);
+}
+
+test('a fight that has come apart is drawn as three hives and not one with bits falling off', () => {
+  clearTheSky();
+  const boss = bringTheHiveOut();
+  const cores = breakTheHiveOpen(boss);
+  assert.equal(cores.length, HIVE_SPLIT.cores, 'it did not come apart on the glass');
+
+  // The shape you can shoot is the shape you can see, three times over: each body of the fight
+  // wears a mass of its own, at its own place, with a honeycomb of its own drawn on its own cells'
+  // own radii. One blob with pieces falling off it would pass for a picture and be a lie about the
+  // collision world, which is the one rule this file exists to keep.
+  for (const core of cores) {
+    standBesideTheMass(core.enemy);
+    assert.equal(coreCells(core).length, HIVE_SPLIT.cells.count,
+      'a piece was drawn with the wrong number of cells round it');
+    const own = stampsAt(core.enemy.x, core.enemy.y, OWN_LIGHT);
+    assert.ok(own >= 2, 'a piece wore ' + own + ' lights of its own and a mass wears a halo and a core');
+    for (const cell of coreCells(core)) {
+      const on = pointsOn(cell.x, cell.y, cell.r);
+      assert.ok(on.length >= 6,
+        'a piece\'s cell was drawn with ' + on.length + ' corners on its own radius of '
+          + cell.r + 'px, not six');
+    }
+    // And the mass drawn here is *this* body's: the frame asks which body of the fight it is
+    // looking at (game/bosses.js `bossCoreOf`) rather than drawing the first one three times.
+    assert.equal(bossCoreOf(boss, core.enemy), core);
+  }
+
+  // One bar, one name, one phase: the glass says one fight even though the room has three bodies
+  // in it now. The numbers behind that are test/hive.test.mjs's; this is the sentence under them.
+  game.step(16);
+  const words = game.words();
+  assert.ok(words.includes(HIVE.name), 'the bar stopped saying who the fight is');
+  assert.ok(words.includes('PHASE ' + bossPhase(boss) + '/' + HIVE.phases.length),
+    'the bar does not say how far into it the fight is: ' + JSON.stringify(words));
   clearTheSky();
 });

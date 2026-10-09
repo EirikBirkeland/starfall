@@ -106,25 +106,39 @@ test('no phase of any boss is quicker to read than the telegraph floor', () => {
   // kinds.js refuses a sniper that locks for less than `telegraphMin`; a boss is the same promise
   // multiplied by however many spokes it holds, so the floor matters more here, not less. Every
   // beat of every phase is held to it, whatever the boss's rhythm calls that beat - the spokes, a
-  // door in a bullet ring, the marks of a call, the cells of a mass - and a phase that shows
-  // nothing at all is a phase with no business being played, which is the other half of the test
-  // and the one that would otherwise let a new boss through with a beat nobody can see coming.
+  // door in a bullet ring, the marks of a call, the cells of a mass, the mouths of the bodies a
+  // phase breaks into - and a phase that shows nothing at all is a phase with no business being
+  // played, which is the other half of the test and the one that would otherwise let a new boss
+  // through with a beat nobody can see coming.
   for (const { id, phase, index } of everyPhase()) {
-    let shown = 0;
-    if (phase.windup !== undefined) {
-      assert.ok(phase.windup >= BALANCE.bosses.telegraphMin,
-        id + ' phase ' + (index + 1) + ' shows its spokes for only ' + phase.windup + 's');
-      shown++;
+    const shown = promisesOf(phase);
+    assert.ok(shown.length > 0, id + ' phase ' + (index + 1) + ' promises nothing at all');
+    for (const promise of shown) {
+      assert.ok(promise.windup >= BALANCE.bosses.telegraphMin,
+        id + ' phase ' + (index + 1) + ' shows a beat for only ' + promise.windup + 's');
     }
-    for (const beat of Object.values(phase)) {
-      if (beat === null || typeof beat !== 'object' || beat.windup === undefined) continue;
-      assert.ok(beat.windup >= BALANCE.bosses.telegraphMin,
-        id + ' phase ' + (index + 1) + ' shows a beat for only ' + beat.windup + 's');
-      shown++;
-    }
-    assert.ok(shown > 0, id + ' phase ' + (index + 1) + ' promises nothing at all');
   }
 });
+
+/**
+ * Every row of a phase that shows something for a `windup`, however deep the phase keeps it. A
+ * phase's beats are rows beside it, and a beat that is itself made of rows - the bodies a `split`
+ * breaks the fight into, each with its own mouths - is one level deeper, which is where the last
+ * phase of the Hive keeps the promise it makes. The floor does not care which row wrote it.
+ */
+function promisesOf(phase) {
+  const shown = [];
+  const rows = [phase];
+  for (const row of rows) {
+    for (const value of Object.values(row)) {
+      if (value === null || typeof value !== 'object') continue;
+      if (value.windup !== undefined) shown.push(value);
+      else rows.push(value);
+    }
+  }
+  if (phase.windup !== undefined) shown.push(phase);
+  return shown;
+}
 
 test('every boss has enough hull to be a fight and not a wall', () => {
   // Read off what a bare pulse gun does to it: the run that meets a boss with no upgrades at all

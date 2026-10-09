@@ -1368,11 +1368,13 @@ export const BALANCE = {
     // the first one only hints at: a fight can have parts, and you can shoot them off.
     //
     // It is the second boss, so it is the one that said how much of game/bosses.js was
-    // Warden-shaped. Three things came out of writing it: a row now names its `rhythm` (the
+    // Warden-shaped. Four things came out of writing it: a row now names its `rhythm` (the
     // framework owns the clock of a beat - ride, stop, show it, do it - and the row says which
     // beats it has), a boss may *walk* (the Warden's whole attack is a ring that turns on the
-    // spot, so the walk was hard-coded to nothing but turning), and a boss may own bodies
-    // (`cells` below, which go down with it on the same rule its summons already did).
+    // spot, so the walk was hard-coded to nothing but turning), a boss may own bodies
+    // (`cells` below, which go down with it on the same rule its summons already did), and its
+    // third phase asked for a fourth: a fight may be made of more than one body (`split` below,
+    // and game/bosses.js `newCore`).
     //
     // `radius` is the core and nothing else. The mass reaches further than that, but the core
     // is the body the collision world is built round and the widest body in the arena prices
@@ -1400,8 +1402,12 @@ export const BALANCE = {
       // a boss's own pace is the fight's pace, and the crowd's speed scaling is a thing that
       // happens to a wave. It keeps its distance because everything it sends is faster than it
       // is: a hive that walks into your face has nothing left to do.
+      //
+      // `park` is how near the place it was asked for a body counts as having arrived, and it is
+      // what stops a mass that has got there from shuffling on the spot: the ask is a point and
+      // not a direction, so without a deadband it would have an opinion about every pixel.
       speed: 44,
-      approach: { near: 290, far: 400 },
+      approach: { near: 290, far: 400, park: 14 },
       cost: 40,
       score: 2600,
       drop: 32,
@@ -1461,10 +1467,11 @@ export const BALANCE = {
       // rather than as a count: a period of `wait` plus `windup`, and `share` x `each` bodies in
       // it. Phase 1 is four bodies every six and a half seconds, which is about what the crowd is
       // sending at ten minutes and no more - the hive *replaces* the wave rather than adding to
-      // it, and a run that has also been handed a wall to walk round dies otherwise. Phase 3 is
-      // where it is allowed to be more than the crowd, and what makes that fair is that `share`
-      // is a share of the mass that is still *standing*: the swarm shrinks as the bar does, and a
-      // run that broke the honeycomb early is fighting a sad handful of bees by the last phase.
+      // it, and a run that has also been handed a wall to walk round dies otherwise. What keeps it
+      // from getting worse as the fight goes on is that `share` is a share of the mass that is
+      // still *standing*: the swarm shrinks as the bar does, and a run that broke the honeycomb
+      // early is fighting a sad handful of bees by the last phase - which is also why the third
+      // phase, which grows the hive back to nine cells, is allowed to be the busiest of the three.
       //
       // One row per phase, opening at `bosses.atHull`, as they are for the Warden. The tints
       // get hotter as the mass comes apart - honey, then embers, then red - which is the same
@@ -1518,21 +1525,92 @@ export const BALANCE = {
           },
         },
         {
+          // PLAN 3.4's last line for the Hive, and the one thing it does that no boss here has
+          // done: it stops being one body. At a third of the bar the mass pulls itself apart and
+          // three smaller hives are standing where it was, each with a honeycomb of its own and
+          // each breathing brood on its own clock.
+          //
+          // It is a phase and not three bosses because of the bar. The three pieces share the
+          // hull the fight has left and their maximums add back up to the one it started with, so
+          // the share on the glass is the same in the frame after the split as in the frame
+          // before it (game/bosses.js `spendSplit`) - which is what lets one hull bar be one
+          // fight that happens to be standing in three places, and what stops a run being told
+          // by the numbers that the fight it has been having for four minutes just restarted.
+          //
+          // There is no `spawn` row here, because there is nothing left to spawn: the body that
+          // owned this phase's mouths is the body that just came apart. The fragments read
+          // `split.spawn` instead, and that row is why the brood do not triple - three hives each
+          // breeding at the phase-2 rate would be three hives too many. What a fragment's mouth
+          // spends is therefore measured against the whole one: three mouths light instead of
+          // three (one of each fragment's three cells, the same share of the mass that is standing)
+          // and each lets out the same two bodies the full-sized phase did, so the beat is a
+          // little shorter than phase 2's and the same brood arrive out of three places instead of
+          // one. Phase 3 is the busiest of the three, and it is busiest by being everywhere at once.
           tint: PALETTE.red,
-          spin: 0.42, wait: 3.2,
-          spawn: {
-            // The last phase opens the whole mass at once. It is the one thing phase 3 has that
-            // phase 2 has not, and it costs the hive every mouth it has left: by now half the
-            // cells are usually broken off, so this is a hunt for the cells that are still
-            // standing and not a wall of brood.
-            type: 'swarmling', share: 1, each: 2, windup: 0.75,
-            gap: 12, step: 0.42, impulse: 250,
-            wind: { sound: { freq: 290, dur: 0.6, wave: 'triangle', vol: 0.06, slide: 700 } },
-            fire: {
-              shake: 7,
-              ring: { radius: 38, speed: 600, life: 0.36 },
-              spark: { count: 12, speed: 340, life: 0.28 },
-              sound: { freq: 700, dur: 0.22, wave: 'sawtooth', vol: 0.09, slide: 140 },
+          spin: 0.42, wait: 3.6,
+          split: {
+            // `cores` bodies, stood that many ways round the ship: one of them on the bearing the
+            // hive was already holding, so the split reads as the mass breaking and not as three
+            // new arrivals walking in. A fragment is told that side of the ship to keep and keeps
+            // it as the ship runs, which is the difference between three hives and a swarm.
+            cores: 3,
+            // The body: a patch over the hive's own row, so everything it does not name - the
+            // colours, the sound of it, the shape of its corpse - is the hive's and there is one
+            // place in the file where those live. `hull` is not here: the pieces divide the hull
+            // the fight has left between them, which is the bar's business and not a row's.
+            //
+            // `rooted` is the Warden's own answer to a problem the fragments have and the hive it
+            // came from does not: a body that has been told *which side of the ship to keep* has
+            // made a directional promise, and the crowd leans on a boss all run long. Measured -
+            // one swarmling, seven pixels of it, diving into a fragment at 190 px/s - the pair each
+            // give way half of every overlap (game/enemies.js `separationPush`) and the bee wins by
+            // sheer repetition: 345 px of station walked away in four seconds of being leaned on.
+            // A hive that walks at a band - which is what the whole one does - only ever has to
+            // correct a distance, so a shove is a wobble and nothing more, and it stays free.
+            //
+            // What `rooted` takes away is the crowd's room-making and nothing else. A fragment is
+            // still shoved for real by everything that shoves: a shot's kick, a dash's shoulder, a
+            // blast it was standing in (those go through `ix`/`iy`, which `glide` spends whatever a
+            // body is bolted down or not), and it walks back to its side afterwards.
+            body: {
+              radius: 20,
+              speed: 58,
+              cost: 14,
+              score: 820,
+              drop: 11,
+              rooted: true,
+              death: {
+                particles: 44, speed: 540, debris: 20, debrisSpeed: 320,
+                ringSpeed: 780, ringScale: 1.8, shake: 9, hitStop: 0.07,
+              },
+              sound: { freq: 78, dur: 0.5, vol: 0.13 },
+            },
+            // A fragment's cells, patched the same way: three of them, nearer and thinner, and
+            // worth a third of what a full-sized cell was worth, because there are nine of them
+            // in the room now instead of six and they cannot also be three times as generous.
+            cells: { count: 3, ring: 40, radius: 17, hull: 8, share: 0.02, score: 40, drop: 2 },
+            // What a fragment's mouths spend. `share` is a share of that fragment's own mass - one
+            // mouth of its three lights - and `each` is the same two bodies a full-sized cell lets
+            // out, so three fragments opening are one beat and about what phase 2 was sending.
+            spawn: {
+              type: 'swarmling', share: 0.34, each: 2, windup: 0.95,
+              gap: 10, step: 0.42, impulse: 230,
+              wind: { sound: { freq: 290, dur: 0.6, wave: 'triangle', vol: 0.06, slide: 700 } },
+              fire: {
+                shake: 5,
+                ring: { radius: 30, speed: 520, life: 0.34 },
+                spark: { count: 9, speed: 320, life: 0.28 },
+                sound: { freq: 700, dur: 0.22, wave: 'sawtooth', vol: 0.075, slide: 140 },
+              },
+            },
+            // And the coming apart itself. The body's own death is the crowd's (the row's `death`
+            // above does the wreck and the burst), so this is only what the *room* gets: the
+            // shell going out, the shudder, and a chord that says the fight grew.
+            break: {
+              ring: { radius: 60, speed: 900, life: 0.55 },
+              shake: 12,
+              hitStop: 0.09,
+              sound: { notes: [147, 110, 82], dur: 0.9, wave: 'sawtooth', vol: 0.14 },
             },
           },
         },

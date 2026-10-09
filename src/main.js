@@ -8,7 +8,9 @@ import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } fro
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
-import { bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning } from './game/bosses.js';
+import {
+  bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
+} from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
@@ -289,6 +291,9 @@ window.STARFALL = {
       bossWarn: world.boss === null ? 0 : bossWarning(world.boss),
       bossSummons: world.boss === null ? 0 : bossSummons(world.boss),
       bossCells: world.boss === null ? 0 : cellsStanding(world.boss),
+      // How many bodies the fight is standing on. One, until a boss breaks into pieces - and then
+      // the number that says why the bar is going down in three places at once.
+      bossCores: world.boss === null ? 0 : coresStanding(world.boss),
       bossesDown: world.bossesDown,
       // What the run died of, and what each thing cost it on the way (game/tally.js
       // `noteHullLoss`). A headless run that says "died at 0m35s" and not *of what* is a number

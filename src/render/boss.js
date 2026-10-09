@@ -12,8 +12,9 @@
 //
 //   the ring itself             a large ring-shaped ship: the hoop, the spokes that are its
 //     (drawn with the crowd)      frame, a hub, and a core whose light is the countdown of
-//                                 whatever it is holding. It turns with `boss.angle`, which
-//                                 is the same number the spokes are fired from, so the
+//                                 whatever it is holding. It turns with the facing the fight is
+//                                 drawn at (game/bosses.js `bossAngle`), which is the same number
+//                                 the spokes are fired from, so the
 //                                 picture and the simulation cannot disagree.
 //
 //   the cage                    four walls of cool light round the duel, faded in over the
@@ -29,8 +30,8 @@ import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
 import {
-  bossAngle, bossCells, bossFlare, bossShape, bossTint, cageRise, cellProgress, massReach,
-  windupProgress,
+  bossAngle, bossCoreOf, bossFlare, bossShape, bossTint, cageRise, cellProgress, coreCells,
+  coreReach, windupProgress,
 } from '../game/bosses.js';
 import { glowFor, paintGlow } from './glow.js';
 import { camera, onScreen } from './camera.js';
@@ -209,20 +210,27 @@ export function drawCage(ctx) {
 }
 
 /**
- * The Hive, whole: the wax, the cells that are still standing, and the core in the middle of
- * them. Everything is drawn at the positions the simulation put them at, which is what lets the
- * cells be bodies of the crowd and still be one object on the glass.
+ * One mass: the wax, the cells of that one body that are still standing, and its core in the middle
+ * of them. A fight that has broken into three hives is drawn three times through here, once per
+ * body, which is the whole of why this takes a core and not a fight: the shape you can shoot is the
+ * shape you can see, and there are three shapes to shoot now.
  *
- * What a cell is about to do is told the way every other body tells it - on the cell itself, out
- * of its own `stage` and its own countdown (game/kinds.js `aimProgress`) - so the mouth that is
- * opening is lit whether or not the mass is facing the ship when it does.
+ * Everything is drawn at the positions the simulation put them at, which is what lets the cells be
+ * bodies of the crowd and still be one object on the glass.
+ *
+ * What a cell is about to do is told the way every other body tells it - on the cell itself, out of
+ * its own `stage` and its own countdown (game/kinds.js `aimProgress`) - so the mouth that is opening
+ * is lit whether or not the mass is facing the ship when it does.
  */
-function drawTheMass(ctx, boss, enemy, alpha, x, y) {
+function drawTheMass(ctx, boss, core, alpha) {
+  const enemy = core.enemy;
+  const x = paintX(enemy, alpha);
+  const y = paintY(enemy, alpha);
   const tint = bossTint(boss);
   const flare = bossFlare(boss);
   const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
-  const cells = bossCells(boss);
-  const reach = massReach(boss);
+  const cells = coreCells(core);
+  const reach = coreReach(core);
 
   paintGlow(ctx, glowFor(tint, reach * MASS_LIGHT), x, y, HALO_LIGHT);
   if (flash > 0) paintGlow(ctx, glowFor(PALETTE.white, reach * MASS_LIGHT), x, y, flash * FLASH_LIGHT);
@@ -297,8 +305,8 @@ function drawTheMass(ctx, boss, enemy, alpha, x, y) {
   ctx.restore();
 
   const breath = 1 - 0.2 + 0.2 * Math.sin(world.time * BREATH_MASS);
-  const core = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
-  paintGlow(ctx, glowFor(PALETTE.white, enemy.r * MASS_CORE), x, y, core * breath);
+  const coreLight = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
+  paintGlow(ctx, glowFor(PALETTE.white, enemy.r * MASS_CORE), x, y, coreLight * breath);
 }
 
 /** One spoke's bar: a solid line of the ring's own frame, from `from` to `to` of its radius. */
@@ -331,8 +339,9 @@ export function drawBoss(ctx, boss, enemy, alpha) {
     // Culled by the mass's own reach and not by the body the fight is measured by: a cell can be
     // standing well outside the core's radius, and a hive that lost its left hand at the edge of
     // the window would be a lie about the room.
-    if (!onScreen(x, y, massReach(boss) * MASS_LIGHT + 20)) return;
-    drawTheMass(ctx, boss, enemy, alpha, x, y);
+    const core = bossCoreOf(boss, enemy);
+    if (!onScreen(x, y, coreReach(core) * MASS_LIGHT + 20)) return;
+    drawTheMass(ctx, boss, core, alpha);
     return;
   }
 

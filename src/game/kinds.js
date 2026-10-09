@@ -283,9 +283,12 @@ export function glide(enemy, step, dx, dy, pace) {
  * Walk this enemy one step along the line to the ship, `swerve` radians off it,
  * at `pace` px/s or at its own if nothing is given. Answers the direction it
  * walked, which is where a nose points unless the kind says so. A negative `pace` is walking
- * backwards along that line, which is how a boss that wants the room backs off (game/bosses.js).
+ * backwards along that line, which is how a body that wants the room backs off - and how a
+ * fragment gives ground (game/bosses.js `stationOf` hands the walking back to `glide`, because a
+ * body that has been told which side of the ship to keep is walking at a place and not at the
+ * ship).
  */
-export function advance(enemy, step, swerve, pace) {
+function advance(enemy, step, swerve, pace) {
   const heading = Math.atan2(step.ship.y - enemy.y, step.ship.x - enemy.x);
   glide(enemy, step, Math.cos(heading + swerve), Math.sin(heading + swerve),
     pace === undefined ? enemy.speed : pace);

@@ -319,6 +319,7 @@ export function playOneRun(game, options) {
   let bossName = '';
   let bossPhase = 0;
   let bossesDown = 0;
+  let bossCores = 0;
   while (frames < frameLimit) {
     botFrame(game, opts.policy);
     game.step(FRAME_MS);
@@ -352,15 +353,34 @@ export function playOneRun(game, options) {
         bossesDown = stats.bossesDown;
         trace.push(frames + ':boss ' + bossName + ' down, ' + bossesDown + ' spent');
         bossName = '';
+        bossCores = 0;
       }
       if (stats.boss !== '' && stats.boss !== bossName) {
         trace.push(frames + ':boss ' + stats.boss + ' walks in');
         bossName = stats.boss;
         bossPhase = stats.bossPhase;
+        bossCores = stats.bossCores;
       } else if (stats.boss !== '' && stats.bossPhase !== bossPhase) {
         trace.push(frames + ':boss ' + stats.boss + ' phase ' + stats.bossPhase
           + ' at ' + Math.round(stats.bossHull * 100) + '%');
         bossPhase = stats.bossPhase;
+        bossCores = stats.bossCores;
+      } else if (stats.boss !== '' && bossCores > 0 && stats.bossCores !== bossCores) {
+        // The fourth moment a trace has to show, and the one only a fight made of several bodies
+        // can have: the Hive coming apart (game/bosses.js `spendSplit`), and one of its bodies
+        // coming down again afterwards. Without it a trace reads a split as the fight gaining an
+        // enemy out of nowhere, and a run that broke a piece off as the bar behaving oddly.
+        //
+        // `bossCores > 0` is the other half of the test and it is not decoration: while a fight is
+        // still being announced it has no bodies at all, so the frame it arrives on would otherwise
+        // read as one body breaking into one - which is exactly what the first draft of this line
+        // printed, on every Warden in the game.
+        const grew = stats.bossCores > bossCores;
+        trace.push(frames + ':boss ' + stats.boss + (grew
+          ? ' broke into ' + stats.bossCores + ' bodies at '
+          : ' is down to ' + stats.bossCores + ' bodies at ')
+          + Math.round(stats.bossHull * 100) + '%');
+        bossCores = stats.bossCores;
       }
     }
     if (game.stats().state === game.STATE.OVER) {
