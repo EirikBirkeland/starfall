@@ -213,10 +213,11 @@ function holdsItsMass(enemy, step) {
 
 /**
  * A cell's walk: it holds its place in the mass. The mass turns and the cell turns with it, the
- * mass stops and the cell stops, and nothing the crowd does to it shifts it, because a place in
- * a wall is not a body with an opinion (`rooted`, game/kinds.js). Its own `timer` is the light
- * of an opening that is not finished yet, spent here the way every other body spends the
- * countdown of its own tell (game/kinds.js `aimProgress`).
+ * mass stops and the cell stops, and the place is written absolutely rather than nudged, so a
+ * cell is never a body with an opinion of its own about where the wall is (`rooted`, which keeps
+ * the crowd's separation off it as well, game/kinds.js). Its own `timer` is the light of an
+ * opening that is not finished yet, spent here the way every other body spends the countdown of
+ * its own tell (game/kinds.js `aimProgress`).
  */
 function holdsItsPlace(enemy, step) {
   const hub = enemy.hub;
