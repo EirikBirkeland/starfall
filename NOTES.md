@@ -5953,3 +5953,107 @@ weighting was already in as `BALANCE.cards.bias`.
   been faking since it started.
 - **`test/draw-cost.test.mjs` is at 34 of 34 glow holders** (session 47). This session added no sprites -
   the chips and the tab are plates, paths and text - so the number did not move.
+
+## Session 49 (2026-10-09) — Thermal shock finished, and the cards stop running off themselves. Released **0.4.20**
+
+Two things this session, in this order: an abandoned session's unfinished work that was sitting in
+the working tree, and the bug report that arrived the morning of.
+
+### What was in the tree, and what I did about it
+`src/game/shock.js`, three test files and eleven modified files were sitting there, uncommitted,
+with no NOTES entry — a session that ended before it could verify (session 4's situation exactly).
+938 tests already passed with it in place. I read all of it, verified it end to end, measured the
+card, ticked PLAN, and committed it as its own commit rather than mixing it with the bug fix.
+
+What the verification said:
+- **`--seed 20261006 --trace` is byte-identical to v0.4.19**, which is the claim that matters:
+  `fillOffer` was pulled apart to put an earned synergy on the table first, and a run that earns
+  nothing deals (and plays) exactly the run it always played. I checked this against a
+  `git worktree add /tmp/base-head HEAD`, which is the way to compare against the last release
+  when the working tree is dirty.
+- `tools/line-ab.js --line thermalShock --with burn=3 --with chill=3 --conditions out,free --seeds 6
+  --seconds 480 --set weight=$w` for weight in 2,3,4,6,8 (parallel, 3 minutes each on this box):
+  +1.5% / +3.6% / +5.9% / +10.3% / +20.1% of the run's damage, and **flat in score at every one of
+  them** because all six runs survive the whole window. 2,875 blasts, 2,416 bodies caught (0.84 a
+  blast), 8,368 of hull off them against the run's own 27,756 — a third of the damage, nearly all
+  of it *substituted* for shots the run would have spent anyway. That is written into the balance
+  comment along with the caveat: the run this card is for is one that dies at four minutes, and the
+  tool cannot price that. `--with` (hold a line at a rank for the whole run) is new in line-ab for
+  exactly this; `tools/power-ladder.js` now skips synergies with a comment saying why.
+- The five decisions are argued in `game/shock.js`'s header, and the one to remember is **one
+  corpse, one ending**: the detonation stands in for burn's fire jump *and* chill's shatter, and
+  `quenchFlame` *marks* a fire instead of removing it, because a death can be on its way through
+  `updateBurn`'s own walk of that pool and `core/pool.js` swap-removes.
+
+### The bug report: "during powerup selection, long strings exceed the bounds of the card"
+True, and worse than reported. `drawFlavour` wrapped to the card's width but had no bound at all, so
+a long description printed straight off the bottom of the card and across the rank pips; the turret
+card was 218 characters in a card with room for about 100. The card *name* and the effect line were
+never measured against the card's width either, and `+1 SHOT OFF EVERYTHING IN REACH` really did
+walk out of the side.
+
+`src/render/fit.js` is new and small: `shrinkToFit` (a ladder of 0.92 notches down to a floor the
+caller names), `wrapRows`, `ellipsize`, `fitOneLine`, `fitParagraph`. Both policies **shrink before
+they cut** — a complete sentence at 12 px says more than a 15 px sentence with an ellipsis in the
+middle of its last line — and cutting is only what is left below the floor, because type under eight
+pixels is not small, it is unreadable. `render/cards.js` now lays a card out from named shares
+(`ICON_AT`, `NAME_AT`, `FLAVOUR_AT`, `MARKS_AT`, …), and the description gets exactly the room between
+the effect line and the rank pips: five rows of ~25 characters at the full window, smaller type
+before any of it is cut. The synergy's `BURN 3 + CHILL 3` line, the cut-out line and the SYNERGY
+plate went through the same measuring (the plate is now clamped back inside a narrow card).
+
+And the writing gave way too, because a card that has been cut to fit is a card nobody can read: the
+six longest flavours are ~110 characters each now (the budget — roughly **120 characters** — is
+written into the `LINES` doc comment), and the "one more per rank" clauses went first since `what`
+and the pips already say that. Magnetar's `what` became `shot off the field`; two magnetar tests
+assert that string and were updated with it.
+
+### The harness change that should not be undone
+`measureText` used to answer `{ width: 10 }` for every string in the game. It now parses the point
+size out of the ctx's current `font` and returns `size × 0.56 × length` (`TEXT_ADVANCE`), and text
+draws are logged with position, width, size, alignment and whether they were the stroke or the fill
+of a halo (`game.texts()`), plus `game.context` hands the stub ctx to a test that wants to paint one
+thing on its own. Two things to remember:
+- **0.56 ems a character is a model, deliberately on the generous side** of a real UI face, so text
+  that fits here fits in a browser. `test/card-fit.test.mjs` proves the policy, not the width of a
+  capital T. It is mutation-checked in spirit: I removed the row bound to confirm it reports
+  `"nobody counts characters." runs 14.9 px below its card`.
+- **`font()` rounds *down* now.** It used to `Math.round`, which could draw a word bigger than the
+  size it was measured at and walk it off the card with every measurement honest. Anything that
+  measures text and then paints it has to share that floor — that is why every size the cards ask
+  for goes through `px()` (the 8 px minimum) before the ladder starts.
+
+### What surprised me
+- **Half the harness's word log is the same words twice.** `haloText` strokes then fills, so
+  `texts()` counts 2 per word until you filter `!stroke`; two of my new tests failed on that before
+  I noticed, and the flag is in the log entry now so the next person does not have to find it.
+- **A card's text capacity is scale-invariant**, which is why the fix is half writing. `widest` is
+  `w × 0.86` and the body size is `w × 0.06`, so characters per row is ~25 whatever the window is,
+  and the rows the card has are set by the constants that do *not* scale (the 8 px floor and the pips'
+  margin). Widening the cards would have bought nothing; the only levers were the type share, the
+  vertical rhythm and the text. I took a little from the first two (the icon is `0.30w` at `0.21h`,
+  down from `0.34w` at `0.26h`) and the rest from the third.
+- **The wide-window containment test would not have caught the original bug on its own**, because
+  after trimming the writing nothing overflows at full size any more; what catches it is the pair —
+  containment at 560×400 and 420×320 (where the type really does run out of road) plus "nothing on
+  the rack needed an ellipsis at the full window". Both directions are asserted, and I checked each
+  by breaking it.
+- `test/draw-cost.test.mjs`'s glow holders did not move: this session added no sprites, only text.
+
+### For the next session
+- **Owned structures on the HUD is the last unchecked item of milestone 4** (owed since session 45,
+  now four milestone-4 sessions overdue): orbitals, mines, threads, turret crews and - newly - a
+  synergy's state are all invisible on the HUD, and none of the 17 lines and 85 ranks are named
+  there either. It is the item, and `render/hud.js` is where it lives.
+- **Two more of PLAN 3.5's synergies need no new systems**: **Saw ring** (Orbitals 3 + Pierce 2) and
+  **Minefield** (Mines 3 + Magnetar 2). Storm, Railgun and Aegis burst want weapons or shields the
+  table is ahead of. The mechanism is all there: `needs`, `SYNERGY_UNIT`, `readySynergies`, the frame,
+  the unbannishable rule, and `test/synergies.test.mjs` as the template. A second synergy also
+  decides whether the frame's two colours are always "flame outside, rime inside" or the two parents'
+  own tints, which is the question `TINT.thermalShock` ducked by reusing burn's flame.
+- **Any new card now owes the writing budget** (~120 characters of `flavour`, and an effect line that
+  prints whole); `test/card-fit.test.mjs` fails otherwise and its message names the card.
+- **A bot that uses the asks still does not exist** (`tools/headless/bot.js` prefers a synergy the
+  moment one is face up and never rerolls), and NOTES has been saying since session 46 that a floor
+  line needs its own bot. Every number above is priced on a bot that survives eight minutes, which is
+  the customer none of them was written for.
