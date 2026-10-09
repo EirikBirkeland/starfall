@@ -47,6 +47,10 @@ function createWorld() {
   const world = {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
+    // Has this run already outlasted the whole schedule and been handed its arena back to fly on
+    // with? Written once, by game/run.js `continueRun`, and read by the interface (render/hud.js):
+    // the schedule is spent either way, so nothing in the simulation needs to be told twice.
+    endless: false,
     // Which ship the runs of this world fly, and with it which primary (game/ships.js).
     // Picked on the title screen until the hangar exists, and deliberately not cleared by a
     // new run: what you picked is what you fly on, like the seed and the gun.
@@ -360,8 +364,13 @@ function stepRun(dt, input) {
   // finished walking (game/leech.js).
   updateLeech(world);
   // The boss, after everything that can hurt a body, so a boss that died this step is buried
-  // this step and never fires a volley from a corpse (game/bosses.js).
-  updateBosses(world, dt);
+  // this step and never fires a volley from a corpse (game/bosses.js). It answers for the ending
+  // the way the rest of them do, because the last fight on the schedule coming down *is* the run
+  // ending - and won - and the step has to leave on that word like it leaves on every other:
+  // everything below runs after the fight, and a shard picked up on the step a run was won used to
+  // be able to level the ship up, and a level up is a card, and a card is a state that is not the
+  // win (game/upgrades.js `refreshOffer`).
+  if (!updateBosses(world, dt)) return;   // the last fight ended the run
   // The images go out last, after the crowd has already walked and decided what it was chasing:
   // an image is chased for every step of its two seconds and not one step less, and what is left
   // for it here is to be one step older (game/afterimage.js).

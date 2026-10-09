@@ -1,14 +1,14 @@
-// The life cycle of a single run: what a fresh run looks like, and what happens
-// when it ends.
+// The life cycle of a single run: what a fresh run looks like, what happens
+// when it ends, and how an ending that was a win can be handed back and flown on.
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
-import { burst, ring, shakeIt, wreck } from './effects.js';
+import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, clearCues } from './cues.js';
-import { newTally, noteVictory } from './tally.js';
+import { newTally, noteVictory, noteEndless } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
 import { applyShip } from './ships.js';
@@ -121,6 +121,9 @@ export function resetRun(world) {
   world.score = 0;
   world.xp = 0;
   world.xpNeed = firstLevelXp();
+  // And the run is not endless: a run that outlasted the schedule and was then handed its arena back
+  // is one run, and the next one starts with the schedule whole again (game/run.js `continueRun`).
+  world.endless = false;
   // The run starts with nothing bought and nothing on the table: a card left over from
   // the last run would pause a run that has earned nothing.
   resetRanks(world);
@@ -231,16 +234,54 @@ export function winRun(world) {
  *
  * The frame asks this to know when to put the card on the glass, and `canStartRun` asks it to
  * know when the player is allowed to be somewhere else - one number, one answer, so the card and
- * the key that dismisses it cannot come apart.
+ * the key that dismisses it cannot come apart. It is also the whole of what `continueRun` will
+ * accept: the card is up, or the run is not finished being won.
  */
 export function victoryCardIsUp(world) {
   return world.state === STATE.WON && world.overTimer > BALANCE.victory.hush;
 }
 
 /**
+ * Hand the arena back to a run that has won, and let it fly on: PLAN 3.4's endless mode, which is
+ * not a second mode so much as the same run refusing to stop.
+ *
+ * The win's card is a door *into* the run and not out of it, and the key that would have begun a new
+ * run unwinds this one back into `PLAY` with everything it earned still on it - the score, the hull,
+ * the level, the build, the fights it buried. Nothing is reset here, because nothing was ever taken
+ * away: `winRun` stopped this exact world and this starts that one again.
+ *
+ * What the run does not get back is a fight. The schedule is walked once and it has been walked out
+ * (game/bosses.js), so what comes out of the dark from here is the wave director and nobody else.
+ * What goes on scaling from here is `BALANCE.endless`'s business, and the next session's.
+ *
+ * Answers false for a world this does not apply to - a run that is flying, a wreck, a won run whose
+ * card is not up yet - so the frame can ask one question and get one answer.
+ */
+export function continueRun(world) {
+  if (!victoryCardIsUp(world)) return false;
+
+  const spec = BALANCE.endless;
+  const ship = world.player;
+  world.state = STATE.PLAY;
+  world.overTimer = 0;
+  world.endless = true;
+  noteEndless(world);
+  // The world stopped with the crowd standing where it stopped, some of it on top of a ship that had
+  // no reason to be anywhere. It gets the breathing room a run is given when it starts.
+  ship.invuln = Math.max(ship.invuln, spec.resumeInvulnerability);
+  // And it says so: one ring out of the hull and one word over it, because the arena is about to
+  // hurt again and the player has just spent a moment being told that it had stopped.
+  ring(world, ship.x, ship.y, PALETTE.elite, spec.ring.radius, spec.ring.speed, spec.ring.life);
+  addText(world, ship.x, ship.y - ship.drawR - spec.wordLift, spec.word, PALETTE.elite);
+  cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
+  return true;
+}
+
+/**
  * Restart is blocked for a moment after an ending: over a wreck so the key that died is not eaten
  * on the way to the next run, and over a win because the card has to be up before the run can be
- * left (game/run.js `victoryCardIsUp`).
+ * left (game/run.js `victoryCardIsUp`) - and leaving a won run means either of the two things its
+ * card will do, a new run asked for or this one resumed.
  */
 export function canStartRun(world) {
   if (world.state === STATE.START) return true;

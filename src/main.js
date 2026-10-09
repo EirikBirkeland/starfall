@@ -2,7 +2,7 @@
 // module that is allowed to know about all of them at once.
 
 import { world, stepWorld } from './game/world.js';
-import { startRun, resetRun, canStartRun, victoryCardIsUp } from './game/run.js';
+import { startRun, resetRun, canStartRun, continueRun, victoryCardIsUp } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
@@ -61,9 +61,9 @@ let seedIsPinned = false;
 // has happened once, and it forgets again the moment the world is on any other screen.
 let victoryCardShown = false;
 
-/** Start a run if the screen accepts one right now. */
-function pressAction() {
-  if (!canStartRun(world)) return;
+/** Begin a new run, if the screen accepts one right now. */
+function beginRun() {
+  if (!canStartRun(world)) return false;
   initAudio();
   // The press that launches a run is not also a dash. Space is both keys, and a
   // run that began with a dash already spent would read as a broken cooldown.
@@ -71,6 +71,24 @@ function pressAction() {
   if (!seedIsPinned) world.seed = randomSeed();
   startRun(world);
   hideScreens();
+  return true;
+}
+
+/**
+ * One press of the launch key, whatever the screen means by it: a new run from the title or the
+ * death's card, and - over the win - the run that is sitting under the card handed back (game/run.js
+ * `continueRun`, PLAN 3.4's endless mode). Asking for a new run there is what R and the number keys
+ * are for, and the card says so.
+ */
+function pressAction() {
+  if (continueRun(world)) {
+    // The same bargain `beginRun` strikes with the launch key: Space is the dash as well, and a run
+    // resumed out of the hush owes no free dash on the step it comes back on.
+    consumeInput();
+    hideScreens();
+    return;
+  }
+  beginRun();
 }
 
 function onCanvasPressed() {
@@ -105,18 +123,32 @@ function onPickCard(number, banishing) {
   }
   // The same keys, on the two screens that are not a run: the title picks the ship to fly,
   // and with it the primary that ship brings (game/ships.js), because there is no hangar
-  // yet (PLAN 3.2, milestone 5). The two cards a run ends on take it too - the death's and the
-  // win's - which is what "press 2, press Space, fly the scatter" means. Mid-run the keys are
-  // nobody's: a run does not get to swap its body or its gun between two frames.
+  // yet (PLAN 3.2, milestone 5). The death's card takes it too - which is what "press 2, press
+  // Space, fly the scatter" means. Mid-run the keys are nobody's: a run does not get to swap its
+  // body or its gun between two frames.
   if (world.state === STATE.PLAY) return;
+  // A won run is still a run, so it does not swap its body either - and its launch key is spent on
+  // keeping the run, so a number there is the whole of the other answer instead of half of it: take
+  // this ship and begin again, one press. Over the hush before the card there is no answer to give
+  // yet, and a number is refused rather than quietly changing what the run about to be handed back
+  // is flying.
+  if (world.state === STATE.WON) {
+    if (victoryCardIsUp(world) && setShipByIndex(world, number - 1)) beginRun();
+    return;
+  }
   // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
   // taken, not to a key that was pressed.
   if (setShipByIndex(world, number - 1)) showShip(world.ship);
 }
 
-/** R rerolls the table. The same key on any other screen asks for nothing. */
+/**
+ * R asks for the deal again over the cards, and for a new run over a won one: the win card's launch
+ * key keeps the run that won, so the way out of it needs a key of its own. On any other screen it
+ * asks for nothing.
+ */
 function onReroll() {
   if (world.state === STATE.LEVEL) rerollOffer(world);
+  else if (victoryCardIsUp(world)) beginRun();
 }
 
 function onResize() {
@@ -319,6 +351,10 @@ window.STARFALL = {
       bossSweeps: world.boss === null ? 0 : bossSweeps(world.boss),
       arms: world.arms.count,
       bossesDown: world.bossesDown,
+      // Has a run that outlasted the schedule been handed its arena back to fly on (game/run.js
+      // `continueRun`)? A headless run that wins and keeps winning has no other way to say which of
+      // the two it is, and neither has the interface this reads it from.
+      endless: world.endless,
       // How far the room has been put under (game/bosses.js `darknessOf`). The frame is the only
       // thing in the game that acts on it, and a headless run has no other way to know it is dark.
       dark: darknessOf(world),

@@ -14,6 +14,7 @@
 
 import { STATE } from '../../src/game/state.js';
 import { BALANCE } from '../../src/game/balance.js';
+import { victoryCardIsUp } from '../../src/game/run.js';
 import { WEAPONS, weaponName } from '../../src/game/weapons.js';
 import { LINES, banishedLines, effectOf, lineOf, maxRanksOf } from '../../src/game/upgrades.js';
 import {
@@ -523,6 +524,12 @@ export function createSession(game, options) {
 
   function start() {
     if (game.world.state === STATE.PLAY || game.world.state === STATE.LEVEL) refuse('a run is already flying');
+    // Over a won run whose card is up, Space no longer means "a new run": it hands that one back to
+    // fly on (game/run.js `continueRun`). This tool asks for a new one, so it says so rather than
+    // pressing a key that would quietly keep the old run and its score.
+    if (victoryCardIsUp(game.world)) {
+      refuse('that run was won and its card is up: Space would keep it flying, not begin a new one');
+    }
     // The same key press a player makes. Space means "go" on the title and the
     // game-over card, and the game itself retires the dash it would otherwise queue.
     game.key('Space', true);

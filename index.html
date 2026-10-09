@@ -183,14 +183,16 @@
 <div id="winScreen" class="screen hidden">
   <h2 class="win-title">ARENA CLEARED</h2>
   <p class="win-sub">THE RUN IS WON</p>
-  <div class="score-label">FINAL SCORE</div>
+  <div class="score-label">SCORE</div>
   <div class="score-big" id="winScore">0</div>
   <div class="best-line">BEST <span id="winBest">0</span></div>
   <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
   <div class="cleared" id="winCleared"></div>
   <div class="stats" id="winStats"></div>
   <div class="build" id="winBuild"></div>
-  <div class="hint">PRESS SPACE OR CLICK TO FLY AGAIN</div>
+  <!-- Two keys, because the win's card is a door back into the run and not only out of it: the launch
+       key hands this one back to fly on (game/run.js `continueRun`), and R asks for a new one. -->
+  <div class="hint">PRESS SPACE TO KEEP FLYING &#183; R FOR A NEW RUN</div>
 </div>
 
 <script type="module" src="src/main.js"></script>

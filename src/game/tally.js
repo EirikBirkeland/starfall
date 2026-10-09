@@ -138,6 +138,10 @@ export function newTally() {
     // apart cannot tell a hard run from a long one.
     won: false,
     wonAt: -1,         // the run's clock when it was won; -1 when it never was
+    // Did the won run then keep flying? Endless is what a win is on the way to (PLAN 3.4), and a
+    // report that cannot tell the two apart cannot say whether a fifteen-minute run was beaten or
+    // was finished and then went on for another ten minutes on top of that.
+    endless: false,  // set when the arena was handed back to a run that had already won
     kinds: {},         // kind name -> the row above
   };
 }
@@ -251,4 +255,13 @@ export function noteHullLoss(world, cause) {
 export function noteVictory(world) {
   world.tally.won = true;
   world.tally.wonAt = world.elapsed;
+}
+
+/**
+ * The won run was handed its arena back and flew on (game/run.js `continueRun`). A mirror again:
+ * the fact that the run is endless is held by the world (`world.endless`), which is what the frame
+ * and the interface read; this is the same fact written down for whoever reads the sheet after.
+ */
+export function noteEndless(world) {
+  world.tally.endless = true;
 }

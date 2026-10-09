@@ -16,6 +16,8 @@ export const STATE = {
   // won (game/run.js `winRun`). It is an ending and not a pause - no run time passes and
   // nothing in the arena can hurt anything again - but the card is not put up for
   // `BALANCE.victory.hush` seconds, so the fight's own going-down is what the player hears
-  // first. The window keeps painting, the same way it does over a death.
+  // first. The window keeps painting, the same way it does over a death. And it is the one
+  // ending that can be handed back and flown on: this is where endless mode starts (game/run.js
+  // `continueRun`), and the only state that has ever been asked to become `PLAY` again.
   WON: WON,
 };

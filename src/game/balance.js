@@ -3136,6 +3136,27 @@ export const BALANCE = {
     shake: 16,
   },
 
+  // Endless mode (PLAN 3.4: "Endless mode then continues with all values scaling for as long as
+  // the player lasts"). The run that outlasted the schedule is handed its arena back and keeps
+  // flying with everything it earned (game/run.js `continueRun`). Everything so far is about the
+  // hand-back itself; what the run goes on to be faced with is the rest of this row's business.
+  endless: {
+    // How long the ship is left unhurt after the arena is handed back. The world stopped with the
+    // crowd standing where it stopped, possibly on top of the ship, and the ship was never asked to
+    // move: a run resumed with no grace at all loses a hull for reading the card. This is the same
+    // span a run opens with (`player.startInvulnerability`) because that is what it is - the first
+    // moment of a run, with the crowd already here.
+    resumeInvulnerability: 1.2,
+    // One ring out of the ship and one word over it, which is what says the arena is live again.
+    // There is no burst: a resume is not an explosion, it is a door opening.
+    ring: { radius: 12, speed: 520, life: 0.8 },
+    word: 'ENDLESS',
+    wordLift: 16,          // the word floats this far above the ship, as level text does
+    // Lower and more open than the win's own chord, and shorter than it: the fanfare has been and
+    // gone, and this is the arena being let back in rather than a second celebration.
+    sound: { notes: [392, 588, 784], dur: 0.5, wave: 'triangle', vol: 0.09 },
+  },
+
   levelUp: {
     burst: { count: 22, speed: 280, life: 0.7 },
     ring: { radius: 10, speed: 340, life: 0.55 },

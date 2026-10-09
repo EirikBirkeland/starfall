@@ -73,7 +73,9 @@
 //     winning: when the last fight on it comes down and the ship is still standing, the run is
 //     over and it was won, and the framework hands the ending over to game/run.js (`winRun`).
 //     That is the only thing the schedule is ever asked besides who walks in, and the only thing
-//     this file knows about the run it is fighting in.
+//     this file knows about the run it is fighting in. And it is walked *once*: past the last entry
+//     nothing is ever due again, so a run that is handed its arena back and flies on (game/run.js
+//     `continueRun`, PLAN 3.4's endless mode) is fought by the wave director and nobody else.
 //
 // What a boss *is*, mechanically: an enemy. It is built by the same `makeEnemy`, lives in
 // `world.enemies`, is stepped by the crowd, is hurt by every system that hurts a body and
@@ -89,6 +91,7 @@
 // a different way in two runs of one seed would be a seed that lies.
 
 import { BALANCE } from './balance.js';
+import { STATE } from './state.js';
 import { PALETTE } from '../core/palette.js';
 import { TAU, clamp } from '../core/math.js';
 import { logic } from '../core/rng.js';
@@ -539,7 +542,13 @@ function arrivalSpot(world, row) {
   return SPOT;
 }
 
-/** The siren, and the fight's place in the schedule. */
+/**
+ * The siren, and the fight's place in the schedule.
+ *
+ * Nothing is due once the list has been walked to the end - `world.bossIndex` is past the last entry
+ * and stays there, which is the whole of how an endless run is kept boss-free (game/run.js
+ * `continueRun`). A run does not meet the same fight twice.
+ */
 function startWarning(world) {
   const schedule = BALANCE.bosses.schedule;
   const entry = schedule[world.bossIndex];
@@ -1602,8 +1611,18 @@ export function stepDarkness(world, dt) {
  * The price of that ordering is that a volley fired here is paid out by game/beams.js on
  * the next step - the light appears one step before the damage, by 8 ms of game time and in
  * the player's favour, which is the same direction every other telegraph in the game breaks.
+ *
+ * Answers whether the run is still flying, the way every other system that can end one does.
+ * It is the only system that ends a run by *winning* it - the schedule running out is decided
+ * here and nowhere else (`bossDown`) - and the step has to leave on that word the moment it is
+ * said, or whatever runs after this file gets to overwrite the ending.
  */
 export function updateBosses(world, dt) {
+  stepFight(world, dt);
+  return world.state === STATE.PLAY;
+}
+
+function stepFight(world, dt) {
   const boss = world.boss;
   if (boss === null) {
     startWarning(world);

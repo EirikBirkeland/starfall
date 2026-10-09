@@ -158,7 +158,17 @@ export function drawHUD(ctx, fps) {
 
   ctx.fillStyle = PALETTE.uiFaint;
   ctx.font = FONT_LABEL;
-  ctx.fillText('TIME ' + Math.floor(world.elapsed) + 's   LV ' + world.player.level, PAD, PAD + 64);
+  // `ENDLESS` once the run has outlasted the whole schedule and been handed its arena back
+  // (game/run.js `continueRun`): the clock is still going and nothing new is coming, and the one
+  // way to say that is next to the clock. In gold, the colour every reward here is written in, and
+  // out of the balance row, so this and the word that floats over the ship on the step it happens
+  // cannot be spelled differently.
+  const clockLine = 'TIME ' + Math.floor(world.elapsed) + 's   LV ' + world.player.level;
+  ctx.fillText(clockLine, PAD, PAD + 64);
+  if (world.endless) {
+    ctx.fillStyle = PALETTE.elite;
+    ctx.fillText('   ' + BALANCE.endless.word, PAD + ctx.measureText(clockLine).width, PAD + 64);
+  }
 
   // Which primary the run is flying (game/weapons.js). It is picked once, on the title,
   // and this is the place it can still be read while it matters.
