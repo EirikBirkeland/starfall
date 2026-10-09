@@ -1,5 +1,40 @@
 # Starfall — changelog
 
+## 0.4.20 — 2026-10-09
+Thermal shock: a body that comes apart both alight and frozen takes the room around it with it. Also, cards can no longer run off the bottom of themselves.
+- **The first synergy, and the eighteenth card on the rack.** Take **BURN** to its third rank and **CHILL** to
+  its third rank and a new card is face up at the next level: **THERMAL SHOCK**. It is not dealt out of the deck
+  like a line, it cannot be banished, and it has one rank - it is not a thing the run buys instead of something,
+  it is what the two lines the run already chose become. A reward for six levels of deciding to be a fire-and-ice
+  run that then came up or did not on the throw of a weighted die would have been a reward the run could lose
+  without ever being offered it, so an earned synergy is put on the table before anything is drawn.
+- **One corpse, one ending.** A body that came apart alight already passed its fire to its neighbours; one that
+  came apart frozen already threw ice and hull. A body that wore both, with the synergy owned, pays **one**
+  bigger ending instead: a detonation of hull, cold and fire, and its own fire spent inside the blast rather
+  than jumping a step later. How hard it goes is how cold the corpse was, and everything the blast throws is a
+  share of what the corpse had, so a chain runs down through a crowd and dies out instead of walking the arena
+  off one drifter.
+- **A frame that says *both of them*.** The card wears its parents instead of a colour of its own: the flame is
+  the outside edge, a line of rime runs just inside it, `SYNERGY` sits where a line keeps its banish tab, and
+  where a line's rank pips would be it names what it came out of - `BURN 3 + CHILL 3`. No new hue and no new
+  sprite, which is as well: the glow cache had no room left for either.
+- **Measured, and honest about what the measurement can say:** worth **+5.9%** of everything a run takes off
+  bodies at its weight of 4 (+1.5% at 2, +20.1% at 8), and flat in score, because the measuring runs all survive
+  their whole window. The run this card is really for is the one that does not, and that is a run the tool cannot
+  price at all.
+- **Cards cannot overflow themselves any more.** The bug report said it plainly: during powerup selection, long
+  strings exceeded the bounds of the card - a description was wrapped to the card's width but never bounded, so
+  a long one printed off the bottom of the card and across the rank pips, and the turret's was 218 characters in
+  a card with room for about 100. Text is now fitted to the box it was given: smaller type first, an ellipsis
+  only when even the smallest honest size will not do, and the description gets exactly the room between the
+  effect line and the pips. The headless canvas now measures words by their size and font instead of answering
+  "10" for every string in the game, which is what lets a test prove the rack fits - and it does fit, every card
+  on it, at the full window, with nothing cut.
+- **And the writing gave way, not the frame,** because a card that has been cut to fit is a card nobody can
+  read. The six longest descriptions are about 110 characters each now; the "one more per rank" clauses went
+  first, since the effect line and the pips already say that. One effect line, `+1 SHOT OFF EVERYTHING IN REACH`,
+  could not be printed whole at any size: it is `+1 SHOT OFF THE FIELD`.
+
 ## 0.4.19 — 2026-10-09
 Twice per run the deal can be argued with: ask for the whole table again, or cut one of these lines out of the run for good.
 - **Two chips under the cards, and they are the run's, not the deck's.** Every run is granted **one reroll**
