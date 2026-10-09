@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 0.6.9 — 2026-10-09
+The Eclipse's last shell walks its door: the gap in the wall travels, and you are shown the whole of the way it travels.
+- **A moving gap that is still a promise.** The door of a shell opens on your own bearing as it always did — so a ship
+  that does nothing is shown a door it is standing in — and then it walks 1.2 radians across the room and stands still
+  again for the last quarter-second of the wind-up before the wall is thrown round the place it stopped. Nothing that
+  flies curves and nothing moves after it is fired: the harm is as still as it ever was, and only the promise travelled.
+- **The whole route is on the glass from the first step.** You are not chasing a wedge you have to keep your eye on; you
+  are reading a place that is drawn end to end and going to its far end, the same way a fan of blades is lit edge to
+  edge before anything sweeps down it. The night cut by the second phase leaves the whole route out too, so the darkest
+  room in the game cannot eat half a promise.
+- **It costs the drag.** The door walks 1.2 radians and is itself 1.0 wide, so about 0.7 radians of bearing has to be
+  bought back in the two seconds before the wall arrives: 127 px/s in close, 138 px/s at the far edge of the sun's band,
+  out of the 320 the fastest hull has — and whatever you spend going round is taken off what you were spending not
+  falling in. Every other shell walks the other way, so it is a rhythm and not a coin toss.
+- **Only the last phase has it.** The two before are the plain held door, and so is every ring in the rest of the game:
+  the fight teaches its own ending. Fourteen new claims across four test files hold the walk to its word — that it
+  starts on the ship, goes one way and all the way, is at rest before the wall lands, and leaves the hole it promised —
+  and the whole suite is 1200 tests.
+
 ## 0.6.8 — 2026-10-09
 The Eclipse's last phase lifts an arm: three fans of light are lit, and then a blade comes down each one.
 - **A hazard that moves has to show the whole of the way it moves.** The Eclipse's phase 3 lights three
