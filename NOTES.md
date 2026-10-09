@@ -7646,8 +7646,12 @@ travel, and doing both in one session would have meant one of them was rushed.
   the tests that should go red go red.
 - `node tools/simulate.js --seconds 960 --runs 6`: 5 of 6 still flying at the 16-minute cap, one died
   at 2m36s to a drifter before any boss; seed 13 was fighting the Eclipse's phase 3 at 17% hull when
-  the clock ran out. No throws anywhere. The plain 600 s run is unchanged (65279, same fingerprint as
-  before this session - the arms cannot be reached that early).
+  the clock ran out. No throws anywhere.
+- **The proof nothing unrelated moved**: `node tools/simulate.js --seed 20261006 --seconds 600 --trace`
+  is now **byte-identical** to the trace saved before this session started (`--trace` prints a state
+  fingerprint every 120 s, so this is the whole run, not its score line). The Eclipse arrives at 900 s,
+  so a 600 s run never meets a blade - which is exactly what makes it a ruler for everything the arms
+  were not supposed to touch. Keep a trace like this before starting anything that edits a shared step.
 
 ### Decisions, so nobody relitigates them
 - A blade lives in its own pool rather than on the boss, and `updateArms` is its own step. The
