@@ -1,5 +1,18 @@
 # Starfall — changelog
 
+## 0.6.7 — 2026-10-09
+A fix to the darkness released a few minutes ago: it covered part of the window, and not the window.
+- **The night is laid on a sheet the size of the window, and it was being filled where the window was
+  *looking* instead of where the sheet is.** Everything outside that fill was cleared, so the room
+  stayed bright in a band down two of the screen's edges and the sun's dark sat as a rectangle
+  somewhere in the middle of the sky. The covering starts at the sheet's own corner now, and the
+  camera is applied only to the lights - the only part of the pass that has any business knowing
+  where the frame is looking.
+- **Nothing here could have caught it, so now something can.** A filled rectangle was a count in the
+  headless browser and not a shape; it is a shape now, and a test claims the night fills the sheet it
+  is cut on, from its own corner, with the camera pointed somewhere else at the time so the claim
+  means something. A bug that only ever shows up on a screen is one you have to measure instead.
+
 ## 0.6.6 — 2026-10-09
 The Eclipse's second phase: at a third of the sun's hull the room goes dark, and what is left is what is shining.
 - **The arena is covered up, not dimmed.** That is the whole of the difference: a dimming leaves the
