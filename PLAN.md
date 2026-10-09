@@ -701,7 +701,9 @@ When every item above is ticked, go back to the first unchecked item of mileston
       three bodies each with a honeycomb of its own, each told a side of the ship to keep, sharing
       the hull the fight has left so that the bar does not move across the split and one hull bar
       is still one fight (`split` on the third phase of `bosses.hive`, game/bosses.js
-      `spendSplit`).
+      `spendSplit`). Not shipped from 3.4's Hive row: phase 2's spiral bullet pattern - the second
+      phase is the brood priced hotter and turned faster instead, and the hive has no gun. Either
+      a session gives it one or that half line becomes [skipped] with a reason.
       `test/hive.test.mjs` and the mass tests of `test/boss-art.test.mjs` own all of it.)
 - [ ] The Eclipse, one phase per session, including the darkness effect.
 - [ ] Victory screen and the endless mode that follows.

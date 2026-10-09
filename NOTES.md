@@ -7159,3 +7159,148 @@ gave it (opens every mouth the hive has left) rather than PLAN's "breaks into th
   (M10) is where they belong. The four unbuilt synergies, the music buses, and
   `tools/agent/session.js` still having `choose_weapon` and no `choose_ship` are all still parallel
   work.
+
+## Session 60 (2026-10-09) — The Hive's third phase finished: a fight made of three bodies. Released **0.6.4**
+
+Found the tree with the split half-built and one red test: the previous session had written
+`newCore`/`spendSplit`/`stationOf`, fifteen new Hive tests, and a scratch probe in the working
+directory, and had stopped while "every piece takes its own side of the ship and keeps it" was
+failing. Finished it, fixed what the failing test was actually pointing at, added the claims that
+were owed (one in `test/hive.test.mjs`, one in `test/boss-art.test.mjs`), and closed milestone 6's
+Hive item. Suite is **1124 green** (was 1122 at HEAD, 1094 before the split), and both boss
+fingerprints - `--seed 20261006 --trace` over 600 s and `--at 295 --seed 11 --trace` - are
+**byte-identical** to a worktree at HEAD (`git worktree add --detach /tmp/head-wt HEAD`), which is
+the claim that none of this touched the Warden.
+
+What the phase is, in one paragraph, because it is the framework's fourth permission: a row may
+name a `split`, and then **a fight is made of one or more bodies**. The hull, the phase and the
+clock of a beat belong to the *fight* and are the sum of its bodies; the place in the room, the
+facing and the honeycomb belong to a *body*. At a third of the bar the flare is spent, and at the
+end of the flare - not the start, so the flare is the thing it describes - `spendSplit` takes the
+mass and the core apart unpaid and stands up `split.cores` fragments, each with a honeycomb of its
+own, each carrying `hullFull / cores` as its maximum and the fight's remaining share of that, each
+told which side of the ship to keep. The bar is continuous across it to the last digit, which is
+what makes it one fight standing in three places rather than three fights, and is what
+`test/hive.test.mjs` measures first.
+
+### The decisions, since nobody will remember them
+
+- **A fragment is `rooted` and the hive is not, and that is the fix the red test was asking for.**
+  Measured before choosing, with the scratch probe the last session had left: with the brood
+  removed the three pieces walk to their stations and sit there (off ≤ 0.04 rad, 336-358 px out
+  for twelve seconds, through a 300 px move of the ship); with the brood in, **one swarmling**
+  walked a fragment from 341 px to 166 px and 1.18 rad off its bearing in four seconds. The reason
+  is that the crowd's separation has no mass in it: a touching pair each give way
+  `separationPush` of the overlap and `rooted` is the only veto there (game/enemies.js), so 7 px of
+  bee diving at 190 px/s moves 20 px of boss at the same rate, dozens of times a second. Three
+  options were on the table: put a size ratio into `separationPush` (a re-pricing of every knot and
+  wall in the game, for one boss's promise - no), a boss-aware exception inside `enemies.js` (the
+  crowd has no business knowing what a boss is), or the Warden's existing answer, which is
+  `rooted`: the Warden's own row already says the crowd leans on a boss all run long and a boss
+  whose spokes drift is a boss that breaks its promise. A directional promise is the same shape of
+  problem, so the fragments inherit the same rule.
+- **Which does not contradict the hive's own row, and both comments now say so.** `rooted` removes
+  the crowd's *room-making* and nothing else: a shove goes through `ix`/`iy`, which `glide` spends
+  whether a body is bolted down or not, so a fragment is still shouldered by a shot's kick, a dash
+  and a blast, and walks back to its side afterwards. The whole hive stays free because it holds a
+  *distance* from the ship, where a shove is a wobble and self-correcting; a fragment holds a
+  *bearing*, where it is a lie that never corrects itself.
+- **`each: 1 → 2` on a fragment's mouths, because the row's own comment was arithmetically false.**
+  It claimed phase 3 "sends about half again as much as phase 2"; read against the phase-2 row it
+  was sending about half as much (phase 2: `round(6 × 0.5) = 3` mouths × 2 bodies per 5.1 s; phase
+  3 as written: 3 mouths × 1 per 4.55 s). PLAN says phase 3 is the busiest of the three, so the
+  number moved rather than the sentence: a fragment's mouth is now exactly a full-sized cell's
+  mouth (`each: 2`), which makes phase 3 three mouths instead of three, a shorter beat, and the
+  brood arriving out of three places at once. That is also what makes "one mouth of each
+  fragment's three cells" the whole of the share story: `share` is a share of the mass that body
+  still has, so a fragment with one cell left still opens it.
+- **A beat spends its light at a body that is standing.** `openPhase` and `letThemOut` hung the
+  flare ring, the volley ring, the shake and the note on `boss.enemy`, which since the split is
+  `cores[0]` - a body that can be a corpse while the other two are still fighting. Both ask
+  `liveCore(boss)` now, and the new test kills two of the three fragments, catches the step an
+  opening lands on (`field.rings.clear()`, then the step that raises `bossSummons`) and asserts a
+  ring was lit at the survivor and none at either of the places the dead ones were last standing.
+  Mutation-checked: putting `boss.enemy` back turns it red.
+- **The fight is buried where the last body came down** (`boss.cameDown`, `noteCoresDown`), each
+  body shedding its own mass unpaid as it goes, so a fragment's death is one event with one chord
+  and the fight's own reward lands once, on the last one, at the place it fell. `breakMass` in
+  `bossDown` is now normally a no-op for that reason and is kept as the promise rather than the
+  work, with a comment saying which it is.
+- **The hull question that sessions 56-59 kept passing along is answered, and the answer is "leave
+  it".** Four sessions wrote that 560 and 760 might be too big, priced as "127 s and 173 s of a
+  bare pulse gun". Both halves of that are fiction. A run that gets to 10:00 with a bare gun does
+  not get 173 s of anything: `--at 595` seeds 31/32/33 die in 25 s, 29 s and 20 s, to `body:swarmling`
+  and `body:tank`, the mass having taken the middle of the room away from them (session 59 already
+  worked that out). And a run that gets to 10:00 with a real build - the traced 780 s runs, level
+  51-52 - spends **20-22 s on the Warden and 24-30 s on the whole Hive**, split included. Neither
+  fight is a wall for the run that actually has one. The measurement that is genuinely missing is a
+  *mid* build, and nothing in `tools/` can give a bot ranks on the way in; whoever wants that number
+  has to build the door first.
+
+### What surprised me
+
+- **The fingerprint caught a bug in a tool that only prints things.** The first version of the
+  trace's new body-count line printed `boss THE WARDEN broke into 1 bodies at 100%` on every Warden
+  in the game, and the full-run trace diff showed it immediately. Two lessons in one line: a fight
+  that is still being announced has *zero* bodies, so a change out of nothing is an arrival and not
+  a splitting; and a count has to be **kept** on every sample whether or not anything is said - my
+  first guard (`bossCores > 0 && …`) skipped the branch entirely and so never learned the real count,
+  which would have silently swallowed every split forever. Second lesson: the phrasing is one way
+  ("is standing on N bodies") because the trace samples twice a second and a snowballed run's phase
+  3 goes 1 → 3 → 2 → 0 between two looks; "broke into 2" would describe a thing that never happened.
+- **Tuning a late phase can be unmeasurable, and the runs told me so by being identical.** The 780 s
+  batch at `each: 1` and at `each: 2` came out the same to the digit on three of four seeds, which
+  looked like a broken experiment until the trace explained it: the phase-3 marks say the fight is
+  over **4 s** after the split for a level-51 build, and a fragment's first beat needs
+  `wait 3.6 + windup 0.95`. Every brood knob on that phase is invisible to a snowballed bot. Health
+  of the batch is unchanged either way: median 13m00s, 3/4 alive at the cap, both bosses down in
+  three runs out of four, one wreck at 1m13s.
+- **`killEnemy(body, false)` does not shake or hit-stop**, because those two live inside the
+  `byPlayer` half of it. So the split's own `break` row (ring, shake, hitStop, chord) next to the
+  hive body's own `death` row is not the double count it looks like: the wreck and the burst come
+  from the corpse, the room's shudder comes from the split.
+- **`split.body.rooted` also means two fragments can walk through each other** - a rooted pair
+  gives way none of it, and a fragment's station is clamped into the room, so two fragments whose
+  bearings both got pinned to one corner could overlap. Unknown whether it can happen in a 1560×1040
+  room at 345 px of station; noted here so it is not rediscovered as a haunting. The fix if it ever
+  matters is to un-root only fragments whose stations are near each other, which is a thing I am not
+  going to write for a maybe.
+- **The art test is about ownership, not about pixels.** The claim worth having was not "three
+  blobs appear" but "the mass drawn *at this body* is *this* body's honeycomb" - which is the one
+  thing `render/boss.js` could have got wrong while still drawing something pretty (it already
+  takes a core, and `drawBoss` asks `bossCoreOf`). Mutation check: make `render/entities.js` draw
+  only the fight's first body and the test says *"a piece wore 0 lights of its own"*. And
+  `standBesideTheMass` takes a *body* now, which is what a fight of several bodies needs.
+- **PLAN's Hive row promises a spiral I had not noticed nobody wrote.** Phase 2 of 3.4 is "fires
+  spiral bullet patterns" and what shipped is the brood priced hotter on a faster spin - the Hive
+  has no gun at all. It has never been mentioned in NOTES or the changelog, so it is now written in
+  PLAN's own item: either a session gives the mass a spiral beat or that half-line is marked
+  [skipped] with a reason. It is a small piece of work if it happens: `mass` has one beat today and
+  the Warden already proves out how a phase holds two.
+
+### For the next session
+
+- **The Eclipse** (PLAN 3.4's 15:00): a dark sun that pulls the player inwards; phase 1 gravity
+  plus radial bursts, phase 2 the arena darkens with only the areas near the player and near
+  bullets lit, phase 3 sweeping arms and bullet walls with moving gaps. Two of those three are new
+  machinery rather than new rows: **nothing in the game pulls the player** (`game/field.js` clamps
+  and `game/player.js` decides), and **there is no darkness pass in `render/`** - pick the phase
+  order accordingly, and read `game/field.js`, `render/renderer.js` and `render/camera.js` before
+  deciding how a lit-where-things-are effect gets composited. Add `{at: 900, boss: 'eclipse'}` to
+  `BALANCE.bosses.schedule` and the schedule/rows tests will hold the rest in step. It will want a
+  third `rhythm` and `WALKS` row (pulling is not riding and not drifting), which is fine - that is
+  what the tables are for now, and session 59's advice to wait for the second boss before
+  generalising has been paid off once.
+- **Or, cheap and parallel: the Hive's owed spiral.** A second beat for the `mass` rhythm, fired
+  from the mass's own turning face, with `game/enemyshots.js` doing the shots and
+  `phase.bullets` being the shape of the row. It would be the third session in a row that adds a
+  beat to a boss, and it is a smaller unknown than the Eclipse.
+- **Mid-build measurement gap** for both bosses: `tools/` cannot hand a run ranks or levels before
+  the fight starts, so "is 760 hull right" is currently answered by a level-51 bot and by a
+  level-1 bot and by nothing in between. A `--ranks 3,3,0,…` flag on `tools/simulate.js` (or an
+  `opts.ranks` on `playRuns`) is the door; everything else is reading.
+- `boss.rings` / `boss.shots` / `boss.volleys` / `boss.beams` / `boss.calls` / `boss.summons` /
+  `bossCells` / `bossCores` are read by tests, `STARFALL.stats()` and the sim's report line and
+  nothing else; the F3 overlay (M10) is where they all belong.
+- Still parallel work, untouched: the four unbuilt synergies, milestone 7's music buses, and
+  `tools/agent/session.js` having `choose_weapon` and no `choose_ship`.
