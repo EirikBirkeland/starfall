@@ -6060,7 +6060,7 @@ thing on its own. Two things to remember:
 
 ---
 
-## Session 49 (2026-10-09) — Thermal shock: the first synergy, and the rule that one corpse pays one ending. **Not released** (see the last section)
+## Session 50 (2026-10-09) — Thermal shock, audited: a second reading of its numbers, and a measurement tool that was lying. Released **0.4.20**
 
 `src/game/shock.js` (the blast, and the four decisions below), the synergy half of
 `src/game/upgrades.js` (`SYNERGY_UNIT`, `needsOf` / `isSynergy` / `hasSynergy`, the `thermalShock`
@@ -6069,14 +6069,14 @@ entry last in `LINES`, `placeEarnedSynergies`, and the fact that `linesWithRoom`
 the frame in `render/cards.js` (`drawSynergyEdges`, `drawSynergyPlate`, `drawNeeds`, and the tab
 rules), `world.shock` counters through `world.js` / `run.js` / `main.js`, three new test files
 (`test/shock.test.mjs`, `test/synergies.test.mjs`, `test/synergy-card.test.mjs`), `--with <line>=<ranks>`
-in `tools/line-ab.js`, and `tools/power-ladder.js` skipping synergies. It is in **2951de9**, which
-says "Finishes the session that ended before it could verify and commit": the work was left in the
-tree by the context window that wrote it and this one found it uncommitted, so read that commit as
-the session and this section as the audit. Verified here in a clean worktree of HEAD: **938 tests
-pass**, `tools/simulate.js` runs the reference seed, and `--trace` on 20261006 is **byte-identical
-to v0.4.19 in its body** - the only difference in the whole file is the build column gaining a
-trailing `/0`, because the run has zero ranks of a new line in it. A run that never earns the
-synergy is exactly the run it was, which is the property this whole change had to have.
+in `tools/line-ab.js`, and `tools/power-ladder.js` skipping synergies. Read it together with the
+session above: the synergy and this audit were two contexts on one item, and the release went out of
+the other one (**0.4.20**) along with its answer to the card-text bug report, so `2951de9`..`0038519`
+is the work and this section is the check on it. Verified here in a clean worktree of `2951de9`:
+**938 tests pass**, `tools/simulate.js` runs the reference seed, and `--trace` on 20261006 is
+**byte-identical to v0.4.19 in its body** - the only difference in the whole file is the build column
+gaining a trailing `/0`, because the run has zero ranks of a new line in it. A run that never earns
+the synergy is exactly the run it was, which is the property this whole change had to have.
 
 ### The four decisions, since nobody will remember them
 
@@ -6167,31 +6167,37 @@ things in these columns are worth knowing before anyone re-measures:
   `shock.js` that reaches into another system's state, and the comment says it is the price of the
   one-corpse-one-ending rule being true.
 
-### The state of the tree, for whoever starts next
+### Two contexts, one item, and what that is worth knowing
 
-**This session did not release, and you should find out why before you do.** Another context is
-working in this same folder at the same time as this one: 2951de9 swept this session's uncommitted
-work into its own commit, and the tree right now holds somebody else's in-flight answer to
-`BUG_REPORT_README` (long card text walking off the card) - `src/render/fit.js`,
-`test/card-fit.test.mjs`, `measureText` in the harness stub, shortened `flavour` and `what` strings in
-`upgrades.js`, a rewritten `render/cards.js` - and **six tests fail** on it, two of which are older
-tests (`test/magnetar.test.mjs`, `test/magnetar-art.test.mjs`) asserting the *old* magnetar strings
-verbatim. Releasing that tree would ship a red build and put someone else's half-finished work under
-my changelog line, so the release is left: **0.4.20 belongs to whoever lands the card-fit work**, and
-should be made the moment `node --test` is green again. Check `git status` before anything else, and
-if files you did not write are modified, do not `git add -A` over them.
+This item was worked twice at once: the context above finished and committed the synergy, released
+**0.4.20**, and wrote its own session entry while this one was still re-measuring the same card. Both
+entries are left in, because between them they are the honest record - that one has the decisions and
+the measurement that shipped the number, this one has an independent reading of the same number on a
+different window and a bug found in the tool that produced it. What the collision taught, which is
+worth more than either measurement:
 
-- **Do not trust `node --test` in a dirty shared tree to mean your work is fine.** This session verified
-  its own claim in a clean worktree (`git worktree add /tmp/head-check HEAD`) rather than in the tree.
-  That is two minutes and it is the only way to know which failures are yours.
+- **`git status` before anything else.** A dirty tree in this folder is not necessarily yours, and
+  `git add -A` over somebody else's in-flight files writes their half-finished work into your commit
+  message. That happened to this work on the way in (2951de9's message says "Finishes the session that
+  ended before it could verify and commit", which is exactly what it was) and it is only dangerous when
+  the tree is red: commit only what you can stand behind, by name.
+- **Verify in a clean worktree, not in the shared tree.** `git worktree add /tmp/head-check HEAD` and
+  run the suite there is two minutes and is the only way to say which failures are yours. This session
+  did that, and it is also how it proved the reference trace was untouched.
+- **Never trust a `node --test` run in a dirty tree to mean your work is fine.** The six failures this
+  session saw were not the synergy's, and the 949 that pass now include both sessions' tests.
+
+### For the next session
+
 - **Five synergies are left** (PLAN's table is annotated): Storm (Ricochet 3 + the arc weapon), the saw
   ring (Orbitals 3 + Pierce 2) and the minefield (Mines 3 + Magnetar 2) can be built now, one per
   session, and each is now a small job - a `needs` entry in `LINES`, a behaviour module, and a card
   that already knows how to dress itself. The railgun waits on the lance and the Aegis burst on a
   shield line (milestone 5 and 3.7).
-- **Owned structures on the HUD** is now four milestone-4 sessions overdue (sessions 45, 46, 47, 48).
+- **Owned structures on the HUD** is now five milestone-4 sessions overdue (sessions 45 to 49).
   It is the last item of the milestone that is not waiting on another milestone.
-- **`test/draw-cost.test.mjs` is at 34 of 35 glow holders** and the synergy added none (its tint is
-  `burnFlame` and its edges are the two parents' colours, on purpose). Whatever the card-fit work adds
-  may spend the last slot; if a new colour is needed and the test fails, that is the budget talking and
-  the fix is to reuse something, not to raise the cap.
+- **`test/draw-cost.test.mjs` guards the glow cache at 34 holders of 35** and the synergy spent none
+  of it: its tint is `burnFlame` and its edges are the two parents' colours, on purpose (see the note
+  in `render/cards.js` about there being no room for a colour of its own). The card-fit work is text
+  and did not either. If a card ever needs a new hue and that test fails, that is the budget talking,
+  and the fix is to reuse something rather than to raise the cap.
