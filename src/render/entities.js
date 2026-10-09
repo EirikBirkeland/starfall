@@ -13,6 +13,8 @@ import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { onScreen } from './camera.js';
 import { aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging, isSpitting, lungeReach } from '../game/kinds.js';
+import { isBossBody, spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../game/bosses.js';
+import { drawBoss } from './boss.js';
 import { frostOf, isFrozen } from '../game/chill.js';
 import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
@@ -356,12 +358,13 @@ const BEAM_HEAD = 16;          // px of light left at the eye once it has fired
  * One band of harm across the arena, from (x0, y0) to (x1, y1), `half` px each side of
  * the axis, at `light` of its full brightness, in `edge` with `core` down the middle.
  *
- * Two callers own a band: the sniper's lock and beam, which are the crowd's, and the tether, which is
- * the ship's (game/tether.js). The three passes are the same shape whatever colour they are - a band
- * reads as a band and not as a line only if the full width is painted faint under a hot middle under a
- * nearly white axis - which is why there is one function here and not two.
+ * Three callers own a band: the sniper's lock and beam, which are the crowd's, the tether,
+ * which is the ship's (game/tether.js), and a boss's spokes, which are the arena's
+ * (game/bosses.js). The three passes are the same shape whatever colour they are - a band
+ * reads as a band and not as a line only if the full width is painted faint under a hot
+ * middle under a nearly white axis - which is why there is one function here and not three.
  */
-function bandPasses(ctx, x0, y0, x1, y1, half, light, edge, core) {
+export function bandPasses(ctx, x0, y0, x1, y1, half, light, edge, core) {
   const was = ctx.globalAlpha;
   ctx.strokeStyle = edge;
   ctx.lineWidth = half * 2;
@@ -408,6 +411,45 @@ export function drawLocks(ctx, list, alpha) {
     bandPasses(ctx, x0, y0, x1, y1, half, light, PALETTE.beamEdge, PALETTE.beamCore);
     paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
   }
+}
+
+/**
+ * The spokes a boss is holding: one band each, out of the hub to whatever wall stops it, drawn
+ * at exactly the width its beam is paid out at (game/bosses.js `spokeHalf` is the one number both
+ * read) and reaching exactly as far as that beam will reach. The same two colours and the same
+ * countdown-brightened light as a sniper's lock, because it is the same promise and a player
+ * should not have to learn a second language for a bigger enemy.
+ *
+ * Under the crowd like every other promise, so a body standing in the way of one cannot hide it.
+ * Culled per band and not per body: a band that reaches the far wall is on the glass whatever side
+ * of it the ring happens to be standing on.
+ */
+export function drawBossLocks(ctx, boss, alpha) {
+  const count = spokeCount(boss);
+  if (count === 0) return;
+
+  const enemy = boss.enemy;
+  const x = paintX(enemy, alpha);
+  const y = paintY(enemy, alpha);
+  const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * spokeProgress(boss);
+  const half = spokeHalf(boss);
+  const step = spokeStep(boss);
+
+  for (let i = 0; i < count; i++) {
+    const angle = spokeAngle(boss) + i * step;
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    const reach = beamReach(world, x, y, dirX, dirY).fore;
+    const x1 = x + dirX * reach;
+    const y1 = y + dirY * reach;
+    if (!onScreen((x + x1) / 2, (y + y1) / 2, reach / 2 + half)) continue;
+
+    bandPasses(ctx, x, y, x1, y1, half, light, PALETTE.beamEdge, PALETTE.beamCore);
+  }
+
+  // The hub they are drawn from, lit by the same countdown, so the thing that is about to fire
+  // can still be found when the ring is behind a crowd.
+  paintGlow(ctx, glowFor(PALETTE.beamCore, LOCK_HEAD), x, y, light);
 }
 
 // The lance's own two halves (game/lance.js): the band the gun is aiming while it winds up, and the
@@ -815,6 +857,10 @@ function drawFrost(ctx, enemy) {
 }
 
 function drawEnemy(ctx, enemy, dim, alpha) {
+  // A boss is not a polygon with a halo on it, so it leaves the crowd's drawing entirely
+  // (render/boss.js). Asked of the fight and not of the body's type name, because the boss is
+  // not one of the kinds (game/bosses.js) and nothing here should have to learn its id.
+  if (isBossBody(world, enemy)) { drawBoss(ctx, world.boss, enemy, alpha); return; }
   // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
   // moves, this says what it is made of. A new kind that is not a plain polygon
   // gets a branch here as well as its row there.

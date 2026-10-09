@@ -9,7 +9,8 @@ import { camera, followCamera } from './camera.js';
 import { drawStars } from './background.js';
 import { drawNebula } from './nebula.js';
 import { drawWalls } from './walls.js';
-import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
+import { drawCage } from './boss.js';
+import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawBossLocks, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -66,8 +67,11 @@ export function renderFrame(tick, input, pointer) {
     drawShards(ctx, tick.alpha);
   } else {
     drawWalls(ctx);
-    // Floor markings go down first: a bomber's death zone is paint on the arena
-    // floor, so nothing standing on the floor is ever drawn under it.
+    // The cage on top of the arena's own wall, and under everything standing in the room: the
+    // boundary a boss has closed the duel into, cool like the wall it echoes (game/field.js).
+    drawCage(ctx);
+    // Floor markings go down first: a bomber's death zone is paint on the arena floor, so
+    // nothing standing on the floor is ever drawn under it.
     drawBlastZones(ctx, world.enemies, tick.alpha);
     drawShieldFields(ctx, world.enemies, tick.alpha);
     // Floor paint again, and for the same reason: a mine lies under whatever walks over it, which is
@@ -86,6 +90,9 @@ export function renderFrame(tick, input, pointer) {
     // while it winds up, and the band is the only way to see a line that reaches the far wall
     // coming (game/lance.js).
     drawLanceLocks(ctx, tick.alpha);
+    // And under it for the same reason a third time: a boss's spokes are bands across the whole
+    // room and nothing standing in the middle of one may hide it (game/bosses.js).
+    if (world.boss !== null) drawBossLocks(ctx, world.boss, tick.alpha);
     drawEnemies(ctx, world.enemies, false, tick.alpha);
     // Over the crowd and under the ship: a fire is on the body it is eating, and the one
     // thing it must never do is hide the ship behind somebody else's flames (game/burn.js).

@@ -28,6 +28,8 @@ import { newShock } from './shock.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
 import { updateWaves } from './waves.js';
+import { updateBosses } from './bosses.js';
+import { openField } from './field.js';
 import { updateShards, makeShard } from './pickups.js';
 import { updateAmbient } from './ambient.js';
 import { newTally } from './tally.js';
@@ -41,7 +43,7 @@ function createWorld() {
   // The body the plain ship is made of, so the numbers on the Wisp's row are the only place
   // any of them is written (game/ships.js). A run applies its own ship again from scratch.
   const body = shipBody(defaultShip());
-  return {
+  const world = {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
     // Which ship the runs of this world fly, and with it which primary (game/ships.js).
@@ -97,6 +99,17 @@ function createWorld() {
     // knows what is off it). The frame loop writes the second on every resize.
     arena: { w: BALANCE.arena.w, h: BALANCE.arena.h },
     view: { w: BALANCE.arena.viewW, h: BALANCE.arena.viewH },
+    // The box the ship is kept inside: the arena, or the cage a boss has closed round the
+    // duel (game/field.js, game/bosses.js). Written into and never replaced, and the one
+    // thing about the screen the simulation is allowed to care about besides the arena.
+    field: { x0: 0, y0: 0, x1: 0, y1: 0 },
+
+    // The boss fight (game/bosses.js): the one in the arena or coming, how many entries of
+    // the schedule have been spent, and how many bosses this run has buried. All three are
+    // the framework's and all three start again with the run.
+    boss: null,
+    bossIndex: 0,
+    bossesDown: 0,
 
     player: {
       x: 0, y: 0, vx: 0, vy: 0,
@@ -213,14 +226,19 @@ function createWorld() {
     // rebuilt from the crowd every step, and emptied with it.
     flocks: [],
     // The collision broad phase. Rebuilt from the crowd every step, so it is
-    // derived state that no run depends on.
+    // derived state that no run depends on. `gridReach` is part of that rebuild: the width
+    // of the widest body standing in the arena, which is how wide every query has to be
+    // (game/enemies.js argues the whole case).
     grid: new Grid(BALANCE.grid.cellSize),
+    gridReach: 0,
     // The effect lists are pooled for the same reason: a single death sprays 30 sparks.
     particles: new Pool(makeParticle),
     rings: new Pool(makeRing),
     texts: new Pool(makeLabel),
     ambient: [],
   };
+  openField(world);
+  return world;
 }
 
 /** The one world this process plays with. */
@@ -317,6 +335,9 @@ function stepRun(dt, input) {
   // the wound that was actually taken this step and not on one it took before the crowd had
   // finished walking (game/leech.js).
   updateLeech(world);
+  // The boss, after everything that can hurt a body, so a boss that died this step is buried
+  // this step and never fires a volley from a corpse (game/bosses.js).
+  updateBosses(world, dt);
   // The images go out last, after the crowd has already walked and decided what it was chasing:
   // an image is chased for every step of its two seconds and not one step less, and what is left
   // for it here is to be one step older (game/afterimage.js).

@@ -2,8 +2,10 @@
 // frame rate. Everything here reads the world; nothing here changes it.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
+import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
+import { bossFlare, bossHullShare, bossName, bossPhase, bossPhaseCount, bossTint, bossWarning } from '../game/bosses.js';
 import { hasLeech } from '../game/leech.js';
 import { leechCostOf, LINES, maxRanksOf, rankOf } from '../game/upgrades.js';
 import { weaponName } from '../game/weapons.js';
@@ -212,7 +214,141 @@ export function drawHUD(ctx, fps) {
   ctx.textAlign = 'left';
 
   drawBuildRail(ctx);
+  // The boss, last of the interface and over all of it: the bar is the fight's own clock and
+  // nothing on the screen may be allowed to hide it (PLAN section 4).
+  const boss = world.boss;
+  if (boss !== null) {
+    if (bossWarning(boss) > 0) drawBossWarning(ctx, W, boss);
+    else drawBossBar(ctx, W, boss);
+  }
   ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// The boss (PLAN section 4's "boss hull bar at the top during boss fights").
+//
+// Two states and one place on the glass - the top middle, which is the only strip of the
+// window the score, the hull pips and the XP bar all leave alone.
+//
+// Before it arrives there is no bar, because there is nothing to measure: there is its name,
+// big, in the colour of a telegraph, for exactly as long as the siren runs (game/bosses.js
+// `warn`). When it arrives the bar takes over and it stays until the boss does not exist.
+//
+// The bar is filled to the hull that is left, in the colour of the phase it is in - the same
+// tint the ring wears and the light it fires - and notched where the next phase begins, so the
+// player can see the shape of the fight rather than only its length. The notches come out of
+// the simulation's own table, so a phase cannot be drawn somewhere it does not open.
+// ---------------------------------------------------------------------------
+
+const BAR_SHARE = 0.6;        // of the window, the bar's width ...
+const BAR_MAX = 700;          // ... up to this
+const BAR_H = 14;
+const BAR_TOP = 34;           // px from the top of the glass
+const BAR_NAME = '800 15px "Segoe UI", system-ui, sans-serif';
+const BAR_MARK = '700 10px "Segoe UI", system-ui, sans-serif';
+const BAR_PIP_R = 3.2;        // one diamond per phase, the same shape the hull pips are
+const BAR_PIP_STEP = 11;
+const BAR_NOTCH_LIGHT = 0.75;
+const WARN_NAME = '800 46px "Segoe UI", system-ui, sans-serif';
+const WARN_MARK = '700 13px "Segoe UI", system-ui, sans-serif';
+const WARN_AT = 0.34;         // where down the window the name lands, as a share of its height
+const WARN_PULSE = 9;         // rad/s of anxious pulse on the warning
+
+/** Where the boss bar goes. Exported so a test and the frame never disagree (see buildRailLayout). */
+export function bossBarLayout(W) {
+  const w = Math.min(BAR_MAX, W * BAR_SHARE);
+  return { x: (W - w) / 2, y: BAR_TOP, w: w, h: BAR_H };
+}
+
+function drawBossBar(ctx, W, boss) {
+  const bar = bossBarLayout(W);
+  const share = bossHullShare(boss);
+  const flare = bossFlare(boss);
+  const tint = bossTint(boss);
+
+  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  roundRect(ctx, bar.x, bar.y, bar.w, bar.h, 7);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.bossBarTrack;
+  ctx.lineWidth = 1;
+  roundRect(ctx, bar.x, bar.y, bar.w, bar.h, 7);
+  ctx.stroke();
+
+  const filled = Math.max(0, (bar.w - 4) * share);
+  if (filled > 1) {
+    // The same trick the XP bar pays with: the shape stroked wide and faint under itself, so a
+    // meter is not worth a sprite of its own (render/glow.js).
+    ctx.strokeStyle = withAlpha(tint, 0.3);
+    ctx.lineWidth = 6;
+    roundRect(ctx, bar.x + 2, bar.y + 2, filled, bar.h - 4, 6);
+    ctx.stroke();
+
+    ctx.fillStyle = withAlpha(tint, 0.9);
+    roundRect(ctx, bar.x + 2, bar.y + 2, filled, bar.h - 4, 6);
+    ctx.fill();
+  }
+
+  if (flare > 0) {
+    // It is shedding a phase and nothing can hurt it while it does (game/bosses.js). The bar says
+    // so in the only language a player reads in a hurry: the hull goes white and breathes once.
+    ctx.fillStyle = withAlpha(PALETTE.white, Math.sin(flare * Math.PI) * 0.55);
+    roundRect(ctx, bar.x + 2, bar.y + 2, filled, bar.h - 4, 6);
+    ctx.fill();
+  }
+
+  // Where each phase after the first begins, in the same share of the bar the simulation opens it
+  // at. Read from its table, so the notch cannot drift from the number.
+  ctx.strokeStyle = withAlpha(PALETTE.white, BAR_NOTCH_LIGHT);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 1; i < BALANCE.bosses.atHull.length; i++) {
+    const at = bar.x + 2 + (bar.w - 4) * BALANCE.bosses.atHull[i];
+    ctx.moveTo(at, bar.y + 3);
+    ctx.lineTo(at, bar.y + bar.h - 3);
+  }
+  ctx.stroke();
+
+  // The name over the bar's left end, and the phase it is on over the right: one diamond each,
+  // filled up to the one being fought, so a boss with a phase left to come looks like one.
+  ctx.font = BAR_NAME;
+  haloText(ctx, bossName(boss), bar.x + 2, bar.y - 8, PALETTE.uiText, withAlpha(tint, 0.7));
+
+  ctx.font = BAR_MARK;
+  ctx.fillStyle = PALETTE.uiDim;
+  ctx.textAlign = 'right';
+  ctx.fillText('PHASE ' + bossPhase(boss) + '/' + bossPhaseCount(boss), bar.x + bar.w - 2, bar.y - 8);
+  ctx.textAlign = 'left';
+
+  const first = bar.x + 2 + (bar.w - 4) * share;
+  for (let i = 0; i < bossPhaseCount(boss); i++) {
+    polygon(ctx, bar.x + bar.w + 14 + i * BAR_PIP_STEP, bar.y + bar.h / 2, BAR_PIP_R, 4, Math.PI / 4);
+    if (i < bossPhase(boss)) {
+      ctx.fillStyle = withAlpha(tint, 0.95);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = withAlpha(tint, 0.3);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+  // The bar's own glow, on the hull that is left rather than the whole track: the fight is what
+  // shines, and an empty bar shining would be a lie.
+  if (filled > 1) paintGlow(ctx, glowFor(tint, 26), first, bar.y + bar.h / 2, 0.35);
+}
+
+/** The name before the thing is: the siren made visible, for exactly as long as the siren runs. */
+function drawBossWarning(ctx, W, boss) {
+  const pulse = 0.6 + 0.4 * Math.sin(world.time * WARN_PULSE);
+  const y = view.H * WARN_AT;
+
+  ctx.textAlign = 'center';
+  ctx.font = WARN_NAME;
+  haloText(ctx, bossName(boss), W / 2, y, withAlpha(PALETTE.bossWarn, pulse),
+    withAlpha(PALETTE.bossBar, 0.5));
+  ctx.font = WARN_MARK;
+  haloText(ctx, 'INCOMING', W / 2, y + 24, withAlpha(PALETTE.bossWarn, pulse * 0.8),
+    withAlpha(PALETTE.bossBar, 0.4));
+  ctx.textAlign = 'left';
 }
 
 // ---------------------------------------------------------------------------

@@ -22,14 +22,38 @@ import { feedLeech } from './leech.js';
 import { quarryFor } from './afterimage.js';
 
 /**
- * File the whole crowd in the world's collision grid. This is a snapshot for one
- * step, rebuilt before anything queries it; an enemy killed after the rebuild
- * stays in it until the next one, so callers skip what is already dead.
+ * File the whole crowd in the world's collision grid, and take the measure of it while
+ * walking: `world.gridReach` becomes the width of the widest body standing in the arena.
+ *
+ * That measure is what every query of this grid has to be made with (game/bullets.js,
+ * game/missiles.js, game/turret.js): the grid finds bodies by their *centre*, so a query
+ * only finds a body whose centre is inside it, and a radius smaller than a body's own
+ * radius lets a shot fly through its skin. Measuring it here rather than reading it off
+ * the kinds table is what lets a boss be as big as a boss needs to be (game/bosses.js):
+ * a run that is fighting nothing fatter than a tank does not pay for a 60 px query, and a
+ * run that is fighting a Warden does, which is the honest size of the work.
+ *
+ * This is a snapshot for one step, rebuilt before anything queries it; an enemy killed
+ * after the rebuild stays in it until the next one, so callers skip what is already dead.
  */
 export function rebuildEnemyGrid(world) {
   const grid = world.grid;
   grid.clear();
-  for (let i = 0; i < world.enemies.length; i++) grid.insert(world.enemies[i]);
+  let widest = 0;
+  for (let i = 0; i < world.enemies.length; i++) {
+    const enemy = world.enemies[i];
+    grid.insert(enemy);
+    if (enemy.r > widest) widest = enemy.r;
+  }
+  world.gridReach = widest;
+}
+
+/**
+ * How wide a body this step's grid can hold. Ask it of the world you just rebuilt; a grid
+ * that has never been rebuilt answers 0, which is right - nothing is in it to find.
+ */
+export function widestBodyOn(world) {
+  return world.gridReach;
 }
 
 /** Take one enemy out of the crowd. Not finding it is a bug, not a no-op. */
@@ -56,6 +80,11 @@ function chipsOf(stats, enemy) {
  * corpse goes on to do - a chain reaction started by the player pays the player.
  */
 export function damageEnemy(world, enemy, amount, byPlayer) {
+  // A body in a phase change cannot be hurt at all (game/bosses.js). The veto sits here,
+  // at the one door every kind of damage comes through, so "nothing lands" means a bullet,
+  // a bolt, a fire, a drone and a blast all miss together - and none of them leaves a
+  // flash, a hit note or a shield soaked on the way past, because nothing landed.
+  if (enemy.immune > 0) return false;
   // Whatever a shielder is holding over this body takes what it can of the hit first
   // (game/shields.js). Everything that hurts a body comes through here - a bullet, a
   // bomber's blast, whatever comes next - so there is no kind of damage that gets

@@ -26,6 +26,7 @@ import { resetMines } from './mines.js';
 import { resetTether } from './tether.js';
 import { resetTurret } from './turret.js';
 import { resetShock } from './shock.js';
+import { resetBosses } from './bosses.js';
 
 /** Put every piece of run state back to its starting value. */
 export function resetRun(world) {
@@ -101,6 +102,11 @@ export function resetRun(world) {
   world.flocks.length = 0;   // the packs went with the crowd (game/flock.js)
   world.shards.clear();
   world.grid.clear();
+  world.gridReach = 0;       // nothing is standing anywhere to be found (game/enemies.js)
+  // And no boss is coming or here: the schedule starts again from the top, the cage is open,
+  // and a fight left standing when the last run ended is not this run's to finish
+  // (game/bosses.js). This also puts the ship's flying box back to the whole arena.
+  resetBosses(world);
   world.particles.clear();
   world.rings.clear();
   world.texts.clear();

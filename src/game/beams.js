@@ -59,6 +59,11 @@ import { hurtByBeam } from './tally.js';
  * the run can say afterwards what killed it), and whether the flash has been paid
  * out yet (`paid`).
  *
+ * `through` is the one field that says what *kind* of line this is: true for a sniper's,
+ * which is an axis through the eye and hurts both ways along it, false for a ray, which
+ * starts at the body that fired it and goes one way only (game/bosses.js' spokes). It
+ * belongs to the gun rather than to the beam because it is a property of what was aimed.
+ *
  * A beam keeps no px/py: it does not move, so there is nothing to interpolate
  * between. The renderer paints it straight from this state, like an arc bolt.
  *
@@ -72,20 +77,24 @@ import { hurtByBeam } from './tally.js';
 export function makeBeam() {
   return {
     x: 0, y: 0, dirX: 0, dirY: 0, fore: 0, back: 0,
-    width: 0, weight: 0, life: 0, max: 0, from: '', paid: false, spec: null, source: null,
+    width: 0, weight: 0, life: 0, max: 0, through: true,
+    from: '', paid: false, spec: null, source: null,
   };
 }
 
 /** The scratch `beamReach` refills. A frame may ask for a beam's ends; it may not keep them. */
 const ENDS = { fore: 0, back: 0 };
 
-/** How far a ray from (x, y) along (dirX, dirY) gets before the arena ends. */
+/** How far a ray from (x, y) along (dirX, dirY) gets before the world ends. */
 function wallAlong(world, x, y, dirX, dirY) {
+  // The live box and not the arena: while a boss has the room in a cage, the cage is the
+  // wall, and light does not go through it any more than the ship does (game/field.js).
+  const box = world.field;
   let t = Infinity;
-  if (dirX > 0) t = Math.min(t, (world.arena.w - x) / dirX);
-  else if (dirX < 0) t = Math.min(t, -x / dirX);
-  if (dirY > 0) t = Math.min(t, (world.arena.h - y) / dirY);
-  else if (dirY < 0) t = Math.min(t, -y / dirY);
+  if (dirX > 0) t = Math.min(t, (box.x1 - x) / dirX);
+  else if (dirX < 0) t = Math.min(t, (box.x0 - x) / dirX);
+  if (dirY > 0) t = Math.min(t, (box.y1 - y) / dirY);
+  else if (dirY < 0) t = Math.min(t, (box.y0 - y) / dirY);
   return Number.isFinite(t) ? t : 0;
 }
 
@@ -168,30 +177,36 @@ function payOut(world, beam) {
 }
 
 /**
- * Fire one beam out of `enemy` along the line it has locked. The damage is done on
- * this step - after the crowd has walked, which is why this is called from
- * `updateBeams` and not from the walk that fired it - and the light is left behind
- * in the pool to fade.
+ * Fire one beam. The damage is done on this step - after the crowd has walked, which is
+ * why `updateBeams` calls it here and not inside the walk that decided to fire - and the
+ * light is left behind in the pool to fade.
+ *
+ * It takes its line as four numbers rather than a body, because the two things in the game
+ * that fire a beam only have the beam in common: a sniper fires down the axis its eye
+ * locked, and a boss fires down each of its spokes (game/bosses.js). `source` is the body
+ * to leave out of the payout - a body that fires a beam stands in its own light either
+ * way, and an eye that burned itself down would be a hazard nobody has to answer.
  */
-function fire(world, enemy, spec) {
+export function fireBeam(world, x, y, dirX, dirY, spec, from, source) {
   const beam = world.beams.spawn();
-  beam.x = enemy.x;
-  beam.y = enemy.y;
-  beam.dirX = enemy.dirX;
-  beam.dirY = enemy.dirY;
-  const ends = beamReach(world, beam.x, beam.y, beam.dirX, beam.dirY);
+  beam.x = x;
+  beam.y = y;
+  beam.dirX = dirX;
+  beam.dirY = dirY;
+  const ends = beamReach(world, x, y, dirX, dirY);
   beam.fore = ends.fore;
-  beam.back = ends.back;
+  beam.back = spec.through === false ? 0 : ends.back;
   beam.width = spec.halfWidth;
   beam.weight = spec.damage;
   beam.life = spec.time;
   beam.max = spec.time;
-  beam.from = enemy.type;
+  beam.through = spec.through !== false;
+  beam.from = from;
   beam.paid = false;
   beam.spec = spec;
-  beam.source = enemy;
+  beam.source = source;
 
-  burst(world, beam.x, beam.y, PALETTE.beamCore, spec.flare.count, spec.flare.speed, spec.flare.life);
+  burst(world, x, y, PALETTE.beamCore, spec.flare.count, spec.flare.speed, spec.flare.life);
   shakeIt(world, spec.shake);
   hitStop(world, spec.hitStop);
   cueBeep(spec.sound.freq, spec.sound.dur, spec.sound.wave, spec.sound.vol, spec.sound.slide);
@@ -221,7 +236,8 @@ export function updateBeams(world, dt) {
     const enemy = crowd[i];
     if (enemy.beamReady) {
       enemy.beamReady = false;
-      fire(world, enemy, enemy.kind.stats.lock.beam);
+      const spec = enemy.kind.stats.lock.beam;
+      fireBeam(world, enemy.x, enemy.y, enemy.dirX, enemy.dirY, spec, enemy.type, enemy);
     }
   }
 

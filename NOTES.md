@@ -6754,3 +6754,121 @@ speed. The measurements that would settle this properly are a human's, and they 
   will have to grow the "a ship nobody has bought cannot be picked" promise - which is the same place
   `setWeapon`'s "is it offered" check lives now. `tools/agent/session.js` also has `choose_weapon` and
   no `choose_ship` yet; it is a five-line gap in the agent door, not a design problem.
+
+---
+
+## Session 56 (2026-10-09) — Bosses: the framework, and the Warden walks in at five minutes. Released **0.6.0**
+
+`src/game/bosses.js` (new) is the framework and `src/game/field.js` (new) is the room it fights you
+in, and milestone 6 is open: **the schedule, the siren, the cage, the phases and the going down**,
+plus the first boss whole enough to fight. `BALANCE.bosses.schedule` is read off the run's own
+clock, so the Warden arrives at 5:00 in a run that got that far and nowhere else; the warning is a
+low siren and its name on the glass for 2.6 s; the wave director holds while `world.boss` is
+anything at all; the cage closes as it arrives and opens the instant it stops existing; three
+phases open at `bosses.atHull` (1 / 66% / 33%) and each one is a beat - flare, 1.1 s of nobody
+being able to hurt it, and the volley it was holding dropped. The Warden itself is one attack - a
+ring that rides round, **stops dead**, shows its spokes and fires down them - escalating from four
+spokes to six to eight, turning faster and reading shorter each phase. Suite is **1069 green**
+(was 1031) with `test/bosses.test.mjs` (20), `test/warden.test.mjs` (11) and `test/boss-art.test.mjs`
+(7), and `node tools/simulate.js --at 295 --seed 11` has the bot take the fight to 5% of the ring in
+phase 3 and walk away with two hull pips.
+
+### The decisions, since nobody will remember them
+
+- **A boss is an enemy.** Same `makeEnemy`, same `world.enemies`, same `damageEnemy`, same
+  `killEnemy` - so every gun, blast, bolt, fire, drone and nova in the game hurts it without having
+  been told it exists, which is the only way "every system remembers the boss" can be true. It is
+  *not* in `KINDS`, because `KINDS` is the wave director's menu and the director has no business
+  rolling a boss; its row is handed to `makeEnemy` through the new `opts.kind` door instead.
+- **`updateBosses` runs last in the step**, after everything that can hurt a body, so a boss that
+  died this step is buried this step and never fires a volley from a corpse. The price is that a
+  volley is paid out by `game/beams.js` one step (8 ms) later than the light for it - the light
+  appears before the damage, which is the direction every telegraph in the game already breaks.
+- **"Cannot be hurt" is a field on the body and a veto at the door.** `enemy.immune` (in
+  `makeEnemy`, so every body has one) is checked at the top of `damageEnemy` and returns `false`:
+  no flash, no hit note, no shield soaked, because nothing landed. The alternative - each damage
+  system asking - is one system per release forgetting.
+- **The arena lock holds the ship and nobody else** (`game/field.js`). The crowd walks *at* the
+  ship, so it is already inside or on its way; snapping a spitter that had been hanging about in
+  the far corner to the new room would teleport it across the world in one step. `world.field` is
+  one object for the life of the world whose four numbers get rewritten, never replaced, so a
+  system that clamps every step can hold a reference to it safely. Beams now clip to it too:
+  light does not go through a wall the ship cannot.
+- **The cage is deliberately bigger than the window** (`bosses.cage`, `beyond: 150`), so you never
+  see all of it at once and the edge you are about to meet is the one that comes onto the glass.
+  First draft of the comment claimed the opposite of what the numbers do; the test that measures it
+  now walks the ship into a wall before looking for the wall, which is how a player meets one.
+- **The Warden ships as one attack across three phases, and that is the deliberate half.** PLAN
+  3.4 also gives phase 2 expanding bullet rings with a gap to stand in and phase 3 a pair of
+  Darter summons. Those are the next two sessions, and they get *added to* the spokes, not
+  swapped in: a boss whose phase 2 is a different game from its phase 1 has to be re-learned
+  mid-fight, which is a different design and not the one on the page. Nothing is stubbed for them.
+- **The stop is a stop and not a slowdown.** The ring freezes while the spokes are drawn, because
+  the lines shown have to be the lines that hurt, edge for edge, and a ring still turning between
+  the promise and the firing would move them. Same grammar a darter uses to say it is about to
+  commit, at four times the size and with the whole room to sweep.
+- **A spoke is a ray, not an axis.** `through: false` on the beam spec, which is the one field
+  `game/beams.js` grew, and it is what makes standing behind the ring safe - the far side of the
+  ring is a place to be, and with 4 spokes narrowing to 8 it is the only place that is.
+- **`hull: 560` is 127 seconds of a bare pulse gun** (`weapons.pulse`: 1 damage × 4.4 shots/s),
+  i.e. about a minute of a run that has bought some damage by 5:00 and about two of one that has
+  bought none. `test/bosses.test.mjs` prices it in those terms rather than asserting the number.
+- **`scriptedRun` marks the boss schedule spent** and `bossOnTheField()` un-spends it. Four
+  elite/swarm tests run the clock out to eight and nine minutes; a boss they never asked for walks
+  in at 5:00, the director correctly holds, and they find no crowd at all. A scripted world now
+  means "no boss unless the test says so", which is what those tests were always assuming.
+- **`tools/simulate.js --at <seconds>`** puts the clock where the fight is before the second frame
+  is simulated, and `tools/headless/threats.js` reads a boss's held spokes as line threats the way
+  it reads a sniper's lock. The bot dies at about a minute with a bare build, so without `--at`
+  the fight is not measurable in a batch at all.
+
+### Surprises
+
+- **`killEnemy` does not take the hull down.** It removes the body and pays it out; `hp` stays where
+  it was. Every real door guarantees `hp <= 0` on the way in (`damageEnemy`), and the boss
+  framework's "is it dead" check is `hp <= 0`, so the live game is fine - but a *test* that calls
+  `killEnemy` directly leaves a boss standing at full hull and still attacking, which is exactly
+  how it spent me twenty minutes. `fell()` in `test/bosses.test.mjs` hurts it like anything else.
+- **A hit-stop swallows steps**, and a boss is written out of them - its arrival, every phase
+  change, every volley freeze the world. A test helper that counts `stepTheWorld()` *calls* is
+  quietly asking for nothing; the helpers here count the steps the arena actually ran. The old
+  `steps()` in `test/bosses.test.mjs` was wrong for about half the file before I noticed.
+- **`bossFlare` is 0 the step a phase opens.** It is a breath (0 → 1 → 0 over the break) and a
+  breath starts at 0, so a test that samples the first step of it sees nothing lit. That is the
+  render being right and the test being impatient; both now say so.
+- **The broad phase was measured off the kinds table.** `widestEnemyRadius()` was a constant taken
+  from `KINDS`, so a 60 px boss built outside `KINDS` would have had bullets flying through its
+  skin - the grid finds *centres*, so the query has to be as wide as the fattest body. Now
+  `rebuildEnemyGrid` takes the measure while it walks the crowd (`world.gridReach`) and bullets,
+  missiles and turret shells all query with it, which is also more honest economically: a run
+  fighting nothing fatter than a tank does not pay for a 60 px query, and a run fighting a Warden
+  does. `test/kinds.test.mjs` measures it live off a crowd now instead of off the table.
+- **Five late-crowd tests went red** for the reason above, and one of them (`a run that plays past
+  8:00 meets gold bodies`) is the kind of test that would have quietly stayed red for a session
+  because it looks like a balance flake. It was the boss, holding the director, correctly.
+- **The boss arrives into whatever crowd is already there.** A spawn pause is not an arena wipe,
+  so a `--at` run measures a messy duel - the bot is shooting the wave it was already fighting for
+  its first thirty seconds and does nothing visible to the ring. Noted here because the first
+  `--at` runs look broken for exactly that reason and are not.
+- The harness canvas is dpr 2 and `game.screenOf` answers in CSS px, so geometry comparisons need
+  `bootGame({ dpr: 1 })`. NOTES has said this once before, in session 55, and I still wrote the
+  comparison first.
+
+### For the next session
+
+- **The Warden, phase 2: expanding bullet rings with a gap to stand in** (PLAN 3.4), added to the
+  spokes it already has. `stepRing` is where it goes - a second beat alongside ride/lock - and
+  `game/enemyshots.js` already knows how to throw a ring with a hole in it. Phase 3's Darter
+  summons after that, which is the first thing in the game that spawns bodies from a walk and will
+  want the "the grid is this step's" rule thinking about again.
+- **Do not generalise the framework until The Hive says where the seam is.** `arrive`,
+  `holdsItsGround` and `stepRing` are all Warden-shaped right now (it does not walk, so the walk
+  only turns the ring). A boss that walks, or spawns, or hides will show which two of those three
+  want to be per-boss hooks. Refactoring them now would be guessing.
+- `bosses.sound` queues the arrive and down chords already, so milestone 7's boss music has a door
+  and needs nothing from here.
+- **Victory screen and endless mode** are milestone 6's last item and they want three bosses to
+  exist first.
+- Balance watch: at 5:00 with a bare pulse gun the fight is ~2 minutes of a 5-minute-or-longer run,
+  which is long. If it still feels long after phases 2 and 3 land, the first thing to cut is
+  `hull`, not `wait` - the reading time is the part worth keeping.

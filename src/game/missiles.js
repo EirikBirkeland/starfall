@@ -45,8 +45,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { clamp, dist2 } from '../core/math.js';
-import { damageEnemy } from './enemies.js';
-import { widestEnemyRadius } from './kinds.js';
+import { damageEnemy, widestBodyOn } from './enemies.js';
 import { burst, ring, shakeIt } from './effects.js';
 import { cueBeep } from './cues.js';
 
@@ -97,7 +96,7 @@ export function hunt(world, bullet, dt) {
   const line = missileOf();
   // The grid is this step's (game/bullets.js rebuilt it above) and the radius has to cover the
   // widest thing the exact test below will measure (core/grid.js).
-  world.grid.queryCircle(bullet.x, bullet.y, line.reach + widestEnemyRadius(), hunted);
+  world.grid.queryCircle(bullet.x, bullet.y, line.reach + widestBodyOn(world), hunted);
 
   let target = null;
   let nearestBy = Infinity;

@@ -35,6 +35,11 @@ export function scriptedRun(seed) {
   // arrives unless the test calls for one.
   world.player.invuln = Infinity;
   world.spawnTimer = Infinity;
+  // Nor is a boss: the schedule is marked spent, so a test that runs the clock to eight minutes
+  // is measuring the eight-minute crowd and not standing in an unasked-for duel (game/bosses.js
+  // holds the director while a boss is on the field, and these worlds never kill one).
+  // `bossOnTheField` below is the door for a test that does want the fight.
+  world.bossIndex = BALANCE.bosses.schedule.length;
   return world;
 }
 
@@ -89,8 +94,29 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
   return bullet;
 }
 
-/** One step of the game's own fixed step. `input` says what the ship is doing. */
-export function stepTheWorld(input) {
+/**
+ * Bring on the boss the way the schedule brings one on (game/bosses.js): put the clock just
+ * before it is due and step until it is standing in the arena, siren spent and cage shut. The
+ * first entry of `BALANCE.bosses.schedule` is the default, and `seconds` is only ever worth
+ * passing for a boss that comes after it.
+ *
+ * Everything else about the world is left as these tests like it - no crowd, an unhurtable
+ * ship - so what a test finds in the arena is the boss and whatever it put there itself.
+ */
+export function bossOnTheField(seconds) {
+  const at = seconds === undefined ? BALANCE.bosses.schedule[0].at : seconds;
+  world.bossIndex = 0;
+  world.elapsed = at - 0.05;
+  let guard = 0;
+  while (world.boss === null || world.boss.enemy === null) {
+    stepTheWorld();
+    guard++;
+    if (guard > 4000) throw new Error('the boss never arrived, in ' + guard + ' steps');
+  }
+  return world.boss;
+}
+
+/** One step of the game's own fixed step. `input` says what the ship is doing. */export function stepTheWorld(input) {
   return stepWorld(BALANCE.sim.step, Object.assign({
     moveX: 0, moveY: 0, moving: false,
     aimX: world.player.x, aimY: world.player.y - 100, firing: false, dash: false,

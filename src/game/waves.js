@@ -543,6 +543,10 @@ function sendWave(world, points) {
  */
 export function updateWaves(world, dt) {
   const spec = BALANCE.waves;
+  // A boss is in the arena, or its siren has gone and it is on its way: the director holds
+  // (PLAN 3.4). Not a question asked of game/bosses.js, because that would be a cycle for
+  // one field - `world.boss` is the whole of the answer and game/bosses.js owns it.
+  if (world.boss !== null) return null;
   world.spawnTimer -= dt;
   if (world.spawnTimer > 0) return null;
 

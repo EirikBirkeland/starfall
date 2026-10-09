@@ -64,6 +64,18 @@ export const PALETTE = {
   wall: '#57b8ff',
   wallTick: '#9fdcff',
 
+  // A boss (PLAN 3.4, game/bosses.js). The hull bar across the top of the window and the
+  // name above it are warm, because they are the thing trying to kill you and nothing else
+  // on the interface is. The warning that comes before it is the paler warm of a telegraph,
+  // for the same reason. The cage it closes the duel into is *cool*, like the arena's own
+  // wall: a boundary is the world stopping and not a hazard, and a player who thinks the
+  // wall is about to hurt them will not fly near it - which is the whole point of a room.
+  bossBar: '#ff6a86',
+  bossBarTrack: 'rgba(255,106,134,0.15)',
+  bossWarn: '#ffd9df',
+  cageWall: '#bfe9ff',
+  cageTick: '#eafcff',
+
   // The minefield (game/mines.js, render/entities.js). A mine is the ship's own ordnance lying on
   // the floor, so it is cool-coloured like everything else the ship owns even though what it does
   // is explode (PLAN section 4 spends warm on things that are out to get *you*, and a mine is not

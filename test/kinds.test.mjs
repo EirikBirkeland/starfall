@@ -9,11 +9,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { KINDS, kindOf, makeEnemy, widestEnemyRadius } from '../src/game/kinds.js';
-import { killEnemy, damageEnemy } from '../src/game/enemies.js';
+import { KINDS, kindOf, makeEnemy } from '../src/game/kinds.js';
+import { killEnemy, damageEnemy, rebuildEnemyGrid, widestBodyOn } from '../src/game/enemies.js';
 import { logic } from '../src/core/rng.js';
 import { TAU } from '../src/core/math.js';
-import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
+import { scriptedRun, stepTheWorld, enemyAt } from '../tools/headless/scripted.js';
 
 const STEP = BALANCE.sim.step;
 
@@ -81,10 +81,21 @@ test('an enemy carries the row it was built from', () => {
 });
 
 test('the collision broad phase is wide enough for the fattest thing in the arena', () => {
+  // Measured off a crowd and not off the kinds table: the grid finds bodies by their centre, so
+  // a query narrower than a body's own radius lets a shot through its skin, and the widest body
+  // the arena can hold is not necessarily one the crowd can roll (a boss is built outside KINDS
+  // - game/bosses.js). So the promise is "whatever is standing there is found", tested with
+  // every kind in it at once, hatchlings included.
+  const field = scriptedRun(9);
   const fattest = Math.max(...Object.values(BALANCE.kinds).map((k) => k.radius));
-  assert.equal(widestEnemyRadius(), fattest);
   const split = Math.max(...Object.values(BALANCE.kinds).map((k) => (k.split ? k.split.radius : 0)));
-  assert.ok(widestEnemyRadius() >= split, 'a hatchling is thinner than the fattest body, or the grid misses it');
+
+  assert.equal(widestBodyOn(field), 0, 'an arena nobody has walked is not looked for');
+  for (const name of Object.keys(BALANCE.kinds)) enemyAt(name, 900, 900);
+  rebuildEnemyGrid(field);
+
+  assert.equal(widestBodyOn(field), fattest);
+  assert.ok(widestBodyOn(field) >= split, 'a hatchling is thinner than the fattest body, or the grid misses it');
 });
 
 test('a drifter walks the straight line to the ship, nose first', () => {

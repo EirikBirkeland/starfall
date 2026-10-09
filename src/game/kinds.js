@@ -107,27 +107,7 @@ export const KINDS = {
  */
 
 /**
- * The widest enemy the arena can hold, hatchlings included. The collision broad
- * phase queries with it, so no enemy is too fat to be found. The kinds never
- * change while the game runs, so it is measured once rather than every step.
- */
-function measureWidestEnemy() {
-  let widest = 0;
-  for (const name in KINDS) {
-    const stats = KINDS[name].stats;
-    if (stats.radius > widest) widest = stats.radius;
-    if (stats.split && stats.split.radius > widest) widest = stats.split.radius;
-  }
-  return widest;
-}
-
-const widestEnemy = measureWidestEnemy();
-
-export function widestEnemyRadius() {
-  return widestEnemy;
-}
-
-/** The row for a kind name. A name nobody defined is an error, not a silent no-op. */
+ * The row for a kind name. A name nobody defined is an error, not a silent no-op. */
 export function kindOf(type) {
   const kind = KINDS[type];
   if (!kind) throw new Error('no enemy kind is called ' + type);
@@ -152,6 +132,19 @@ function chosen(opts, key, fallback) {
 }
 
 /**
+ * The row a body is built from: the one its kind name names, or the one `opts.kind`
+ * hands over. The second door exists for the bosses (game/bosses.js): a boss is a body
+ * like any other - it is stepped by the crowd, shot at by everything, and dies paying out
+ * - but it is not on the wave director's menu, and `KINDS` *is* that menu, so a boss row
+ * lives with its boss and is handed in here instead. One `makeEnemy`, both doors, and the
+ * "every field is written" rule is kept in exactly one place.
+ */
+function rowFor(type, opts) {
+  const given = chosen(opts, 'kind', null);
+  return given === null ? kindOf(type) : given;
+}
+
+/**
  * What an elite is made of, as opposed to its plain kind: `BALANCE.elite`'s
  * multipliers, and nothing else. An elite is a flag on whichever enemy the wave
  * director rolled (game/waves.js), never a kind of its own, so the whole of it is
@@ -163,10 +156,11 @@ const PLAIN = { hullMul: 1, speedMul: 1, costMul: 1, scoreMul: 1, dropMul: 1 };
 /**
  * Build one enemy of `type` at (x, y). `opts` overrides the kind's defaults: a
  * tank's hatchlings arrive smaller, tougher, and already flying apart, and `elite`
- * asks for the gold variant (PLAN 3.3) of whatever kind was rolled.
+ * asks for the gold variant (PLAN 3.3) of whatever kind was rolled. `kind` hands over
+ * the row itself instead of naming it, which is how a boss is built (game/bosses.js).
  */
 export function makeEnemy(world, type, x, y, opts) {
-  const kind = kindOf(type);
+  const kind = rowFor(type, opts);
   const stats = kind.stats;
   const elite = chosen(opts, 'elite', false) === true;
   const mul = elite ? BALANCE.elite : PLAIN;
@@ -223,6 +217,12 @@ export function makeEnemy(world, type, x, y, opts) {
     // that dies takes its frost with it, and the one thing frost does after a death is paid
     // out at the death (game/enemies.js). Zero for every body until something chills it.
     frost: 0,
+    // How long nothing can hurt this body, in seconds (0 for everything always, so far).
+    // It lives here rather than in whatever sets it because the veto belongs at the one door
+    // damage comes through (game/enemies.js `damageEnemy`), where a bullet, a bolt, a fire
+    // and a blast are all the same call. A boss in the middle of changing phase is what sets
+    // one (game/bosses.js), and it is the only thing that may.
+    immune: 0,
     // The pack this body flies with (game/flock.js), or null for everything that flies
     // alone. It is not derived: a pack is the group of bodies that arrived together, so
     // it is given to the body when it is built and kept for its whole life. What is

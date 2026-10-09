@@ -668,8 +668,21 @@ When every item above is ticked, go back to the first unchecked item of mileston
       (0.5.2 - the five ships, and with them milestone 5.)
 
 ### Milestone 6: bosses
-- [ ] Boss framework: phases, hull bar, intro warning, spawn pause, arena lock.
+- [x] Boss framework: phases, hull bar, intro warning, spawn pause, arena lock.
+      (`game/bosses.js` owns the five duties and `game/field.js` owns the box the duel is fought
+      inside. A boss is an enemy - same `makeEnemy` through `opts.kind`, same `damageEnemy`, same
+      `killEnemy` - so nothing in the game has to remember to shoot it. The schedule is
+      `BALANCE.bosses.schedule` read off the run's clock; the warning is a siren and a name on the
+      glass for `bosses.warn`; the director holds while `world.boss` is anything at all; the cage
+      closes when it arrives and opens the instant it stops existing; three phases at
+      `bosses.atHull` each with a flare, a moment of immunity and a volley dropped.
+      `test/bosses.test.mjs`, `test/warden.test.mjs`, `test/boss-art.test.mjs`, and
+      `tools/simulate.js --at <seconds>` to measure a run that starts at five minutes.)
 - [ ] The Warden, one phase per session.
+      (Phase 1 is shipped and it is the whole attack: a ring that rides, stops dead, shows its
+      spokes and fires down them. Phases 2 and 3 are the same attack priced harder - more spokes,
+      a faster turn, a shorter read - and what is left is what PLAN 3.4 gives them on top: the
+      expanding bullet rings with gaps in phase 2, and the Darter summons in phase 3.)
 - [ ] The Hive, one phase per session.
 - [ ] The Eclipse, one phase per session, including the darkness effect.
 - [ ] Victory screen and the endless mode that follows.

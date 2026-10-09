@@ -954,6 +954,9 @@ export const BALANCE = {
         },
         beam: {
           halfWidth: 20, time: 0.3, damage: 6, shove: 260,
+          // An axis through the eye: the beam hurts both ways along the line it locked,
+          // which is what a sniper aiming through itself means (game/beams.js).
+          through: true,
           shake: 7, hitStop: 0.04,
           flare: { count: 26, speed: 460, life: 0.3 },
           cut: { count: 4, speed: 240, life: 0.24, spread: 0.5 },
@@ -1084,6 +1087,197 @@ export const BALANCE = {
     scoreMul: 5,
     dropMul: 2,
     heal: { chance: 0.34, hull: 1 },
+  },
+
+  // The bosses (PLAN 3.4).
+  //
+  // Two halves live here. `schedule` and its neighbours are the *framework's*: when a boss
+  // comes, how the warning runs, where a phase opens, and what a phase change does to the
+  // room. They are written once and they apply to every boss, whoever it turns out to be
+  // (game/bosses.js). Then one row per boss, which is its body and its phases.
+  //
+  // The schedule is the run's spine: one entry per boss, in the order they arrive. PLAN's
+  // marks are 5:00, 10:00 and 15:00, and only the Warden is built so far - the Hive and the
+  // Eclipse join this list, each with its own row and its own mark, as they are written.
+  // `test/bosses.test.mjs` holds the list in the order it is played and every entry pointing
+  // at a row that exists, which is the one way a schedule could lie.
+  bosses: {
+    schedule: [{ at: 300, boss: 'warden' }],
+
+    // The warning, before the cage closes: the siren, the name on the glass, and a shudder
+    // in the frame. Long enough to read and to let go of whatever you were doing, short
+    // enough that nobody ever waits on a boss to show up. The wave director holds from the
+    // moment the warning starts, so the last of the crowd is on its way and the arena is
+    // quieting down while it plays.
+    warn: { time: 2.6, shake: 3, sound: { freq: 92, dur: 1.3, wave: 'sawtooth', vol: 0.1, slide: 200 } },
+
+    // PLAN 3.4's three phases, as hull shares: the nth phase opens when the boss's hull
+    // falls to the nth number. A boss has one phase row per entry here, and
+    // `test/bosses.test.mjs` holds the two tables the same length, so a phase can never be
+    // scheduled without being written.
+    atHull: [1, 0.66, 0.33],
+
+    // PLAN 3.4's other rule, as a number instead of a sentence: nothing a boss does may
+    // land less than this far after it was shown. Every phase of every boss is held to it.
+    telegraphMin: 0.6,
+
+    // What a phase change is. The boss flares, sheds whatever was holding it in its last
+    // shape, and cannot be hurt for the moment that takes - which is why the moment is a
+    // beat and not a flicker: the run stops paying damage, the boss stops attacking, and
+    // both of them start again on the other side of it. Loud on purpose, because this is
+    // the sentence that says the fight has changed gear.
+    phaseBreak: {
+      time: 1.1,
+      ring: { radius: 30, speed: 760, life: 0.55 },
+      burst: { count: 44, speed: 520, life: 0.6 },
+      shake: 9,
+      hitStop: 0.07,
+      sound: { freq: 84, dur: 1, wave: 'sawtooth', vol: 0.12, slide: 260 },
+    },
+
+    // The sounds of the fight itself, whoever the boss is: the siren that opens the
+    // warning, the chord of the cage closing round the duel, and the chord of a boss going
+    // down - which is the biggest sound in the game, because it is the biggest thing that
+    // can happen to a run.
+    sound: {
+      arrive: { notes: [98, 147, 196, 294], dur: 1.2, wave: 'triangle', vol: 0.15 },
+      down: { notes: [523, 659, 784, 1046], dur: 1.6, wave: 'triangle', vol: 0.16 },
+    },
+
+    // How long the arena stays quiet after a boss goes down, before the wave director is
+    // allowed to send anything again. The shards it dropped are still on the floor and the
+    // run is meant to go and get them, not to be chased the moment its reward is over.
+    resume: 3,
+
+    // The cage (PLAN 3.4's arena lock). A boss fight has a room: the walls close in round
+    // the ship and the duel cannot be run away from.
+    //
+    // `w` and `h` are what the room is made of and `beyond` is the floor under them: the room is
+    // always at least this much bigger than the window, so a duel is never a phone booth and the
+    // wall that is about to stop you is never something you have already walked past. It is
+    // deliberately not small enough to see all of at once - the edges come onto the glass as you
+    // go at them, exactly as the arena's own walls do, and you are never further from one than
+    // this. `inset` is how far from the arena's own wall the room may sit (a room that overlaps
+    // the wall it is meant to be inside is a boss standing in a wall), and `open` is how long the
+    // frame takes to fade the walls in, which is why the cage arrives with the boss and not
+    // before it.
+    cage: { w: 1560, h: 1040, beyond: 150, inset: 40, open: 0.45 },
+
+    // The Warden (PLAN 3.4's 5:00): a large ring-shaped ship. It turns, stops dead, shows
+    // its spokes, and fires down them - the same grammar a darter uses to tell you it is
+    // about to commit, at four times the size and with the whole room to sweep.
+    //
+    // It does not walk. `radius` is the body the ring is hurt by and drawn at both, and it
+    // is 60 px and not 90 for one reason: the collision broad phase queries with the widest
+    // body standing in the arena (game/enemies.js), and every shot in the game pays that
+    // number whether a boss is in the arena or not.
+    //
+    // `hull` is 127 seconds of the plain pulse gun's damage (weapons.pulse, undaugmented and
+    // hitting everything it fires) - about a minute of a run that has bought some of its
+    // damage by the five-minute mark, and about two of one that has bought none. `score`
+    // and `drop` are what `killEnemy` pays out like any other body; `reward` is what the
+    // framework adds on top of that for being a boss (game/bosses.js).
+    warden: {
+      name: 'THE WARDEN',
+      blurb: 'a ring that turns, stops, and fires down its spokes',
+      radius: 60,
+      hull: 560,
+      speed: 0,
+      cost: 40,
+      score: 1500,
+      drop: 26,
+      color: PALETTE.amber,
+      fill: PALETTE.amberFill,
+      glow: 70,
+      sides: 8,
+      rooted: true,
+      reward: { hull: 1 },
+      death: {
+        particles: 90, speed: 620, debris: 40, debrisSpeed: 380,
+        ringSpeed: 900, ringScale: 2.2, shake: 14, hitStop: 0.12,
+      },
+      sound: { freq: 70, dur: 0.7, vol: 0.16 },
+      // Where it arrives: at least `gap` px of standing room from the ship, inside the room
+      // that is closing at the same moment (game/bosses.js `arrive`). `gap` sits under half
+      // the cage's short side by more than its own radius, which is what lets the arrival
+      // keep its promise wherever the cage ended up: a direction with no room in it is
+      // tried again rather than folded back onto the ship's nose.
+      arrival: {
+        gap: 380,
+        ring: { radius: 40, speed: 900, life: 0.5 },
+        burst: { count: 50, speed: 560, life: 0.7 },
+        shake: 10,
+        hitStop: 0.06,
+      },
+      // The ring, and what it does with it. One row per phase, opening at
+      // `bosses.atHull`: more spokes, a faster turn, a shorter patience and a shorter
+      // telegraph each time, so the same attack gets tighter as the ring comes apart. The
+      // tint is the phase the player is looking at, and the hull bar wears it.
+      //
+      // `turn` is how fast the ring rides between volleys, rad/s; `wait` how long it rides
+      // before taking aim again; `windup` how long it stands still with the spokes drawn
+      // before they fire (never less than `bosses.telegraphMin`, and the lines drawn are
+      // exactly the lines that hurt); `spokes` how many rays of light leave, evenly spaced
+      // round the ring, which is how many gaps there are to stand in.
+      //
+      // `beam` is one spoke as game/beams.js understands a beam, and `through` is the one
+      // field of its own: false, because a spoke is a ray out of the ring and not a line
+      // across the arena, which is what leaves the far side of the ring a place to be.
+      // The flare, the shudder and the noise of a whole volley are `volley`'s, not the
+      // beam's, because a volley is the event - eight spokes going off in the same step is
+      // one thing happening and not eight, and eight full flares would be a white hole in
+      // the middle of the room.
+      phases: [
+        {
+          spokes: 4, turn: 0.55, wait: 2.5, windup: 0.95, tint: PALETTE.amber,
+          sound: { freq: 240, dur: 0.6, wave: 'sawtooth', vol: 0.03, slide: 520 },
+          volley: {
+            shake: 8,
+            ring: { radius: 34, speed: 620, life: 0.4 },
+            sound: { freq: 1300, dur: 0.3, wave: 'square', vol: 0.1, slide: 70 },
+          },
+          beam: {
+            halfWidth: 17, time: 0.26, damage: 5, through: false, shove: 250,
+            shake: 1, hitStop: 0.02,
+            flare: { count: 9, speed: 380, life: 0.26 },
+            cut: { count: 4, speed: 250, life: 0.22, spread: 0.5 },
+            sound: { freq: 1400, dur: 0.26, wave: 'square', vol: 0.03, slide: 70 },
+          },
+        },
+        {
+          spokes: 6, turn: 0.75, wait: 2.1, windup: 0.82, tint: PALETTE.orange,
+          sound: { freq: 280, dur: 0.5, wave: 'sawtooth', vol: 0.032, slide: 620 },
+          volley: {
+            shake: 9,
+            ring: { radius: 34, speed: 700, life: 0.36 },
+            sound: { freq: 1450, dur: 0.28, wave: 'square', vol: 0.1, slide: 70 },
+          },
+          beam: {
+            halfWidth: 16, time: 0.24, damage: 5, through: false, shove: 250,
+            shake: 1, hitStop: 0.02,
+            flare: { count: 8, speed: 380, life: 0.24 },
+            cut: { count: 4, speed: 250, life: 0.22, spread: 0.5 },
+            sound: { freq: 1550, dur: 0.24, wave: 'square', vol: 0.03, slide: 70 },
+          },
+        },
+        {
+          spokes: 8, turn: 0.95, wait: 1.8, windup: 0.7, tint: PALETTE.red,
+          sound: { freq: 330, dur: 0.42, wave: 'sawtooth', vol: 0.034, slide: 720 },
+          volley: {
+            shake: 10,
+            ring: { radius: 34, speed: 780, life: 0.32 },
+            sound: { freq: 1600, dur: 0.26, wave: 'square', vol: 0.1, slide: 70 },
+          },
+          beam: {
+            halfWidth: 15, time: 0.22, damage: 5, through: false, shove: 250,
+            shake: 1, hitStop: 0.02,
+            flare: { count: 7, speed: 380, life: 0.22 },
+            cut: { count: 4, speed: 250, life: 0.2, spread: 0.5 },
+            sound: { freq: 1700, dur: 0.22, wave: 'square', vol: 0.03, slide: 70 },
+          },
+        },
+      ],
+    },
   },
 
   shards: {

@@ -14,6 +14,7 @@ import { clamp } from '../core/math.js';
 import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
 import { cueBeep, cueChord } from './cues.js';
 import { endRun } from './run.js';
+import { holdInField } from './field.js';
 import { noteHullLoss } from './tally.js';
 import { updateOvercharge } from './overcharge.js';
 import { armDash, trailImages } from './afterimage.js';
@@ -61,9 +62,11 @@ function fly(world, ship, spec, input, dt) {
   ship.px = ship.x;
   ship.py = ship.y;
   // The body is clamped by what you can see of it, not by the hit radius, or the
-  // nose would disappear into the wall.
-  ship.x = clamp(ship.x + ship.vx * dt, ship.drawR, world.arena.w - ship.drawR);
-  ship.y = clamp(ship.y + ship.vy * dt, ship.drawR, world.arena.h - ship.drawR);
+  // nose would disappear into the wall - and by the live box, which is the arena until a
+  // boss closes a room round the duel (game/field.js).
+  ship.x += ship.vx * dt;
+  ship.y += ship.vy * dt;
+  holdInField(world, ship, ship.drawR);
 }
 
 /**
@@ -177,8 +180,9 @@ function dashStep(world, ship, dt) {
 
   ship.px = ship.x;
   ship.py = ship.y;
-  ship.x = clamp(ship.x + ship.dashDirX * step, ship.drawR, world.arena.w - ship.drawR);
-  ship.y = clamp(ship.y + ship.dashDirY * step, ship.drawR, world.arena.h - ship.drawR);
+  ship.x += ship.dashDirX * step;
+  ship.y += ship.dashDirY * step;
+  holdInField(world, ship, ship.drawR);
   ship.dashLeft -= step;
   dashShoulder(world, ship);
 

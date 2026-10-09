@@ -59,13 +59,16 @@ export function hideScreens() {
   el.over.classList.add('hidden');
 }
 
-/** summary: { score, best, newBest, level, kills, shards, seconds, seed, ship, weapon, build } */
+/** summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, weapon, build } */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
   el.finalBest.textContent = summary.best.toLocaleString('en-US');
   el.stats.textContent = 'LEVEL ' + summary.level
     + '   \u00b7   ' + summary.kills + ' KILLS'
     + '   \u00b7   ' + summary.shards + ' SHARDS'
+    // A boss is the one kill worth its own word on the card: it is the mark a run is built
+    // around (PLAN 3.4), and it only shows up at all when the run got that far.
+    + (summary.bosses > 0 ? '   \u00b7   ' + summary.bosses + ' BOSS' + (summary.bosses > 1 ? 'ES' : '') : '')
     + '   \u00b7   ' + summary.seconds + 's'
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');

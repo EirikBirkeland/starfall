@@ -8,6 +8,8 @@ import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } fro
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { setShip, setShipByIndex, shipName } from './game/ships.js';
 import { windOf } from './game/lance.js';
+import { bossHullShare, bossName, bossPhase, bossWarning } from './game/bosses.js';
+import { fieldIsCaged } from './game/field.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
@@ -126,6 +128,7 @@ function describeRun() {
     level: world.player.level,
     kills: world.kills,
     shards: world.shardsCollected,
+    bosses: world.bossesDown,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
     ship: shipName(world),
@@ -277,6 +280,15 @@ window.STARFALL = {
       weapon: world.weapon,
       ship: world.ship,
       dashWait: world.player.dashWait,
+      // The boss (game/bosses.js): who is fighting, how much of it is left, which phase it is
+      // in, how long the siren has left, and how many this run has buried. A headless run has
+      // no other way to see a fight at all, and the F3 overlay wants the same numbers.
+      boss: world.boss === null ? '' : bossName(world.boss),
+      bossHull: world.boss === null ? 0 : bossHullShare(world.boss),
+      bossPhase: world.boss === null ? 0 : bossPhase(world.boss),
+      bossWarn: world.boss === null ? 0 : bossWarning(world.boss),
+      bossesDown: world.bossesDown,
+      caged: fieldIsCaged(world),
       // The nova (game/nova.js): how many fronts are in the air, and how long until the
       // next one. The F3 overlay wants both, and a test that cannot see a front can at
       // least see that the clock is running.

@@ -38,6 +38,7 @@ import {
   isSpitting,
   lungeReach,
 } from '../../src/game/kinds.js';
+import { spokeAngle, spokeCount, spokeHalf, spokeProgress, spokeStep } from '../../src/game/bosses.js';
 
 /**
  * How good this player is. Distances are px, times are seconds, weights are only
@@ -296,14 +297,46 @@ function telegraphed(world, avoid, enemy, dist) {
   }
 }
 
+/**
+ * The spokes a boss is holding (game/bosses.js): as many rays out of the ring as the phase
+ * says, each one a band it showed before it fires. The ask is the sniper's - get off the band
+ * - and the urgency is the countdown the bands are drawn bright by.
+ *
+ * Each is a *ray* and not a line: `lineThreat` ignores anything behind the thing that drew it,
+ * which is exactly right here and is what stops the bot running itself into the far side of the
+ * ring on the theory that it is out of the way. The reach is as much arena as the bands can
+ * cross, because a spoke is stopped by a wall and nothing else.
+ */
+function dodgeBoss(world, avoid) {
+  const boss = world.boss;
+  if (boss === null || boss.enemy === null) return;
+  const count = spokeCount(boss);
+  if (count === 0) return;
+
+  const ship = world.player;
+  const half = spokeHalf(boss);
+  const room = half + ship.r + SKILL.beamRoom;
+  const clear = room + SKILL.beamClear;
+  const across = Math.hypot(world.arena.w, world.arena.h);
+  const step = spokeStep(boss);
+
+  for (let i = 0; i < count; i++) {
+    const angle = spokeAngle(boss) + i * step;
+    lineThreat(world, avoid,
+      { x: boss.enemy.x, y: boss.enemy.y, dirX: Math.cos(angle), dirY: Math.sin(angle), reach: across },
+      room, clear, boss.timer, SKILL.beamWeight * (0.35 + spokeProgress(boss)));
+  }
+}
+
 /** The edge of the world: a dodge into a wall is not a dodge. */
 function awayFromTheWalls(world, avoid) {
   const ship = world.player;
+  const box = world.field;
   const room = SKILL.wallRoom;
-  addPush(avoid, 1, 0, SKILL.wallWeight * clamp01((room - ship.x) / room));
-  addPush(avoid, -1, 0, SKILL.wallWeight * clamp01((room - (world.arena.w - ship.x)) / room));
-  addPush(avoid, 0, 1, SKILL.wallWeight * clamp01((room - ship.y) / room));
-  addPush(avoid, 0, -1, SKILL.wallWeight * clamp01((room - (world.arena.h - ship.y)) / room));
+  addPush(avoid, 1, 0, SKILL.wallWeight * clamp01((room - (ship.x - box.x0)) / room));
+  addPush(avoid, -1, 0, SKILL.wallWeight * clamp01((room - (box.x1 - ship.x)) / room));
+  addPush(avoid, 0, 1, SKILL.wallWeight * clamp01((room - (ship.y - box.y0)) / room));
+  addPush(avoid, 0, -1, SKILL.wallWeight * clamp01((room - (box.y1 - ship.y)) / room));
 }
 
 /**
@@ -330,6 +363,7 @@ export function escapeDirection(world) {
   const threats = total();
   dodgeShots(world, threats);
   dodgeCrowd(world, threats);
+  dodgeBoss(world, threats);
   const pressure = Math.hypot(threats.x, threats.y);
 
   const walls = total();

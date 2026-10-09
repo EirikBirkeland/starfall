@@ -15,6 +15,10 @@
 //                                              is asked for as well
 //   node tools/simulate.js --need 300         exit non-zero unless the batch mediates
 //                                             this many seconds (PLAN's survival check)
+//   node tools/simulate.js --at 295           start the run's clock there instead of at 0, so
+//                                             the run is measured from five minutes in (which is
+//                                             where PLAN 3.4 puts the first boss, and the only
+//                                             way a bot that dies at a minute ever sees one)
 //   node tools/simulate.js --trace            print a state fingerprint over time
 //   node tools/simulate.js --audio            boot with a fake audio device
 //
@@ -37,7 +41,7 @@ import { clock, int, dec } from './headless/tables.js';
 import { playRuns, dashEscape, POLICIES } from './headless/bot.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, ship: undefined, weapon: undefined, need: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -51,6 +55,7 @@ function readArgs(argv) {
     else if (arg === '--weapon') opts.weapon = next();
     else if (arg === '--ship') opts.ship = next();
     else if (arg === '--need') opts.need = parseFloat(next());
+    else if (arg === '--at') opts.at = parseFloat(next());
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--dash') opts.dash = true;
     else if (arg === '--audio') opts.audio = true;
@@ -75,6 +80,10 @@ function readArgs(argv) {
     console.error('--need wants a number of seconds');
     process.exit(2);
   }
+  if (opts.at !== undefined && !(opts.at >= 0)) {
+    console.error('--at wants a number of seconds to start the run clock at');
+    process.exit(2);
+  }
   return opts;
 }
 
@@ -91,6 +100,10 @@ function reportLine(summary) {
     + '  kills ' + s.kills
     + '  shards ' + s.collected
     + '  hull ' + s.hull
+    // A boss worth naming: which one, how much of it was left when the run stopped, and how many
+    // came down (game/bosses.js). Without this a boss fight is invisible in the report.
+    + (s.boss !== '' ? '  boss ' + s.boss + ' @' + Math.round(s.bossHull * 100) + '% phase ' + s.bossPhase : '')
+    + (s.bossesDown > 0 ? '  bosses down ' + s.bossesDown : '')
     // What the run was built from, in the order game/upgrades.js lists the lines.
     + '  build ' + Object.values(s.ranks).join('/');
 }
@@ -177,6 +190,7 @@ if (isMain) {
     policy: opts.policy,
     ship: opts.ship,
     weapon: opts.weapon,
+    at: opts.at,
     onFrame: opts.dash ? dashEscape : undefined,
     // Printed as each run finishes: a batch of twenty long ones is minutes of work and
     // a silent terminal cannot be told apart from a stuck one.

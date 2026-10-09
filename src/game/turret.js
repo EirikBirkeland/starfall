@@ -65,7 +65,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { Pool } from '../core/pool.js';
 import { TAU, clamp, dist2 } from '../core/math.js';
-import { widestEnemyRadius } from './kinds.js';
+import { widestBodyOn } from './enemies.js';
 import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
 import { gunsPerCrewOf, gainOf, rankOf } from './upgrades.js';
@@ -208,7 +208,7 @@ function lockOn(world, turret, spec) {
   // skin is inside the sight when its centre is `reach + its own r` away, and the grid answers for
   // centres (game/tether.js argues the same argument for its band).
   const found = world.grid.queryCircle(
-    turret.x, turret.y, spec.reach + widestEnemyRadius(), lockScratch);
+    turret.x, turret.y, spec.reach + widestBodyOn(world), lockScratch);
   let best = null;
   let nearest = Infinity;
   for (let i = 0; i < found.length; i++) {
@@ -248,7 +248,7 @@ function fireShell(world, turret, spec) {
   // a body's centre and one measured to its skin: the widest body a gun may be aimed at, and the shot's
   // own radius (game/bullets.js counts a hit at `r + hitRadius`). A shell cut off at exactly `reach`
   // would die a body's width short of the far edge of the body it was aimed at.
-  bullet.life = (spec.reach + widestEnemyRadius() + BALANCE.bullets.hitRadius) / shell.speed;
+  bullet.life = (spec.reach + widestBodyOn(world) + BALANCE.bullets.hitRadius) / shell.speed;
   bullet.dmg = BALANCE.bullets.damage * gainOf(world, 'damage') * spec.weight;
   bullet.knock = shell.knock;
   bullet.pierce = 0;

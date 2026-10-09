@@ -20,10 +20,9 @@ import { BALANCE } from './balance.js';
 import { logic } from '../core/rng.js';
 import { dist2 } from '../core/math.js';
 import { PALETTE } from '../core/palette.js';
-import { damageEnemy, rebuildEnemyGrid } from './enemies.js';
+import { damageEnemy, rebuildEnemyGrid, widestBodyOn } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
-import { widestEnemyRadius } from './kinds.js';
 import { burst, spray } from './effects.js';
 import { cueBeep } from './cues.js';
 import { noteShell } from './turret.js';
@@ -194,12 +193,12 @@ export function updateBullets(world, dt) {
   const grid = world.grid;
   const pierce = BALANCE.upgrades.pierce;
   const ricochet = BALANCE.upgrades.ricochet;
-  // How far a hit can possibly come from: the widest enemy there is, plus the
-  // bullet's own reach. A query with it finds everything the exact test below
-  // can hit, and nothing much further away than that.
-  const broadPhase = widestEnemyRadius() + spec.hitRadius;
-
   rebuildEnemyGrid(world);
+  // How far a hit can possibly come from: the widest body standing in the arena, plus the
+  // bullet's own reach. A query with it finds everything the exact test below can hit,
+  // and nothing much further away than that - and it is measured off the crowd and not off
+  // the kinds table, which is what lets a boss be as big as a boss (game/enemies.js).
+  const broadPhase = widestBodyOn(world) + spec.hitRadius;
 
   // Downwards, because killing a bullet drops the last live one into its hole
   // and that one has already been stepped.
@@ -248,7 +247,7 @@ export function updateBullets(world, dt) {
       // that has been turned is still shoving the way it is going.
       enemy.ix += bullet.vx * bullet.knock;
       enemy.iy += bullet.vy * bullet.knock;
-      burst(world, bullet.x, bullet.y, BALANCE.kinds[enemy.type].color, impact.count, impact.speed, impact.life);
+      burst(world, bullet.x, bullet.y, enemy.kind.stats.color, impact.count, impact.speed, impact.life);
       // The cold goes on before the hull is taken off, because the hit that kills a body is the
       // hit that gets to be the cold it dies with (game/chill.js).
       chill(world, enemy);

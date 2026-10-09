@@ -290,7 +290,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, ship, weapon }
+ * Options: { maxSeconds, every, onFrame, policy, ship, weapon, at }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -317,6 +317,11 @@ export function playOneRun(game, options) {
     botFrame(game, opts.policy);
     game.step(FRAME_MS);
     frames++;
+    // "Start the run already five minutes in", asked honestly: the launch zeroes the clock and
+    // then this puts it where the tool asked, before the second frame is simulated. The whole
+    // difficulty curve reads `elapsed` - the crowd budget, the hull scale, the boss schedule -
+    // so a run started at 295 s is the five-minute fight and not a scripted one.
+    if (frames === 1 && opts.at !== undefined) game.world.elapsed = opts.at;
     if (opts.onFrame) opts.onFrame(game, frames);
     if (opts.every && frames % opts.every === 0) trace.push(frames + ':' + fingerprint(game));
     if (game.stats().state === game.STATE.OVER) {
