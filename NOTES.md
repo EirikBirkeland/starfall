@@ -7784,3 +7784,122 @@ distance it was paid over.
   and `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
 - Worktree hygiene worked: `/tmp/s64-base` named after the session, and `git worktree remove` it (or
   just stop reusing one name across sessions, which is what bit session 62).
+
+## Session 65 (2026-10-09) — The run can be won. Released **0.6.10**
+
+Milestone 6's last line of PLAN 3.4: "After the Eclipse, the run is won. Endless mode then continues
+with all values scaling for as long as the player lasts." Half of that is shipped: **the win**. Endless
+is the next session and this note says what it has to unpause.
+
+### What landed
+- **`STATE.WON`** (4). An ending, not a pause: no run time passes, nothing in the arena can hurt
+  anything again, the window keeps painting - the same shape `OVER` is, plus a card that arrives late.
+- **`game/run.js`**: `winRun(world)` (banked score via a new `bankBest` shared with `endRun`, the
+  tally note, burst + two rings + shake + chord), `victoryCardIsUp(world)`, and `canStartRun` now
+  answers for three screens. `winRun` refuses a world that is not `PLAY` - that guard is what stops a
+  wreck being called a win, and it is tested by calling it directly on a title screen.
+- **`game/bosses.js`**: one line at the end of `bossDown` - `if (boss.index + 1 >= spec.schedule.length)
+  winRun(world)`. The schedule is the length of the game and the framework is the only thing that
+  knows it has been walked out. This is the file's sixth duty and it is written into the header. It is
+  also the first two-way import in `src/`: `bosses.js` imports `winRun` from `run.js`, `run.js`
+  imports `resetBosses` back. Safe because neither uses the other at evaluation time, and the comment
+  at the import says so; every entry order was checked by the suite, not by reading.
+- **`BALANCE.victory`**: `hush: 1.6`, the chord, the burst, the two rings, the shake. The row argues
+  the hush against the boss's own 1.6 s going-down chord, which is the first half of the moment: the
+  card lands on its tail. The win's chord is deliberately a C-major shape an open fifth above
+  `bosses.sound.down` so the two stack into one fanfare - there cannot be a cue at the moment the card
+  arrives, because by then the simulation has stopped stepping and the sim has no business knowing when
+  a card goes up.
+- **The card** (`index.html`, `src/ui/screens.js`): `#winScreen`, mint and gold and not the death's
+  pink, reading `ARENA CLEARED / THE RUN IS WON`, the score, the best, NEW BEST, a line of the fights
+  out of `BALANCE.bosses.schedule` (so it cannot advertise a fight the game does not field), the stats
+  line, the build. `clockWords` is shared with the death card now, so a run that died at ten minutes
+  reads `10m00s` there and not `602s`.
+- **The hush is one number in two doors.** `victoryCardIsUp` gates the frame's `showVictory` call and
+  `canStartRun`, so the card and the key that dismisses it cannot come apart. `world.overTimer` now
+  means "time since the run ended, whichever way it ended" and is ticked for both.
+- **`game/tally.js`**: `won` and `wonAt`, written by `noteVictory`. Still a mirror; nothing reads it.
+
+### The thing I had to fix: the dark would not let go
+`test/darkness.test.mjs` "the room is handed back the moment the fight is down" went red the moment the
+win existed. The Eclipse's night is ramped by `stepDarkness`, which ran inside `updateBosses` - which
+runs inside `stepRun` - which does not run once the run has ended. So burying the sun froze the room at
+78% night under the victory card, forever. Moved: **`stepDarkness` is stepped by `stepWorld` now**
+(after the freeze check, and skipped only for a level-up pause), so the room walks back to bright over
+any stopped run, won or lost, and is held still by exactly the two things that genuinely stop the world
+- a hit-stop and the cards. That is what the framework's own comment had been claiming all along ("a
+run that wins in the dark... is on its way back to bright"), and the balance row's comment says the
+going is *the reward for having won*, which is now literally what happens under the card. Reference
+trace byte-identical, as it must be: nothing in `game/` reads `darkness` back and the ramp consumes no
+random number.
+
+### Mutation checks, and the three that caught me out
+- **`field.shake > 0` could not see the win's shake.** Something had already shaken the world that step,
+  so deleting `shakeIt` from `winRun` changed nothing anyone noticed. The claim is now a delta measured
+  after the kill and before the winning step.
+- **Counting particles could not see the win's burst.** The kill's own sparks swamp it. The honest claim
+  is by colour: at least `victory.burst.count` live sparks painted `PALETTE.player`, and one live ring in
+  white and one in `PALETTE.elite`. Every one of the five effects in `winRun` now has a mutation that
+  goes red.
+- **The "a wreck and a win in the same step is a wreck" test does not test the guard it thinks it
+  tests.** `stepRun` returns out of the step the moment the run ends (game/world.js), so `updateBosses`
+  never runs and `bossDown` is never reached; deleting `winRun`'s `state !== PLAY` guard left it green.
+  The test still claims something true (the ending a player gets is the wreck, and it is held by the step
+  ordering), but the guard itself is now tested directly, on a title screen, and the comments on both
+  sides say which of the two holds which half.
+
+### Tooling, so a headless run can see an ending
+`playOneRun` breaks on `WON` and returns `won: true`; `endingItAt` will not kill a ship that has already
+won. `tools/simulate.js` prints `WON`, `aggregate` counts `wins`, and `atCap` stopped counting a win as
+"still flying at the cap" (same fix in `tools/line-ab.js` and `tools/balance-report.js`, which also
+prints how many runs outlasted the schedule). `tools/agent/session.js` answers screen `won`, a
+`restartIn` measured against the hush, a `reason: 'won'` for `step`, and `won:` in `run_result`; the
+bridge calls it "a won run"; the agent README's tool table says so. `reportLine` is exported and has a
+test, which meant the `simulate.test.mjs` fixture grew real boss/killedBy fields. The harness stub has
+the win card's elements, starts it hidden the way the markup does, and exposes `winHidden`, `winScore`,
+`winCleared`, `winStats`, `winBuild`, `winNewBestShown`.
+
+### Numbers
+- **1200 tests → 1224**, all passing. New: `test/victory.test.mjs` (14, the simulation's half: which
+  ending belongs to which fight, the score and the sheet, the noise and the light, the hush) and
+  `test/victory-card.test.mjs` (8, a booted game: the fight walks in on a parked clock, the ending, the
+  hush that cannot be pressed through, the card's own words, the stored best, flying again, winning
+  twice). Plus 2 in `test/simulate.test.mjs`.
+- **Nothing else moved**: `node tools/simulate.js --seed 20261006 --seconds 600 --trace` is byte-for-byte
+  the run recorded in session 64 (checked twice - before the darkness move and after). `--at 895
+  --seconds 180 --runs 2` meets the Eclipse and finishes clean (both runs died to it, as expected of a
+  level-1 bot).
+- The card test's win lands at `CLEARED IN 15m00s`, which is the first time anything in this project has
+  printed a finished run.
+
+### Decisions, so nobody relitigates them
+- **A win ends the run.** PLAN says the run *is* won; endless is the next item and it will have to
+  unpause a `WON` run rather than replace it. Nothing in the win assumes the run is over for good - the
+  state, the tally and the card all just say "this one finished".
+- **Which fight wins the game is the schedule's last entry**, not a hard-coded Eclipse. Add a fourth
+  boss after the Eclipse and the win moves to it, which is the only behaviour that would not need a
+  second thought later.
+- **The win's chord stacks on the going-down chord** rather than following it (see above); `hush` is
+  equal to the down chord's length on purpose and a test holds `hush > restartGuard`.
+- **`victoryCardIsUp` is the only gate.** There is no second timer, no "card shown" flag in the world,
+  and `main.js` keeps its own one boolean for "this win has had its card", reset the moment the world is
+  on any other screen (test: winning twice).
+- `clockWords` moved into the shared card file rather than being duplicated: one time format per game.
+
+### For the next session
+- **Endless mode** is the rest of milestone 6's last item. PLAN: "Endless mode then continues with all
+  values scaling for as long as the player lasts." What it has to decide, in this order: (1) how a won
+  run keeps flying - the card is up and dismissable, so the obvious shape is that the same key that
+  restarts instead *unwinds* the `WON` back into `PLAY` (a `continueRun` beside `winRun`, and the
+  restart guard question answers itself once that exists); (2) what "all values scaling" means now that
+  the caps exist - `waves.crowdMax` (400), `kinds`' `hpScaleMax` and `speedScaleMax` all stop growing
+  well before the Eclipse arrives, so endless is a second, uncapped clock on all three rather than a
+  bigger number in each; (3) whether the schedule repeats (nothing says it must, and the Eclipse
+  walking back in a second time is a design decision, not a free one). Do the win-continuation in one
+  session and the scaling in another; measuring scaling needs the mid-build measurement gap below.
+- Still open and smaller: the Hive's owed spiral (session 60's note), the mid-build measurement gap
+  (`tools/simulate.js` cannot hand a run ranks, so every boss hull is priced against a level-1 bot and
+  a level-50 bot and nothing between), the four unbuilt synergies, milestone 7's music buses, and
+  `tools/agent/session.js` still having `choose_weapon` and no `choose_ship`.
+- Worktree hygiene: `/tmp/s65-base` was named for the session and removed at the end of it. The trace
+  comparison against HEAD is what made the darkness regression visible in one command; keep doing it.
