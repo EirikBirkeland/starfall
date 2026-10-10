@@ -253,6 +253,16 @@ const SCHEMA = {
     effects: KINDS.whole(1000),
     muted: KINDS.flag,
   },
+  // What the player asked the game to do to its own picture (game/settings.js, PLAN section 6).
+  // Every one of them is the *name* of a step rather than its index or its share, so a row whose
+  // steps are added to or reworded cannot silently move a saved choice along the row: a step this
+  // build has never heard of is not stored at all, and the row falls back to what it ships at.
+  view: {
+    shake: KINDS.name,
+    flash: KINDS.name,
+    numbers: KINDS.name,
+    particles: KINDS.name,
+  },
 };
 
 /** A document with nothing remembered in it at all: the version, and an empty section each. */

@@ -1,8 +1,8 @@
 // The DOM screens: the title, the hangar a run is chosen in, the codex of what has been met and what
-// has been flown, the pause a run is held at, the game-over card and the win card. The level-up choice
-// is not here - it is painted on the canvas
-// (render/cards.js), because its cards are drawn, not typed. Everything the run shows while it is
-// being played is on the canvas too.
+// has been flown, the pause a run is held at, the settings of what the game does to your eyes and
+// ears, the game-over card and the win card. The level-up choice is not here - it is painted on the
+// canvas (render/cards.js), because its cards are drawn, not typed. Everything the run shows while it
+// is being played is on the canvas too.
 //
 // The hangar and the codex are overlays and not states of the world: either is put up over the title
 // and over the death's card, the attract crowd keeps flying behind it, and the run it launches is
@@ -41,12 +41,12 @@ let perkRows = [];
 let perkNumbers = [];
 let perkPrices = [];
 
-// Whether a panel is up right now, and which one: '' for neither, and the three keys that open them
+// Whether a panel is up right now, and which one: '' for neither, and the four keys that open them
 // are the only things that can write anything else. `hideScreens` clears it with the screens
 // themselves, so there is no path where a run is flying and this still says open.
 let panelUp = '';
 
-// The three panels, in the one list everything that is true of "a panel" walks: taking them all
+// The four panels, in the one list everything that is true of "a panel" walks: taking them all
 // down, and fitting whichever one is up. Built once in `initScreens`, beside the elements themselves.
 let panels = [];
 // The codex's three panels, in the same shape the racks are kept in: the rows, and the two parts of
@@ -68,6 +68,12 @@ let logRows = [];
 // a rack that leaves a stale row on the glass.
 let factRows = [];
 let buildRows = [];
+
+// The settings panel's rack (game/settings.js, audio/engine.js): one row per thing that can be set.
+// The count never changes inside a visit - it is the two tables the panel is built out of - but it is
+// painted from what those owners answer, so the rack grows and trims like the log's rather than being
+// assumed.
+let settingRows = [];
 
 // The two ending cards' hull racks (game/tally.js `hullLedger`): what each hull of the run went to,
 // one row apiece. Both cards grow and trim theirs the way the log and the pause's racks do, because
@@ -281,6 +287,18 @@ function buildHullRow(where) {
   return buildRow(where, 'hull', ['name', 'says']);
 }
 
+/**
+ * One row of the settings panel: what the row is, what it is set to, and one line on what it does.
+ *
+ * There is no key chip on a setting row, unlike a ship or a perk row, and that is the point: a chip
+ * says "press this" and every row on this panel is changed with the arrow keys after the cursor has
+ * been put on it. What a row *is* set to is the bright part, because it is the only part a player is
+ * looking for once the panel is up.
+ */
+function buildSettingRow() {
+  return buildRow(el.settingRow, 'setting', ['name', 'value', 'says']);
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -318,6 +336,12 @@ export function initScreens() {
     pauseHead: document.getElementById('pauseHead'),
     factRow: document.getElementById('factRow'),
     buildRow: document.getElementById('buildRow'),
+    // The settings: what this visit asked the game to do to its own picture and sound
+    // (game/settings.js, audio/engine.js, PLAN section 6).
+    settings: document.getElementById('settingsScreen'),
+    settingsBody: document.getElementById('settingsBody'),
+    settingsNote: document.getElementById('settingsNote'),
+    settingRow: document.getElementById('settingRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleShip: document.getElementById('titleShip'),
@@ -341,13 +365,14 @@ export function initScreens() {
   cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
   awardRows = AWARDS.map(buildAwardRow);
-  // The three panels, in the one list everything that is true of "a panel" walks: taking them all
+  // The four panels, in the one list everything that is true of "a panel" walks: taking them all
   // down, and fitting whichever one is up. Built here, beside the elements themselves, because
   // `initScreens` is the first thing the boot does.
   panels = [
     { which: 'hangar', screen: el.hangar, body: el.hangarBody },
     { which: 'codex', screen: el.codex, body: el.codexBody },
     { which: 'pause', screen: el.pause, body: el.pauseBody },
+    { which: 'settings', screen: el.settings, body: el.settingsBody },
   ];
 }
 
@@ -391,7 +416,7 @@ export function hideScreens() {
  *
  * Only one of them is ever up. Every one of them is a column of rows over a screen that is trying to
  * be read, and two of them at once is not two screens you can read but one screen you cannot - and
- * none of the three keys has anything to say about the other two, so the rule has to be the panel's
+ * none of the four keys has anything to say about the other three, so the rule has to be the panel's
  * and not the key's.
  */
 function raisePanel(which, screen, body) {
@@ -434,6 +459,22 @@ export function openCodex() {
     `pauseRun`). Whoever raises it has already stopped the run and painted what it has to say. */
 export function openPause() {
   raisePanel('pause', el.pause, el.pauseBody);
+}
+
+/**
+ * Is the settings panel up?
+ *
+ * It is the one panel that *changes* things rather than reading them, which is why the launch key and
+ * the ship numbers stand aside while it is on the glass (main.js): a press that tunes the music is not
+ * also a press that starts a run.
+ */
+export function settingsIsUp() {
+  return panelUp === 'settings';
+}
+
+/** ...and the settings, over the title, over the death's card, or over a run that is being held. */
+export function openSettings() {
+  raisePanel('settings', el.settings, el.settingsBody);
 }
 
 /**
@@ -787,6 +828,39 @@ export function showPause(run) {
     + run.score.toLocaleString('en-US') + '   \u00b7   ' + clockWords(run.seconds);
   paintRows(factRows, el.factRow, factLines(run), buildFactRow);
   paintRows(buildRows, el.buildRow, buildLines(run.ranks, run.cut), buildBuildRow, 'unknown');
+}
+
+/**
+ * Paint the settings panel: every thing that can be set, what it is set to now, and which row the
+ * cursor is on (game/settings.js, audio/engine.js, PLAN section 6).
+ *
+ * Every word on it is answered by whoever owns the thing it names - the four picture rows come out of
+ * their own table and the three sound rows out of the mixer - and main.js composes the two lists into
+ * this one, so the panel cannot offer a step the game has not implemented or a slider the mixer does
+ * not have. There are no key chips on these rows for the same reason: nothing here is answered by a
+ * number, because a number already means the ship it means everywhere else.
+ *
+ * Unlike the other three panels this one is repainted *while it is up*, because a row that was just
+ * changed is a row that has to say its new value on the same press. `fitSettings` is what re-measures
+ * it afterwards, since a value is a word and words are not all the same width.
+ */
+export function showSettings(panel) {
+  el.settingsNote.textContent = panel.note;
+  while (settingRows.length > panel.rows.length) el.settingRow.removeChild(settingRows.pop().row);
+  while (settingRows.length < panel.rows.length) settingRows.push(buildSettingRow());
+  for (let i = 0; i < panel.rows.length; i++) {
+    const row = settingRows[i];
+    const line = panel.rows[i];
+    row.name.textContent = line.name;
+    row.value.textContent = line.value;
+    row.says.textContent = line.says;
+    row.row.classList.toggle('chosen', line.chosen === true);
+  }
+}
+
+/** Fit the settings panel to the window (see `fitPanel`). */
+export function fitSettings() {
+  fitPanel(el.settingsBody, el.settings);
 }
 
 /** What the visit has to show for itself, in both places it is read: the best score, the purse, and

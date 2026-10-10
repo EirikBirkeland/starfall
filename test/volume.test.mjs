@@ -537,3 +537,66 @@ test('a slider key is none of the other keys the game answers', async () => {
   assert.equal(musicLevel(), TOP, 'and it did move the sliders, net of itself');
   assert.equal(effectsLevel(), TOP);
 });
+
+/**
+ * The same two sliders and the same switch, stood on from the settings panel (game/settings.js,
+ * ui/screens.js, PLAN section 6).
+ *
+ * What is proved here is that there is one set of numbers behind both ways in: a step taken on the
+ * panel lands in the same mixer a bracket key lands in, a step taken with a key *while the panel is
+ * up* puts the panel right as well, and the mute row is the same switch M is. Two readouts of one
+ * number is exactly the shape a lie grows in, and since session 79 the mixer has had two - the plate
+ * on the canvas and now a row on the panel.
+ */
+test('the settings panel shows the mixer, and steps it through the same door', async () => {
+  game.resetToTitle(7);
+  settle();
+  tap('KeyO');
+  assert.equal(game.stats().settingsUp, true, 'O puts the settings up over the title');
+  assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
+  ], 'four things the game does to the eyes, then three it does to the ears');
+
+  // Down to MUSIC, two steps down it, and read the same number off both places it is written: the row
+  // on the panel and the mixer the bracket keys move (the canvas plate is drawn, so it is measured in
+  // the tests above rather than read here).
+  for (let i = 0; i < 4; i++) tap('ArrowDown');
+  tap('ArrowLeft');
+  tap('ArrowLeft');
+  assert.equal(game.screen.settingsRows[4].value, '8 OF 10');
+  assert.equal(musicLevel(), 8, 'one slider, one number, two ways of standing on it');
+
+  // A slider key while the panel is up: the plate and the row move together, because they are one press
+  // answering one key through one door (main.js `onVolume`).
+  tap('BracketRight');
+  assert.equal(musicLevel(), 9);
+  assert.equal(game.screen.settingsRows[4].value, '9 OF 10');
+  assert.equal(panelIsUp(), true, 'the readout lit over the panel');
+  assert.equal(game.stats().settingsUp, true, 'and the readout is not a panel, so the panel stayed up');
+
+  // Down to MUTE, one row further, and light it: the row is the same switch M is, and either way is a
+  // step, because a switch has two places and no ends.
+  tap('ArrowDown');
+  tap('ArrowDown');
+  assert.equal(game.screen.settingsRows[6].chosen, true, 'the last row is the mute');
+  tap('ArrowLeft');
+  assert.equal(game.screen.settingsRows[6].value, 'ON');
+  assert.equal(isMuted(), true);
+  tap('ArrowLeft');
+  assert.equal(game.screen.settingsRows[6].value, 'OFF', 'one switch, and either way is a step');
+  assert.equal(isMuted(), false);
+
+  // And the cursor cannot be walked off the panel: nine ups from the bottom is the top row, and a row
+  // at the end of its travel does not move.
+  for (let i = 0; i < 9; i++) tap('ArrowUp');
+  assert.equal(game.screen.settingsRows[0].chosen, true);
+  tap('ArrowRight');
+  assert.equal(game.stats().settings.shake, 'full', 'a row already at the top of its travel stays there');
+
+  tap('KeyO');
+  assert.equal(game.stats().settingsUp, false);
+  assert.equal(game.stats().state, game.STATE.START, 'closing the panel launched nothing');
+  setLevel('music', TOP);
+  setLevel('effects', TOP);
+  setMuted(false);
+});

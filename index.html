@@ -166,7 +166,8 @@
   .hangar { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
   .hangar-title,
   .codex-title,
-  .pause-title {
+  .pause-title,
+  .settings-title {
     margin: 0; font-size: clamp(26px, 6vw, 54px); font-weight: 800;
     letter-spacing: .28em; text-indent: .28em; color: #eafcff;
     text-shadow: 0 0 10px rgba(94,247,255,.9), 0 0 38px rgba(94,247,255,.5);
@@ -196,6 +197,12 @@
      stopped and is not the thing being read any more (game/run.js `pauseRun`). */
   .pause { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
   .pause-body { display: flex; flex-direction: column; align-items: center; }
+  /* The settings (PLAN section 6): what the game does to your eyes and ears, and the one panel in the
+     game that changes anything rather than showing it. It dims as hard as the other three, for the
+     same reason - the panel is the thing being read now. */
+  .settings { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
+  .settings-body { display: flex; flex-direction: column; align-items: center; }
+  .settings .setting-list { margin-top: 14px; }
   /* The two racks the pause reads a run off (ui/screens.js `showPause`), capped so a long card
      sentence wraps under its own line instead of pushing the readout rack off the window - the same
      bargain the codex strikes with its longest sentences. */
@@ -206,7 +213,8 @@
      can be spent - and the pause wears the same line for the same reason, with the run's own two
      headline numbers in it (ui/screens.js `showPause`). */
   .codex-tally,
-  .pause-tally {
+  .pause-tally,
+  .settings-note {
     margin-top: 18px; font-size: 14px; letter-spacing: .26em; text-indent: .26em;
     color: #9fd8ff; text-shadow: 0 0 14px rgba(94,247,255,.4);
   }
@@ -271,6 +279,34 @@
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
+  /* The settings rack, and the one row of it (game/settings.js, audio/engine.js): what the row is,
+     what it is set to, and one plain line on what it does. No key chip, unlike a ship or a perk row -
+     and that is the point. A chip says "press this", and nothing on this panel is answered by a
+     number: the arrows put the cursor on a row and move it, and the numbers go on meaning the ship
+     they mean everywhere else. */
+  .setting-list { display: grid; gap: 7px; }
+  .setting {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px;
+    padding: 6px 14px; border: 1px solid transparent; border-radius: 7px;
+    font-size: 12px; letter-spacing: .14em; color: #a9cff0;
+  }
+  .setting .name { min-width: 15ch; color: #a9cff0; }
+  .setting .value {
+    color: #d8fbff; font-weight: 600;
+    text-shadow: 0 0 12px rgba(94,247,255,.45);
+  }
+  /* The line about the row on the line below it, the way a ship row wears its numbers: it is the part
+     you read once and then stop reading, so it is the dimmest thing on the panel. */
+  .setting .says { flex: 1 0 100%; font-size: 10px; letter-spacing: .18em; color: #4a7291; }
+  /* The row the cursor is on, lit the way a picked ship is. It is the one row the next arrow press
+     will change, and a cursor nobody can see is a cursor nobody can use. The border is there and
+     transparent every other time, so lighting it cannot move anything. */
+  .setting.chosen {
+    border-color: rgba(94,247,255,.5);
+    background: rgba(94,247,255,.07);
+    box-shadow: 0 0 16px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.12);
+  }
+  .setting.chosen .name { color: #d8fbff; }
   /* The keys that cost something, said once and steadily under the pulsing line above it: these are
      the two the player has to read before pressing them, so they do not blink. */
   .keys {
@@ -295,6 +331,10 @@
     .pause .entry-list, .pause .fact-list { margin-top: 10px; }
     .fact-list { gap: 5px; }
     .pause-tally { margin-top: 8px; }
+    .settings .setting-list { margin-top: 10px; }
+    .setting-list { gap: 5px; }
+    .settings-note { margin-top: 8px; }
+    .settings-title { font-size: 26px; }
     .pause-title { font-size: 26px; }
     .codex-title { font-size: 26px; }
     .rack-title { margin-top: 12px; }
@@ -443,8 +483,8 @@
     <div class="row"><span class="key">G</span><span>GIVE THE RUN UP, WHILE IT IS PAUSED</span></div>
     <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
     <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
-    <div class="row"><span class="key">M</span><span>MUTE</span></div>
-    <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
+    <div class="row"><span class="key">O</span><span>SETTINGS &#183; SHAKE, FLASH, NUMBERS, SOUND</span></div>
+    <div class="row"><span class="key">M &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
   </div>
   <div class="standing rise">
     <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
@@ -482,7 +522,7 @@
    </div>
   </div>
   <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
-  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK</div>
+  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK &#183; O SETTINGS</div>
  </div>
 </div>
 
@@ -515,7 +555,7 @@
     <div class="entry-list" id="logRow"></div>
    </div>
   </div>
-  <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK</div>
+  <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK &#183; O SETTINGS</div>
  </div>
 </div>
 
@@ -539,10 +579,25 @@
    </div>
   </div>
   <div class="hint">ESC OR P TO GO BACK TO THE RUN</div>
-  <div class="keys">G GIVES THE RUN UP &#183; THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
+  <div class="keys">G GIVES THE RUN UP &#183; O SETTINGS &#183; THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
  </div>
 </div>
 
+<!-- The settings (PLAN section 6): what the game does to your eyes and your ears, and the one panel
+     here that changes anything rather than showing it. It sits over the title, over the death's card,
+     or over a run that is being held - never over a run that is flying - and every row on it is kept
+     for the next visit (game/settings.js, audio/engine.js). No numbers on the rows, and that is the
+     point: the arrows pick a row and move it, while the numbers go on meaning the ship they mean on
+     every other screen. -->
+<div id="settingsScreen" class="screen settings hidden">
+ <div class="settings-body" id="settingsBody">
+  <h2 class="settings-title">SETTINGS</h2>
+  <div class="settings-note" id="settingsNote">EVERY ROW IS KEPT FOR THE NEXT VISIT</div>
+  <div class="setting-list" id="settingRow"></div>
+  <div class="hint">&#8593; &#8595; PICK A ROW &#183; &#8592; &#8594; CHANGE IT</div>
+  <div class="keys">O CLOSES THIS PANEL &#183; ESC LETS A HELD RUN GO &#183; M AND [ ] - = WORK ANYWHERE</div>
+ </div>
+</div>
 <div id="overScreen" class="screen hidden">
   <h2 class="over-title">GAME OVER</h2>
   <div class="cause-line" id="finalCause"></div>
@@ -559,7 +614,7 @@
   <div class="hull-list" id="finalHulls"></div>
   <div class="build" id="finalBuild"></div>
   <div class="next-line" id="nextShip"></div>
-  <div class="hint">PRESS SPACE OR CLICK TO RESTART</div>
+  <div class="hint">PRESS SPACE OR CLICK TO RESTART &#183; O SETTINGS</div>
 </div>
 
 <div id="winScreen" class="screen hidden">

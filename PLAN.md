@@ -990,7 +990,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       (game/run.js `pauseRun`), because a held run is still the run it was and simply not being
       stepped; the window losing focus holds it the same way, silently, which is PLAN section 6's rule
       arriving late. The camera keeps its lean, a dash asked for during a pause is spent and not kept,
-      and no other key changes meaning because the panel is up.)
+      and no other key changes meaning because the panel is up - except `O`, which is the settings and
+      takes the pause down with it.)
 - [x] Full game over summary. (The card already said score, clock, level, kills, shards, the fights,
       stardust, awards and build, and had never said the one thing a death is asked about: *what took
       the run down*. `game/tally.js` has kept that since the tally was built (`body:tank`,
@@ -1009,7 +1010,35 @@ When every item above is ticked, go back to the first unchecked item of mileston
       best of each" is read as the three numbers the save actually keeps a best of - best score on its
       own line, the purse and the award count beside it - because nothing else in the game is
       remembered well enough to be compared against.)
-- [ ] Settings screen with everything from section 6.
+- [x] Settings screen with everything from section 6. (`O` puts up the fourth panel - `O` because `S`,
+      the first letter of the word, is the ship's own down key and a key that moves the ship must never
+      move anything else - over the title, over the death's card, or over a run that is being held, and
+      nowhere else: over a flying run it would be a pause the run never agreed to. Seven rows, and the
+      panel keeps none of them: four come out of `game/settings.js` (screen shake, hit flash, score
+      numbers, particles) and three out of the mixer (music, sounds, mute), each row printing what its
+      owner says it is, what it is set to and one plain line on what it does. `↑ ↓` put the cursor on a
+      row, `← →` step it, and there are no numbers on the rows because a number means the ship it means
+      everywhere else - so the launch key and the ship numbers are simply refused while it is up. Three
+      promises hold it together. **The last step of every row is the game as it shipped**, so a fresh
+      visit cannot be the first time the game looked wrong, and `test/settings.test.mjs` says so without
+      naming a number. **Nothing here can move a run**: the cosmetics draw from their own number stream
+      (`core/rng.js` `fx`), the shake moves the window and not the camera's own follow, particles are
+      thinned by a *stride* rather than a probability so a spray keeps the sparks it keeps, and the
+      flash is a share of a bloom - and the test plays one seed twice, once with every row at the top
+      of its travel and once with every row at the bottom, and asks for the same score, the same kills,
+      the same levels and the same ship at every half second. **A row is the one description of itself**,
+      so the panel cannot offer a step the game has not implemented and the save cannot hold a step
+      nobody ever showed; choices are stored by *name* in the save's new `view` section, which means a
+      step this build has never heard of is no setting at all and the row ships. `prefers-reduced-motion`
+      is the one default that is not the shipped one - a first visit on a machine that asked for calm
+      gets the window held still - and it is a default and not an order, so a save that has already got a
+      shake in it outvotes it. What the row called *flash* took is the white bloom on a hurt body, and
+      deliberately not a boss's phase flare or the hull bar's white breath: both are news, and a setting
+      that takes news away is not an accessibility setting. Closing the panel over a held run puts the
+      pause back up, because opening it never let the run go.)
+- [ ] An auto-fire toggle and an auto-aim toggle (section 6, and nothing in the milestone list asked
+      for them): the game is supposed to be playable with one hand or keyboard only, and today it is
+      not - aiming is the mouse and there is no way to stop holding the trigger.
 - [ ] Key rebinding.
 - [ ] Gamepad support.
 - [ ] Touch support.

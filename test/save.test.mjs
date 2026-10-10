@@ -19,6 +19,7 @@ import {
 
 const BEST_DEFAULTS = { best: 0 };
 const AUDIO_DEFAULTS = { music: 10, effects: 10, muted: false };
+const VIEW_DEFAULTS = { shake: 'full', flash: 'full', numbers: 'on', particles: 'all' };
 const LEGACY_BEST_KEY = 'starfall.best';
 
 /** The browser the store expects: a map of strings, and the one member of localStorage it uses. */
@@ -81,19 +82,25 @@ test('a write is a versioned document, and the same values always write the same
   const written = text(store);
   assert.deepEqual(JSON.parse(written), {
     version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {},
-    awards: {}, runs: {}, audio: {},
+    awards: {}, runs: {}, audio: {}, view: {},
   });
 
   assert.equal(remember('audio', { music: 3, effects: 3, muted: false }), true);
+  assert.equal(remember('view', { shake: 'half', numbers: 'off' }), true);
   assert.equal(section('score', BEST_DEFAULTS).best, 500, 'a second write did not lose the first');
   assert.equal(section('audio', AUDIO_DEFAULTS).music, 3);
+  assert.deepEqual(section('view', VIEW_DEFAULTS),
+    { shake: 'half', flash: 'full', numbers: 'off', particles: 'all' },
+    'a remembered step name comes back as the name it was written as');
 
   const both = text(store);
   remember('audio', { music: 3, effects: 3, muted: false });
+  remember('view', { shake: 'half', numbers: 'off' });
   assert.equal(text(store), both, 'the same values again is the same text, byte for byte');
 
   const keys = Object.keys(parsed(store));
-  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'runs', 'audio'],
+  assert.deepEqual(keys,
+    ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'runs', 'audio', 'view'],
     'the document is written in schema order');
 });
 

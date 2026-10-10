@@ -3,6 +3,7 @@
 
 import { visual } from '../core/rng.js';
 import { BALANCE } from '../game/balance.js';
+import { shakeShare } from '../game/settings.js';
 import { STATE } from '../game/state.js';
 import { world } from '../game/world.js';
 import { view } from './canvas.js';
@@ -22,10 +23,18 @@ import { drawToasts } from './toast.js';
 import { drawLogo } from './logo.js';
 import { drawCards } from './cards.js';
 
-/** A shake offset large enough to notice, small enough to never blur the HUD. */
+/**
+ * A shake offset large enough to notice, small enough to never blur the HUD.
+ *
+ * The trauma is the run's and the share of it is the player's (game/settings.js): the room decides
+ * how hard a thing went off and the settings screen decides how far the window travels because of
+ * it. Taking the share first, before the floor, is what makes NONE mean none - a frame under the
+ * floor is not shaken at all, and the eye's stream is not even asked for a number.
+ */
 function shakeOffset(amount) {
-  if (amount <= BALANCE.screen.shakeFloor) return { x: 0, y: 0 };
-  return { x: visual.range(-amount, amount), y: visual.range(-amount, amount) };
+  const px = amount * shakeShare();
+  if (px <= BALANCE.screen.shakeFloor) return { x: 0, y: 0 };
+  return { x: visual.range(-px, px), y: visual.range(-px, px) };
 }
 
 /**

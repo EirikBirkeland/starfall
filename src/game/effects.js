@@ -17,6 +17,7 @@ import { BALANCE } from './balance.js';
 import { fx } from '../core/rng.js';
 import { Pool } from '../core/pool.js';
 import { TAU } from '../core/math.js';
+import { particleStride } from './settings.js';
 
 /**
  * The three shapes a particle can be, and the keys of `BALANCE.effects.shapes`.
@@ -61,6 +62,28 @@ export function hitStop(world, seconds) {
 }
 
 /**
+ * Of a spray, is this the spark that gets leave?
+ *
+ * The particle row of the settings screen (game/settings.js) is a stride: one spark in `stride` is
+ * let out, and 0 lets out none. Counting which spark it is, rather than asking the stream, is on
+ * purpose: a thinned spray that keeps every third spark is the same spray with room in it, while one
+ * that asked the stream would move whichever sparks survived to wherever the next draw landed - and
+ * a setting should not be able to change what a spray looks like beyond thinning it.
+ *
+ * The count is a phase and not a fact about the run: it is deliberately not reset with a run, so no
+ * system may read it, and nothing in a run could notice if one did.
+ */
+let emitted = 0;
+
+function letsEmit() {
+  const stride = particleStride();
+  if (stride <= 0) return false;
+  if (stride === 1) return true;
+  emitted++;
+  return emitted % stride === 0;
+}
+
+/**
  * One particle, already aimed.
  *
  * It draws exactly four numbers, always in the same order - life, size, how it is
@@ -74,6 +97,7 @@ export function hitStop(world, seconds) {
  * off by themselves.
  */
 function emit(world, shape, x, y, angle, speed, life, color, carryX = 0, carryY = 0) {
+  if (!letsEmit()) return;
   const spec = BALANCE.effects.shapes[shape];
   const p = world.particles.spawn();
   p.x = x;

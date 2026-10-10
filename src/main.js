@@ -26,6 +26,10 @@ import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { section, saveIsWritable, saveProblem } from './core/save.js';
 import { storedDust, dustForRun } from './game/stardust.js';
+import {
+  ROWS as PICTURE_ROWS, loadFromSave as loadPicture, stepRow as stepPictureRow,
+  wordsOf as pictureWords, stepIdOf as pictureStep,
+} from './game/settings.js';
 import { initCanvas, resizeCanvas, view, calmMotion } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -34,13 +38,13 @@ import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
-import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted } from './audio/engine.js';
+import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, openHangar, openCodex, openPause, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, panelIsUp, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, openHangar, openCodex, openPause, openSettings, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, panelIsUp, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -122,6 +126,9 @@ function beginRun() {
  * are for, and the card says so.
  */
 function pressAction() {
+  // The settings panel owns the screen it is put up on, launch key included: a press that is meant
+  // for the row the cursor is on is not also a press that starts a run out from under it.
+  if (settingsIsUp()) return;
   if (continueRun(world)) {
     // The same bargain `beginRun` strikes with the launch key: Space is the dash as well, and a run
     // resumed out of the hush owes no free dash on the step it comes back on.
@@ -186,6 +193,10 @@ function onPickCard(number, withShift) {
   // audio is not disturbed by the ask, and `uiTick` on its own never starts a context: only a
   // handler that is answering a press is allowed to.
   initAudio();
+  // The numbers name a row of whatever panel is on the glass, and the settings panel has no numbered
+  // rows - so they are refused here rather than left to quietly change the ship behind the panel a
+  // player is looking at (ui/screens.js `settingsIsUp`).
+  if (settingsIsUp()) return;
   if (world.state === STATE.LEVEL) {
     // Shift turns the same number into the other thing a card can be answered with: it
     // cuts that line out of the run instead of taking it.
@@ -277,32 +288,191 @@ function onReroll() {
  * M, and the tick on its way back. The mute switch is the one control the player presses without
  * looking at the screen, so the half of it that can be heard says something: going quiet is
  * already its own answer, coming back needs a word to say it happened (BALANCE.ui).
+ *
+ * It answers the settings panel too, when that is on the glass: the row on it and this key are the
+ * one switch, and a panel that still said OFF after the key had changed it would be a panel lying.
  */
 function onMuteSwitch() {
   const mutedNow = toggleMuted();
   if (!mutedNow) uiTick('unmute');
   showVolumePanel('mute');
+  if (settingsIsUp()) paintSettings();
+  return true;
 }
 
 /**
  * One step of one slider: `[ ]` for the music, `- =` for the sounds (input/keyboard.js, and
- * audio/engine.js for what a step is worth). Until milestone 9 puts a settings page on the glass
- * these keys are the whole interface for it, which is why the press is answered twice over - the
- * level painted on the screen, and the change heard *on the bus it changed*, so the answer is
- * made of the very thing that moved and needs no calibration to read.
+ * audio/engine.js for what a step is worth). Until milestone 9 put a settings page on the glass
+ * these keys were the whole interface for it, which is why the press is answered twice over - the
+ * level painted on the screen, and the change heard *on the bus it changed*, so the answer is made
+ * of the very thing that moved and needs no calibration to read.
  *
  * A slider already at the end of its travel is refused in silence, like every other refused press
  * (BALANCE.ui): the panel does not light for a key that did nothing, because a readout that moves
  * when nothing moved is a readout you stop believing.
+ *
+ * The settings panel's two slider rows come through here as well, so one key press and one arrow
+ * press on the same slider get the same answer. Returns whether the slider moved.
  */
 function onVolume(which, delta) {
   // Same bargain as every other key that can be the first press of a visit: this is a user
   // gesture, so this is where the audio is allowed to be started.
   initAudio();
-  if (nudgeLevel(which, delta) === null) return;
+  if (nudgeLevel(which, delta) === null) return false;
   showVolumePanel(which);
   if (which === 'music') auditionMusic(world, delta > 0);
   else uiTick(delta > 0 ? 'up' : 'down');
+  if (settingsIsUp()) paintSettings();
+  return true;
+}
+
+// --- the settings panel ---------------------------------------------------------
+// Four rows belong to game/settings.js and three to audio/engine.js; nothing on this panel keeps a
+// copy of either. What is kept here is the *cursor* - which row the arrow keys are pointing at - and
+// that is panel furniture and not a fact about a run or a save: it is forgotten when the panel comes
+// down, and no system outside this screen can see it.
+
+/** The cursor, counted from the top of the panel. Back to the top every time the panel goes up. */
+let settingCursor = 0;
+
+/** What the panel says under its own heading, so a player knows where a change goes. */
+const SETTINGS_NOTE = 'EVERY ROW IS KEPT FOR THE NEXT VISIT';
+
+/** One slider's position, in the words the panel prints beside its name. */
+function sliderWords(level) {
+  return level + ' OF ' + VOLUME.steps;
+}
+
+/**
+ * The panel's rows, in the order it prints them: the four the game keeps for its own picture
+ * (game/settings.js), then the two sliders and the mute the mixer owns (audio/engine.js).
+ *
+ * One list, so the cursor, the printing and the stepping all walk the same order and cannot drift
+ * from one another - and one shape, so nothing on the panel has to know whether the thing under its
+ * cursor is a count of sparks or a bus gain. Each row carries its own `step`, which is the one place
+ * the two owners' different machinery is folded into one gesture: a picture row moves along its
+ * table, a slider goes through the same door the slider keys do (so it is answered on the bus it
+ * changed, and the canvas readout lights beside the panel), and the mute is one switch either way.
+ * A `step` answers whether anything moved, which is how a press at the end of a row's travel stays
+ * as silent as a press of a key that nothing on the screen answers.
+ */
+function settingRows() {
+  const rows = [];
+  for (const row of PICTURE_ROWS) {
+    rows.push({
+      name: row.name,
+      says: row.says,
+      value: pictureWords(row.id),
+      step: function (delta) {
+        if (stepPictureRow(row.id, delta) === null) return false;
+        uiTick(delta > 0 ? 'up' : 'down');    // the same answer a slider gives, at the same moment
+        return true;
+      },
+    });
+  }
+  rows.push({
+    name: 'MUSIC', says: 'THE SEQUENCER UNDER THE ARENA',
+    value: sliderWords(musicLevel()),
+    step: function (delta) { return onVolume('music', delta); },
+  });
+  rows.push({
+    name: 'SOUNDS', says: 'EVERY SHOT, HIT AND EXPLOSION',
+    value: sliderWords(effectsLevel()),
+    step: function (delta) { return onVolume('effects', delta); },
+  });
+  rows.push({
+    name: 'MUTE', says: 'THE WHOLE GAME, QUIET',
+    value: isMuted() ? 'ON' : 'OFF',
+    step: function () { return onMuteSwitch(); },
+  });
+  return rows;
+}
+
+/** Where every picture row stands, for `stats()`: row id -> step id. */
+function settingsSteps() {
+  const out = {};
+  for (const row of PICTURE_ROWS) out[row.id] = pictureStep(row.id);
+  return out;
+}
+
+/** Paint the panel from the two owners, and fit it to the window: a value is a word, and words are
+ * not all the same width (ui/screens.js `fitSettings`). */
+function paintSettings() {
+  const rows = settingRows();
+  for (let i = 0; i < rows.length; i++) rows[i].chosen = i === settingCursor;
+  showSettings({ note: SETTINGS_NOTE, rows: rows });
+  fitSettings();
+}
+
+/**
+ * May the settings panel be put up at all right now?
+ *
+ * The two screens a run is chosen from, and a run that is being held - and nowhere else. Over a
+ * flying run it would be a pause the run never agreed to; over the win it would be a panel over the
+ * one card whose launch key means "keep flying this one" (game/run.js). The pause counts: a held run
+ * is a run the game has already agreed to stop, and PLAN section 4 asks for settings on it.
+ */
+function settingsMayOpen() {
+  return world.state === STATE.START || world.state === STATE.OVER || world.paused;
+}
+
+/**
+ * O: the settings, and the way back out of them (PLAN section 6).
+ *
+ * One key both ways in and out, like the three panels beside it - and when it goes back out over a
+ * run that is being held, the pause goes back up in its place. Opening this panel never let the run
+ * go, so closing it must not either, and a held run with nothing on the glass reads as a game that
+ * has stopped rather than one that is waiting.
+ */
+function onSettings() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  if (settingsIsUp()) {
+    closePanels();
+    if (world.paused) raisePause();
+    uiTick('close');
+    return;
+  }
+  if (!settingsMayOpen()) return;
+  settingCursor = 0;
+  paintSettings();
+  openSettings();
+  uiTick('open');
+}
+
+/**
+ * Up and down: the cursor, and nothing else (input/keyboard.js binds the arrow keys and only the
+ * arrow keys, so the ship's own WASD never mean two things on one screen).
+ *
+ * The end of the panel is a place to be, not a thing to be beeped about: a cursor that wrapped round
+ * would put the shake back under a hand that was trying to take it off.
+ */
+function onRowMove(delta) {
+  if (!settingsIsUp()) return;
+  const last = settingRows().length - 1;
+  const next = Math.max(0, Math.min(last, settingCursor + delta));
+  if (next === settingCursor) return;
+  settingCursor = next;
+  paintSettings();
+  uiTick('pick');
+}
+
+/**
+ * Left and right: the row the cursor is on, one step each way.
+ *
+ * Whoever owns the row answers the press, including with its own sound - the picture rows with the
+ * same up and down the sliders use, the sliders with the change heard on the bus they moved. A row at
+ * the end of its travel answers nothing at all, and the panel is not repainted for it: the panel would
+ * look exactly as it did, and a press that changes nothing should not be allowed to look as though it
+ * had (BALANCE.ui).
+ *
+ * The two slider rows repaint the panel themselves, because the keys that step them have to repaint it
+ * too (see `onVolume`) - and painting is the owners being asked what they say, so asking twice on one
+ * press prints the same panel twice over rather than anything worse.
+ */
+function onRowChange(delta) {
+  if (!settingsIsUp()) return;
+  if (!settingRows()[settingCursor].step(delta)) return;
+  paintSettings();
 }
 
 /**
@@ -624,6 +794,12 @@ function boot() {
   // The mixer first, before anything can make a sound or paint a level: the two sliders and the
   // mute come back from wherever the last visit left them (core/save.js).
   const mixer = restoreAudio();
+  // ...and the picture the same way (game/settings.js): the shake, the flash, the floating numbers and
+  // the sparks, back from wherever the last visit left them. The one thing the save is *not* asked
+  // about is whether this machine was told to keep still: a first visit has no answer of its own to
+  // give, so the request is what it gets, and a visit that has since chosen a shake for itself has
+  // answered the same question more recently (game/settings.js `loadFromSave`).
+  loadPicture(undefined, calmMotion());
   // ...and a player who left the game muted and came back has no sound and nothing on the screen
   // to say why, so the readout that answers the mute key answers the reload too.
   if (mixer.muted) showVolumePanel('mute');
@@ -680,6 +856,9 @@ function boot() {
     onCodex: onCodex,
     onPause: onPauseKey,
     onGiveUp: onGiveUp,
+    onSettings: onSettings,
+    onRowMove: onRowMove,
+    onRowChange: onRowChange,
     onToggleMute: onMuteSwitch,
     onVolume: onVolume,
   });
@@ -741,9 +920,18 @@ window.STARFALL = {
   stats: function () {
     return {
       state: world.state,
-      // Is the run being held where it stands (game/run.js `pauseRun`)? A fact about the run's clock
+      // Is a run being held where it stands (game/run.js `pauseRun`)? A fact about the run's clock
       // and not about the screen it is on, so a headless player cannot tell it from `state` alone.
       paused: world.paused,
+      // ...and whether the settings panel is on the glass above it (ui/screens.js). A headless player
+      // cannot see the panel, and over it the launch key and the ship numbers go quiet - which is
+      // exactly the kind of thing a tool needs to know before it presses either.
+      settingsUp: settingsIsUp(),
+      // Where the four picture rows stand (game/settings.js): the shake, the flash, the floating
+      // numbers and the sparks. They are the only settings a headless run cannot see any other way,
+      // because a screenshot is the only thing any of them changes - and a run played with all four at
+      // one end of their travel has to be the same run as one played at the other.
+      settings: settingsSteps(),
       seed: world.seed,
       score: world.score,
       // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot

@@ -9,6 +9,7 @@ import { PALETTE } from '../core/palette.js';
 import { STATE } from './state.js';
 import { dist2 } from '../core/math.js';
 import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
+import { numbersShown } from './settings.js';
 import { eliteSpoils } from './elite.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
@@ -116,9 +117,13 @@ export function killEnemy(world, enemy, byPlayer) {
   if (byPlayer) {
     world.score += enemy.score;
     world.kills++;
-    // The number that floats up is worth gold when the body that carried it was.
-    addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
-      enemy.elite ? PALETTE.elite : stats.color);
+    // The number that floats up is worth gold when the body that carried it was - and it is the one
+    // number a player can ask not to be shown (game/settings.js). The score and the kill are the
+    // run's whatever the setting says; only the pop over the body is the eye's.
+    if (numbersShown()) {
+      addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
+        enemy.elite ? PALETTE.elite : stats.color);
+    }
     // A kind can ask for a quieter death than the crowd's default: twenty swarmlings can
     // come apart in one frame. audio/mix.js turns the quietest of a frame's voices away once
     // the bus is full, which is what keeps a swarm going out a sound rather than a wall - but

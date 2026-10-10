@@ -11,6 +11,7 @@ import { clamp, TAU } from '../core/math.js';
 import { polygon, shipPath, shipShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
+import { hitFlash } from './flash.js';
 import { onScreen } from './camera.js';
 import {
   aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging,
@@ -37,8 +38,6 @@ import { lettingGoOf, pulsingBy } from '../game/tether.js';
 import { isWinding, windOf } from '../game/lance.js';
 import { aimedOf, fadingOf as turretFadingOf, reloadingOf } from '../game/turret.js';
 import { world } from '../game/world.js';
-
-const HIT_FLASH = BALANCE.enemies.hitFlash;
 
 // How the sprites are used. All of it is look, none of it is balance.
 const HALO_REACH = 0.6;    // an enemy's halo reaches this much of its glow past its body
@@ -1061,7 +1060,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   // moves, this says what it is made of. A new kind that is not a plain polygon
   // gets a branch here as well as its row there.
   const look = BALANCE.kinds[enemy.type];
-  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const flash = hitFlash(enemy);
   // A hatchling is the same kind as its parent with a smaller body, so the halo
   // follows the body it has and not the kind it is.
   const halo = enemy.r + look.glow * HALO_REACH;

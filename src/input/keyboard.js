@@ -64,6 +64,22 @@ const PAUSE_KEYS = ['Escape', 'KeyP'];
 // it with the pause on the glass, so a stray press in the middle of a fight ends nothing.
 const GIVEUP_KEYS = ['KeyG'];
 
+// The settings panel (PLAN section 6): the shake, the flash, the floating numbers, and the sound.
+// O for options - because S, the first letter of the word, is the ship's own down key and a key that
+// moves the ship must never move anything else. O is beside P, which is the pause, and the two panels
+// are the two places a run is looked at; and it is none of the movement keys, the launch, the dash, a
+// card or ship number, the reroll, the mute, a slider, H, C, P or G.
+const SETTINGS_KEYS = ['KeyO'];
+
+// Inside the settings panel, the arrow keys are the cursor and nothing else. WASD are deliberately
+// not bound here: they are how the ship flies, and a panel that also flew the ship one way and pointed
+// a row another would be the one screen in the game where a key means two things at once. The arrows
+// do mean the ship's movement - but only while a run is being flown, and no panel can be put up over
+// a run that is flying (main.js `settingsMayOpen`), so on the one screen that has these keys there is
+// nothing else for them to mean.
+const ROW_KEYS = { ArrowUp: -1, ArrowDown: 1 };
+const CHANGE_KEYS = { ArrowLeft: -1, ArrowRight: 1 };
+
 // One-shot requests: a key that means "do that thing" rather than "this is held".
 // input/index.js folds them into the descriptor and clears them once the
 // simulation has had its turn at them.
@@ -78,6 +94,9 @@ export const keyTaps = { dash: false };
  * handlers.onCodex     - the codex was asked for, or asked to go away
  * handlers.onPause     - the run was asked to hold still, or to go on
  * handlers.onGiveUp    - the run was given up, from the pause screen and nowhere else
+ * handlers.onSettings  - the settings panel was asked for, or asked to go away
+ * handlers.onRowMove   - the settings cursor was moved one row: +1 down the panel, -1 up
+ * handlers.onRowChange - the row the settings cursor is on was changed: -1 down its travel, +1 up
  * handlers.onToggleMute
  * handlers.onVolume    - one step of one slider: which bus, and which way (-1 or 1)
  */
@@ -102,6 +121,11 @@ export function initKeyboard(handlers) {
       if (CODEX_KEYS.indexOf(code) >= 0 && handlers.onCodex) handlers.onCodex();
       if (PAUSE_KEYS.indexOf(code) >= 0 && handlers.onPause) handlers.onPause();
       if (GIVEUP_KEYS.indexOf(code) >= 0 && handlers.onGiveUp) handlers.onGiveUp();
+      if (SETTINGS_KEYS.indexOf(code) >= 0 && handlers.onSettings) handlers.onSettings();
+      const row = ROW_KEYS[code];
+      if (row !== undefined && handlers.onRowMove) handlers.onRowMove(row);
+      const change = CHANGE_KEYS[code];
+      if (change !== undefined && handlers.onRowChange) handlers.onRowChange(change);
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
   });

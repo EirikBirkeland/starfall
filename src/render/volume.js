@@ -1,16 +1,17 @@
 // The mixer on the glass: what the two sliders are set to, for a moment after one is moved.
 //
-// PLAN section 5 asks for "separate volume sliders for music and effects, and a mute key", and
-// milestone 7 has no settings page to put a slider on - milestone 9 does. So the sliders are
-// keys for now (input/keyboard.js), and a key that changes something you cannot see is a key
-// that might as well not have been pressed. This is what you see instead of a fader: the two
-// buses, where each one stands, and how long the game will keep saying it.
+// PLAN section 5 asks for "separate volume sliders for music and effects, and a mute key". They are
+// keys (input/keyboard.js) as well as a row on the settings panel (game/settings.js, and
+// ui/screens.js `showSettings`), because a key that changes something you cannot see is a key that
+// might as well not have been pressed. This is what you see instead of a fader: the two buses, where
+// each one stands, and how long the game will keep saying it.
 //
-// It is drawn last of everything (render/renderer.js), over the interface and over the upgrade
-// cards, because it is answering a press and nothing on the screen is allowed to hide the
-// answer. It is also deliberately *not* a card, a dialog or a pause: the run goes on underneath
-// while you can see it, because turning the music down mid-fight is a thing people do and not a
-// trip to a menu.
+// It is drawn last of everything (render/renderer.js), over the interface, over the upgrade cards and
+// over the settings panel, because it is answering a press and nothing on the screen is allowed to
+// hide the answer. It is also deliberately *not* a card, a dialog or a pause: the run goes on
+// underneath while you can see it, because turning the music down mid-fight is a thing people do and
+// not a trip to a menu - and a player who presses M while the settings panel is up is choosing which
+// thing to quiet, not asking to be shown somewhere else.
 //
 // Everything here is frame state and nothing of it is the run's: the timer runs on the frame
 // clock like the star drift, and the numbers it paints are read out of the mixer itself

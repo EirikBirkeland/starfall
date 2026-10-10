@@ -34,6 +34,7 @@ import {
   coreReach, windupProgress,
 } from '../game/bosses.js';
 import { glowFor, paintGlow } from './glow.js';
+import { hitFlash } from './flash.js';
 import { camera, onScreen } from './camera.js';
 import { paintX, paintY } from './interp.js';
 import { polygon } from './shapes.js';
@@ -79,7 +80,6 @@ const CAGE_TICK_LIGHT = 0.34;
 const CAGE_BREATH = 0.16;
 const CAGE_BREATH_RATE = 1.9;
 const CAGE_VISIBLE = 60;     // px past the window an edge is still worth stroking
-const HIT_FLASH = BALANCE.enemies.hitFlash;   // the same white every other body wears
 
 // The mass (the Hive, PLAN 3.4's 10:00). Its cells are bodies of the crowd - each one is hurt,
 // pays out and walks on its own - and they are not drawn as seven separate bodies: seven
@@ -244,7 +244,7 @@ function drawTheMass(ctx, boss, core, alpha) {
   const y = paintY(enemy, alpha);
   const tint = bossTint(boss);
   const flare = bossFlare(boss);
-  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const flash = hitFlash(enemy);
   const cells = coreCells(core);
   const reach = coreReach(core);
 
@@ -345,7 +345,7 @@ function drawTheSun(ctx, boss, core, alpha) {
   const r = enemy.r;
   const tint = bossTint(boss);
   const flare = bossFlare(boss);
-  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const flash = hitFlash(enemy);
   const shout = CORE_CALM + (CORE_SHOUT - CORE_CALM) * windupProgress(boss);
 
   // The corona: the phase's light, all of it out where the rim is, and the widest thing the body
@@ -478,7 +478,7 @@ export function drawBoss(ctx, boss, enemy, alpha) {
   if (!onScreen(x, y, r * FLARE_RING_TO + 20)) return;
   const tint = bossTint(boss);
   const flare = bossFlare(boss);
-  const flash = enemy.flash > 0 ? clamp(enemy.flash / HIT_FLASH, 0, 1) : 0;
+  const flash = hitFlash(enemy);
 
   ctx.save();
   ctx.translate(x, y);

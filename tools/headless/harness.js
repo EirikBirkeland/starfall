@@ -332,6 +332,10 @@ const ELEMENT_IDS = [
   'winHint', 'winDust', 'winAwards',
   // The pause: a run held where it stands, and its numbers (index.html, game/run.js, ui/screens.js).
   'pauseScreen', 'pauseBody', 'pauseHead', 'factRow', 'buildRow',
+  // The settings: what the game does to the eyes and the ears (index.html, game/settings.js,
+  // audio/engine.js). One rack, and a row on it has three parts instead of two - the value is the
+  // bright middle of the line, which is the part a press changes.
+  'settingsScreen', 'settingsBody', 'settingsNote', 'settingRow',
 ];
 
 /**
@@ -413,6 +417,19 @@ function awardRow(row) {
 }
 
 /**
+ * One row of the settings rack (game/settings.js, audio/engine.js): what the row is, what it is set
+ * to, the one line about what it does, and whether the cursor is on it (ui/screens.js `showSettings`).
+ */
+function settingRow(row) {
+  return {
+    name: row.children[0].textContent,
+    value: row.children[1].textContent,
+    says: row.children[2].textContent,
+    chosen: row.classList.contains('chosen'),
+  };
+}
+
+/**
  * Boot the game with no browser.
  *
  * Options: { root, seed, url, width, height, dpr, audio, storage, layout, motion }
@@ -458,9 +475,10 @@ export async function bootGame(options) {
     // Which screens start out hidden is in the markup, and the stub says the same thing the
     // browser does: the title is up and both of the cards a run ends on are not - and so is the
     // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`),
-    // and so are the three panels, each of which is put up by a key.
+    // and so are the four panels, each of which is put up by a key.
     const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
-      || id === 'hangarScreen' || id === 'codexScreen' || id === 'pauseScreen';
+      || id === 'hangarScreen' || id === 'codexScreen' || id === 'pauseScreen'
+      || id === 'settingsScreen';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -785,6 +803,13 @@ export async function bootGame(options) {
         pauseHead: elements.pauseHead.textContent,
         pauseFacts: elements.factRow.children.map(plainRow),
         pauseBuild: elements.buildRow.children.map(entryRow),
+        // The settings: whether they are up, how they were fitted, what the note under the heading
+        // says, and every row as the player reads it - name, value, one line about it, and where the
+        // cursor is (game/settings.js, audio/engine.js, ui/screens.js `showSettings`).
+        settingsHidden: elements.settingsScreen.classList.contains('hidden'),
+        settingsScale: elements.settingsBody.style.transform || '',
+        settingsNote: elements.settingsNote.textContent,
+        settingsRows: elements.settingRow.children.map(settingRow),
         // The hangar's third rack: every award there is, and which of them this save has (its title
         // carries the count) - game/awards.js, ui/screens.js `showAwards`.
         awardTitle: elements.awardTitle.textContent,
