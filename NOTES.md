@@ -8901,3 +8901,127 @@ same shape as session 73's (6,424 voices asked, 332 turned away, peak 0.53, `run
   `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
   `choose_weapon` and no `choose_ship`.
 - Worktree hygiene: `/tmp/s74-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 75 (2026-10-10) — The hangar sells its ships. Released **0.8.2** — milestone 8 item 3, first half
+
+Milestone 8's third item is "ship unlocks and permanent perks". Half of it is done and the other
+half is not, so the item stays unticked with both halves written out in PLAN. This session: four of
+the five ships now cost the stardust a run pays, which is the first thing in the game that money is
+*for*.
+
+### What landed
+- **`src/game/hangar.js`** is the shop: `priceOf`, `boughtShips` (the save read, once at boot beside
+  the purse), `shipIsBought`/`ownsShip`, and the two doors a player's number keys go through -
+  `pickShipByIndex` ('picked' | 'locked' | 'none') and `buyShipByIndex` ('bought' | 'short' | 'owned'
+  | 'none'). The three-word answers are the point: the interface has to be able to tell a refusal
+  from a nothing, and a tick that lies about which one it was is worse than silence.
+- **Prices** on each ship's row in `BALANCE.ships`: Wisp free, Bulwark 250, Volt 700, Needle 1,300,
+  Brood 2,200 - rising in rack order, which is also the order of how much of the arena each body
+  asks you to give up. Priced off a fresh measurement (five bot runs, seeds 1-5, 10-minute cap:
+  scores 16,427 to 68,135, so **164-781 dust** a run, plus session 74's 1,050-1,930 for walking the
+  schedule out and ~10 for a first minute that went badly). So the first ship is one run that went
+  alright and the last is one that beat the arena.
+- **`core/save.js` grew a third kind**, `names(max)`: a *set* of short ids kept as a list, deduped
+  and sorted on the way in and out so the same rack always writes the same text. A junk entry is
+  dropped and its neighbours are kept (the wreck is an entry now, not a field - one mangled line in
+  a half-written page must not cost a player every ship they own), a list that yields nothing at all
+  counts as not-stored so a feature with a non-empty default falls back honestly, an empty list is a
+  real answer, and a list longer than the game could fill is dropped whole. New section
+  `hangar.ships`. No `SAVE_VERSION` bump: fields were only added.
+- **The purse has one door each way**: `payForRun` fills it (session 74) and the new `spendDust`
+  empties it, so the hangar buys without knowing how a purse is kept. Short is not a discount and
+  not a partial payment, and a browser that will not store still spends the purse it has - the same
+  bargain the pay made.
+- `world.ownedShips` (game/world.js) joins `world.dust` and `world.best`: read once when the visit
+  opens, not a run's to lose. `STARFALL.stats()` reports `owned` so a tool can price a perk against
+  both sides of the purse.
+- **The interface rules**, which is where most of the thinking went:
+  - `game/ships.js setShip` deliberately does **not** ask who owns the ship. `game/hangar.js` is the
+    player's only door to a pick and asks there; `setShip` stays the door the headless tools walk
+    through, so `tools/simulate.js --ship needle` measures a body without grinding for it (same
+    split as `setWeapon`). `setShipByIndex` is gone - it had no honest caller left, and a lock-free
+    by-index door is one waiting to be wired up wrong (session 74 deleted `setWeaponByIndex` for the
+    same reason). `ships.js shipAt(index)` is the key→ship line now, one line long.
+  - **Buying is SHIFT with the number**, which is the idiom the cards already taught (Shift + a
+    number cuts a card out of the run): the modifier is "the other thing this number can mean", and
+    it is not hit by someone launching runs. It only works **with the hangar up**, because the price
+    has to be on the glass before the money goes - buying from the title would be spending somebody's
+    stardust on a key they pressed without looking at what it costs.
+  - **A number for a locked ship puts the hangar up.** The one place where a refused press gets a
+    visible answer: it is not a fake success, it is a *where* - the key that wants the ship is what
+    takes you to the price of it. Over a wreck the same; over the win, nothing at all, because a
+    number there means "fly this one, and begin again" and that run is already flown.
+  - **Buying is not picking.** A purchase never changes what the next run flies; the row lights when
+    the player asks to fly what they now own. One key, one meaning.
+- **The rack** (`ui/screens.js showRack(owned)`, index.html): a locked row keeps every word it had -
+  the numbers are the reason anybody wants the ship, and a shop that hides what it sells is not a
+  shop - and gains an amber line under them: `700 STARDUST   ·   SHIFT + 3 BUYS IT`. It is dimmed and
+  its key is dimmest, because that key does not answer it yet. `showShip(id)` still lights the picked
+  row, so nothing keeps a second copy of either state.
+- The interface's sound vocabulary grew `buy` (520→1,170 Hz, longer and higher than a pick): the one
+  interface press that costs the player something is the one that has to be heard. Nothing is played
+  for a buy that was refused.
+
+### Tests: 1,413, all passing (was 1,392)
+- `test/unlocks.test.mjs` (12) boots one visit that came in with the Bulwark bought and 900 of dust
+  - enough to buy one locked ship and not the dearest - and walks it: the ladder's shape (checked,
+  not assumed, and `priceOf` throwing on a row that has no price, because a missing price would be a
+  ship locked forever and then bought for `NaN`), what the rack prints, a remembered purchase
+  answering its number for nothing, a locked number showing the rack, a short purse refused for
+  nothing, an owned ship and the free one not being for sale, buying needing the rack up, the
+  purchase itself (purse, row, save, and the pick *not* moving), flying what was bought, a wreck's
+  locked number not starting the run it sits on, a purchase over a wreck, and the win refusing both
+  keys.
+- `test/stardust.test.mjs` +3 (the purse's other door: short takes nothing, a purchase leaves the
+  best and the sliders and the purchased ships alone, a browser that will not store still spends).
+  `test/save.test.mjs` +2 (the `names` kind, all the ways a list can be nonsense), and its two
+  whole-document assertions now know the `hangar` section. `test/ships.test.mjs` reads `cost` as a
+  required row key and `shipAt` instead of the deleted `setShipByIndex`.
+- Four existing files press ship keys and so boot with `everyShipBought()` (new export in
+  `tools/headless/harness.js`, read off the prices rather than hard-coded): `hangar`, `ship-pick`,
+  `victory-card`, `ui-sound`. Not one assertion in them changed - which is the evidence that the keys
+  did not change meaning. `ui-sound` gained the two purchase-sound tests instead, and boots owning
+  everything but the last row with exactly enough for it.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte the run recorded in session 64,
+checked against a worktree at the previous commit, and a three-minute `--audio` run reports the same
+counts on both sides of the change (7,752 voices asked, 6,725 played, peak 0.56). Nothing here is in
+the step: prices are data, a purse is moved from a keypress, and the reference run's bot never buys.
+The release's stillness gate passed at 99.9%.
+
+### Things worth writing down
+- **The rack is keyboard only, and that is now a decision rather than an oversight.** Every screen in
+  this game is click-through (`.screen { pointer-events: none }`) and the level-up cards are painted
+  *on the canvas* precisely so that they can be clicked. Rows that are buttons would mean hit-testing
+  DOM rectangles in canvas coordinates, which is the whole reason `render/cards.js` exists. Milestone
+  9's settings page inherits the same question; do not answer it by bolting `addEventListener` onto
+  the hangar alone.
+- **A player who could fly five ships at 0.8.1 can fly one until they earn.** That is a regression in
+  freedom as seen from last release and it is written out plainly in the CHANGELOG, because it is
+  what PLAN 3.7 asks for and because the purse needed something to be for.
+- The structure test that stops `game/` touching browser objects matches text, comments included, and
+  tripped on the phrase "the save document" again (session 74's note). Reworded, check untouched.
+- `showRack(owned)` takes the list and paints price and lock per row; it is called at boot and after
+  every purchase. Nothing else may paint those two things, and the price line is `:empty`-hidden for
+  a ship that is yours, so a bought rack reads exactly as it did before there was anything to buy.
+
+### For the next session
+- **The perks**, which are the other half of milestone 8's third item. The doors mostly exist:
+  `world.rerollsLeft` and `world.banishesLeft` (game/upgrades.js `resetAsks`), `firstLevelXp`
+  (game/progress.js), the ship body's hull (`applyShip` in game/ships.js), shields (game/shields.js),
+  and stardust gain (`dustForRun`, where a "stardust gain" rank is one multiplier). Storage wants a
+  *tally*, not a set: `names` will not hold six perks at five ranks each, so `core/save.js` wants a
+  second generic kind (a plain object of short names to whole numbers) rather than six keys the store
+  would have to know about by name.
+- The hangar has to hold both racks. Five ship rows plus six perk rows will not fit a centred column
+  on a short window (`@media (max-height: 620px)` already trims it once), so decide the shape first:
+  two panels, or a tab, or a second key. Same SHIFT-with-a-number key? Say which in NOTES before
+  building it.
+- `tools/agent/session.js` still exposes `choose_weapon` and no `choose_ship` - the agent bridge
+  cannot play the ships against each other yet, and now it also cannot see locks (it boots with
+  nothing bought, like a first visit).
+- Still open from older sessions, unchanged: the shake's painter (session 66's note, still the
+  cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, and the four unbuilt synergies.
+- Worktree hygiene: `/tmp/s75-base` was the baseline worktree for the trace comparison and is gone.
