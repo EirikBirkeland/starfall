@@ -1,6 +1,6 @@
 # Starfall — changelog
 
-## 0.9.4 — 2026-10-11
+## 0.9.4 — 2026-10-10
 `O` opens the settings, and none of it can change the run.
 - **A fourth panel, on the fourth key**: `O` for options - because `S`, the first letter of the word,
   is the ship's own down key, and a key that moves the ship never moves anything else. It goes up over
