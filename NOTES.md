@@ -10332,3 +10332,148 @@ prints `8280:vacuum 1 opened at 10537` between the fingerprints. `STARFALL.stats
   are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
   the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
 - Worktree hygiene: `/tmp/base10` was removed with `git worktree remove` after the before/after batch.
+
+## Session 88 — the difficulty arc, checked; and the release list learns what each release cost
+
+Milestone 10, item 2 ("use the simulation to check the difficulty arc"), plus the owner's second
+`OVERLORDS_REQUESTS` entry, which arrived mid-session ("the release list should say how much each
+release changed") and took the second half. No game file changed: both halves are measurement and
+tooling, so there is no release and the reference run is byte for byte what it was.
+
+### The instrument that had to exist first: a build nobody chose
+
+PLAN's sentence is about a run with *no upgrades chosen wisely*, and every number in this file is
+measured with the careful bot. So `tools/headless/bot.js` has a second, separate way to answer a
+level-up: `PICKS = { wise, random }`, reached by `botFrame(game, policy, picks)` and
+`playOneRun(..., { picks })`, with `--picks wise|random` on `tools/simulate.js`.
+
+It is **a die over whatever is face up**, not a hand-written bad picker. A picker written to choose
+badly would be an invention about bad play - the worst card on a table is almost never what a person
+takes - while "did not look" is exactly what the sentence says, and a die has an average that nobody
+can argue with twice. The rolls come from a `Rng` of the bot's own (`dice`, salt `0x51ee7b0f`),
+reset from the run's seed after the launch, because a bot's choices are not the game's business and
+a roll spent on a card would otherwise move every spawn after it into the `logic` stream. Rule to
+keep: **a bot's randomness is never the game's stream.** `pickerOf` is checked before the first frame
+so a misspelt name is not found twenty runs in. `--picks wise` (and no `--picks` at all) is the old
+bot exactly: the reference run (`--seed 20261006 --trace`) was diffed against a `git worktree` of
+`HEAD` twice during the session and is identical, every frame hash.
+
+### The check: `tools/difficulty-arc.js`
+
+A check and not a report - it exits non-zero, so a release could be gated on it. It plays a batch and
+prints a per-minute histogram of when each run ended with the band marked, then what took every last
+hull, then what every *hull* of the batch went to. Three judgement calls, all written in the header
+because a check has to mean one thing:
+
+- **"usually" = at least half the batch**, with a run that never died in the denominator and not the
+  numerator. That is the strict reading, and it is the one the verdict uses. The looser reading (of
+  the runs that did die, when did they) is printed under it, because it is the same numbers divided
+  differently and it says where the arc actually is and not only that it missed.
+- **a death belongs to a *type*, however it was dealt**: `body:tank`, `shot:tank` and `beam:tank` are
+  all the tank's doing (`creditTable` splits game/tally.js's labels and names the row from
+  `codex.js hostName`), and the `how` column shows a type that kills by walking into you from one that
+  kills at range. `blast` has nobody to blame and gets its own row, `NO CAUSE` is a given-up run.
+- **the ceiling needs 20 deaths to be a share at all.** This is measured, not a hunch: two batches of
+  24 runs put the same body at 46% of one batch's 13 deaths and 31% of the other's. So `minDeaths` is
+  20, the batch is 48 by default, and a small batch is told it has not measured anything (with the
+  `--runs N` it would need, worked out from the death rate it actually managed).
+
+### The numbers, and what they say about the instrument
+
+**Aware bot with a die, seeds 1-48, 15-minute window:** 26 died, the middle one at 4m19s, and 11 of
+the 48 (23%) inside 4:00-9:00 - **band FAIL**, though 42% of the deaths themselves were in it and
+the whole of the miss is that 22 runs never died. **Ceiling PASS**: drifter 35% of the deaths, weaver
+27%, tank 15%; on the 244 hulls the batch lost it is flatter still (30/27/14/11-untitled-blast).
+
+**Naive bot with a die, seeds 1-24:** 23 of 24 died, the middle at 2m47s and exactly one in the band -
+**band FAIL the other way** - ceiling PASS (drifter 35%), with the spitter's shots taking 49% of 196
+hulls while landing 17% of the deaths. That last pair is why both tables exist: a chipper and a
+finisher are different problems and only the deaths table can tell them apart.
+
+**Read together, the two players bracket the band and neither sits in it.** What kills a careless
+person is positioning; the naive bot has no notion of it and the aware bot has far too much - it
+steps off everything it can see coming, so half a careless batch is still flying at fifteen minutes
+(one of them at level 76, from a 12-run `simulate --picks random` batch that is where the level
+numbers come from). So the honest answer to PLAN's item is that the arc is *not measurable with the
+players there are*, and the follow-up item PLAN now carries is a third bot: the aware bot's threat
+reading with a human's imperfect reaction. I did not tune anything, which is the right call while the
+instrument cannot tell "too easy" from "cannot die".
+
+### The owner's request: `tools/release-stats.js`
+
+Every entry in `releases/releases.json` now carries `added`, `removed` and `logBytes`. `tools/release.sh`
+calls `node tools/release-stats.js --stamp <version>` between writing the entry and committing it -
+the only moment when "since the last release" is HEAD and "how far the log has got" is the file's size
+- and it **warns instead of failing**, because metadata for a menu must not be able to lose a release.
+The counts are `git diff --numstat` from the previous release's tag over `index.html src tools test`
+and nothing else; the first release is counted from git's empty tree, so it reads as everything it
+shipped with. All 77 existing releases were back-filled from their tags (0.10.1 is +934 -35, 0.0.1 is
++1266 -0), and it never rewrites a number that is already there, which is what makes it safe to leave
+in the release path and to run by hand after anyone edits the JSON.
+
+`logBytes` for old releases is the byte offset just past that release's own
+`Released v<version>. It is now in the menu.` line, anchored to the start of a line (the harness's own
+indent and `NNNN:` prefix allowed). **21 of 77 have it; 56 do not, and are left blank.** The harness
+elides long tool output ("… 13 more lines"), and the release line goes with the elision. What I
+deliberately did *not* do: take a position from a session quoting an older release, or interpolate one
+from the `=== session N, timestamp ===` headers. Both were prototyped and both are numbers with no
+fact behind them - the quotes pass the same line-start test once a session puts one at the start of a
+line, and the headers are re-emitted when the loop re-runs a session and appear to be in a local
+timezone about +7h from the container's UTC commit dates. A blank reads as nothing in the menu, which
+is true; an estimate would read as a measurement. If the owner ever wants the estimates, that is the
+note to come back to.
+
+`--check` fails only on missing line counts (which could still be had); missing log positions are
+printed as a fact about old releases, not as a red light that can never go green.
+
+### Things worth knowing
+
+- `clock()` in `tools/headless/tables.js` returns `0m00s` for anything that is not positive, so
+  reading `arc.from` where the field is `arc.band.from` printed "The band PLAN asks for is 0m00s-0m00s"
+  instead of failing. A wrong number is worse than a crash; check the empty case of any formatter.
+- `node --test test/` does not work (it wants files or nothing); `node --test` finds the whole
+  suite. And a backgrounded shell chain needs `nohup` at the *front* - `cmd && nohup cmd2 &` dies with
+  the tool call and loses twenty minutes of batch silently.
+- Batching is per-seed: a 48-run batch's first 24 rows are identical to the same 24 run as their own
+  batch, which is what let two 24-run samples be pooled into the default's numbers before confirming
+  it with a real 48-run run (it matched exactly).
+- A careless build is bimodal, not graded: deaths cluster at 4-5 minutes and the rest go the distance.
+  That is the deal being a coin toss, and it is the reason the follow-up item asks whether a die-dealt
+  build should outlast the window at all.
+- The 32 cores on this box mean batches do not need to be serialised, but a 48-run arc check is
+  ~25 minutes of playing and the default; `--runs 3` is what the tests use.
+- The owner edits these files while a session is running. Mid-session, `PLAN.md` gained the rule that
+  finished requests move to `archive/COMPLETED_OVERLORDS_REQUESTS`, `OVERLORDS_REQUESTS` gained a new
+  entry, and `PLAN.md`'s file mode changed. Re-read `OVERLORDS_REQUESTS` before committing, and expect
+  your commit to carry the owner's own edits along with yours (mine did - `git diff` before you commit
+  and read what is actually staged).
+
+### Tests, 28 more (1646, was 1618)
+
+`test/difficulty-arc.test.mjs` (16) - the four endings and the band's inclusive edges; the band's
+denominator being the batch; the median being of the deaths and not of the runs; the histogram's rows
+and band marks; a body owning its shots, beams and blades; the deaths and hull tables reading the same
+sheet at two depths; every verdict branch including "four deaths are not a share" and "thirteen are
+not either" (with the `--runs 37` it would need); the die being a die (same seed, same build; a
+different seed, a different run; nothing skipped); a run replaying its own build, and `picks:
+undefined` being exactly the careful bot. `test/release-stats.test.mjs` (12) - numstat reading
+including a binary's `-`; which release each is measured against; a fixture log with a mid-sentence
+quote and a two-byte character, proving the position is bytes and past the line; `onlyInOrder`; a fill
+that fills gaps and never touches a filled number, twice; the missing-tag case; a stamp from a fake
+git; and the real manifest having its line counts.
+
+### For the next session
+
+- Milestone 10, in order: **the bot that dodges like a person** (the new item at the end of the arc
+  item - imperfect reaction, careless cards by default, then whatever `tools/difficulty-arc.js` says
+  about tuning), then the weapon ladder (no gun more than 25% above another in the balance report),
+  the F3 debug overlay (everything it needs is already in `stats()` and `pool.stats()`), the 30-minute
+  memory hunt, the daily run, the three-prompt tutorial, and the read-every-line pass. Then `1.0.0`.
+- If a release is made from a session after this one, watch for the new `Counting what this release
+  changed...` line - that is `--stamp` running for the first time in anger. It was smoke-tested in a
+  clone, not in a real release, because nothing here changed the game.
+- `tools/agent/session.js` still cannot see `settingsUp`, `settings`, `assists` or the vacuum, and
+  still has no `choose_ship`. `stats().vacuumLeft` is the door for "am I in a reward window".
+- Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord
+  are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
+  the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
