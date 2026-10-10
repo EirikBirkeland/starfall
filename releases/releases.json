@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.10.1",
+    "date": "2026-10-10",
+    "summary": "VACUUM: every 10,000 points the arena empties itself into the ship"
+  },
+  {
     "version": "0.10.0",
     "date": "2026-10-10",
     "summary": "ATTRACTOR: a card that buys how far off the loot is yours"
