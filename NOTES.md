@@ -9886,3 +9886,136 @@ seven minutes past the win now says
   the log, the awards or a pause.
 - Worktree hygiene: `/tmp/s83-base` was removed with `git worktree remove` after the trace comparison.
   Traces in /tmp can be ignored.
+
+---
+
+## Session 84 — `O` opens the settings (milestone 9, item 4: settings screen)
+
+Released **0.9.4**. PLAN milestone 9 item 4 ticked, and one new unchecked item added to that list on
+purpose (see "the hole in the list" below).
+
+### What was built
+
+**The fourth panel, on the fourth key.** `O` - because `S`, the first letter of the word, is the ship's
+own down key and a key that moves the ship must never move anything else; `O` sits beside `P`, and it is
+none of WASD, the launch, the dash, a card or ship number, the reroll, the mute, a slider, `H`, `C`, `P`
+or `G`. It goes up over the title, over the death's card, or over a run that is *being held*, and
+nowhere else: over a flying run it would be a pause the run never agreed to (`main.js
+settingsMayOpen`), and over the win the launch key underneath it means "keep flying this one", which is
+the same reason the hangar and codex refuse the win (`rackMayOpen`). Closing it over a held run puts the
+pause back up, because opening it never let the run go; `Esc` keeps its pause meaning and lets the run
+go instead, which is written on the panel itself.
+
+**Two owners and no copies.** `src/game/settings.js` is new and owns the four picture rows;
+`audio/engine.js` keeps owning music / effects / mute because it owns the graph they move. `main.js
+settingRows()` bolts the two lists into the seven rows the panel prints, in one shape
+`{name, says, value, step}`, so the cursor, the painting and the stepping all walk one order. Each row
+carries its own `step(delta)` and answers whether anything moved: a picture row walks its table and ticks
+like a slider, a slider row goes *through the same door the bracket keys use* (`onVolume`, so the canvas
+readout lights beside the panel and the change is heard on the bus it moved), and the mute is one switch
+either way. `onVolume`/`onMuteSwitch` repaint the panel when it is up, so `M` and `[ ]` cannot leave a row
+lying.
+
+**The three promises.** (1) *The last step of every row is the shipped game* - every painter did share 1
+before a player had a say, so a fresh visit cannot be the first time the game looked wrong, and
+`test/settings.test.mjs` asserts it without naming a number. (2) *Nothing here can move a run* - see
+below. (3) *A row is the one description of itself* - name, one plain line, and its steps are the same
+table the panel prints, the keys step through and `stats()` reports, so the panel cannot offer a step the
+game has not implemented and the save cannot hold a step nobody showed anybody.
+
+**Storage: a new `view` section in `core/save.js`, values are step *names*.** `SAVE_VERSION` stays 1
+because fields were only added. Storing a name rather than an index or a share costs a few bytes and buys
+a readable document plus rows that can grow or be reworded without sliding anyone's saved choice along -
+and a name this build has never heard of is dropped by `KINDS.name`, so the row ships instead.
+`test/save.test.mjs`'s "a write is a versioned document" test is where the document's exact shape and key
+order are pinned, so it grew a `view: {}` and a round-trip of its own rather than getting a new test.
+
+**`prefers-reduced-motion` is a default and not an order.** `loadFromSave(shippedAt, calm)` -
+`shippedAt` is the *defaults* layer (main.js passes `undefined, calmMotion()`) and the save is read over
+the top of it, which is the whole difference: a first visit has no answer of its own so the machine's
+standing request is what it gets, and a shake you chose for yourself outvotes it. Both halves are tested,
+including the outvote; the boot's one line is checked by reading `src/main.js`, the way
+`test/game-mutes.test.mjs` reads the engine's.
+
+**What "flash reduction" took, and what it left.** The white bloom on a hurt body, in one new
+`src/render/flash.js` (`hitFlash(enemy)`), which four paint sites used to write the same expression for -
+the crowd, a boss's ring, a boss's mass, a boss's last shell. A boss's **phase flare** and the hull bar's
+white breath are deliberately *not* under it: both say "nothing can hurt me just now", and a setting that
+takes news away is not an accessibility setting. Same argument for `numbers`, which is PLAN's "damage
+numbers": this game throws no per-hit numbers, so the row governs the `+SCORE` pop a kill pays - the one
+that comes in a crowd - and none of the floating *news* (a level taken, hull handed back, a fight gone
+down). `particles` is a **stride** (one spark in `stride`, 0 for none) and not a probability, counted by a
+phase in `effects.js`: a thinned spray keeps the sparks it keeps, and asking the number stream would move
+every surviving spark to wherever the next draw landed.
+
+### How the "cannot change a run" promise is paid for
+
+`test/settings.test.mjs`'s last test plays one seed twice with the aware bot - every row at the top of
+its travel, then every row at the bottom - and compares a sample of the run's own numbers every half
+second (score, kills, level, wave, bullets, bodies, and where the ship got to), then the score, the kills
+and the length of the run. As a second and much bigger check I compared the ten-minute reference
+(`node tools/simulate.js --seed 20261006 --trace`) against the same run from a `git worktree` at HEAD:
+**byte-identical**.
+
+### Surprises
+
+- **`game.resetToTitle()` is a promise, and a test that does not await it plays the *previous* run.** My
+  first trace comparison said every setting changed the run; what had actually happened was that the
+  reset's dynamic imports resolved after the run had already been played, so the second run inherited the
+  first one's score and position. Two of the panel tests needed the same `await`. Worth knowing before
+  anyone writes another "the same seed twice" test.
+- **`bot.js`'s `fingerprint()` cannot be used for this proof.** It mixes `stats.parts` - and the particle
+  count is one of the things the settings are *allowed* to change, so the traces differ for a legitimate
+  reason. The test samples the run's own numbers instead, which is the claim it actually wants to make.
+- **The canvas volume readout has no harness reader**, contrary to what I assumed: session 83 measures it
+  with `panelLayout()` from `render/volume.js`, and my draft's `game.screen.musicValue` came back
+  `undefined`. The new volume test compares the panel's rows against the mixer itself (`musicLevel()`,
+  `isMuted()`), which is the honest other half anyway.
+- **The volume readout is not a panel and that turned out to be a rule worth writing down.** `M` and
+  `[ ]` work over the settings panel and light the canvas plate *over* it, and the panel stays up: a
+  player who mutes while choosing which thing to mute is not asking to be shown somewhere else.
+  `test/volume.test.mjs` pins it, and `render/volume.js`'s header now says why.
+- **The arrow keys were free.** `↑ ↓ ← →` have been bound to the ship's movement since the beginning and
+  to nothing else anywhere in the game, and no panel can be put up over a flying run - so on the one
+  screen that has them there is nothing else for them to mean. `WASD` are deliberately *not* bound to the
+  cursor, because that would have made one screen where a key means two things.
+- **The harness `measure()` does not know what a `.setting` row is** - it reads part 0 as a key chip and
+  part 1 as a name for every row shape. The settings row is (name, value, says), so the estimate lands in
+  the right ballpark by luck rather than by design; the panel's own fit (`settingsScale`) is asserted
+  unfitted at 1280x720 and the real measuring is done by a real browser. If a future session wants a
+  numbers-rack or a wider row on that panel, that is the place to look.
+
+### The hole in the list
+
+PLAN section 6 asks for **an auto-fire toggle and an auto-aim toggle** so the game is playable one-handed
+or keyboard-only, and *no milestone item ever asked for them*. Item 4 said "everything from section 6",
+which I took to mean the settings themselves (shake, flash, numbers, particles, palette, rebinding,
+volume); auto-fire and auto-aim are input, not settings, and they are not built. I added them as their own
+unchecked item under milestone 9 so the plan stops claiming the game is playable with one hand when it
+isn't. When they arrive they are the same shape as a picture row - a row with two steps - and the panel
+has room for two more.
+
+### Tests, 9 more (1580, was 1571)
+
+`test/settings.test.mjs` (8): the defaults are the shipped game and no number is named twice; a row walks
+its steps and stops at both ends (and refuses to wrap, and `stepRow('no-such-row')` throws); every step of
+every row answers in its own words; the calm default and the save that outvotes it; a save full of
+nonsense (a name nobody has, a number where a name belongs); the panel's comings and goings including the
+pause hand-over; the cursor walking 12 rows each way and stepping only the row under it, plus what got
+written to the save; and the two-pass run. `test/volume.test.mjs` +1: the panel's three sound rows are the
+same mixer the brackets move, from both directions, with the mute as a two-place switch with no ends.
+Harness: four element ids, `screen.settingsHidden/.settingsScale/.settingsNote/.settingsRows`, and
+`stats().settingsUp` / `.settings` from main.js (a headless tool cannot see a shake, and a press over the
+panel is refused - both are things a tool needs before it presses).
+
+### For the next session
+- Milestone 9's remaining items: **key rebinding**, gamepad, touch, colour-blind palette, release - and
+  the new auto-fire/auto-aim item, which is smaller than rebinding and fixes something a player can feel.
+  If you do rebinding, the keys to bind are in `input/keyboard.js` as one array per meaning, and `O` is
+  the panel that would show them (a row per action, and the same cursor).
+- `STARFALL.stats()` now answers `settingsUp` and `settings`; `tools/agent/session.js` still cannot see
+  either, and still has no `choose_ship`.
+- The panel's rack has room for two more rows before a 720 window cares. Nothing about `showSettings` is
+  specific to seven rows - it grows and trims the rack the way the log does - but the *fit* is only
+  asserted unfitted in the harness, so a wider row wants a real look.
+- Worktree hygiene: `/tmp/s84-head` was removed with `git worktree remove` after the trace comparison.
