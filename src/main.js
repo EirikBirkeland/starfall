@@ -30,6 +30,7 @@ import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
 import { consumeCues } from './audio/sfx.js';
+import { updateMusic } from './audio/music.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -237,6 +238,10 @@ function frame(now) {
     winHintRevealed = false;
   }
   consumeCues(world.state);
+  // The music is wound on the same frame the cue queue drains on: what the run looks
+  // like right now is a frame's question, and the simulation never learns music exists
+  // at all (audio/music.js).
+  updateMusic(world.state);
   renderFrame(tick, input, mouse);
 
   requestAnimationFrame(frame);

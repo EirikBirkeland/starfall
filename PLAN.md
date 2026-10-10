@@ -780,10 +780,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
       stretch that follows it.)
 
 ### Milestone 7: sound
-- [ ] Audio engine: context start on first input, master compressor, music and effects buses.
-      (The compressor is in - `buildMaster` in `audio/engine.js` runs the master bus through one
-      and falls back to a bare gain on a browser that has no `createDynamicsCompressor`. The two
-      buses are the part left, and they go in with the music that needs them.)
+- [x] Audio engine: context start on first input, master compressor, music and effects buses.
+      (The compressor was already in - `buildMaster` in `audio/engine.js` runs the master bus through
+      one and falls back to a bare gain on a browser that has no `createDynamicsCompressor`. Now the
+      two buses too: effects and music each connect to a gain of their own hanging upstream of the
+      master, so mute is still the one value that goes quiet whatever is scheduled, the effects' own
+      loudness numbers (audio/mix.js) are repriced by nothing, and the music can be balanced against
+      the fight without touching a voice of it. The effects bus sits at 1 for exactly that reason;
+      the music bus at half, which puts the heaviest bar the sequencer can write at a tenth of full
+      scale. `test/mix.test.mjs` owns the graph, including the machine that has no compressor.)
 - [ ] Effects for shots, hits, explosions, pickups, level-up, dash, player hit, UI.
 - [x] Voice limiting.
       (`audio/mix.js`: the master bus is allowed `MIX.headroom` worth of sounding voice volume,
@@ -794,7 +799,21 @@ When every item above is ticked, go back to the first unchecked item of mileston
       chime is never turned away because a chime is the run talking and not another tick. A real
       three-minute run now peaks at 16 sounds in a frame instead of 21 and spends 14% less overall;
       `test/mix.test.mjs` owns all of it, including the machine with no compressor.)
-- [ ] The step sequencer and the base music pattern.
+- [x] The step sequencer and the base music pattern.
+      (`audio/music.js`: a 16th-note grid at 110 BPM in A natural minor - Am F C G, one chord to a
+      bar, four bars to a loop - with three synthesised layers over it: a detuned two-oscillator
+      pad that owns the title, a sawtooth bass walking to the fifth and the octave, and a square
+      chip arpeggio two octaves up. The frame loop winds it (main.js, next to the cue drain) and
+      the schedule belongs to the audio clock, half a second ahead of it: a frame that arrives late
+      finds the music already queued, and a clock that ran *past* the music - a backgrounded tab,
+      a card left up, the hush, the death - is re-anchored and starts again from the top of the
+      progression instead of dumping the past on the present. The state says which layers are on
+      (the run paused for its cards keeps its music; the win's hush and the death's card are silent
+      on purpose); the music is deliberately outside the voice budget - a sequencer knows what it
+      will play, and even its loudest bar only peaks at two-fifths of what a full sky of effects is
+      allowed once its bus has taken its half. Drums come in with the intensity item, since they
+      enter *after* 2:00. `test/music.test.mjs`
+      owns all of it - the clock, the density, the clean silences, and the no-chase rule.)
 - [ ] Intensity layers, boss music, low-hull variation.
 - [ ] Volume settings and mute.
 - [ ] Release.

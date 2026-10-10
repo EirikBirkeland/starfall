@@ -171,7 +171,11 @@ test('the master bus works on a machine with no compressor', () => {
 
   const chain = buildMaster(raw);
   assert.equal(chain.bus, null, 'there was no compressor to build');
-  assert.equal(wire.length, 1, 'and the bus made exactly one connection');
-  assert.equal(wire[0], out, 'which is the gain straight to the speakers');
+  assert.equal(wire.length, 3, 'three wires: each bus into the master, the master to the speakers');
+  assert.equal(wire[0], out, 'and exactly one of them is the master to the speakers');
+  assert.equal(wire[1], chain.gain, 'the music bus hangs on the master');
+  assert.equal(wire[2], chain.gain, 'and so does the effects bus');
   assert.ok(chain.gain.gain.value > 0, 'and it is a bus you can hear through');
+  assert.ok(chain.music.gain.value > 0, 'and both buses are open');
+  assert.ok(chain.sfx.gain.value > 0);
 });

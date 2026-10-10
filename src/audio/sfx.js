@@ -1,5 +1,7 @@
 // Synthesised sound effects. The simulation never plays anything: it queues a
-// cue (game/cues.js) and this module turns the queue into oscillator voices.
+// cue (game/cues.js) and this module turns the queue into oscillator voices,
+// every one of them landing on the effects bus (audio/engine.js) so the music
+// can be balanced against the fight without touching it.
 //
 // One frame's worth of cues is one mix, and it is spent the way a mix is spent: the loud
 // things first, and the quiet ones only for as far as the voice budget will stretch
@@ -9,7 +11,7 @@
 
 import { STATE } from '../game/state.js';
 import { drainCues } from '../game/cues.js';
-import { getContext, getMaster, isMuted } from './engine.js';
+import { getContext, getSfxBus, isMuted } from './engine.js';
 import { loudnessOf, takeVoice } from './mix.js';
 
 /** The shortest a voice can be scheduled for, and what a cue that names no length gets. */
@@ -36,7 +38,7 @@ function beep(freq, dur, wave, vol, slideTo, must) {
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, loud), t0 + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
     osc.connect(gain);
-    gain.connect(getMaster());
+    gain.connect(getSfxBus());
     osc.start(t0);
     osc.stop(t0 + len + 0.03);
   } catch (err) {

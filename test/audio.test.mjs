@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { getMusicBus, getSfxBus } from '../src/audio/engine.js';
 import { bootGame } from '../tools/headless/harness.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -22,6 +23,14 @@ test('shots, kills, and pickups all reach the synthesiser', () => {
   for (let i = 0; i < 240; i++) game.step();
 
   assert.ok(game.audio.voices > 10, 'firing and killing should cost voices, got ' + game.audio.voices);
+});
+
+test('effects and music each have their own bus', () => {
+  // The context is up now (the launch above made it), and everything the game plays
+  // reaches one of the two buses: the effects queue and the sequencer have no other
+  // way to be heard, and the mute switch reaches both through the master above them.
+  assert.ok(getSfxBus(), 'the effects bus is built');
+  assert.ok(getMusicBus(), 'and so is the music bus');
 });
 
 test('muting stops every voice', () => {
