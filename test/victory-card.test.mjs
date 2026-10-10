@@ -307,6 +307,16 @@ test('the card says what its keys do', () => {
   assert.match(words, /SPACE/, 'the key that keeps the run flying');
   assert.match(words, /\bR\b/, 'and the one that asks for a new run');
   assert.doesNotMatch(card, /FINAL SCORE/, 'the score is not final while the run can be kept');
+
+  // ...and `hidden` has to mean something on *this* line. `.screen.hidden` covers a whole card and
+  // `.newbest.hidden` the NEW BEST line, and for a release the hint had no rule of its own, so the
+  // invitation sat on the glass through the entire guard it was put there to wait out - the same trap
+  // as a toast that fades because something else hid it (session 75). It is hidden with `visibility`
+  // and not `opacity`, because the line is `animation: pulse` and an animation always wins.
+  const css = markup.slice(markup.indexOf('<style'), markup.indexOf('</style>'));
+  assert.ok(css.length > 0, 'the page keeps its CSS where a test can read it');
+  assert.match(css, /\.hint\.hidden\s*\{[^}]*visibility:\s*hidden/,
+    'the hint needs a rule of its own, or "hidden" hides nothing');
 });
 
 // ---------------------------------------------------------------------------

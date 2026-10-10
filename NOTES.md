@@ -9586,3 +9586,105 @@ wrote, and `shareOf` is a count over a list.
   the log or the awards.
 - Worktree hygiene: nothing left in /tmp but traces (`s80-base.trace`, `s80-new.trace`, `s80-tests.log`),
   which are outside the repo and can be ignored.
+
+## Session 81 - the title writes its own name (milestone 9, item 1: animated title screen and logo)
+
+**What shipped.** `render/logo.js` (487 lines) is a new painter and `v0.9.1` is out. STARFALL is no
+longer an `<h1>` in somebody's typeface: it is eight letters drawn on the canvas as neon tubes - an
+alphabet of six angular glyphs (`s t a r f l`, each one built in a 1x1 box the way `render/ships.js`
+builds its hulls) stroked three times per tube: a wide cyan halo, a violet body, a near-white core.
+The title arrives by being written: a pen lights one letter every 0.09 s, each letter drawing itself
+tube by tube with a `paintGlow` spark at the pen tip, then the rule under the word shoots out from the
+middle. After that it never quite sits still: the word breathes (`BREATHE_DEEP` 0.12), a shine travels
+along it (`WAVE_RATE`), and every 7.2 s a star falls past - tilted at `FALL_SLOPE` 0.35, which is the
+sky's own drift angle from `render/background.js` - lighting the letters it passes over. `main.js`
+burns its clock next to `advanceToasts` and `advanceVolumePanel`; `renderer.js` calls `drawLogo` out
+past the vignette beside the HUD branch, so nothing it says can wobble or dim because something over
+the crowd just went off. `index.html` lost the `.title` CSS (type, skew, glow layers) and gained
+`<h1 class="logo" id="logoBox">`, which holds only a `.sr` span so the page still has a real heading.
+
+**The decision worth keeping.** *Where* the mark goes is the DOM's answer and not the canvas's. Flexbox
+owns that column and the canvas cannot ask what it did, so `measureLogo(#logoBox)` is called at boot and
+in `onResize` only - never per frame, because `getBoundingClientRect` mid-frame forces a layout. The box
+says **where** and only bounds **how big**: `cap = min(box.h / CONTENT, box.w / SPAN)`, which measures
+71.6 px on a 1280x720 window with `#logoBox` at 880x97. A box that is missing or 0x0 (an element that was
+never laid out) is ignored rather than trusted, so an unread page cannot get a windowful of letters - the
+fallback is a band across the upper middle, about where the title always was. The word is centred in the
+box and not in the window, which is what lines it up with the rows under it; the test asserts it at a
+deliberately off-centre box.
+
+**A bug found by reading, and fixed.** The win card's `<div class="hint hidden" id="winHint">` had no
+`.hint.hidden` rule anywhere: `.screen.hidden` covers a whole card, `.newbest.hidden` covers the NEW BEST
+line, and this line had neither. So "PRESS SPACE TO KEEP FLYING OR R FOR A NEW RUN" sat on the glass for
+the whole `victoryCardIsAnswerable` guard that line exists to wait out - the same shape of trap as the
+toast that only looked hidden (session 75). Added `.hint.hidden { visibility: hidden }` - `visibility`
+and not `opacity`, because `.hint` is `animation: pulse` and an animation always beats a declaration -
+and `test/victory-card.test.mjs` now reads the rule off the stylesheet, because "the class was there" was
+never the thing that was broken. Untestable in the browser sense from here, but no longer untestable.
+
+**Tests.** 19 new; `node --test` is at **1531** (was 1512); `node tools/simulate.js --seed 20261006
+--trace` is **byte-identical** against a clean `HEAD` worktree, so none of this touches the simulation -
+which it had better not, since the mark keeps no simulation state and its clock is burnt by the frame.
+- `test/logo.test.mjs` (9) - the geometry and the arrival: nothing on the glass before the first frame;
+  it arrives letter by letter and then settles; the word spells `starfall`, in order, out of straight
+  lengths that each stay inside the letter they belong to; it sits inside the box it was given and
+  centred in it; a smaller box gets a smaller mark; the letters stand in a row and do not touch; it
+  breathes and shimmers but nothing grows over four minutes; a star falls within 20 s, stays inside the
+  window the whole time it is on the glass, crosses the word, lights it, and comes back about 7 s later;
+  a missing or 0x0 element does not move the mark.
+- `test/logo-art.test.mjs` (7) - what it is painted *with*: the frame's own path log holds every letter
+  point exactly where `logoLayout()` says it is (dpr 1, so pixels are pixels); the whole mark scales
+  linearly with its box while the tube widths stay fractions of the cap; a settled mark is strokes and
+  nothing else - no `shadowBlur`, no `createRadialGradient`, no new baked sprite; three pass widths, halo
+  > body > core, never 6x apart; round caps and joins, the way a bent tube is; a star is one stamped
+  sprite centred on it, additive, plus three legs that narrow away from the head.
+- `test/logo-calm.test.mjs` (3) - `prefers-reduced-motion`, in its own file because one process is one
+  window and the query is read once at boot: the mark is up whole and equally lit before it has had a
+  frame; a second of frames changes nothing about it; twenty seconds and no star ever falls.
+- The harness grew two small muscles: a per-element `rect: { left, top, width, height }` through `layout`
+  (every stub screen was hard-wired to the window), and `matchMedia` answering `motion: 'reduce'`.
+  `game.measure()` now also returns `stamps`, because a mark that stamps one glow instead of baking a
+  gradient every frame has to be able to prove it.
+- `test/draw-cost.test.mjs` counts the glow sprites the game bakes; it went 34 -> 35 and the bound is now
+  36 with the reason beside it. The new sprite is `PALETTE.spark` at radius 40, which is the pen tip and
+  the star's head: one sprite, two callers, and nothing else in the title costs a bake.
+
+**Surprises / notes.**
+- My first draft lit the arrival with a full-window additive `fillRect`. That is the thing the night
+  layout learned not to do (session 62, the hard way: **a full-window pass is laid in the layer's own
+  space**, and it counts what one costs to lay), and it would have put a black box over the sky for a
+  frame whatever the composite was. Gone: the letters arrive bright and settle instead, and the intro
+  adds no full-window pass at all.
+- `advanceLogo(dt)` runs every frame whatever the world is doing and the star's schedule is
+  `age % FALL_EVERY`, so the clock is never wound back and the frame loop never has to own a reset. A
+  star that "falls" during a run is simply not drawn, because `drawLogo` only runs on the title screen.
+- The core pass is `share: 0.9` and not 1 on purpose. An already-saturated core cannot breathe; the shine
+  has to move the tube as well as the halo around it or the whole idle animation is invisible.
+- `prefers-reduced-motion` is read twice - CSS for its own fades, `canvas.js calmMotion()` for the mark.
+  That is one query in two places, not two opinions about it; `calmMotion()` is exported from `canvas.js`
+  beside `initCanvas` so the boot reads them together.
+- The DOM rows under the mark now arrive on a `.rise` stagger (0.6 / 0.76 / 0.92 s, a quarter second
+  each) timed against the mark's own ~1 s intro, and the start screen's dim was lightened to
+  `rgba(8,18,44,.24)` at the top because the mark now shares that dim with the crowd instead of sitting
+  above it as DOM. `.rise` uses `animation: ... both`, so a delayed row is invisible during its delay
+  instead of appearing twice, and the reduced-motion block at the bottom of the sheet turns `rise`,
+  `pulse` and `blink` off together - it has to, or the keyframes' own `opacity` would have beaten the
+  media query's `opacity: 1` and left the subtitle invisible forever.
+- `logoLayout()` is pure and reads no clock, which is what lets the tests measure the word, the box and
+  the rule without burning frames - the `toastLayout` / `bossBarLayout` pattern.
+
+### For the next session
+- Milestone 9's next item is the **pause screen with stats**, which several things have been waiting on:
+  the volume nudge no run can reach (session 78), the click question (none of the panels answer a click -
+  one handler in `main.js` can settle it for all of them once the pause screen exists), and the honest
+  place to say that `H` and `C` exist, which nothing outside the title's two control rows does today.
+- Nobody has *seen* the mark but the tests. If a future session can look at a browser at all, the title is
+  the first thing to eyeball: the letterforms are hand-plotted in `GLYPHS` and the small choices there -
+  where the crossbars sit, how far the bowls close, whether the `a` leg is long enough - are the
+  difference between a logo and a pile of angles.
+- If a future frame-cost measurement finds the title expensive: the mark is ~60 strokes on a settled
+  frame, and the falling star adds one stamped sprite and three strokes while it is on the glass. Both
+  are in `game.strokes()` / `game.stamps()` for the asking.
+- Worktree hygiene: `/tmp/s81-base` is a git worktree of the pre-session `HEAD` used for the trace
+  comparison. Clear it with `git worktree remove /tmp/s81-base` - it is outside the repo, so it cannot be
+  committed, but it sits in `git worktree list` until someone does. Traces in /tmp can be ignored.
