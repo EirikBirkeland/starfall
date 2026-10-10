@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.7.4",
+    "date": "2026-10-10",
+    "summary": "Two volume sliders and a mute that outranks them, with a readout that says what a key did"
+  },
+  {
     "version": "0.7.3",
     "date": "2026-10-10",
     "summary": "The music plays the run: drums at 2:00, a boss tempo, and a heartbeat at one hull"
