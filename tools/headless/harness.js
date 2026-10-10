@@ -310,16 +310,16 @@ function makeAudioContextStub(log, now) {
 
 const ELEMENT_IDS = [
   'game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats',
-  'finalBuild', 'shipRow', 'finalDust', 'nextShip',
+  'finalBuild', 'shipRow', 'finalDust', 'finalAwards', 'nextShip',
   // The hangar's second rack: the perks the purse buys ranks of (index.html, game/perks.js).
   'perkRow',
   // What the visit has banked, and what the hangar spends it on (index.html).
-  'titleBest', 'titleDust', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
+  'titleBest', 'titleDust', 'titleAwards', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
-  'winHint', 'winDust',
+  'winHint', 'winDust', 'winAwards',
 ];
 
 /**
@@ -656,9 +656,13 @@ export async function bootGame(options) {
         titleDust: elements.titleDust.textContent,
         titleShip: elements.titleShip.textContent,
         nextShip: elements.nextShip.textContent,
-        // What a finished run paid, on each of the two cards.
+        // What a finished run paid, on each of the two cards - its own stardust, and what it won
+        // that the save had not won before ('' when it won nothing: the line is not painted).
         finalDust: elements.finalDust.textContent,
         winDust: elements.winDust.textContent,
+        finalAwards: elements.finalAwards.textContent,
+        winAwards: elements.winAwards.textContent,
+        titleAwards: elements.titleAwards.textContent,
         // The hangar: whether it is up, and what its purse says.
         hangarHidden: elements.hangarScreen.classList.contains('hidden'),
         hangarDust: elements.hangarDust.textContent,

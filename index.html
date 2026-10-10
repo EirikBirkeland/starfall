@@ -251,6 +251,15 @@
     margin-top: 14px; font-size: 13px; letter-spacing: .22em; color: #ffd8a8;
     text-shadow: 0 0 14px rgba(255,179,64,.45);
   }
+  /* What a run won on top of its stardust (game/awards.js): the same gold, because it is the same
+     coin, set a step smaller and pulled up tight under the line above it so the two read as one
+     block of "what this run paid". Empty for a run that won nothing new, and an empty line takes
+     its space with it - a card with no awards is the card it was before there were awards. */
+  .award-line {
+    margin-top: 6px; font-size: 11px; letter-spacing: .2em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  .award-line:empty { display: none; }
   /* And the ship the next run will be flown in, which is what a number pressed over a wreck
      changes. Kept apart from the build line above it on purpose: that one is about the run that
      ended, this one is about the next. */
@@ -286,6 +295,7 @@
     .cleared { margin-top: 10px; }
     .stats { margin-top: 10px; }
     .dust-line { margin-top: 8px; }
+    .award-line { margin-top: 4px; }
     .next-line { margin-top: 8px; }
   }
 </style>
@@ -309,6 +319,7 @@
   </div>
   <div class="standing">
     <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
+    <div class="standing-line" id="titleAwards">AWARDS 0 OF 0</div>
     <div class="flying" id="titleShip">FLYING</div>
   </div>
   <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
@@ -369,6 +380,7 @@
   <div class="best-line">BEST <span id="finalBest">0</span></div>
   <div class="newbest hidden" id="newBest">&#9733; NEW BEST &#9733;</div>
   <div class="dust-line" id="finalDust"></div>
+  <div class="award-line" id="finalAwards"></div>
   <div class="stats" id="finalStats"></div>
   <div class="build" id="finalBuild"></div>
   <div class="next-line" id="nextShip"></div>
@@ -383,6 +395,7 @@
   <div class="best-line">BEST <span id="winBest">0</span></div>
   <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
   <div class="dust-line" id="winDust"></div>
+  <div class="award-line" id="winAwards"></div>
   <div class="cleared" id="winCleared"></div>
   <div class="stats" id="winStats"></div>
   <div class="build" id="winBuild"></div>

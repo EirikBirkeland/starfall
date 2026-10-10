@@ -18,6 +18,7 @@ import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
 import { drawVolumePanel } from './volume.js';
+import { drawToasts } from './toast.js';
 import { drawCards } from './cards.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
@@ -167,4 +168,8 @@ export function renderFrame(tick, input, pointer) {
   // And last of the last, over the cards too: the mixer readout is answering a key the player
   // just pressed, and nothing on the screen may be allowed to hide the answer (render/volume.js).
   drawVolumePanel(ctx);
+  // ...and beside it the awards this run has just won (render/toast.js), which land under the top
+  // of the window rather than over the middle of it: the fight is still going on underneath them
+  // and the eye is where the fight is.
+  drawToasts(ctx);
 }

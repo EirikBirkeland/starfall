@@ -40,6 +40,7 @@ import { defaultWeapon } from './weapons.js';
 import { defaultShip, shipBody } from './ships.js';
 import { newPerkRanks } from './perks.js';
 import { emptyFound } from './codex.js';
+import { updateAwards } from './awards.js';
 
 function createWorld() {
   const spec = BALANCE.player;
@@ -108,6 +109,15 @@ function createWorld() {
     // How many rows *this* run added to it, which is the one number about the codex the ending's card
     // prints (game/run.js `bankRun`). A run's own, so `resetRun` clears it with the rest.
     codexNew: 0,
+    // What the awards this save has won (game/awards.js): a list of ids, read out of the save when
+    // the visit opens like everything else above that a run may spend but not lose. An empty list is
+    // a first visit. The three lists after it belong to the run and not to the visit: which awards
+    // this run earned (whether the save had them or not), which ones the last ending paid out, and
+    // which ones the frame has yet to put on the glass.
+    awards: [],
+    runAwards: [],
+    awardNews: [],
+    awardToasts: [],
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),
@@ -423,4 +433,9 @@ function stepRun(dt, input) {
   // Last, because a bolt's only business is fading and a bolt thrown this step should be
   // seen at full brightness first (game/arc.js).
   updateArc(world, dt);
+  // ...and after all of it, the one look at what the run has just done (game/awards.js). Last so
+  // that a rule sees the step as completely as it can be seen, and outside every system so that
+  // watching a run cannot be confused with changing one: this queues ids for the frame and is
+  // never read back by anything in the step.
+  updateAwards(world);
 }

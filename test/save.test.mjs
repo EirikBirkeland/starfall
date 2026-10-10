@@ -80,7 +80,8 @@ test('a write is a versioned document, and the same values always write the same
   assert.equal(remember('score', { best: 500 }), true);
   const written = text(store);
   assert.deepEqual(JSON.parse(written), {
-    version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {}, audio: {},
+    version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {},
+    awards: {}, audio: {},
   });
 
   assert.equal(remember('audio', { music: 3, effects: 3, muted: false }), true);
@@ -92,7 +93,7 @@ test('a write is a versioned document, and the same values always write the same
   assert.equal(text(store), both, 'the same values again is the same text, byte for byte');
 
   const keys = Object.keys(parsed(store));
-  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'audio'],
+  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'audio'],
     'the document is written in schema order');
 });
 
@@ -212,6 +213,32 @@ test('the codex\'s lists are sets too, and allowed to be longer than a rack is',
   assert.equal(remember('codex', { hosts: ['tank'], lines: ['fire-rate'] }), true);
   assert.deepEqual(parsed(store).codex, { hosts: ['tank'], lines: ['fire-rate'] },
     'and it is written back as it was given');
+});
+
+test('the awards are a longer set again, and nonsense in them is no awards', () => {
+  // Thirty-odd on purpose (game/awards.js), so the rack's ceiling of thirty-two would have been
+  // full the day this shipped - and, like the codex, it still has a ceiling of its own.
+  const WON = { won: [] };
+  const twenty = [];
+  for (let i = 0; i < 20; i++) twenty.push('award' + i);
+  browser(stored({ awards: { won: twenty } }));
+  assert.deepEqual(section('awards', WON).won, twenty.slice().sort(),
+    'twenty awards is a list of awards');
+
+  const absurd = [];
+  for (let i = 0; i < 200; i++) absurd.push('award' + i);
+  browser(stored({ awards: { won: absurd } }));
+  assert.deepEqual(section('awards', WON).won, [], 'two hundred of them is not');
+
+  // Every entry the wrong shape - capitals, a number, an empty name - is the field being the wrong
+  // kind, so the visit starts from nothing rather than from a half-read list.
+  browser(stored({ awards: { won: ['CENTURY', 42, ''] } }));
+  assert.deepEqual(section('awards', WON).won, [], 'and a list of nonsense is no list');
+
+  const store = browser({});
+  assert.equal(remember('awards', { won: ['century', 'old-hand'] }), true);
+  assert.deepEqual(parsed(store).awards, { won: ['century', 'old-hand'] },
+    'and what was won is written back as it was given');
 });
 
 test('a set that is not a set is not stored, and an empty one is an answer', () => {

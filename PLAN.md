@@ -929,7 +929,16 @@ When every item above is ticked, go back to the first unchecked item of mileston
       spent or that fight was standing when the run stopped, and a card was taken - all of it read
       from a run that has stopped, so none of it is in the step (game/codex.js). Remembered in the
       save document (`codex.hosts`, `codex.lines`) like the purse and the ships.)
-- [ ] Achievements, with a small toast when earned.
+- [x] Achievements, with a small toast when earned. (Done: thirty-one of them, in four rows - RUNS
+      AND SCORE, FIGHTS, BUILDS AND SHIPS, DASHES, TIME AND PATIENCE - on the back of the hangar, in
+      the one place stardust is already said. A third row was the plan's shape and it does not fit:
+      there is no room under the purse, and a list you have to walk to is a list you do not read.
+      Each pays stardust once, the first time this save's tally passes its rule, and the purse's total
+      now says what the awards paid beside what the runs did. Earned ones are remembered in the save
+      (`awards.won`); the live ones are announced on the glass by a plate that falls in, holds and
+      fades (render/toast.js), with the sound the codex opening uses. A rule is read off the run's
+      tally and the schedule at the end of a step, never in the middle of one (game/awards.js), so a
+      player who has already seen an award is not told twice and an old save starts clean.)
 - [ ] Run history: the last 20 runs with their seed, ship, time, and score.
 - [ ] Release.
 

@@ -23,6 +23,7 @@ import path from 'node:path';
 
 import { bootGame, everyPerkBought, perkLadderCost } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
+import { dustTotal } from '../src/game/awards.js';
 import { SHIPS } from '../src/game/ships.js';
 import { perkPriceOf } from '../src/game/hangar.js';
 import {
@@ -324,8 +325,11 @@ test('a bought rank goes on the run that comes next', () => {
 test('and it pays that much when the run goes down', () => {
   const purse = game.stats().dust;
   killTheRun(BALANCE.stardust.perScore * 100);
-  assert.equal(game.stats().dust, purse + 150, 'the purse was paid the Gleaner\'s share');
-  assert.ok(game.screen.finalDust.includes('+150'), 'and the card says what it paid: '
+  // The awards this ending won are paid in the same breath as the run is scored (game/awards.js),
+  // so the honest line is the two of them together and not the Gleaner's share on its own.
+  const won = dustTotal(game.stats().awardsNew);
+  assert.equal(game.stats().dust, purse + 150 + won, 'the purse was paid the Gleaner\'s share');
+  assert.ok(game.screen.finalDust.includes('+150'), 'and the card says what the run paid: '
     + game.screen.finalDust);
 });
 

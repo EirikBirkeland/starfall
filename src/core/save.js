@@ -67,6 +67,11 @@ const MAX_NAMES = 32;
 // every row the game can name is not the game's codex either.
 const MAX_CODEX = 96;
 
+// ...and the awards, which are the same kind of list - one id per thing the game can name, and a
+// table that grows as the game does (game/awards.js). Thirty-odd today, so the rack's ceiling of
+// thirty-two would have been full on the day this shipped.
+const MAX_AWARDS = 64;
+
 // ...and no tally of theirs reaches this high either. A perk has five ranks and an achievement is
 // worth one, so a count of a thousand is not a count the game made.
 const MAX_COUNT = 1000;
@@ -160,6 +165,11 @@ const SCHEMA = {
   codex: {
     hosts: KINDS.names(MAX_CODEX),
     lines: KINDS.names(MAX_CODEX),
+  },
+  // What the runs of this save have won (game/awards.js, PLAN 3.7): a set of award ids, and a set
+  // rather than a tally because an award is won once - there is no second rank of it to buy.
+  awards: {
+    won: KINDS.names(MAX_AWARDS),
   },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again

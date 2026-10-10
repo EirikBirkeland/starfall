@@ -37,6 +37,7 @@ import { view } from '../src/render/canvas.js';
 import { stats as glowStats } from '../src/render/glow.js';
 import { LINES, maxRanksOf } from '../src/game/upgrades.js';
 import { BALANCE } from '../src/game/balance.js';
+import { clearToasts } from '../src/render/toast.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 71, dpr: 1 });
@@ -63,6 +64,9 @@ function take(build) {
   for (const id of Object.keys(build)) field.upgrades[id] = build[id];
   game.step();
   game.step();
+  // A build worth an award wins one, and its plate would be drawn over the rail this file is
+  // measuring (game/awards.js, render/toast.js). The plate has tests of its own (test/awards-art).
+  clearToasts();
 }
 
 /** The lines a build lists, in the deck's order: what the rail has rows for. */

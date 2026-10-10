@@ -133,6 +133,10 @@ export function newTally() {
     hullLost: 0,
     hurtBy: {},        // 'body:tank' -> how many hulls that cost
     killedBy: '',      // what took the last hull, so: why the run ended
+    // How many dashes this run was *granted* (game/player.js `beginDash`). A run that never
+    // pressed the key and a run that pressed it forty times are two different runs, and the one
+    // trace either leaves afterwards is this count (game/awards.js).
+    dashes: 0,
     // Did this run finish, or did it only stop? A run that outlasted the whole schedule is the
     // only kind that was *won* (game/run.js `winRun`), and a report that cannot tell the two
     // apart cannot tell a hard run from a long one.
@@ -246,6 +250,14 @@ export function noteHullLoss(world, cause) {
   tally.hullLost++;
   tally.hurtBy[label] = (tally.hurtBy[label] || 0) + 1;
   if (world.player.hull <= 0) tally.killedBy = label;
+}
+
+/**
+ * The run was granted a dash - a granted one and not an asked-for one, because a press during the
+ * wait is not a dash and "without a single dash" is a claim about dashes and not about fingers.
+ */
+export function noteDash(world) {
+  world.tally.dashes++;
 }
 
 /**

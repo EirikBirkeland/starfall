@@ -228,6 +228,9 @@ export function initScreens() {
     nextShip: document.getElementById('nextShip'),
     finalDust: document.getElementById('finalDust'),
     winDust: document.getElementById('winDust'),
+    finalAwards: document.getElementById('finalAwards'),
+    winAwards: document.getElementById('winAwards'),
+    titleAwards: document.getElementById('titleAwards'),
   };
   shipPrices = [];
   shipRows = SHIPS.map(buildShipRow);
@@ -461,14 +464,38 @@ function paintEntries(rows, entries, met, refused) {
 }
 
 /**
- * What the visit has to show for itself, in both places it is read: the best score and the purse.
- * The purse is written beside the score rather than under it because the two are the same kind of
- * thing - the number you are trying to beat, and the number you are saving up.
+ * What the visit has to show for itself, in both places it is read: the best score, the purse, and
+ * how much of the awards table this save has cleared. The three are written together because they
+ * are the same kind of thing - the number you are trying to beat, the number you are saving up,
+ * and the number you are working towards - and because a reward nobody can see being earned is a
+ * reward nobody believes in. `awards` is `{ won, of }` from game/awards.js.
  */
-export function showStanding(best, dust) {
+export function showStanding(best, dust, awards) {
   el.titleBest.textContent = best.toLocaleString('en-US');
   el.titleDust.textContent = dust.toLocaleString('en-US');
+  el.titleAwards.textContent = 'AWARDS ' + awards.won + ' OF ' + awards.of;
   el.hangarDust.textContent = dust.toLocaleString('en-US');
+}
+
+/** How many of an ending's awards are named on its card before the count takes over. */
+const NAMED_AWARDS = 3;
+
+/**
+ * What a run won that the save had not won before, in the words both cards use (game/awards.js).
+ *
+ * A run that won nothing says nothing: the plate said what there was to say while the run was
+ * flying, and an empty line about awards on every card is noise. An ending that won a handful - a
+ * first run, or a first win, which is most of them at once - names the first three and counts the
+ * rest: the card is a summary of a run and not the catalogue, and the awards a run won in its last
+ * two minutes are the ones a player remembers best anyway.
+ */
+function awardWords(names, dust) {
+  if (names.length === 0) return '';
+  const named = names.slice(0, NAMED_AWARDS).join('   \u00b7   ');
+  const more = names.length - NAMED_AWARDS;
+  return 'AWARDS   ' + named
+    + (more > 0 ? '   \u00b7   ' + more + ' MORE' : '')
+    + '   \u00b7   +' + dust.toLocaleString('en-US') + ' STARDUST';
 }
 
 /**
@@ -480,6 +507,15 @@ export function showStanding(best, dust) {
 function showDust(where, earned, banked) {
   where.textContent = 'STARDUST  +' + earned.toLocaleString('en-US')
     + '   \u00b7   ' + banked.toLocaleString('en-US') + ' BANKED';
+}
+
+/**
+ * What a run won on top of its stardust, on the line under it. Empty for a run that won nothing the
+ * save had not won already, and an empty line takes its space with it (index.html `.award-line`), so
+ * a card with no awards reads exactly as it did before there were awards.
+ */
+function showAwards(where, names, dust) {
+  where.textContent = awardWords(names, dust);
 }
 
 /**
@@ -501,11 +537,12 @@ function codexWords(count) {
 
 /**
  * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, shipId,
- * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound } - `endlessPast` being how much
- * of the run was flown after it had already been won, 0 for every run that never got that far,
- * `dust` / `dustBank` being what the run earned between runs and what the purse holds after it
- * (game/stardust.js), and `codexNew` / `codexFound` being what the run added to the codex and what
- * it holds afterwards (game/codex.js).
+ * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust, awardsWon }
+ * - `endlessPast` being how much of the run was flown after it had already been won, 0 for every run
+ * that never got that far, `dust` / `dustBank` being what the run earned between runs and what the
+ * purse holds after it (game/stardust.js), `codexNew` / `codexFound` being what the run added to the
+ * codex and what it holds afterwards (game/codex.js), and `awards` / `awardDust` / `awardsWon` being
+ * what this run won, what it paid, and where the whole table stands now (game/awards.js).
  */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
@@ -527,12 +564,13 @@ export function showGameOver(summary) {
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
   showDust(el.finalDust, summary.dust, summary.dustBank);
+  showAwards(el.finalAwards, summary.awards, summary.awardDust);
   el.build.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   // The purse and the best moved with this run, so both are written again where they are also
   // read - and the rack is lit for the ship that just flew, because it is the ship the next run
   // flies unless a number says otherwise.
-  showStanding(summary.best, summary.dustBank);
+  showStanding(summary.best, summary.dustBank, summary.awardsWon);
   showShip(summary.shipId);
   // ...and the codex, which this run has just been added to (game/codex.js): the panel that goes up
   // over this card has to be the one that knows what the card is saying.
@@ -564,9 +602,10 @@ export function showVictory(summary) {
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
   showDust(el.winDust, summary.dust, summary.dustBank);
+  showAwards(el.winAwards, summary.awards, summary.awardDust);
   el.winBuild.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
-  showStanding(summary.best, summary.dustBank);
+  showStanding(summary.best, summary.dustBank, summary.awardsWon);
   showShip(summary.shipId);
   showCodex(summary.codexFound);    // the same promise the death's card makes (see above)
   // The invitation waits. The card goes up on the hush and the game answers to nothing until the

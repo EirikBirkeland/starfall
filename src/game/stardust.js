@@ -10,7 +10,8 @@
 //   **One rule, in one place.** What a run is worth is `dustForRun` and `BALANCE.stardust`, and
 //   nothing else is allowed to do stardust arithmetic. A reward that is worked out twice is a
 //   reward that pays two different numbers depending on who is asking. And the purse has one
-//   door each way: `payForRun` fills it and `spendDust` empties it, which is the only reason
+//   door each way: `grantDust` fills it - which is what `payForRun` does with a run's worth and
+//   what an award does with its price - and `spendDust` empties it, which is the only reason
 //   `game/hangar.js` can buy a ship without knowing how the purse is kept.
 //
 //   **A run is paid once for what it earned.** A won run can be handed back and flown on
@@ -70,9 +71,27 @@ export function payForRun(world) {
   const owed = earned - world.dustPaid;
   if (owed <= 0) return 0;
   world.dustPaid = earned;
-  world.dust += owed;
+  return grantDust(world, owed);
+}
+
+/**
+ * Put stardust into the purse from somewhere other than a run's own worth, which is the other way
+ * a purse grows: an award pays a flat little sum when a save wins it (game/awards.js), and that is
+ * not a number `dustForRun` may be asked about - it is not a function of the score, it is a price
+ * on a sentence. So it comes through here, and this stays the one line that moves the purse up:
+ * the write is one write, and the number the glass reads is the number the store was given.
+ *
+ * Nothing is written for a sum of nothing. A negative is refused rather than quietly spent: paying
+ * *out* is `spendDust`'s business, and a caller that has mixed the two has a bug worth throwing.
+ */
+export function grantDust(world, amount) {
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('the purse cannot be granted ' + amount);
+  }
+  if (amount === 0) return 0;
+  world.dust += amount;
   remember('meta', { dust: world.dust });
-  return owed;
+  return amount;
 }
 
 /**

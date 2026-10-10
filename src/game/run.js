@@ -8,6 +8,7 @@ import { STATE } from './state.js';
 import { remember } from '../core/save.js';
 import { payForRun } from './stardust.js';
 import { recordRun } from './codex.js';
+import { bankAwards, resetAwards } from './awards.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -173,6 +174,10 @@ export function resetRun(world) {
   // ...and this run has taught the codex nothing yet (game/codex.js). What the codex *knows* is
   // above, in `world.found`, and is none of this run's to forget.
   world.codexNew = 0;
+  // ...and the same bargain with the awards (game/awards.js): what the save has won stays, and what
+  // this run earned, what the last ending paid out and anything still waiting to be announced all
+  // go with the run they belong to.
+  resetAwards(world);
   // ...and the run has not been won or paid for yet (game/stardust.js). The purse above is left
   // alone: what the last run earned is spent or it is not, and either way it is not this run's.
   world.won = false;
@@ -208,6 +213,12 @@ export function startRun(world) {
  * it took, which is only a finished sentence once the run has stopped, and a run that is won, handed
  * back and goes down later is one run and not two meetings. `recordRun` writes only what the save
  * did not already know, so the second ending of a won run adds nothing and says nothing.
+ *
+ * The awards are credited here for the same third reason (game/awards.js): half of them are only
+ * true of a run that has stopped, and the ones that turned true on the way are paid out here and
+ * nowhere else - once per save, which is what makes the second ending of a won run pay nothing
+ * again. Their stardust goes on top of the purse after the run's own, so the card can say what the
+ * run earned and what being remembered earned separately, and neither number is the other's.
  */
 function bankRun(world) {
   world.newBest = world.score > world.best;
@@ -217,6 +228,7 @@ function bankRun(world) {
   }
   payForRun(world);
   recordRun(world);
+  bankAwards(world);
 }
 
 /** The ship is gone. Bank the score and let the screen show it. */

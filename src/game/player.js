@@ -15,7 +15,7 @@ import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './ef
 import { cueBeep, cueChord, cueMuffle, cueNoise } from './cues.js';
 import { endRun } from './run.js';
 import { holdInField } from './field.js';
-import { noteHullLoss } from './tally.js';
+import { noteDash, noteHullLoss } from './tally.js';
 import { updateOvercharge } from './overcharge.js';
 import { armDash, trailImages } from './afterimage.js';
 import { armTie, tieCords } from './tether.js';
@@ -125,6 +125,9 @@ function beginDash(world, input) {
   // against a wall still costs the full cooldown. How long that is is the ship's own
   // number (game/ships.js) - the frame counts the same one down for its ring.
   ship.dashCd = ship.dashWait;
+  // Counted here, at the one moment the dash was allowed, so that a run can be asked
+  // afterwards whether it dashed at all (game/tally.js `noteDash`).
+  noteDash(world);
 
   const back = Math.atan2(-dir.y, -dir.x);
   const start = spec.start;

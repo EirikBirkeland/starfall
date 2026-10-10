@@ -10,6 +10,7 @@ import { SHIPS, setShip, shipName } from './game/ships.js';
 import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex } from './game/hangar.js';
 import { perkAt, perkLedger } from './game/perks.js';
 import { foundFromSave, foundLedger } from './game/codex.js';
+import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './game/awards.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -36,6 +37,7 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
+import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -93,6 +95,9 @@ function beginRun() {
   if (!seedIsPinned) world.seed = randomSeed();
   startRun(world);
   hideScreens();
+  // The plates belong to the run that earned them, and this is a different run: a window about to
+  // show a fresh arena has not been told anything yet (render/toast.js).
+  clearToasts();
   uiTick('confirm');
   return true;
 }
@@ -229,7 +234,7 @@ function buyFromRack(index) {
   // buying is not picking (game/hangar.js), so the ship about to be flown does not move.
   showRack(world.ownedShips);
   showPerks(perkLedger(world));
-  showStanding(world.best, world.dust);
+  showStanding(world.best, world.dust, wonShare(world));
   // ...and a row that ran out of prices is a shorter row, so the panel may need less of the window
   // than it did a moment ago (ui/screens.js `fitHangar`).
   fitHangar();
@@ -392,6 +397,12 @@ function describeRun() {
     // card that went up a frame before it.
     codexNew: world.codexNew,
     codexFound: foundLedger(world),
+    // What the awards this run won and what they paid (game/awards.js), and where the whole table
+    // stands for this save - the card names what the run earned and says how much of the lot the
+    // save has, which is the same pair the codex line gives.
+    awards: namesOf(world.awardNews),
+    awardDust: dustTotal(world.awardNews),
+    awardsWon: wonShare(world),
   };
 }
 
@@ -413,6 +424,8 @@ function frame(now) {
   updateNebula(tick.dt);
   // ...and so does the mixer readout, which is answering a key and not a step (render/volume.js).
   advanceVolumePanel(tick.dt);
+  // ...and so do the award plates, which hold and fade on the same clock (render/toast.js).
+  advanceToasts(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.
   let heard = false;
@@ -427,6 +440,12 @@ function frame(now) {
   // the player takes to read, so a request made during it is spent rather than kept -
   // a dash that goes off three seconds after the key was pressed is not a gift.
   if (heard || world.state === STATE.LEVEL) consumeInput();
+  // The awards won since the last frame go on the glass now (render/toast.js). They were queued by
+  // the step (game/awards.js `updateAwards`) and spent here, which is the same door the sound cues
+  // are: the run says what happened, the frame decides when it is seen - and it is seen on this
+  // frame rather than the next one, because an award and the thing that earned it should not be
+  // half a second apart for no reason a player can name.
+  for (const award of takeAwardToasts(world)) pushAwardToast(award);
 
   // The game-over card lands on the same frame the run stops: there is nothing left to see.
   if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
@@ -491,8 +510,12 @@ function boot() {
   // first visit reads two empty lists and the panel prints every row as unknown, which is the true
   // thing to say about a save that has met nothing.
   world.found = foundFromSave();
+  // ...and which awards the runs of this save have already won (game/awards.js), read the same once
+  // for the same reason. An empty list is a first visit, and the whole table is still in front of
+  // whoever plays it.
+  world.awards = wonFromSave();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
-  showStanding(world.best, world.dust);
+  showStanding(world.best, world.dust, wonShare(world));
   showRack(world.ownedShips);
   showPerks(perkLedger(world));
   showCodex(world.found);
@@ -587,6 +610,13 @@ window.STARFALL = {
       // which cards it took - has no other way to ask.
       codex: foundLedger(world),
       codexNew: world.codexNew,
+      // ...and which awards this save has won (game/awards.js), which ones the last ending paid
+      // out and what they paid, and how many of the whole table the save has. A tool that wants to
+      // know what a run was *worth* to the save between runs has no other way to ask.
+      awards: world.awards.slice(),
+      awardsNew: world.awardNews.slice(),
+      awardsDust: dustTotal(world.awardNews),
+      awardsWon: wonShare(world),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

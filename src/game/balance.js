@@ -281,6 +281,70 @@ export const BALANCE = {
     banish:   { ranks: 5, step: 1,  says: 'BANISH',   cost: [80, 200, 500, 1000, 1500] },
   },
 
+  // The awards (PLAN 3.7): what a run did that this save remembers, and the little stardust it pays
+  // for doing it. The table - the id, the name, the line, and the rule - is game/awards.js; this is
+  // the price sheet, in the same split game/perks.js and BALANCE.perks strike.
+  //
+  // `need` is what the rule has to reach, in the unit the rule counts in (bodies, points of score,
+  // levels, seconds, shards, ranks, dashes) and is read *by* the rule rather than written into it,
+  // so no threshold is hard-coded in a game module. The prose in game/awards.js spells the same
+  // number out; changing one means changing the other.
+  //
+  // `dust` is priced against what a run actually pays (see `stardust` above): a good fifteen-minute
+  // run leaves about a thousand, so the easy awards are a fraction of a run, the hard ones are a
+  // run, and the whole table together is a little under one expensive ship - which is the ratio
+  // PLAN asks for, "a little stardust" for doing something worth remembering.
+  awards: {
+    // The chime an award earns, queued by the game itself (game/awards.js `updateAwards`) rather
+    // than by a keypress, because an award is the run's news and not the interface answering one.
+    // Two notes a fifth apart, rising: quieter and shorter than the win's fanfare above, and than
+    // the level-up's chime, because it lands in the middle of a fight that is still going on.
+    sound: { notes: [880, 1318], dur: 0.42, wave: 'triangle', vol: 0.085 },
+    rows: {
+      // Bodies brought down in one run.
+      'century':        { need: 100,    dust: 20 },
+      'thousandfold':   { need: 1000,   dust: 60 },
+      'reaper':         { need: 5000,   dust: 200 },
+      // Score in one run.
+      'bright-spark':   { need: 10000,  dust: 25 },
+      'supernova':      { need: 50000,  dust: 80 },
+      'starfall':       { need: 150000, dust: 250 },
+      // Levels reached in one run.
+      'warmed-up':      { need: 10,     dust: 20 },
+      'built-different': { need: 25,    dust: 60 },
+      'old-hand':       { need: 50,     dust: 120 },
+      // Time survived, in seconds.
+      'five-minutes':   { need: 300,    dust: 30 },
+      'quarter-hour':   { need: 900,    dust: 120 },
+      // The loot, and the row it comes in.
+      'collector':      { need: 500,    dust: 50 },
+      'magnet':         { need: 25,     dust: 40 },
+      // The crowd's gold, and the pack that turns as one.
+      'gold-touch':     { need: 25,     dust: 60 },
+      'swarm-breaker':  { need: 500,    dust: 60 },
+      // The fights. `every-fight` counts the schedule itself, and a test holds this number to its
+      // length (test/awards.test.mjs) so the two cannot drift apart.
+      'first-fight':    { need: 1,      dust: 50 },
+      'every-fight':    { need: 3,      dust: 200 },
+      // The run, and how it was flown.
+      'arena-cleared':  { need: 0,      dust: 300 },
+      'wisp-cleared':   { need: 0,      dust: 60 },
+      'bulwark-cleared': { need: 0,     dust: 60 },
+      'volt-cleared':   { need: 0,      dust: 60 },
+      'needle-cleared': { need: 0,      dust: 60 },
+      'brood-cleared':  { need: 0,      dust: 60 },
+      'no-dashing':     { need: 0,      dust: 150 },
+      'untouched':      { need: 300,    dust: 120 },
+      'flawless':       { need: 0,      dust: 250 },
+      'streaked':       { need: 250,    dust: 60 },
+      // The build.
+      'in-combination': { need: 1,      dust: 80 },
+      'full-kit':       { need: 25,     dust: 60 },
+      // And the mode that only a won run can enter, in seconds past the win.
+      'past-the-end':   { need: 300,    dust: 100 },
+    },
+  },
+
   // The primaries (PLAN 3.2). One is flown at a time, and it comes with the ship that was picked
   // (game/ships.js); `default` is what a run that has not picked anything flies.
   //
