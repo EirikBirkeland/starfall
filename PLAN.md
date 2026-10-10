@@ -644,7 +644,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       into another column rather than cut a build short. `test/build-rail.test.mjs` owns it, and the
       art files now measure the arena with the interface subtracted (`tools/headless/frame-cost.js`),
       because a frame costs a mark for every line a run owns.)
-- [ ] Release.
+- [x] Release.
+      (Shipped as 0.4.0 through 0.4.21 - the tick was left behind at the time.)
 
 ### Milestone 5: weapons and ships
 - [x] Weapon definitions as data; the five primaries from 3.2, one per session.
@@ -775,7 +776,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       line goes under in 6 to 16. The glass says where the run is: `ENDLESS +7m` beside the clock, and `ENDLESS FOR
       7m12s` on the card that finally says where it ended. `test/endless-growth.test.mjs`,
       `test/endless.test.mjs` and `test/victory-card.test.mjs` own all of it.)
-- [ ] Release.
+- [x] Release. (0.6.0 - 0.6.12: three fights, their telegraphs and their doors, the night, the win, and the endless
+      stretch that follows it.)
 
 ### Milestone 7: sound
 - [ ] Audio engine: context start on first input, master compressor, music and effects buses.

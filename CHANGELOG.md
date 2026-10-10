@@ -1,5 +1,22 @@
 # Starfall — changelog
 
+## 0.6.12 — 2026-10-10
+Endless keeps climbing. A run that went past its own win is no longer fought by the crowd it had already beaten.
+- **A second clock.** Every ceiling the schedule spends in its first three minutes — a body's hull, its speed, the size
+  of the crowd, how many bodies may stand at once — is behind the run now. From the moment the arena is handed back a
+  slower clock starts counting, and it never stops: hull and the crowd's budget grow for as long as the run does, which
+  is what ends it, while speed stops where the fastest body in the game has outrun what a ship can be asked to dodge and
+  the count of bodies stops where the frame budget says to stop. `ENDLESS +7m` reads beside the clock, and the card that
+  finally says where it ended says `ENDLESS FOR 7m12s`.
+- **It ends, measured.** `node tools/endless-gauge.js` prints the curve out of the game's own functions and then plays a
+  build into it and waits. Twenty runs of a build with every upgrade line maxed all went down, between 14 and 33 minutes
+  past the win and a median of 22m, nearly every one with the crowd standing at the wall — the bodies outlasting the gun,
+  which is the whole point of the hull row. A build kept two ranks deep, nearer what a real run has earned by the last
+  fight, goes under in 6 to 16. A run the watch stopped early is no longer counted as one that ended, so the check cannot
+  report a tidy median for a curve that buries nothing.
+- **Nothing moved for a run that has not won.** Every growth is exactly zero until a run is handed its arena back, and the
+  reference run's trace is byte for byte what it was: 1276 tests, and the same 10m fingerprint as session 66.
+
 ## 0.6.11 — 2026-10-09
 A won run can keep flying, the room only shakes for the things that are worth it, and the last screen cannot be clicked away.
 - **Endless.** The win's card is a door *into* the run and not only out of it. Press the launch key over ARENA CLEARED and
