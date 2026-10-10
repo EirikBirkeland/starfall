@@ -8153,7 +8153,7 @@ intensity layers, and volume settings.
   `getMaster()` is gone - sfx takes `getSfxBus()`, music takes `getMusicBus()`, and a test
   (`test/mix.test.mjs`'s raw machine) now owns the four-wire graph.
 - **The sequencer** (`audio/music.js`, new). 16th-note grid, 110 BPM, A natural minor,
-  Am - F - C G one chord per bar four bars to a loop. Three layers: a pad (detuned sawtooth
+  Am - F - C - G one chord per bar four bars to a loop. Three layers: a pad (detuned sawtooth
   triad, one chord per bar, 0.6 s attack, tail over the bar line - the title's whole music),
   a sawtooth bass (six steps to a bar, walks to the fifth and up an octave at the bar line),
   and a square arpeggio two octaves up (climbs the chord and back down, the quietest layer).
