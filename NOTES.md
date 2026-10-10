@@ -8433,3 +8433,135 @@ ticked in PLAN with the evidence next to it.
 - If anyone wants hover or click sounds on the title's ship rows: they cannot have them yet, because
   the rows are painted from `ui/screens.js` and answered only by number keys. The click handlers
   come first, and the tick is one line after that.
+
+## Session 71 (2026-10-10) — The music plays the run it is under. Released **0.7.3**
+
+Milestone 7's third item, "intensity layers, boss music, low-hull variation", and with it the whole
+of PLAN section 5's music sentence: pad on the title, bass and arpeggio in a run, drums after 2:00,
+a faster harsher pattern for bosses, a stripped tense version at 1 hull. All five are now one
+`PATTERNS` entry each, picked by `patternFor(world)` out of what the world says about itself.
+
+### What landed
+- **`updateMusic` takes the world and not the state** (main.js), which is the seam session 68 left
+  for it. `game/` still does not know audio exists; audio reads `world.elapsed`, `world.boss` and
+  `world.player.hull`, which is the whole of what the ladder needs.
+- **Patterns are whole sets of parts, not switches.** Each one names its bass line, its arpeggio,
+  its drum kit, the rate its grid runs at, and how its chord is voiced. `layersFor` returning
+  `{ pad: true, bass: true }` could have been stretched to carry drums, but it could not have
+  carried a *tempo* or a *voicing*, and those turned out to be where "harsher" actually lives.
+- **The drums** (`KIT_RUN`): a chip kick - one triangle falling from 150 Hz to 46 in a seventh of a
+  second - a crack that is the noise buffer through a closing low-pass (the same instrument as the
+  explosions, a hundredth of the time), and a closed hat on the offbeat eighths. Figures are written
+  as sixteen characters each (`hits('x...x...x...x...')`) because a bar reads that way and `hits`
+  throws at anything that is not a bar, so a typo cannot shift a kit by a step at load time.
+- **The boss** speeds the grid itself by a third (`rate: 4/3` - a bar in 1.64 s), so *everything*
+  including the chord changes gets faster together; writes eleven arpeggio notes to a bar instead
+  of six, on sixteenths; doubles the pad's detune; and voices its chord with the scale's second
+  against the root instead of the octave above it (`harshTones`) - the sharpest rub A minor can ask
+  for without leaving it, because every chord in Am-F-C-G has the scale's own second a whole tone
+  over its root. Kit: kick on every eighth, hat on the eighths between them, crack on the backbeat
+  plus a ghost note, so nothing lands where the last bar's did.
+- **The last hull** (`KIT_LAST`, `BASS_LAST`, `PING`): a drone on the root twice a bar, one high
+  note to a bar, and a heartbeat - the kick played lower, softer and with a twentieth-of-a-second
+  attack so it is felt and not heard. No groove, no kit, no arpeggio. **It outranks a boss being in
+  the arena**, deliberately and written down in `patternFor`: "about to die" is the louder fact, and
+  taking the groove away lands harder than adding to it. Heal and the fight comes straight back.
+- **The loudness of the music is now measured** (`patternPeak`), because the sequencer is outside
+  the voice budget on purpose and that leaves a hole in the mix nobody was watching: it lays a
+  pattern's bar out on its own grid and answers the loudest instant, reading `stepVoices` - the
+  same function the scheduler plays from - so it cannot drift from the music. `MUSIC.peakLoad` is
+  the ceiling, a test refuses any pattern over it, and a second test turns the pad up and checks the
+  meter noticed, which is what stops the first test becoming a number in a file nobody believes.
+- **The ledger grew `drums`, `pattern` and `heard`** (seconds per pattern), and
+  `tools/simulate.js --audio` prints the run's intensity curve from it:
+  `music 11,471 notes over 5,123 steps, 4,084 of them drums | run 2m02s, driving 3m05s, boss 4m54s`.
+  That line is how you check a bot ever *heard* the drums rather than that a threshold was crossed
+  somewhere in a run you are not looking at.
+- `noiseVoice` grew a fifth argument, `when`, because a sequenced drum is scheduled half a second
+  before it is heard. Every sfx caller leaves it out and gets exactly what it always got.
+
+### The near-miss: eight pad voices where the game has six
+`padChord` looped `for (i = 0; i < 3; i++)` over `chordTones`, which returns *four* intervals - the
+fourth being the octave, which the pad has never played. My first `padVoices` iterated the whole
+array and quietly repriced the shipped title from six voices to eight. Nothing failed. The load meter
+caught it: the title came out at 0.48 when the file's own comment said the loudest bar in the game
+was 0.4. It is a triad now (`padTones`), and the reason `harshTones` says out loud that it drops the
+octave. A rewrite that turns a bounded loop into a `for...of` has to be measured, not read.
+
+### The measurement that had to be honest first
+The header's claim was that "the heaviest bar sums to about 0.4 of its own unit". Laying rectangles
+of full volume over their whole length, the *shipped* run pattern came out at 0.57, which said the
+comment was wrong and the music was too loud. It wasn't: a rectangle sum charges a voice its full
+`vol` for its entire length, and the pad takes 0.6 s to arrive at all, so the moment two chords
+genuinely overlap is the quietest moment the pad has. `patternPeak` models the envelope (rise across
+`attack`, fall to the close) and then the shipped run measures 0.362 - the old claim was right, on
+arithmetic that was wrong for it. Measured now, all of it: title 0.18, run 0.362, driving 0.453,
+boss 0.497, last 0.333, ceiling 0.5, and the bus halves it again before it reaches the fight
+(engine.js's comment rewritten to the measured number). Densities, notes per second of run: 8.9
+run, 12.5 driving, 27.4 boss, 5.1 last; steps per second 7.3 to 7.6 outside a fight and 9.8 inside
+one, which is the "faster" claim measured as the one thing that cannot be faked.
+
+### Two things that bit
+- **`ledger.drums` was lying about what a drum is.** It counted noise voices, and the heartbeat is a
+  triangle - so the test that asks "is the pulse still there" came back with 0 pulses and the drums
+  test's density ratio was off by exactly the kick. Drum voices are tagged in `stepVoices` now,
+  whatever instrument they are, and the count is written by the caller that asked for the voice.
+- **A test that waits for a five-minute clock can be held still by a level-up card.** The first
+  throwaway spun 3000 frames waiting for the Warden and never met it: `STATE.LEVEL` freezes the
+  simulation, so `stepRun` - and with it `updateBosses` - never ran, and the director never got to
+  open the fight. The boss test's wait loop lets the cards go past, and says why. Any future test
+  that parks the clock deep into a run is going to hit this same wall.
+
+### Decisions, so nobody relitigates them
+- **A pattern owns its tempo and its voicing.** `rate` is a property of the pattern and not of the
+  sequencer, and one frame's pattern is used for the whole lookahead window it schedules, so a boss
+  arriving is heard as the next half bar changing and not as a seam in the middle of one.
+- **Drums are on the music bus, outside the voice budget**, on the same grounds as every other
+  sequenced voice (audio/mix.js): the sequencer knows what it will play, and a drum turned away is a
+  hole in the bar. Their price is paid against `MUSIC.peakLoad` instead - which is why the boss's
+  kick is at 0.11 and its hat at 0.035 rather than anything that sounded right in isolation, and why
+  the hat sits *between* the kicks: two drums landing together is one thud and eight thuds a bar is
+  a wall.
+- **The drums' numbers live in `music.js` with the rest of the tables**, not in `game/balance.js`.
+  Balance is the simulation's; nothing in `game/` may learn these exist, and `MUSIC` has been the
+  music's own table since session 68.
+- **The stripped pattern is quieter as well as thinner** (0.333 against 0.362), so the change reads
+  even on a machine where the melodic difference is lost.
+- **The last hull is `hull <= 1`, not "one hull out of the ship you chose"**: one pip is one pip
+  whichever ship is flying it, and every ship in the game starts with two or more, so the pattern is
+  only ever the near-death state and never the opening one.
+
+### Numbers
+- **1314 tests → 1322**, all passing. New in `test/music.test.mjs` (7): the ladder walked one rung
+  at a time and read back by name; the kit arriving at 2:00 *and the groove underneath it being the
+  same music either way*; a boss arriving by the schedule itself and the grid measured faster under
+  it; one hull outranking that boss and being thinner than the run it replaced; the ledger's
+  per-pattern seconds; the ceiling over every pattern; and the meter-is-still-wired mutation check.
+  Plus one in `test/simulate.test.mjs` for `patternsLine`, and the `--audio` run's assertions now
+  require the patterns to be named.
+- `node tools/simulate.js --seed 20261006 --seconds 600 --trace` is **byte for byte** the run recorded
+  in session 64, checked against a worktree at the previous commit - the music reads the simulation
+  and does not touch it, and now it is louder than ever while doing so. A full ten-minute game with
+  `--audio` plays the whole ladder clean (its curve quoted above), and the release's shake gate is
+  unchanged at 99.9% still.
+
+### For the next session
+- **Milestone 7's last item: volume settings and mute.** The mute key exists and `M` answers itself
+  with a voice; what PLAN wants is *separate volume sliders for music and effects*. The two buses
+  were built a session before the music for exactly this, so the mechanic is two gain values -
+  `MUSIC_BUS_GAIN` (0.5) and `SFX_BUS_GAIN` (1) - and the things to keep while wiring them: mute has
+  to stay the single value that goes quiet whatever is scheduled (buses hang *upstream* of the master
+  gain for that reason), the effects' number is what every `vol` in the game is priced against so a
+  slider there is a re-pricing of the game's whole sound and wants a sane range rather than 0..1,
+  and the music's tone filter (the muffle) sits downstream of the music bus and must not be repriced
+  by either. There is no settings screen yet - that is milestone 9 - so decide where they live in the
+  meantime: keys are the door that needs no UI (`test/controls.test.mjs` owns keys, and a tick from
+  `BALANCE.ui` already exists for the mute switch coming back), and persistence belongs to
+  milestone 8's save module, so leave a note in NOTES if you store them anywhere.
+- The ladder's next lever, if the intensity is wanted deeper: the drums could come in *gradually*
+  (a hat alone for a bar before the kit), and endless has no pattern of its own yet - it inherits
+  `driving` because endless runs are past 2:00, which is fine but is not a statement.
+- Still open from older sessions and unchanged: the shake's painter (session 66's note, still the
+  cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship`.
