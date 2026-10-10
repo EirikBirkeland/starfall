@@ -67,6 +67,36 @@ test('what a run that walked the whole schedule out is worth', () => {
   assert.ok(dustForRun(cleared) > 1000, 'a win is worth more than a thousand dust');
 });
 
+test('what a run is worth is what the Gleaner says it is worth', () => {
+  // One rank of the hangar's Gleaner (game/perks.js, PLAN 3.7) is a share on the whole line, so it
+  // pays on the score, the fights and the win at once - and it cannot be forgotten by the next reward
+  // anybody adds below, because there is only this one line that says what a run is worth.
+  const withRanks = (rank, fields) => Object.assign(
+    finished(Object.assign({ score: PER_SCORE * 100 }, fields)), { perkRanks: { dust: rank } });
+  assert.equal(dustForRun(withRanks(0)), 100, 'no ranks, no multiplier');
+  assert.equal(dustForRun(finished({ score: PER_SCORE * 100 })), 100, 'nor is a visit with no ledger');
+  assert.equal(dustForRun(withRanks(1)), 110);
+  assert.equal(dustForRun(withRanks(5)), 150);
+  assert.equal(dustForRun(withRanks(900)), 150, 'and a count past the ladder is the top of it');
+  assert.equal(dustForRun(withRanks(3, { bossesDown: 2, won: true })),
+    Math.round((100 + PER_BOSS * 2 + FOR_WIN) * 1.3), 'every part of the line at once');
+
+  // A purse is spent in whole stardust, so the worth is rounded rather than being a number a price
+  // could never be paid with.
+  assert.equal(dustForRun(withRanks(1, { score: PER_SCORE * 15 })), 17, 'fifteen, plus a tenth');
+});
+
+test('a rank of the Gleaner pays into the purse and nowhere else', () => {
+  // The multiplier is on what a run earned, not on what a visit has: the purse, the best and the
+  // ships the last visit bought are nobody's to multiply (game/hangar.js spends them as they are).
+  const store = browser({});
+  const run = finished({ score: PER_SCORE * 100, dust: 500 });
+  run.perkRanks = { dust: 2 };
+  assert.equal(payForRun(run), 120, 'the payment is the multiplied worth');
+  assert.equal(run.dust, 620, 'and the purse is the purse plus that');
+  assert.equal(dustStored(store), 620, 'which is what the write says too');
+});
+
 test('a finished run pays into the purse, and the purse is stored', () => {
   const store = browser({});
   const run = finished({ score: 2500 });

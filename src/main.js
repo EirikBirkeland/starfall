@@ -6,8 +6,9 @@ import { startRun, resetRun, canStartRun, continueRun, victoryCardIsAnswerable, 
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
-import { setShip, shipName } from './game/ships.js';
-import { boughtShips, buyShipByIndex, pickShipByIndex } from './game/hangar.js';
+import { SHIPS, setShip, shipName } from './game/ships.js';
+import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex } from './game/hangar.js';
+import { perkAt, perkLedger } from './game/perks.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -34,7 +35,7 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showStanding, openHangar, closeHangar, hangarIsOpen } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showStanding, openHangar, closeHangar, hangarIsOpen, fitHangar } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -152,7 +153,8 @@ function answerChoice(x, y) {
  *
  * Shift turns the same number into the other thing that screen can be answered with, which is the
  * idiom the cards already taught (Shift + a number banishes one): over a run it cuts a line out of
- * the run for good, and between runs it pays for a ship.
+ * the run for good, and between runs it pays for the row the number names - a ship, or one rank of
+ * a perk.
  */
 function onPickCard(number, withShift) {
   // A keypress is a user gesture and this one can arrive before anything else has been pressed,
@@ -202,10 +204,16 @@ function onPickCard(number, withShift) {
   // A ship nobody has bought yet is refused, like every key the screen cannot answer - but it is
   // answered too, by putting up the one panel that says what it costs.
   if (answer === 'locked') openRack();
+  // And the same answer for a key that names a perk row. There is nothing to *pick* about a perk -
+  // a rank is bought and then it is simply on, every run - so the key has exactly one honest answer,
+  // which is where it lives. It is not a fake success: the purse does not move until Shift says so.
+  if (answer === 'none' && perkAt(index - SHIPS.length) !== null) openRack();
 }
 
 /**
- * Shift and a number, between runs: the purse buys the ship that number names (game/hangar.js).
+ * Shift and a number, between runs: the purse buys the row that number names - a ship, or one rank
+ * of a perk (game/hangar.js `buyRackByIndex`, which reads the two racks as the one numbered list
+ * the keys are printed on).
  *
  * Only while the rack is on the glass, because the price has to be somewhere the player can see it
  * before the money goes: buying from the title, where a row is not printed, would be spending
@@ -215,11 +223,15 @@ function onPickCard(number, withShift) {
  */
 function buyFromRack(index) {
   if (!hangarIsOpen()) return;
-  if (buyShipByIndex(world, index) !== 'bought') return;
-  // The purse, and the row that is no longer locked, and nothing else: buying is not picking
-  // (game/hangar.js), so the ship about to be flown does not move.
+  if (buyRackByIndex(world, index) !== 'bought') return;
+  // The purse, and the row that is no longer locked or is one rank further up, and nothing else:
+  // buying is not picking (game/hangar.js), so the ship about to be flown does not move.
   showRack(world.ownedShips);
+  showPerks(perkLedger(world));
   showStanding(world.best, world.dust);
+  // ...and a row that ran out of prices is a shorter row, so the panel may need less of the window
+  // than it did a moment ago (ui/screens.js `fitHangar`).
+  fitHangar();
   uiTick('buy');
 }
 
@@ -309,6 +321,8 @@ function onResize() {
   // the screen: it is how spawning knows what is off the edge of it.
   world.view.w = view.W;
   world.view.h = view.H;
+  // ...and the one panel tall enough to run out of window asks whether it still fits.
+  if (hangarIsOpen()) fitHangar();
 }
 
 function describeRun() {
@@ -425,9 +439,14 @@ function boot() {
   // the same reason (game/stardust.js, game/hangar.js).
   world.dust = storedDust();
   world.ownedShips = boughtShips();
+  // ...and the ranks of the permanent perks the purse paid for, read the same once for the same
+  // reason (game/perks.js). A run reads these when it is put together; nothing here is this run's
+  // to lose, and a visit that bought nothing reads four zeros.
+  world.perkRanks = boughtPerks();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust);
   showRack(world.ownedShips);
+  showPerks(perkLedger(world));
   showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
@@ -510,6 +529,9 @@ window.STARFALL = {
       // visit a headless tool cannot otherwise tell, and the prices have to be priced against what
       // runs pay - which means a tool has to see both sides of the purse.
       owned: world.ownedShips.slice(),
+      // ...and how many ranks of each perk it has paid for (game/perks.js), in the table's own
+      // order and clamped to its own ladders, which is the shape a run is built from.
+      perks: perkLedger(world),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

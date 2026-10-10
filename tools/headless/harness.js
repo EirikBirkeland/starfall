@@ -15,7 +15,9 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 import { SHIPS } from '../../src/game/ships.js';
+import { BALANCE } from '../../src/game/balance.js';
 import { priceOf } from '../../src/game/hangar.js';
+import { maxRankOf, PERKS } from '../../src/game/perks.js';
 
 /**
  * The ids of every ship the hangar sells (game/hangar.js), for a test that wants the whole rack
@@ -29,6 +31,26 @@ export function everyShipBought() {
     if (priceOf(ship.id) > 0) bought.push(ship.id);
   }
   return bought;
+}
+
+/**
+ * Every perk at the top of its ladder, for the same reason (game/perks.js): a file about what a
+ * rank *does* should not have to buy four ranks of it first, and a file about the *top* of one
+ * should not be writing the ladder's length out by hand. Pass it as the `hangar.perks` of a
+ * `bootGame({ storage })` document.
+ */
+export function everyPerkBought() {
+  const bought = {};
+  for (const perk of PERKS) bought[perk.id] = maxRankOf(perk.id);
+  return bought;
+}
+
+/** The whole price of one perk's ladder, in stardust (BALANCE.perks). A test that wants to be able
+    to buy a rank and then be refused the next one needs the two numbers the shop uses. */
+export function perkLadderCost(id) {
+  let total = 0;
+  for (const price of BALANCE.perks[id].cost) total += price;
+  return total;
 }
 
 function makeGradient() {
@@ -289,8 +311,10 @@ function makeAudioContextStub(log, now) {
 const ELEMENT_IDS = [
   'game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats',
   'finalBuild', 'shipRow', 'finalDust', 'nextShip',
+  // The hangar's second rack: the perks the purse buys ranks of (index.html, game/perks.js).
+  'perkRow',
   // What the visit has banked, and what the hangar spends it on (index.html).
-  'titleBest', 'titleDust', 'titleShip', 'hangarScreen', 'hangarDust',
+  'titleBest', 'titleDust', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust',
@@ -329,9 +353,11 @@ function makeElement(tag, classes) {
 /**
  * Boot the game with no browser.
  *
- * Options: { root, seed, url, width, height, dpr, audio, storage }
+ * Options: { root, seed, url, width, height, dpr, audio, storage, layout }
  * `seed: null` leaves the game to choose its own, which is what a browser does.
  * Pass `url` (a query string such as '?seed=42') to exercise address-bar seeds.
+ * `layout` says what the page measured for a box, per id: `{ hangarBody: { offsetHeight: 900 } }`.
+ * Nothing is laid out here, so a block answers 0 until a test that cares says what it came to.
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -375,6 +401,29 @@ export async function bootGame(options) {
     elements[id].id = id;
     elements[id].getContext = () => ctx;
     elements[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: width, height: height });
+    // The box's own measurements, as far as a stub without a layout engine can give them: a screen
+    // is the window it is painted on, and a *block* inside one measured nothing at all until a test
+    // says otherwise (`layout` below). ui/screens.js `fitHangar` asks those questions, and 0 is the
+    // honest answer for a page that has not been laid out - which is what it is written to survive.
+    elements[id].clientWidth = width;
+    elements[id].clientHeight = height;
+    elements[id].offsetWidth = 0;
+    elements[id].offsetHeight = 0;
+  }
+
+  /** Move every screen's box with the window (see `setViewport`). */
+  function sizeScreens(w, h) {
+    for (const id of ELEMENT_IDS) {
+      elements[id].clientWidth = w;
+      elements[id].clientHeight = h;
+    }
+  }
+
+  // A test that wants the page to have been *laid out* - because it is about what a panel does with
+  // the room it was given - says what each box came to: `{ hangarBody: { offsetHeight: 900 } }`.
+  for (const id of Object.keys(opts.layout || {})) {
+    if (elements[id] === undefined) throw new Error('the stub DOM has no #' + id);
+    Object.assign(elements[id], opts.layout[id]);
   }
 
   const listeners = {};
@@ -467,6 +516,7 @@ export async function bootGame(options) {
     setViewport(w, h) {
       width = w;
       height = h;
+      sizeScreens(w, h);
       controller.fire('resize', {});
     },
     /** Draw counters, so a test can tell that something was actually painted. */
@@ -598,6 +648,8 @@ export async function bootGame(options) {
         // The hangar: whether it is up, and what its purse says.
         hangarHidden: elements.hangarScreen.classList.contains('hidden'),
         hangarDust: elements.hangarDust.textContent,
+        // How the panel was fitted to the window (ui/screens.js `fitHangar`). '' is "it fit".
+        hangarScale: elements.hangarBody.style.transform || '',
         // The rack, as the player reads it: one line per ship, naming the ship and the gun it
         // brings and the numbers it is priced on, which one is lit up, and which ones the purse has
         // not bought yet (game/ships.js is what they are built from, game/hangar.js what it costs).
@@ -605,6 +657,12 @@ export async function bootGame(options) {
           label: row.children.map((part) => part.textContent).join(' '),
           picked: row.classList.contains('picked'),
           locked: row.classList.contains('locked'),
+        })),
+        // ...and the perk rack beside it: one line per perk, naming the rank the purse is on, what
+        // a rank gives and what the next one costs (game/perks.js, game/hangar.js).
+        perks: elements.perkRow.children.map((row) => ({
+          label: row.children.map((part) => part.textContent).join(' '),
+          maxed: row.classList.contains('maxed'),
         })),
       };
     },

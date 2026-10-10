@@ -114,10 +114,15 @@ test('a number key on the title chooses the ship, and the title says so', () => 
   assert.equal(rows[0].picked, false, 'the old pick went out');
   assert.equal(rows[1].picked, true, 'and the new one is lit');
 
-  // A key past the list changes nothing: nothing is offered at that number, and a silent nothing is
-  // a better answer than a surprise.
+  // The first perk key is not a ship key (game/perks.js owns the numbers after the ships'), so it
+  // cannot move the pick either. It is answered - it puts the rack up, which is where that row
+  // lives - and it has to come back down again for the tests below, which launch with a click and a
+  // click on the rack is not a launch.
   press('Digit' + (SHIPS.length + 1));
   assert.equal(game.stats().ship, SECOND.id, 'the pick stands');
+  assert.equal(game.screen.hangarHidden, false, 'and the rack went up to show the row it named');
+  press('KeyH');
+  assert.equal(game.screen.hangarHidden, true, 'and H takes it away again');
 });
 
 test('the run a title pick launches is flown in that ship, with that gun', () => {  startBotRun(game);

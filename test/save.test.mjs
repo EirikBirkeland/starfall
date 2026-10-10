@@ -183,9 +183,11 @@ test('a remembered set of names is a set: read back deduped, sorted, and with it
   assert.deepEqual(section('hangar', BOUGHT).ships, ['brood', 'bulwark', 'volt']);
 
   const store = browser({});
-  remember('hangar', { ships: ['needle', 'bulwark'] });
+  assert.equal(remember('hangar', { ships: ['needle', 'bulwark'] }), true, 'and it got there');
   assert.deepEqual(parsed(store).hangar.ships, ['bulwark', 'needle'], 'a write sorts on the way in');
   assert.deepEqual(section('hangar', BOUGHT).ships, ['bulwark', 'needle']);
+  assert.deepEqual(section('hangar', { ships: ['wisp'] }).ships, ['bulwark', 'needle'],
+    'a default for a key that is there is not applied');
 });
 
 test('a set that is not a set is not stored, and an empty one is an answer', () => {
@@ -216,45 +218,49 @@ test('a number out of all reason is not remembered', () => {
   assert.equal(section('audio', AUDIO_DEFAULTS).music, 10, 'and a slider with no such position too');
 });
 
-test('a remembered set of names reads the names it can and sorts what is left', () => {
-  // game/hangar.js keeps the ships this save bought as a list of ids (PLAN 3.7), and a list is a
-  // new shape for the store: the wreck is one entry now, not a whole field, so an entry that is not
-  // a name is dropped and its neighbours are kept - one bad line in a half-written page should not
-  // cost a player every ship they own.
-  const HANGAR = { ships: [] };
-  browser(stored({
-    hangar: { ships: ['volt', 'bulwark', 'volt', 3, '', '##', null, 'x'.repeat(40), 'brood'] },
-  }));
+test('a remembered tally of counts is a ledger: read back sorted, and with its rubbish dropped', () => {
+  // The other kind of collection, and the one PLAN 3.7's perks need (game/perks.js): not a yes but a
+  // count. The same bargains as the set, entry by entry - a name that is not a name or a count that
+  // is not a count is dropped and its neighbours are kept, because one mangled entry in a
+  // half-written page must not cost a player every rank they bought.
+  const RANKS = { perks: {} };
+  const junk = { hull: 2, reroll: 5, dust: 0, '##': 3, nope: 'two', slow: -1, big: 1e9, frac: 1.5,
+    nullish: null };
+  junk['x'.repeat(40)] = 1;
+  browser(stored({ hangar: { perks: junk } }));
   assert.equal(saveProblem(), '', 'the document itself is fine');
-  // Sorted, because the same set of ships has to write the same text every time, whoever bought
-  // them in whichever order.
-  assert.deepEqual(section('hangar', HANGAR).ships, ['brood', 'bulwark', 'volt']);
-
-  assert.deepEqual(section('hangar', { ships: ['wisp'] }).ships, ['brood', 'bulwark', 'volt'],
-    'a default for a key that is there is not applied');
-});
-
-test('a set that is not a set is treated as not stored, and an empty one is an answer', () => {
-  const HANGAR = { ships: ['wisp'] };
-  for (const bad of ['bulwark', 4, true, { a: 1 }, ['x'.repeat(40)], [1, 2, 3]]) {
-    browser(stored({ hangar: { ships: bad } }));
-    assert.deepEqual(section('hangar', HANGAR).ships, ['wisp'], JSON.stringify(bad));
-  }
-  // A list longer than the game has things to put in it is not the game's list.
-  const tooMany = [];
-  for (let i = 0; i < 40; i++) tooMany.push('ship' + i);
-  browser(stored({ hangar: { ships: tooMany } }));
-  assert.deepEqual(section('hangar', HANGAR).ships, ['wisp'], 'forty ships is not a rack');
-
-  // But a list with nothing in it is the plainest answer there is: nothing bought yet.
-  browser(stored({ hangar: { ships: [] } }));
-  assert.deepEqual(section('hangar', HANGAR).ships, [], 'a first visit remembers nothing, on purpose');
+  assert.deepEqual(section('hangar', RANKS).perks, { dust: 0, hull: 2, reroll: 5 },
+    'the entries that are a name and a count are all of it');
 
   const store = browser({});
-  assert.equal(remember('hangar', { ships: ['volt', 'bulwark'] }), true);
-  assert.deepEqual(parsed(store).hangar.ships, ['bulwark', 'volt'], 'a write sorts on the way in');
-  assert.throws(() => remember('hangar', { ships: 'volt' }), /refusing to remember hangar.ships/);
-  assert.throws(() => section('hangar', { ships: 'volt' }), /cannot default hangar.ships/);
+  assert.equal(remember('hangar', { perks: { banish: 3, hull: 1 } }), true);
+  assert.deepEqual(parsed(store).hangar.perks, { banish: 3, hull: 1 },
+    'a write sorts on the way in, so the same ledger writes the same text');
+  assert.deepEqual(section('hangar', RANKS).perks, { banish: 3, hull: 1 });
+});
+
+test('a tally that is not a tally is not stored, and an empty one is an answer', () => {
+  const RANKS = { perks: { hull: 4 } };
+  // Not a map at all, and a map with nothing a count is any more: both are the field being the wrong
+  // kind, so the feature falls back to its own default like any other wreck.
+  for (const bad of ['hull', 4, true, [], [1, 2, 3], { a: 'b' }, { '##': 2 }, { hull: -1 }]) {
+    browser(stored({ hangar: { perks: bad } }));
+    assert.deepEqual(section('hangar', RANKS).perks, { hull: 4 }, JSON.stringify(bad));
+  }
+  // A map with more names in it than the game could ever fill is not the game's ledger either - and
+  // a ledger is one field, so half of it cannot be kept without the rest coming along.
+  const tooMany = {};
+  for (let i = 0; i < 40; i++) tooMany['perk' + i] = 1;
+  browser(stored({ hangar: { perks: tooMany } }));
+  assert.deepEqual(section('hangar', RANKS).perks, { hull: 4 }, 'forty perks is not a rack');
+
+  // But an empty map is the plainest answer there is: nothing bought yet.
+  browser(stored({ hangar: { perks: {} } }));
+  assert.deepEqual(section('hangar', RANKS).perks, {}, 'a first visit remembers nothing, on purpose');
+
+  assert.throws(() => remember('hangar', { perks: 'hull' }), /refusing to remember hangar.perks/);
+  assert.throws(() => remember('hangar', { perks: { hull: 'two' } }), /refusing to remember/);
+  assert.throws(() => section('hangar', { perks: 'hull' }), /cannot default hangar.perks/);
 });
 
 test('fields this build has never heard of are dropped, and stay dropped', () => {

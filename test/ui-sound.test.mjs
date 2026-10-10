@@ -30,8 +30,9 @@ const FRAME = 16.7;
 
 // Everything on the rack bought but the last row, and the purse exactly big enough for that one:
 // this file is about what the interface sounds like, and spending stardust on a ship is one of the
-// sounds it has to have (game/hangar.js).
-const LAST_ROW = SHIPS[SHIPS.length - 1].id;
+// sounds it has to have (game/hangar.js). One row locked, one purchase possible, and nothing else
+// the purse could be quietly spending in a test about sound.
+const PURSE = BALANCE.ships[SHIPS[SHIPS.length - 1].id].cost;
 const game = await bootGame({
   root: ROOT,
   seed: 21,
@@ -39,7 +40,7 @@ const game = await bootGame({
   storage: {
     'starfall.save': JSON.stringify({
       version: 1,
-      meta: { dust: BALANCE.ships[LAST_ROW].cost },
+      meta: { dust: PURSE },
       hangar: { ships: everyShipBought().slice(0, -1) },
     }),
   },
@@ -123,12 +124,17 @@ test('picking a ship answers with a note', () => {
   assert.ok(sweptTo(at, UI.pick.slide), 'and it rose, which is what a beginning sounds like');
 });
 
-test('a number with no ship behind it says nothing', () => {
-  // The rule the whole row lives by: a tick answers a press that was taken. Six ships are on the
-  // rack and `Digit9` is not one of them, so the key is refused - in silence, like the title has
-  // always refused it (main.js `onPickCard`).
+test('a perk key shows the rack and spends nothing', () => {
+  // The rule the whole row lives by: a tick answers a press that *took* something. The last number
+  // key belongs to a perk row now (game/perks.js counts on from the ships'), so `Digit9` is not a
+  // refused key - it is an answered one, answered with the panel that says what the row costs. That
+  // is the door's own note and not the purse's: nothing was bought, so the buy note is not owed.
   const at = tap('Digit9');
-  assert.equal(notesSince(at).length, 0, 'a refused key made ' + notesSince(at).join(', '));
+  assert.ok(heard(at, UI.open.freq), 'the panel did not come up: ' + notesSince(at).join(', '));
+  assert.ok(!heard(at, UI.buy.freq), 'and a key that bought nothing was paid for');
+  assert.equal(game.stats().dust, PURSE, 'and the purse did not move');
+  tap('KeyH');
+  assert.equal(game.screen.hangarHidden, true, 'and H takes the panel away again');
 });
 
 test('buying a ship answers with a note of its own', () => {
@@ -150,6 +156,16 @@ test('a ship that is already bought is not for sale twice', () => {
   const at = tap('Digit' + SHIPS.length, { shiftKey: true });
   assert.equal(notesSince(at).length, 0, 'a ship already owned made a sound');
   assert.equal(game.stats().dust, 0, 'and it did not charge for it either');
+});
+
+test('a rank the purse cannot cover is refused in silence', () => {
+  // The other half of the rack, and the same bargain (game/hangar.js answers 'short' by keeping
+  // everything where it was): the empty purse is offered the first rank of the first perk and takes
+  // none of it, and a refused press is the one thing a tick must not answer.
+  const at = tap('Digit' + (SHIPS.length + 1), { shiftKey: true });
+  assert.equal(notesSince(at).length, 0, 'a purchase that did not happen made a sound');
+  assert.equal(game.stats().dust, 0, 'and it took what it did not have');
+  assert.equal(game.stats().perks.hull, 0, 'and no rank arrived with it');
   tap('KeyH');                               // back out to the title for the tests below
 });
 

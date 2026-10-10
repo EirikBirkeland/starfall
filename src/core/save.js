@@ -62,6 +62,10 @@ const NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 // is stored is not the game's own list, and a field nobody can account for is dropped whole.
 const MAX_NAMES = 32;
 
+// ...and no tally of theirs reaches this high either. A perk has five ranks and an achievement is
+// worth one, so a count of a thousand is not a count the game made.
+const MAX_COUNT = 1000;
+
 /**
  * What a remembered thing is allowed to be. A kind answers with the value it was given, or
  * null for "that is not one of these". A whole number is a non-negative integer: every number
@@ -100,6 +104,33 @@ const KINDS = {
     if (kept.length > max) return null;
     return kept.sort();
   },
+  /**
+   * A tally of short names to whole numbers: how many ranks of each permanent perk the purse has
+   * bought (game/perks.js, PLAN 3.7). Where `names` is a set - a ship is bought or it is not - this
+   * is a ledger, and a ledger of a hundred names would be as much use as a ledger of a hundred
+   * ships, so it is one field of a map rather than a key per perk that the store would have to
+   * know about by name.
+   *
+   * The same bargains as the set, entry by entry: a name that is not a name or a count that is not a
+   * count in `0..maxCount` is dropped and its neighbours are kept, a map with entries that yield
+   * nothing is not this field at all, a map bigger than the game could fill is dropped whole, and
+   * an empty map is a real answer - nothing bought yet. Keys come out sorted, so the same ledger
+   * always writes the same text.
+   */
+  counts: (maxNames, maxCount) => (value) => {
+    if (!isPlainObject(value)) return null;
+    const kept = {};
+    const names = Object.keys(value).sort();
+    for (const name of names) {
+      if (!NAME.test(name)) continue;
+      const count = value[name];
+      if (!Number.isInteger(count) || count < 0 || count > maxCount) continue;
+      kept[name] = count;
+    }
+    if (names.length > 0 && Object.keys(kept).length === 0) return null;
+    if (Object.keys(kept).length > maxNames) return null;
+    return kept;
+  },
 };
 
 // The document's definition: the sections, and the kind of every key in them. A section that is
@@ -111,9 +142,13 @@ const SCHEMA = {
   score: { best: KINDS.whole(MAX_WHOLE) },
   // The purse between runs (game/stardust.js, PLAN 3.7).
   meta: { dust: KINDS.whole(MAX_WHOLE) },
-  // What the purse has bought (game/hangar.js, PLAN 3.7): the ships whose price has been paid.
-  // A set of ship ids, and the ship table is what decides what each one is worth. Perks join it.
-  hangar: { ships: KINDS.names(MAX_NAMES) },
+  // What the purse has bought (game/hangar.js, PLAN 3.7): the ships whose price has been paid - a
+  // set of ship ids, and the ship table decides what each one is worth - and the ranks of each
+  // permanent perk it has paid for, which is a count and not a yes, so it is the other kind.
+  hangar: {
+    ships: KINDS.names(MAX_NAMES),
+    perks: KINDS.counts(MAX_NAMES, MAX_COUNT),
+  },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again
   // to its own travel when it applies them.

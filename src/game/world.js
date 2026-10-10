@@ -38,6 +38,7 @@ import { firstLevelXp } from './progress.js';
 import { newRanks } from './upgrades.js';
 import { defaultWeapon } from './weapons.js';
 import { defaultShip, shipBody } from './ships.js';
+import { newPerkRanks } from './perks.js';
 
 function createWorld() {
   const spec = BALANCE.player;
@@ -92,6 +93,11 @@ function createWorld() {
     // run spends what is in here, it does not empty it. The free ship is not in the list - it is
     // free to anybody - so an empty array means "nothing bought yet", which is a first visit.
     ownedShips: [],
+    // Which ranks of the perks the purse has bought (game/perks.js, spent in game/hangar.js),
+    // name to count. Like the purse and the ships it is read out of the save when the visit
+    // opens and a run's to spend, not to lose. `resetRun` never touches it - the ranks a run
+    // flies *with* are the ledger's, and the ledger only grows between runs.
+    perkRanks: newPerkRanks(),
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),

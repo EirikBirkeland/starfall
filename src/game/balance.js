@@ -263,6 +263,24 @@ export const BALANCE = {
     won: 500,           // ...and for walking the whole schedule out at all
   },
 
+  // The perks: ranks bought in the hangar between runs (PLAN 3.7). The table lives in game/perks.js
+  // and the money in game/hangar.js; this is the price sheet, and it is priced in the same coin
+  // the ships above are - what a run actually leaves behind, as measured, not what a wish earns.
+  // That is what a first rank is (a run or two: the first purchase should be a second run that
+  // starts slightly different) and what a full ladder is (an evening or a night of the arena,
+  // which is the order a hangar's wants should run in: ranks before ships, and the late ranks of
+  // one before the first rank of the next).
+  //
+  // The Gleaner is the only row that is priced in itself: a rank of it multiplies every other
+  // line on this screen, so it climbs faster than the rest, and the rack reads it as the row
+  // that saves, not spends.
+  perks: {
+    hull:     { ranks: 5, step: 1,  says: 'HULL',     cost: [120, 300, 600, 1200, 2400] },
+    dust:     { ranks: 5, step: 10, says: 'STARDUST', percent: true, cost: [150, 400, 900, 1800, 3200] },
+    reroll:   { ranks: 5, step: 1,  says: 'REROLL',   cost: [80, 200, 500, 1000, 1500] },
+    banish:   { ranks: 5, step: 1,  says: 'BANISH',   cost: [80, 200, 500, 1000, 1500] },
+  },
+
   // The primaries (PLAN 3.2). One is flown at a time, and it comes with the ship that was picked
   // (game/ships.js); `default` is what a run that has not picked anything flies.
   //

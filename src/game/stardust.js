@@ -26,6 +26,7 @@
 
 import { BALANCE } from './balance.js';
 import { remember, section } from '../core/save.js';
+import { dustGainOf } from './perks.js';
 
 /**
  * What the purse stood at when this visit opened, or 0 when the document had nothing to say.
@@ -40,13 +41,19 @@ export function storedDust() {
 /**
  * Everything this run has earned, whether or not it has been paid yet. Every number it reads is
  * one a run can only ever add to, which is what makes "pay the difference" a sound rule.
+ *
+ * The Gleaner's ranks are multiplied in here and nowhere else (game/perks.js), because this is the
+ * one line that says what a run is worth: a rank then pays on the score, on the fights and on the
+ * win at once, and cannot be forgotten by the next reward somebody adds below. Rounded, because a
+ * purse is spent in whole stardust and `payForRun` pays the difference between two of these - a
+ * fractional worth would be a purse that pays `NaN` the moment anybody adds it to a price.
  */
 export function dustForRun(world) {
   const spec = BALANCE.stardust;
   const fromScore = Math.floor(world.score / spec.perScore);
   const fromBosses = world.bossesDown * spec.perBoss;
   const forWinning = world.won ? spec.won : 0;
-  return fromScore + fromBosses + forWinning;
+  return Math.round((fromScore + fromBosses + forWinning) * dustGainOf(world));
 }
 
 /**

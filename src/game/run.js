@@ -13,6 +13,7 @@ import { newTally, noteVictory, noteEndless } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
 import { applyShip } from './ships.js';
+import { extraBanishesOf, extraRerollsOf, startingHullOf } from './perks.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
@@ -135,12 +136,25 @@ export function resetRun(world) {
   // ...and with nothing owed and nothing refused: the two asks a run gets about its own
   // deal are spent by the run that spent them (game/upgrades.js).
   resetAsks(world);
+  // ...and the ranks the hangar paid for are added to both: a run whose purse bought a reroll has
+  // one more deal to ask for than one that bought none (game/perks.js). Added after the grant and
+  // not inside it, so `BALANCE.cards` stays "what a run is given" and the perk stays "what was
+  // bought" - and a rank is never a reason a ship cannot be measured by a tool that bought nothing.
+  world.rerollsLeft += extraRerollsOf(world);
+  world.banishesLeft += extraBanishesOf(world);
   // And now the ship itself goes on: its hull, its engines, its dash's wait, its silhouette,
   // and any upgrade rank it arrived with (game/ships.js). After the ranks are cleared, because
   // a ship that starts with a rank of something has to spend it on a table that has been wiped
   // and not on the last run's; and after everything else, because nothing between here and the
   // first step should be able to overwrite a body that has just been written.
   applyShip(world);
+  // ...and the plating the hangar bought goes over that body, on the hull *and* the maximum, so a
+  // ship that starts on three pips starts on four-and-a-rank rather than on three with a hole in
+  // the top of the bar (game/perks.js `startingHullOf`). After `applyShip` for the same reason the
+  // ship itself is applied after the ranks: the last thing written to the hull wins.
+  const plating = startingHullOf(world);
+  ship.hull += plating;
+  ship.maxHull += plating;
   world.offer.length = 0;
   world.pendingLevels = 0;
   world.offerTime = 0;

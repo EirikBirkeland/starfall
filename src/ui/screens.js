@@ -8,7 +8,8 @@
 // world is doing, to buy a screen that only ever sits on top of two of them.
 
 import { SHIPS } from '../game/ships.js';
-import { priceOf, shipIsBought } from '../game/hangar.js';
+import { priceOf, shipIsBought, perkPriceOf } from '../game/hangar.js';
+import { maxRankOf, PERKS, rankWords } from '../game/perks.js';
 import { BALANCE } from '../game/balance.js';
 import { lineOf } from '../game/upgrades.js';
 import { uiTick } from '../audio/sfx.js';
@@ -21,6 +22,12 @@ let shipRows = [];
 // The price line of each row, kept beside the row for the same reason: so painting a purchase is
 // `shipPrices[i].textContent = ...` and not `children[3]` (buildShipRow).
 let shipPrices = [];
+
+// The perk rack, in the same two shapes: the row, and the lines on it that say what a rank gives and
+// what the next one costs (game/perks.js is the table, game/hangar.js the price).
+let perkRows = [];
+let perkNumbers = [];
+let perkPrices = [];
 
 // Whether the hangar is up right now. `hideScreens` clears it with the screens themselves, so
 // there is no path where a run is flying and this still says open.
@@ -115,6 +122,47 @@ function shipWords(id) {
   return spec.name + ' \u00b7 ' + BALANCE.weapons[spec.weapon].name;
 }
 
+/**
+ * The number key a perk row answers to: the ship keys are used up by the ships (game/ships.js,
+ * 1-5 in rack order), so the perk keys count on from the last one and the whole hangar stays the
+ * one numbered list game/hangar.js `buyRackByIndex` reads a key as.
+ */
+function perkKey(index) {
+  return SHIPS.length + index + 1;
+}
+
+/** One line of the perk rack: the key, what the perk is for, which rank the purse is on and what a
+    rank gives, and what the next one costs (painted by `showPerks`). */
+function buildPerkRow(perk, index) {
+  const row = document.createElement('div');
+  row.classList.add('perk');
+
+  const key = document.createElement('span');
+  key.classList.add('key');
+  key.textContent = String(perkKey(index));
+
+  const what = document.createElement('span');
+  what.textContent = perk.name + ' \u2014 ' + perk.blurb;
+
+  const numbers = document.createElement('span');
+  numbers.classList.add('numbers');
+  perkNumbers.push(numbers);
+  // Left empty on purpose. `showPerks` owns both of the second and third lines of a perk row,
+  // because both of them are about what the purse has and has not done and neither is known when
+  // the rack is built.
+
+  const price = document.createElement('span');
+  price.classList.add('price');
+  perkPrices.push(price);
+
+  row.appendChild(key);
+  row.appendChild(what);
+  row.appendChild(numbers);
+  row.appendChild(price);
+  el.perkRow.appendChild(row);
+  return row;
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -133,7 +181,9 @@ export function initScreens() {
     winBuild: document.getElementById('winBuild'),
     winHint: document.getElementById('winHint'),
     shipRow: document.getElementById('shipRow'),
+    perkRow: document.getElementById('perkRow'),
     hangar: document.getElementById('hangarScreen'),
+    hangarBody: document.getElementById('hangarBody'),
     hangarDust: document.getElementById('hangarDust'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
@@ -144,6 +194,9 @@ export function initScreens() {
   };
   shipPrices = [];
   shipRows = SHIPS.map(buildShipRow);
+  perkNumbers = [];
+  perkPrices = [];
+  perkRows = PERKS.map(buildPerkRow);
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
@@ -162,10 +215,54 @@ export function hideScreens() {
   closeHangar();
 }
 
-/** Put the hangar up over whatever screen is already there. */
+/** Put the hangar up over whatever screen is already there, and fit it to the window on the way. */
 export function openHangar() {
   el.hangar.classList.remove('hidden');
   hangarUp = true;
+  fitHangar();
+}
+
+/**
+ * The most a rack can be shrunk and still be words rather than texture (see `scaleToFit`).
+ */
+const RACK_MIN = 0.6;
+
+/**
+ * How far a block has to be shrunk to fit the box it was given: 1 when it fits, and 1 when either
+ * measure is nothing at all.
+ *
+ * The nothing case is the one that would bite. A page that has not been laid out answers 0 for a
+ * box, and 0 over 0 is a `NaN` in a transform, which is how an entire screen of text vanishes.
+ * The floor is honesty too: a window half the size the racks need is not a window they should be
+ * shrunk into, because type that small is not readable and a clipped panel still is.
+ */
+export function scaleToFit(need, have) {
+  if (!(need.w > 0) || !(need.h > 0) || !(have.w > 0) || !(have.h > 0)) return 1;
+  const scale = Math.min(have.w / need.w, have.h / need.h, 1);
+  return scale < RACK_MIN ? RACK_MIN : scale;
+}
+
+/**
+ * Fit the racks to the window, by shrinking the whole panel and not one part of it.
+ *
+ * Five ships and four perks are nine rows of three lines each, which is a taller column than a
+ * short window has - and every screen here is click-through and none of it scrolls, so a rack that
+ * does not fit is a rack whose last rows, and whose prices, nobody will ever see. The two racks go
+ * side by side when there is room and one over the other when there is not (index.html `.racks`);
+ * this is what is left over after that, and it scales the lot as one picture, so the type keeps its
+ * size *relative to itself* and the panel stays centred in the glass it is painted on.
+ *
+ * Called when the panel goes up, when the rows are repainted, and when the window changes size:
+ * `offsetHeight` is a layout question, and those three are the moments the answer can change.
+ */
+export function fitHangar() {
+  const body = el.hangarBody;
+  if (body === null) return;
+  const scale = scaleToFit(
+    { w: body.offsetWidth, h: body.offsetHeight },
+    { w: el.hangar.clientWidth, h: el.hangar.clientHeight });
+  // No transform at all when it fits, so the common case costs nothing and leaves nothing to undo.
+  body.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(3) + ')';
 }
 
 /** Take it away again, leaving the screen underneath exactly as it was. */
@@ -206,6 +303,34 @@ export function showRack(owned) {
     shipPrices[i].textContent = bought
       ? ''
       : cost.toLocaleString('en-US') + ' STARDUST   \u00b7   SHIFT + ' + (i + 1) + ' BUYS IT';
+  }
+}
+
+/**
+ * Paint the ranks the purse has bought and the price of the next one (game/hangar.js). Called once
+ * when the visit opens and again after every rank is bought, for the same reason the ship rack is:
+ * a row that still says "buy me" after being paid for is the shop taking the money twice.
+ *
+ * `ranks` is the ledger as game/perks.js prints it - one key per perk, no count above the row's own
+ * ladder - so a row always knows both what it holds and how far it goes, and a rank some newer page
+ * bought past this build's ladder reads as the top of this build's ladder rather than as `6 OF 5`.
+ *
+ * A row at the top of its ladder keeps every word it had and loses only its price line, which is the
+ * same bargain a bought ship row strikes: nothing is hidden about a thing that has been paid for.
+ */
+export function showPerks(ranks) {
+  for (let i = 0; i < perkRows.length; i++) {
+    const id = PERKS[i].id;
+    const held = ranks[id] === undefined ? 0 : ranks[id];
+    const max = maxRankOf(id);
+    const maxed = held >= max;
+    perkRows[i].classList.toggle('maxed', maxed);
+    perkNumbers[i].textContent =
+      'RANK ' + held + ' OF ' + max + '   \u00b7   ' + rankWords(id);
+    perkPrices[i].textContent = maxed
+      ? ''
+      : perkPriceOf(id, held).toLocaleString('en-US') + ' STARDUST   \u00b7   SHIFT + '
+        + perkKey(i) + ' BUYS RANK ' + (held + 1);
   }
 }
 
