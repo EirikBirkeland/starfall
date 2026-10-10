@@ -35,15 +35,30 @@
   }
   .screen.hidden { opacity: 0; visibility: hidden; }
 
-  .title {
+  /* The mark. STARFALL is drawn on the canvas (render/logo.js) and not typed, and this element is
+     the space it belongs in: the column is flex-centred and the canvas cannot ask what flexbox did,
+     so the mark measures this box for where to sit and bounds itself by it. The word is in here as a
+     real heading for anything that reads the page instead of looking at it - kept out of the way
+     rather than left out, so the page still says its own name with or without a canvas. */
+  .logo {
     margin: 0;
-    font-size: clamp(42px, 11vw, 108px);
-    font-weight: 800;
-    letter-spacing: .24em;
-    text-indent: .24em;
-    color: #eafcff;
-    text-shadow: 0 0 10px rgba(94,247,255,.95), 0 0 38px rgba(94,247,255,.55), 0 0 92px rgba(139,108,255,.45);
+    width: min(92vw, 880px);
+    height: clamp(56px, 13.5vh, 132px);
   }
+  .logo .sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  /* The title's own arrival: the mark lights first on the canvas and the words under it rise in
+     after it, block by block (the delays below are timed against render/logo.js's own). Each one is
+     a quarter of a second, which is PLAN section 4's rule for a screen changing; it is the order
+     that takes the second, not any single fade. Nothing has to be held at opacity 0 for this to
+     work - `both` is what keeps a block off the glass until its delay is spent - so a visitor who
+     asked for calm motion, below, gets every word already in place. */
+  .rise { animation: rise .24s ease-out both; }
+  .subtitle.rise { animation-delay: .6s; }
+  .controls.rise { animation-delay: .76s; }
+  .standing.rise { animation-delay: .92s; }
   .subtitle {
     margin: 10px 0 0;
     font-size: clamp(10px, 1.8vw, 14px);
@@ -141,6 +156,13 @@
   /* The hangar: the rack, and the purse it is spent from. It is an overlay over the title or over
      the death's card, so it dims harder than either - the screen underneath is not the thing being
      read any more. */
+  /* The title is the one screen whose background is part of what it is showing: the arena drifts
+     behind the mark on purpose (PLAN section 4 asks for the starfield live behind the logo), so it
+     dims less than a panel that is trying to be read. The mark is additive light and the crowd is
+     dim already - the two of them want to be seen together. */
+  #startScreen {
+    background: radial-gradient(ellipse at center, rgba(8,18,44,.24) 0%, rgba(2,4,12,.78) 100%);
+  }
   .hangar { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
   .hangar-title,
   .codex-title {
@@ -245,12 +267,14 @@
     .rack-title { margin-top: 12px; }
     .hangar-title { font-size: 26px; }
     .purse { margin-top: 8px; }
+    .logo { height: 56px; }
     .ship-list { gap: 6px; }
     .perk-list { gap: 6px; }
     .hint { margin-top: 16px; }
     .keys { margin-top: 8px; }
   }
   @keyframes pulse { 0%,100% { opacity: .30; } 50% { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
   .over-title {
     margin: 0; font-size: clamp(30px, 7vw, 64px); font-weight: 800;
@@ -270,6 +294,12 @@
     text-shadow: 0 0 16px rgba(88,255,161,.8); animation: pulse 1.1s ease-in-out infinite;
   }
   .newbest.hidden { opacity: 0; visibility: hidden; }
+  /* One line on a screen that is up and not ready to be answered yet. `.screen.hidden` covers a whole
+     screen and `.newbest.hidden` its own line; this is the third case, and without it the win's
+     "press" line sits on the glass through the whole guard that line exists to wait out - while
+     taking up its space either way, so the card does not jump when the invitation finally arrives.
+     */
+  .hint.hidden { visibility: hidden; }
   .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
   .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }
   /* What a run paid that it can spend, and what the purse holds now: gold like the best above it,
@@ -325,15 +355,22 @@
     .award-line { margin-top: 4px; }
     .next-line { margin-top: 8px; }
   }
+  /* Last, so it outvotes every `animation:` above it without a fight: a visitor who has asked their
+     machine for as little movement as it can give gets the pulsing lines, the launch hint and the
+     title's arrivals as they settle - present and steady. The canvas reads the same query
+     (render/canvas.js `calmMotion`) and puts the mark up already lit. */
+  @media (prefers-reduced-motion: reduce) {
+    .rise, .hint, .newbest { animation: none; }
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="startScreen" class="screen">
-  <h1 class="title">STARFALL</h1>
-  <p class="subtitle">NEON ARENA SURVIVAL</p>
-  <div class="controls">
+  <h1 class="logo" id="logoBox"><span class="sr">STARFALL</span></h1>
+  <p class="subtitle rise">NEON ARENA SURVIVAL</p>
+  <div class="controls rise">
     <div class="row"><span class="key">W A S D / &#8593;&#8592;&#8595;&#8594;</span><span>FLY</span></div>
     <div class="row"><span class="key">MOUSE</span><span>AIM</span></div>
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
@@ -344,7 +381,7 @@
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
     <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
   </div>
-  <div class="standing">
+  <div class="standing rise">
     <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
     <div class="standing-line" id="titleAwards">AWARDS 0 OF 0</div>
     <div class="flying" id="titleShip">FLYING</div>

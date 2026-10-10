@@ -19,6 +19,7 @@ import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
 import { drawVolumePanel } from './volume.js';
 import { drawToasts } from './toast.js';
+import { drawLogo } from './logo.js';
 import { drawCards } from './cards.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
@@ -162,6 +163,10 @@ export function renderFrame(tick, input, pointer) {
   // dim the one warning that has to be seen in a corner.
   if (world.state === STATE.PLAY) drawIndicators(ctx, tick.dt, tick.alpha);
   if (world.state !== STATE.START) drawHUD(ctx, tick.fps);
+  // The mark, while the world is on its title screen. Out here - past the vignette and the shake -
+  // it belongs to the glass and not to the arena, so nothing it says can wobble or dim just because
+  // something over the crowd just went off (render/logo.js).
+  if (world.state === STATE.START) drawLogo(ctx);
   // Last of all, over the interface it pauses: the run is holding still and the whole
   // window belongs to the choice (game/upgrades.js).
   if (world.state === STATE.LEVEL) drawCards(ctx, pointer);

@@ -74,7 +74,7 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(busy.stamps > 5000, 'glow sprites are doing the shining: ' + busy.stamps);
   assert.equal(busy.shadows, 0, 'nothing asked the canvas for a blur');
   assert.equal(busy.gradients, 0, 'nothing built a gradient this frame');
-  assert.ok(glowStats().holders < 35, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  assert.ok(glowStats().holders < 36, 'and it came from a bounded few sprites: ' + glowStats().holders);
   // (34, and the same run on the commit before the ship owned a fire stood at 27: two sprites
   // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
   // - and the ninth card tint asked for one more. Chill is two more still - the rime, and the
@@ -89,6 +89,10 @@ test('a busy frame paints light without blurring and without gradients', () => {
   // cost: the icon's glow of its own hue, and the one lit eye a standing mine stamps however many
   // of them are on screen (game/mines.js). The rest is one per kind's colour and halo, plus the
   // ship, the shards and the cards.)
+  //
+  // One of them belongs to a screen no run is played on: the title's mark asks for exactly one sprite
+  // (render/logo.js), the hot `spark` at 40 that serves as the pen tip drawing a letter and as the
+  // head of the falling star, stamped at whatever size the frame wants. The bound went to 36 for it.
 });
 
 test('a steady frame builds nothing at all', () => {

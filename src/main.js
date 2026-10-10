@@ -26,7 +26,7 @@ import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { section, saveIsWritable, saveProblem } from './core/save.js';
 import { storedDust, dustForRun } from './game/stardust.js';
-import { initCanvas, resizeCanvas, view } from './render/canvas.js';
+import { initCanvas, resizeCanvas, view, calmMotion } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
 import { updateNebula } from './render/nebula.js';
@@ -39,6 +39,7 @@ import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
+import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -77,6 +78,11 @@ let winHintRevealed = false;
 // The score the save document has a section for (core/save.js). A visit with nothing stored
 // starts from no best at all, which is what makes the first run of a new browser a new best.
 const SAVED_SCORE = { best: 0 };
+
+// The empty heading the title mark is measured against (index.html, render/logo.js). Taken once at
+// boot beside the canvas itself, because the frame loop has no business asking the page for an
+// element, let alone where it ended up.
+let logoBox = null;
 
 // How the save document answered when this visit opened: '' when it held a document this build
 // could use and otherwise what was wrong with it, and whether this visit may write at all (not
@@ -359,6 +365,9 @@ function openRack() {
 function onResize() {
   resizeCanvas();
   buildStars();
+  // The mark belongs where the title's own column put it, and a resize is the one moment the page
+  // gets to change its mind about that (render/logo.js).
+  measureLogo(logoBox);
   // The arena is its own size now, so a resize only tells the simulation how big
   // the window watching it has become - which is all it ever needs to know about
   // the screen: it is how spawning knows what is off the edge of it.
@@ -434,6 +443,11 @@ function frame(now) {
   advanceVolumePanel(tick.dt);
   // ...and so do the award plates, which hold and fade on the same clock (render/toast.js).
   advanceToasts(tick.dt);
+  // ...and so does the title's mark, which is arriving or breathing while the world sits on its
+  // title screen (render/logo.js). Its clock runs whatever the world is doing: nothing about a run
+  // can be waiting on it, and the alternative - winding it back up every time the title came back -
+  // would be a reset the frame loop has no reason to own.
+  advanceLogo(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.
   let heard = false;
@@ -489,7 +503,12 @@ function frame(now) {
 function boot() {
   initScreens();
   initCanvas(document.getElementById('game'));
+  logoBox = document.getElementById('logoBox');
   onResize();
+  // Whether this visitor asked for as little movement as the machine can give (the same query the
+  // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the
+  // window, and the title is the only thing in the game that moves on the strength of it.
+  setCalmMotion(calmMotion());
   // The mixer first, before anything can make a sound or paint a level: the two sliders and the
   // mute come back from wherever the last visit left them (core/save.js).
   const mixer = restoreAudio();

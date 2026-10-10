@@ -966,7 +966,20 @@ When every item above is ticked, go back to the first unchecked item of mileston
       hangar, which was the one part of it nobody could look at.)
 
 ### Milestone 9: interface and access
-- [ ] Animated title screen and logo.
+- [x] Animated title screen and logo. (`render/logo.js` draws STARFALL as neon tubes: an alphabet of
+      six angular letters, each one a few straight lengths stroked three times from a wide halo to a
+      hot core, and no font anywhere in it. The title arrives by writing itself - a pen lights a
+      letter every 0.09 s, then the rule under the word shoots out from the middle - and the words
+      below it rise in after it (index.html `.rise`, a quarter of a second each, which is section 4's
+      rule for a screen changing). Then it never quite sits still: the word breathes, a shine travels
+      along it, and a star falls past - tilted the way the sky's own drift falls - every seven
+      seconds, lighting the letters as it passes. *Where* it sits is the DOM's answer and not the
+      canvas's: `#logoBox` is an empty heading inside the flex-centred column and main.js measures it
+      at boot and on every resize, because the canvas cannot ask what flexbox did. Its size comes from
+      that box too, bounded by it rather than read off it, so a page that measured nothing cannot get a
+      windowful of letters by accident. `prefers-reduced-motion` is read twice - the CSS stops its
+      fades and the canvas puts the mark up already lit and holds it there - and the starfield and the
+      attract crowd were already live behind the title.)
 - [ ] Pause screen with stats.
 - [ ] Full game over summary.
 - [ ] Settings screen with everything from section 6.

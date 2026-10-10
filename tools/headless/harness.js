@@ -321,6 +321,10 @@ const ELEMENT_IDS = [
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
   'logRow',
+  // The box the title's mark is measured against (index.html, render/logo.js). It is the one element
+  // on the page that is not a screen: an empty heading whose rectangle in the flex column is where
+  // the drawn word belongs.
+  'logoBox',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',
@@ -405,11 +409,13 @@ function awardRow(row) {
 /**
  * Boot the game with no browser.
  *
- * Options: { root, seed, url, width, height, dpr, audio, storage, layout }
+ * Options: { root, seed, url, width, height, dpr, audio, storage, layout, motion }
  * `seed: null` leaves the game to choose its own, which is what a browser does.
  * Pass `url` (a query string such as '?seed=42') to exercise address-bar seeds.
- * `layout` says what the page measured for a box, per id: `{ hangarBody: { offsetHeight: 900 } }`.
+ * `layout` says what the page measured for a box, per id: `{ hangarBody: { offsetHeight: 900 } }`,
+ * or `{ logoBox: { rect: { left, top, width, height } } }` for a box with a place as well as a size.
  * Nothing is laid out here, so a block answers 0 until a test that cares says what it came to.
+ * `motion: 'reduce'` says the visitor asked for as little movement as the machine can give.
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -452,7 +458,7 @@ export async function bootGame(options) {
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
-    elements[id].getBoundingClientRect = () => ({ left: 0, top: 0, width: width, height: height });
+    elements[id].getBoundingClientRect = () => rectOf(elements[id]);
     // The box's own measurements, as far as a stub without a layout engine can give them: a screen
     // is the window it is painted on, and a *block* inside one measured nothing at all until a test
     // says otherwise (`layout` below). ui/screens.js `fitHangar` asks those questions, and 0 is the
@@ -469,6 +475,25 @@ export async function bootGame(options) {
       elements[id].clientWidth = w;
       elements[id].clientHeight = h;
     }
+  }
+
+  /**
+   * Where an element sits. Every screen here is `fixed; inset: 0`, so the window is the honest
+   * answer for all of them - except for a box a test has said something else about through
+   * `layout: { logoBox: { rect: { left, top, width, height } } }`, which is how a test says where
+   * the title's mark was laid out (render/logo.js `measureLogo`).
+   */
+  function rectOf(el) {
+    const rect = el.rect;
+    if (rect === undefined || rect === null) {
+      return { left: 0, top: 0, width: width, height: height };
+    }
+    return {
+      left: rect.left === undefined ? 0 : rect.left,
+      top: rect.top === undefined ? 0 : rect.top,
+      width: rect.width === undefined ? 0 : rect.width,
+      height: rect.height === undefined ? 0 : rect.height,
+    };
   }
 
   // A test that wants the page to have been *laid out* - because it is about what a panel does with
@@ -495,6 +520,11 @@ export async function bootGame(options) {
       setItem: (key, value) => { store[key] = String(value); },
     },
     requestAnimationFrame(handler) { rafQueue.push(handler); return rafQueue.length; },
+    // The one media query the game reads (render/canvas.js `calmMotion`). `motion: 'reduce'` is how
+    // a test boots a visitor who asked for as little movement as possible.
+    matchMedia(query) {
+      return { matches: opts.motion === 'reduce' && /reduced-motion/.test(String(query)) };
+    },
   };
   if (opts.audio) {
     // The audio clock is the frame clock, so a voice ages as the run ages (see the stub).
@@ -575,8 +605,8 @@ export async function bootGame(options) {
     drawCalls() { return Object.assign({}, counters); },
     /**
      * Paint something on a canvas of its own and say what it cost: `{ fills, strokes, images,
-     * texts, gradients, shadows }`, and where it drew them: `widths`, `points`, `circles` and
-     * `rects`, in the coordinates the painter was writing in. Nothing about the run or the frame
+     * texts, gradients, shadows }`, and where it drew them: `widths`, `points`, `circles`, `rects`
+     * and `stamps`, in the coordinates the painter was writing in. Nothing about the run or the frame
      * being measured is touched - not the counters, not the last frame's draw log - so a test can
      * hold one part of the picture still while it measures another (see tools/headless/frame-cost.js),
      * and can ask how wide a particular thing was drawn without hoping nothing else in the frame drew
@@ -595,6 +625,7 @@ export async function bootGame(options) {
         points: blank.points.slice(),
         circles: blank.circles.slice(),
         rects: blank.rects.slice(),
+        stamps: blank.images.slice(),
       });
     },
     /**

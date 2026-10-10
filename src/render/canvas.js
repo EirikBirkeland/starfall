@@ -3,6 +3,19 @@
 import { PALETTE } from '../core/palette.js';
 import { setGlowResolution } from './glow.js';
 
+/**
+ * Does the visitor's machine have an opinion about movement? (CSS `prefers-reduced-motion`.)
+ *
+ * The CSS reads the same query for its own fades; this is the canvas's half of the same question,
+ * asked once at boot rather than every frame. A browser with no `matchMedia` gets `false`, which is
+ * what it would have done anyway - the game is not asking permission to sit still, it is looking
+ * over to see whether anybody asked it to.
+ */
+export function calmMotion() {
+  if (typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
+}
+
 export const view = {
   canvas: null,
   ctx: null,
