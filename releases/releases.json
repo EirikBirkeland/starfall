@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.8.2",
+    "date": "2026-10-10",
+    "summary": "Four of the five ships cost stardust now, and the hangar is where you buy them"
+  },
+  {
     "version": "0.8.1",
     "date": "2026-10-10",
     "summary": "Stardust every run pays, and the hangar you spend it from"
