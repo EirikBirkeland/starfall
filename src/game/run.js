@@ -182,6 +182,9 @@ export function resetRun(world) {
   // ...and this run has not written its line in the log yet (game/history.js). The log itself is
   // above, in `world.pastRuns`, and is none of this run's to forget.
   world.runLogged = false;
+  // ...and it is not being held: a run that was walked away from mid-pause - given up, or left for
+  // the title some other way - does not hand the next one a frozen arena (game/run.js `pauseRun`).
+  world.paused = false;
   // ...and the run has not been won or paid for yet (game/stardust.js). The purse above is left
   // alone: what the last run earned is spent or it is not, and either way it is not this run's.
   world.won = false;
@@ -240,6 +243,33 @@ function bankRun(world) {
   logRun(world);
 }
 
+/**
+ * Hold a flying run where it stands (PLAN section 4's pause), and let go again.
+ *
+ * Only a run that is flying can be held. Over the cards the run has already stopped for the game and
+ * has an answer of its own to give; over an ending there is nothing left to hold; over the title the
+ * crowd on the glass is the attract display and not a run. So both of these answer false wherever
+ * they do not apply, and the interface refuses the key in silence like every other press a screen
+ * cannot answer.
+ *
+ * The world keeps a flag and not a state of its own: a paused run is still the run it was - the same
+ * score on the HUD, the same build on the rail, the same crowd standing still behind the panel - and
+ * a sixth STATE would have to be answered by everything that asks what the world is doing, to buy
+ * one fact about its clock. `stepWorld` is the only place in the simulation that reads this.
+ */
+export function pauseRun(world) {
+  if (world.state !== STATE.PLAY) return false;
+  world.paused = true;
+  return true;
+}
+
+/** Let the run go again. False when nothing was held, which is what makes one key both ways in. */
+export function resumeRun(world) {
+  if (!world.paused) return false;
+  world.paused = false;
+  return true;
+}
+
 /** The ship is gone. Bank the score and let the screen show it. */
 export function endRun(world) {
   world.state = STATE.OVER;
@@ -259,6 +289,26 @@ export function endRun(world) {
   cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
   // The chord is the run ending; the rumble under it is the ship.
   cueNoise(spec.sound.noise, spec.sound.vol * spec.sound.noise.share);
+}
+
+/**
+ * The player gave the run up (PLAN section 4's "give up", which is on the pause screen and nowhere
+ * else). It is an ending and not a rewind: everything a death banks, a give-up banks - the best, the
+ * purse, the codex, the awards, the log - because `bankRun`'s promise is that a run is paid once
+ * whichever way it stopped, and a run the player stopped is a run that stopped.
+ *
+ * The ship goes down with it, on purpose: the card that goes up a frame later says GAME OVER, and the
+ * arena should not be disagreeing with it. What the tally does *not* get is a cause, because there
+ * was none - `world.tally.killedBy` stays empty for a run given up with hull still on it, which is
+ * the truth about it and not a hole in the bookkeeping.
+ */
+export function abandonRun(world) {
+  if (world.state !== STATE.PLAY) return false;
+  // The run is over, so it is nobody's to hold any more - and `resetRun` is a long way off: the world
+  // is about to be an ending, and an ending that is also paused is neither of them properly.
+  world.paused = false;
+  endRun(world);
+  return true;
 }
 
 /**

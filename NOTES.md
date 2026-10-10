@@ -9688,3 +9688,101 @@ which it had better not, since the mark keeps no simulation state and its clock 
 - Worktree hygiene: `/tmp/s81-base` is a git worktree of the pre-session `HEAD` used for the trace
   comparison. Clear it with `git worktree remove /tmp/s81-base` - it is outside the repo, so it cannot be
   committed, but it sits in `git worktree list` until someone does. Traces in /tmp can be ignored.
+
+---
+
+## Session 82 — the pause, and what a run is made of (milestone 9, item 2)
+
+Released **0.9.2**. The suite is **1553 tests** (22 new). `Esc`/`P` now holds a flying run where it
+stands and puts up a third panel with the run's numbers and its whole build on it; `G`, answered only
+by that panel, gives the run up.
+
+### What "paused" is, and what it is not
+
+- **A flag on the world (`world.paused`), not a sixth `STATE`.** The hangar and the codex are already
+  overlays on that argument (session 79), and it is even stronger here: a paused run *is* a run in
+  `STATE.PLAY`, simply one that is not being stepped. A state would have had to be added to every
+  `switch (world.state)` in `stepWorld`, and to the death transition, the restart lock, the attract
+  gate, the bridge's "playing" answer and the session tests, to buy something that is one boolean.
+  `stepWorld` now runs the run when `!(world.state === LEVEL || world.paused)`, and that is the only
+  line the whole feature needed in the simulation. `resetRun` clears it, so no run is ever born paused.
+- **What keeps moving: the frame, the clock, the effects, the sky, the music.** The frame clock is not
+  the run's clock, so `world.t` carries on and toasts fade and the award plates finish and the shake
+  settles and the sky keeps drifting behind the dim. That reads as "the game is fine, the *run* is
+  waiting", which is right - and it is what the hangar already does to the attract world. Stopping
+  particles mid-flight, as an alternative, freezes a run into a photograph of a mess.
+- **What deliberately stops: the camera's lean.** `renderCamera` holds the position it had the moment
+  the pause went up (an early `centreOn` off the ship's own lean, which is the same expression the
+  normal path uses, with the lookahead and the trauma zeroed by definition). A camera that kept easing
+  toward a ship that is not there yet pans over a frozen arena, and it is the only thing in the render
+  that is about the world rather than about the frame.
+- **A dash asked for during a pause is spent and not banked.** `queueDash` gates on the world's state
+  and knows about the flag; the alternative is a dash that fires when you let the run go, for a key you
+  pressed while it was stopped. Same reasoning as the dead ship's "no debt across a death".
+
+### Give-up is an ending, and that was the cheap way
+
+`G` while the pause is up calls `abandonRun`, which ends the run through `endRun` with the kill cause
+left empty, so the stardust, the best, the codex's `runEnded`, the awards, the log row and the death's
+card all behave exactly as they do for a wreck (PLAN: "give up", and section 6's "ends the run"). The
+alternative - a rewind, or a return to the title that quietly loses the run - would have had to
+re-invent half of `endRun` and would have quietly thrown away a run's worth of stardust. Two small
+things came with it: the panel line says so in five words ("the score, the purse and the card, the way
+a death leaves them"), and `main.js`'s "did the run just end" test became an `overCardShown` flag,
+because a transition test written when only a stepped frame could kill you stops being one the moment
+a *press* can. The harness can see a give-up coming: it is the only screen in the game that offers it.
+
+### Focus, and a test that was holding the old design up
+
+PLAN section 6 asked for auto-pause on focus loss and it had never been done; now `window blur` pauses
+silently (no tick, because nothing was pressed). One existing test - `session.test.mjs`'s "losing focus
+drops the controls" - asserted `gap > 0` with the words "the run carried on while the tab was away".
+That was the old behaviour written down as a promise. It now asserts the run was held, and keeps the
+promise it was really there for: no fast-forward through a five-second gap. `controls.test.mjs` needed
+three lines to resume the run the blur had taken. Worth knowing that `resetToTitle` fires a blur, so
+every harness test runs on a game that has just been auto-paused - safe only because `resetRun` clears
+the flag and `closePanels` takes the panel down, both of which are commented now.
+
+### The panel
+
+- Third panel, same machinery, so the panel list is one array (`panels`) and `fitCodex`/`fitHangar`
+  became `fitOpenPanel` - the third panel that a second branch would have forgotten. One panel at a
+  time, and `H`/`C` are refused over a run (`rackMayOpen`, session 79), which is what makes the pause
+  the only thing `G` can mean and keeps `Esc` meaning *the pause* rather than "close whatever is up".
+  Space, the numbers and the mouse keep their run meanings under the panel and therefore do nothing.
+- `showPause` borrows `describeRanks` and `describeBanished` from the death's card, so the pause, the
+  card and the codex cannot disagree about what a run is; the rows quote the card's own `effectOf`,
+  and a refused line is a dim `.entry.unknown` row that says `CUT OUT OF THE RUN`. A row nobody can
+  buy, on a panel nobody can buy from.
+- `paintRows(rows, list, lines, build, dimClass)` is the third copy of "grow the rack, paint the rack"
+  (log, then two racks here) written down once instead of three times, with the trim loop - which the
+  log never needed and the build rack does, because a new run really does start with zero rows.
+- `stats()` gained `paused`, and the harness reads the panel like any other: nine facts on one rack
+  (ship and gun, level, hull, kills, shards, wave, fights, run worth, best, seed), the score and clock
+  as the headline. Seed last, because it is the one number there a player can do something with after.
+
+### Surprises and small things
+
+- The `@media (max-height: 620px)` that makes the title's layout tight had to move to **760px**: the
+  title's column grew a tenth control row with this feature, and at 700px the title overflowed its box
+  and cut both rows at once (session 78's problem again, exactly as it described it). A 1280x720 window
+  is the shape the harness and the design both assume, so the tight layout has to apply there.
+- `test/hangar-fit.test.mjs` is now the test that fits panels to imaginary windows, and it has a third
+  test for the pause rather than a new file - it has the NEED stub and the arithmetic already.
+- `tools/agent/session.js` still cannot see a pause: `state()` reports `playing`, and there is no pause
+  tool. The bot never presses the pause key so nothing breaks, but if a future session wants the agent
+  to read a paused run, `STARFALL.stats().paused` is the door and the bridge has a `locked()` helper
+  beside it for the shape of the answer.
+- Fixed a CHANGELOG slip on the way: the 0.9.1 entry had been appended at the *bottom* of the file
+  instead of the top, so the changelog was newest-then-oldest-then-one-modern. Entries are newest-first
+  now, all 18 of them, and the script's own check passes.
+- Released 0.9.2. Worktree `/tmp/s82-base` (pre-session HEAD, for the trace diff) is outside the repo;
+  clear it with `git worktree remove /tmp/s82-base`.
+
+### Next
+
+Milestone 9 item 4, the settings screen: shake, flash, damage numbers, particles, colour-blind, key
+rebinding, music and effect volumes - which finally gives the four keys that currently live on the
+canvas (`M`, `T`, `,`/`.`) a place to be read, and the pause's "SETTINGS" line a meaning. Then key
+rebinding (item 5), which the settings screen has to show anyway. Note that `STARFALL.paused` is a
+question the settings screen will need answered too, if only to keep itself off a flying run.

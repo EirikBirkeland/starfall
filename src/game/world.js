@@ -82,6 +82,12 @@ function createWorld() {
     // Hit-stop: how long the run still has to hold still for, in seconds (0 when
     // nothing is frozen). game/effects.js `hitStop` sets it, `stepWorld` spends it.
     freeze: 0,
+    // Is the run being held where it stands (game/run.js `pauseRun`)? A player's key writes this and
+    // nothing else does, and it is a fact about the run's *clock* and not about the arena: the state
+    // stays PLAY, because a paused run is still the run it was - the same score, the same build, the
+    // same crowd standing still - and it is simply not being stepped until the key says otherwise.
+    // `stepWorld` is the only thing in the simulation that reads it, and `resetRun` lets go of it.
+    paused: false,
 
     best: 0,
     // What the purse between runs stands at, and what this run has already been paid out of it
@@ -340,9 +346,9 @@ function tickFrameClocks(world, dt) {
  * interpolation contract: a position may only change inside a step.
  *
  * Answers whether the step actually simulated anything. A hit-stop step does not,
- * and neither does one of the pause where an upgrade is picked, and the frame loop
- * has to know that: input handed to a step that never happened was never heard, so a
- * dash pressed during either is still waiting when the world wakes up.
+ * and neither does one of either pause - the cards a run stops for, and the player's own
+ * (game/run.js `pauseRun`) - and the frame loop has to know that: input handed to a step that never
+ * happened was never heard, so a dash pressed during one is still waiting when the world wakes up.
  */
 export function stepWorld(dt, input) {
   world.steps++;
@@ -358,17 +364,22 @@ export function stepWorld(dt, input) {
   }
 
   updateEffects(world, dt);
-  // A level-up is a pause: the effects and the window's own clocks keep running, the
-  // arena does not, and the answer is "no step happened" - so a dash pressed while the
-  // cards are up waits for the run instead of being thrown away.
-  const paused = world.state === STATE.LEVEL;
+  // Two things hold the arena still and neither of them stops the window: the cards a run stops for,
+  // and the player's own pause key. One is the game's pause and the other the visitor's, and the run
+  // is stepped by neither, so both answer "no step happened" - and a dash pressed during either is
+  // spent rather than banked, because a dash that goes off three seconds after the key was pressed
+  // is not a gift.
+  const paused = world.state === STATE.LEVEL || world.paused;
   // The room's own light, walked here rather than inside the fight so that it keeps walking back
   // over a run that has stopped (game/bosses.js `stepDarkness`). It is held by the two things that
   // genuinely stop the world and by nothing else: the freeze went past above, the cards go past
   // here, and an ended run is not a stop of that kind - it is a room nobody is fighting in, which
   // is exactly the thing the dark lets go of.
   if (!paused) stepDarkness(world, dt);
-  if (world.state === STATE.PLAY) stepRun(dt, input);
+  // A run that is being held does not walk: `paused` above is what says so, and it is the player's own
+  // pause as much as the cards - the LEVEL state stops the run by not being PLAY, and the flag has no
+  // state of its own to do it with.
+  if (!paused && world.state === STATE.PLAY) stepRun(dt, input);
   else if (!paused) updateAmbient(world, dt);
 
   tickFrameClocks(world, dt);

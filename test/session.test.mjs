@@ -97,7 +97,7 @@ test('death is not instantly restartable', () => {
   assert.equal(game.stats().score, 0);
 });
 
-test('losing focus drops the controls, and a long gap is not simulated', () => {
+test('losing focus drops the controls, holds the run, and never fast-forwards it', () => {
   game.key('KeyD', true);
   game.step();
   const before = game.stats().t;
@@ -107,10 +107,20 @@ test('losing focus drops the controls, and a long gap is not simulated', () => {
   game.fire('blur', {});
   game.step(5000);                                 // five seconds in another tab
   const gap = game.stats().t - before;
-  assert.ok(gap > 0, 'the run carried on while the tab was away');
+  // PLAN section 6: the game pauses itself when the tab loses focus, so a player who went off to do
+  // something else comes back to the arena they left. It used to fly on without them, and this test
+  // said so; the promise that matters is the one below it, and that one is now kept by construction.
+  assert.equal(gap, 0, 'the run was held and not flown');
+  assert.equal(game.screen.pauseHidden, false, 'and the screen says so, rather than looking like a freeze');
   assert.ok(gap <= BALANCE.sim.maxFrameDt + BALANCE.sim.step,
     'a background tab must not fast-forward the run: it advanced ' + gap + 's');
 
+  // Back to the run, the way the player does it. The keys were let go of on the way out, so the ship
+  // has nobody pushing it any more and coasts down.
+  game.key('Escape', true);
+  game.key('Escape', false);
+  game.step();
+  assert.equal(game.screen.pauseHidden, true, 'the same key is the way back in');
   for (let i = 0; i < 30; i++) game.step();
   assert.ok(game.player.vx < pushing * 0.5, 'the ship coasts to a stop once focus is gone');
 });

@@ -1,15 +1,20 @@
 // The DOM screens: the title, the hangar a run is chosen in, the codex of what has been met and what
-// has been flown, the game-over card and the win card. The level-up choice is not here - it is
-// painted on the canvas
+// has been flown, the pause a run is held at, the game-over card and the win card. The level-up choice
+// is not here - it is painted on the canvas
 // (render/cards.js), because its cards are drawn, not typed. Everything the run shows while it is
 // being played is on the canvas too.
 //
 // The hangar and the codex are overlays and not states of the world: either is put up over the title
 // and over the death's card, the attract crowd keeps flying behind it, and the run it launches is
 // launched the same way from either. A sixth STATE would have to be answered by everything that asks
-// what the world is doing, to buy a screen that only ever sits on top of two of them. And there is
-// only ever one of them up: two panels of rows over one title is a screen that has stopped being
-// either of them, so the key that names a panel takes the other one down on its way up.
+// what the world is doing, to buy a screen that only ever sits on top of two of them. The pause is
+// their mirror (game/run.js `pauseRun`): nothing on it can be bought and it has no launch key, and it
+// only ever sits over a run that is holding still - which makes it the one panel of the three whose
+// subject is the world and not just the glass.
+//
+// And there is only ever one of them up: two panels of rows over one screen is a screen that has
+// stopped being either of them, so the key that names a panel takes the other ones down on its way
+// up.
 
 import { SHIPS } from '../game/ships.js';
 import { priceOf, shipIsBought, perkPriceOf } from '../game/hangar.js';
@@ -17,7 +22,7 @@ import { maxRankOf, PERKS, rankWords } from '../game/perks.js';
 import { CARDS, HOSTS, metShare, SYNERGIES } from '../game/codex.js';
 import { AWARDS, dustOf, shareOf } from '../game/awards.js';
 import { BALANCE } from '../game/balance.js';
-import { lineOf } from '../game/upgrades.js';
+import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { uiTick } from '../audio/sfx.js';
 
 let el = null;
@@ -35,11 +40,14 @@ let perkRows = [];
 let perkNumbers = [];
 let perkPrices = [];
 
-// Whether a panel is up right now, and which one: '' for neither, and the two keys that open them
+// Whether a panel is up right now, and which one: '' for neither, and the three keys that open them
 // are the only things that can write anything else. `hideScreens` clears it with the screens
 // themselves, so there is no path where a run is flying and this still says open.
 let panelUp = '';
 
+// The three panels, in the one list everything that is true of "a panel" walks: taking them all
+// down, and fitting whichever one is up. Built once in `initScreens`, beside the elements themselves.
+let panels = [];
 // The codex's three panels, in the same shape the racks are kept in: the rows, and the two parts of
 // each row that say what the thing is (`showCodex` owns both of them, because both depend on whether
 // it has been met and neither is known when the panel is built).
@@ -52,6 +60,13 @@ let synRows = [];
 // one row per run flown, so it is built as it is painted (`showLog`) and not at init with the tables
 // that never change size.
 let logRows = [];
+
+// The pause's two racks (game/run.js `pauseRun`): the run's numbers, and the lines it has taken.
+// Both of them are as long as the run is, so both are grown and trimmed as they are painted, like the
+// log above, and for the same reason - a rack of rows that a run has to be shorter or longer than is
+// a rack that leaves a stale row on the glass.
+let factRows = [];
+let buildRows = [];
 
 // The hangar's third rack: what this save has been credited with and what it has not (game/awards.js).
 // Thirty rows, and every word on them is static but the last column, because an award's rule is the
@@ -191,9 +206,9 @@ function buildPerkRow(perk, index) {
 
 /**
  * One row of a list of text: a line made of the named spans, in the order they are painted. The rows
- * are all this shape on both panels, so what tells them apart is which spans a row has and what class
+ * are all this shape on every panel, so what tells them apart is which spans a row has and what class
  * it wears - and the words are written by whoever owns the list, because what a row means depends on
- * what the panel is asking (`showCodex`, `showLog`, `showAwards`).
+ * what the panel is asking (`showCodex`, `showLog`, `showAwards`, `showPause`).
  */
 function buildRow(list, cls, parts) {
   const row = document.createElement('div');
@@ -232,6 +247,21 @@ function buildAwardRow(award) {
   return out;
 }
 
+/**
+ * One row of the pause screen's readout rack: a label, and the number it is a label for. Nothing
+ * about the number is decided here - a run's numbers are the run's own (main.js `describePause`) and
+ * this panel's whole job is to say them and nothing else.
+ */
+function buildFactRow() {
+  return buildRow(el.factRow, 'fact', ['name', 'says']);
+}
+
+/** One row of the pause screen's build rack: the codex's own `.entry` shape, because a line the run
+    has taken is a thing it has met in exactly the same sense. */
+function buildBuildRow() {
+  return buildEntryRow(el.buildRow);
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -263,6 +293,12 @@ export function initScreens() {
     logRow: document.getElementById('logRow'),
     awardRow: document.getElementById('awardRow'),
     awardTitle: document.getElementById('awardTitle'),
+    // The pause: a run held where it stands, and its numbers read off the world (game/run.js).
+    pause: document.getElementById('pauseScreen'),
+    pauseBody: document.getElementById('pauseBody'),
+    pauseHead: document.getElementById('pauseHead'),
+    factRow: document.getElementById('factRow'),
+    buildRow: document.getElementById('buildRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleShip: document.getElementById('titleShip'),
@@ -282,6 +318,14 @@ export function initScreens() {
   cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
   awardRows = AWARDS.map(buildAwardRow);
+  // The three panels, in the one list everything that is true of "a panel" walks: taking them all
+  // down, and fitting whichever one is up. Built here, beside the elements themselves, because
+  // `initScreens` is the first thing the boot does.
+  panels = [
+    { which: 'hangar', screen: el.hangar, body: el.hangarBody },
+    { which: 'codex', screen: el.codex, body: el.codexBody },
+    { which: 'pause', screen: el.pause, body: el.pauseBody },
+  ];
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
@@ -295,7 +339,14 @@ export function codexIsOpen() {
   return panelUp === 'codex';
 }
 
-/** Is either of them up? This is the question the launch actually cares about. */
+/** Is the pause up? It is the one panel that is a fact about the world and not about the glass, and
+    main.js asks it before answering the key that gives a run up: nothing ends a run off a screen
+    that does not offer it (game/run.js `abandonRun`). */
+export function pauseIsUp() {
+  return panelUp === 'pause';
+}
+
+/** Is any of them up? This is the question the launch actually cares about. */
 export function panelIsUp() {
   return panelUp !== '';
 }
@@ -312,19 +363,24 @@ export function hideScreens() {
 }
 
 /**
- * Put one panel up over whatever screen is already there, taking the other one down first, and fit
+ * Put one panel up over whatever screen is already there, taking the other ones down first, and fit
  * it to the window on the way.
  *
- * Only one of them is ever up. Both are columns of rows over the same title, and two of them at once
- * is not two screens you can read but one screen you cannot - and neither key has anything to say
- * about the other, so the rule has to be the panel's and not the key's.
+ * Only one of them is ever up. Every one of them is a column of rows over a screen that is trying to
+ * be read, and two of them at once is not two screens you can read but one screen you cannot - and
+ * none of the three keys has anything to say about the other two, so the rule has to be the panel's
+ * and not the key's.
  */
 function raisePanel(which, screen, body) {
-  layPanelDown(el.hangar, el.hangarBody);
-  layPanelDown(el.codex, el.codexBody);
+  layPanelsDown();
   screen.classList.remove('hidden');
   panelUp = which;
   fitPanel(body, screen);
+}
+
+/** Every panel, up or not, taken down. See `layPanelDown` for what that costs a panel. */
+function layPanelsDown() {
+  for (const panel of panels) layPanelDown(panel.screen, panel.body);
 }
 
 /**
@@ -349,6 +405,12 @@ export function openHangar() {
     sells). A plain number key still means the ship it means everywhere else, panel up or not. */
 export function openCodex() {
   raisePanel('codex', el.codex, el.codexBody);
+}
+
+/** ...and the pause, which sits over a run that is holding still and over nothing else (game/run.js
+    `pauseRun`). Whoever raises it has already stopped the run and painted what it has to say. */
+export function openPause() {
+  raisePanel('pause', el.pause, el.pauseBody);
 }
 
 /**
@@ -385,10 +447,16 @@ export function fitHangar() {
   fitPanel(el.hangarBody, el.hangar);
 }
 
-/** The same, for the codex: it is a taller panel than the hangar is - three columns, and the
-    longest text in the game - so it needs the fitting more, not less. */
-export function fitCodex() {
-  fitPanel(el.codexBody, el.codex);
+/**
+ * Fit whichever panel is up to the window (see `fitPanel`).
+ *
+ * This is what the resize asks, rather than a branch per panel: a window that changes size can only
+ * change the fit of the one panel that is on the glass, and the third of them was always going to be
+ * forgotten by the second branch.
+ */
+export function fitOpenPanel() {
+  const open = panels.find((panel) => panel.which === panelUp);
+  if (open !== undefined) fitPanel(open.body, open.screen);
 }
 
 /**
@@ -406,10 +474,9 @@ function fitPanel(body, screen) {
   body.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(3) + ')';
 }
 
-/** Take both panels away again, leaving the screen underneath exactly as it was. */
+/** Take every panel away again, leaving the screen underneath exactly as it was. */
 export function closePanels() {
-  layPanelDown(el.hangar, el.hangarBody);
-  layPanelDown(el.codex, el.codexBody);
+  layPanelsDown();
   panelUp = '';
 }
 
@@ -542,6 +609,28 @@ function emptyLogLine() {
 }
 
 /**
+ * Grow or trim a rack until it holds one row per line, and paint every one of them.
+ *
+ * Three racks have a length that belongs to a visit or a run rather than to a table that never
+ * changes size - the log, and the pause's two - so their rows are built as they are painted and taken
+ * back again when the list gets shorter. The trimming is defensive for the log, which only ever grows
+ * today, and load-bearing for a build rack, which is as long as the run's build is and so really does
+ * shrink: every new run starts with nothing taken.
+ *
+ * `dimClass`, when a rack has one, is the class a row wears when its line says `dim` - which is how the
+ * codex's UNKNOWN rows and a build's refused rows are said without inventing a second row shape.
+ */
+function paintRows(rows, list, lines, build, dimClass) {
+  while (rows.length > lines.length) list.removeChild(rows.pop().row);
+  while (rows.length < lines.length) rows.push(build());
+  for (let i = 0; i < lines.length; i++) {
+    rows[i].name.textContent = lines[i].name;
+    rows[i].says.textContent = lines[i].says;
+    if (dimClass !== undefined) rows[i].row.classList.toggle(dimClass, lines[i].dim === true);
+  }
+}
+
+/**
  * Paint the last runs this save has flown (game/history.js), newest first.
  *
  * One row per run, and as many rows as there have been runs: this is the one list on the panel whose
@@ -554,12 +643,7 @@ function emptyLogLine() {
  */
 export function showLog(runs) {
   const lines = runs.length === 0 ? [emptyLogLine()] : runs.map(logLine);
-  while (logRows.length > lines.length) el.logRow.removeChild(logRows.pop().row);
-  while (logRows.length < lines.length) logRows.push(buildEntryRow(el.logRow));
-  for (let i = 0; i < lines.length; i++) {
-    logRows[i].name.textContent = lines[i].name;
-    logRows[i].says.textContent = lines[i].says;
-  }
+  paintRows(logRows, el.logRow, lines, () => buildEntryRow(el.logRow));
 }
 
 /**
@@ -588,6 +672,98 @@ export function showAwards(won) {
   }
   const share = shareOf(won);
   el.awardTitle.textContent = 'AWARDS ' + share.won + ' OF ' + share.of;
+}
+
+/**
+ * The run's numbers, in the order the pause prints them (main.js `describePause`).
+ *
+ * What the HUD cannot show is what belongs here: the kill and shard counts, the wave the crowd is
+ * coming out of, what the run is worth into the purse, the seed it could be asked back for. Score and
+ * clock are not among them - they are the panel's headline, above these two racks - and the level's XP
+ * bar is not either, because that is the one thing about the run the bottom of the screen already
+ * says.
+ *
+ * `FLOWN IN` names the body *and* the gun that came with it, the same way the title and the cards name
+ * them, because a run is flown in a body and a gun and there is no sense in splitting the two.
+ */
+function factLines(run) {
+  return [
+    { name: 'FLOWN IN', says: shipWords(run.shipId) },
+    { name: 'LEVEL', says: String(run.level) },
+    { name: 'HULL', says: run.hull + ' OF ' + run.maxHull },
+    { name: 'KILLS', says: run.kills.toLocaleString('en-US') },
+    { name: 'SHARDS', says: run.shards.toLocaleString('en-US') },
+    { name: 'WAVES', says: String(run.wave) },
+    { name: 'FIGHTS', says: run.bosses > 0 ? bossWords(run.bosses) : 'NONE' },
+    // What the run would be worth if it stopped this second, and it may stop this second - the key
+    // under this panel's own name ends it (game/stardust.js `dustForRun` reads what has been earned
+    // and not what has been paid, which is the whole reason this row can be honest mid-run).
+    { name: 'RUN WORTH', says: '+' + run.dust.toLocaleString('en-US') + ' STARDUST' },
+    { name: 'BEST', says: run.best.toLocaleString('en-US') },
+    // Last, because it is the one number on this panel a player can do something with afterwards:
+    // `?seed=` in the address bar flies this arena again (main.js `addressSeed`).
+    { name: 'SEED', says: String(run.seed) },
+  ];
+}
+
+/**
+ * The build, in the order the cards are dealt from (game/upgrades.js), which is the order the rail at
+ * the bottom-left of the screen draws it in - so the panel and the rail cannot disagree about which
+ * lines a run is made of, because they walk the same table.
+ *
+ * A row quotes the card: the rank the run holds, and `effectOf`, the card's own words for what a rank
+ * is worth. Those two together are the whole of what the run has, and paraphrasing them here would be
+ * a second description of every line, free to drift from the rule that actually decides it. A synergy
+ * has one rank and no depth to count, so it says its one sentence and no number, exactly as the card
+ * and the death's summary already do.
+ *
+ * The lines the run *refused* come after the ones it took, dim, with the codex's own `unknown` look:
+ * a road not taken is part of what the run became (the card says so too) and it is nowhere else in the
+ * game while a run is flying. A line can appear twice - taken, and then cut out of the deck later -
+ * and that is the truth about a run that wanted a line and then did not want any more of it.
+ */
+function buildLines(ranks, cut) {
+  const lines = [];
+  for (const line of LINES) {
+    const rank = ranks[line.id] === undefined ? 0 : ranks[line.id];
+    if (rank <= 0) continue;
+    lines.push({
+      name: line.name,
+      says: isSynergy(line.id)
+        ? effectOf(line.id)
+        : 'RANK ' + rank + ' OF ' + maxRanksOf(line.id) + '   \u00b7   ' + effectOf(line.id),
+    });
+  }
+  for (const id of cut) {
+    lines.push({ name: lineOf(id).name, says: 'CUT OUT OF THE RUN', dim: true });
+  }
+  if (lines.length === 0) {
+    lines.push({ name: 'NOTHING YET', says: 'THE FIRST CARD COMES WITH THE FIRST LEVEL', dim: true });
+  }
+  return lines;
+}
+
+/**
+ * Paint the pause screen over a run that is holding still (game/run.js `pauseRun`).
+ *
+ * Called as the panel goes up and never again while it is up: nothing on it can change while the world
+ * is not being stepped, which is the same reason the hangar is repainted on a purchase and not on a
+ * frame. `run` is main.js's `describePause` - the run's own numbers read mid-flight, from the same
+ * world the card will read them from once the run has stopped.
+ *
+ * Two racks and no keys on either of them, because there is nothing here to answer with a number: the
+ * run's own keys are all still live under the panel, and a pause that quietly re-pointed `1` at
+ * something on its own panel would be the one key in the game that means two things.
+ *
+ * This only paints; whoever calls it raises the panel after (`openPause`), which is the same order the
+ * other two panels are painted and raised in - and the order matters, because raising is what measures
+ * the rows this has just written.
+ */
+export function showPause(run) {
+  el.pauseHead.textContent = 'SCORE '
+    + run.score.toLocaleString('en-US') + '   \u00b7   ' + clockWords(run.seconds);
+  paintRows(factRows, el.factRow, factLines(run), buildFactRow);
+  paintRows(buildRows, el.buildRow, buildLines(run.ranks, run.cut), buildBuildRow, 'unknown');
 }
 
 /** What the visit has to show for itself, in both places it is read: the best score, the purse, and

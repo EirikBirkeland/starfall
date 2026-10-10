@@ -328,6 +328,8 @@ const ELEMENT_IDS = [
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',
+  // The pause: a run held where it stands, and its numbers (index.html, game/run.js, ui/screens.js).
+  'pauseScreen', 'pauseBody', 'pauseHead', 'factRow', 'buildRow',
 ];
 
 /**
@@ -373,10 +375,12 @@ function makeElement(tag, classes) {
 }
 
 /**
- * One row of the codex as the stub DOM is holding it: the two parts of the line, and whether the
- * thing it names has been met (`unknown` is the row's own class, and the stub keeps classes).
+ * One row of an `.entry` rack as the stub DOM is holding it: the two parts of the line, and whether
+ * the thing it names is missing (`unknown` is the row's own class, and the stub keeps classes). Two
+ * racks wear the shape: the codex's three panels, where it means this save has not met the thing yet,
+ * and the pause's build rack, where it means the run cut that line out of itself.
  */
-function codexRow(row) {
+function entryRow(row) {
   return {
     name: row.children[0].textContent,
     says: row.children[1].textContent,
@@ -385,11 +389,11 @@ function codexRow(row) {
 }
 
 /**
- * One row of the run log (game/history.js). The same two parts of the line, and no `unknown`: a log
- * row is never a thing that has not happened, and a row that is not in the list at all is that row's
- * way of saying the same thing (ui/screens.js `showLog`).
+ * One row of a rack that has no missing ones: the two parts of the line and nothing else. The run log
+ * (game/history.js) and the pause's readout are both this shape - on those panels a row that is not
+ * in the list at all is the way of saying it did not happen.
  */
-function logRow(row) {
+function plainRow(row) {
   return { name: row.children[0].textContent, says: row.children[1].textContent };
 }
 
@@ -452,9 +456,9 @@ export async function bootGame(options) {
     // Which screens start out hidden is in the markup, and the stub says the same thing the
     // browser does: the title is up and both of the cards a run ends on are not - and so is the
     // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`),
-    // and so is the hangar, which is put up by a key.
+    // and so are the three panels, each of which is put up by a key.
     const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
-      || id === 'hangarScreen' || id === 'codexScreen';
+      || id === 'hangarScreen' || id === 'codexScreen' || id === 'pauseScreen';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -752,19 +756,27 @@ export async function bootGame(options) {
           maxed: row.classList.contains('maxed'),
         })),
         // The codex: whether it is up, how much of it is filled in, how it was fitted to the window
-        // ('' is "it fit", see ui/screens.js `fitCodex`), and its three panels as the player reads
+        // ('' is "it fit", see ui/screens.js `fitOpenPanel`), and its three panels as the player reads
         // them - one line per row, and which rows are still empty (game/codex.js).
         codexHidden: elements.codexScreen.classList.contains('hidden'),
         codexTally: elements.codexTally.textContent,
         codexScale: elements.codexBody.style.transform || '',
         codexPanels: {
-          hosts: elements.hostRow.children.map(codexRow),
-          lines: elements.lineRow.children.map(codexRow),
-          synergies: elements.synRow.children.map(codexRow),
+          hosts: elements.hostRow.children.map(entryRow),
+          lines: elements.lineRow.children.map(entryRow),
+          synergies: elements.synRow.children.map(entryRow),
         },
         // ...and the fourth rack: the last runs this save has flown, newest first, or the one line
         // that says there have been none (game/history.js).
-        pastRuns: elements.logRow.children.map(logRow),
+        pastRuns: elements.logRow.children.map(plainRow),
+        // The pause: whether it is up, how it was fitted to the window ('' is "it fit"), its headline
+        // of score and clock, and its two racks - the run's numbers, and the lines it was built from
+        // (game/run.js `pauseRun`, ui/screens.js `showPause`).
+        pauseHidden: elements.pauseScreen.classList.contains('hidden'),
+        pauseScale: elements.pauseBody.style.transform || '',
+        pauseHead: elements.pauseHead.textContent,
+        pauseFacts: elements.factRow.children.map(plainRow),
+        pauseBuild: elements.buildRow.children.map(entryRow),
         // The hangar's third rack: every award there is, and which of them this save has (its title
         // carries the count) - game/awards.js, ui/screens.js `showAwards`.
         awardTitle: elements.awardTitle.textContent,
@@ -783,7 +795,10 @@ export async function bootGame(options) {
         import(moduleUrl('game/state.js')),
         import(moduleUrl('ui/screens.js')),
       ]);
-      controller.fire('blur', {});   // the game forgets every held key
+      // The game forgets every held key - and, since PLAN section 6, holds the run that was flying.
+      // That is safe here only because of what runs below: `resetRun` lets go of the pause and
+      // `closePanels` takes the panel it put up off the glass.
+      controller.fire('blur', {});
       held = Object.create(null);
       // And a panel the last session left open is not this one's to be looking through.
       closePanels();

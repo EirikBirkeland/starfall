@@ -52,6 +52,18 @@ const HANGAR_KEYS = ['KeyH'];
 // for, and a row nobody can buy has no business among rows that can be.
 const CODEX_KEYS = ['KeyC'];
 
+// The pause (PLAN section 4) - the run held where it stands, and let go again by the same key.
+// Escape is the key every browser already means "back out of what I was doing" and P is the word;
+// neither is a movement key, the launch, the dash, a card or ship number, the reroll, the mute, a
+// slider, H or C. Esc does *not* mean "close a panel": one key, one meaning, and H and C already
+// close the two panels they belong to.
+const PAUSE_KEYS = ['Escape', 'KeyP'];
+
+// Giving the run up, which the pause screen offers and nothing else does. This is the one key in the
+// game that costs a run, so it sits as far from WASD as the alphabet gets - and main.js only answers
+// it with the pause on the glass, so a stray press in the middle of a fight ends nothing.
+const GIVEUP_KEYS = ['KeyG'];
+
 // One-shot requests: a key that means "do that thing" rather than "this is held".
 // input/index.js folds them into the descriptor and clears them once the
 // simulation has had its turn at them.
@@ -64,6 +76,8 @@ export const keyTaps = { dash: false };
  * handlers.onReroll    - the deal was asked for again
  * handlers.onHangar    - the hangar was asked for, or asked to go away
  * handlers.onCodex     - the codex was asked for, or asked to go away
+ * handlers.onPause     - the run was asked to hold still, or to go on
+ * handlers.onGiveUp    - the run was given up, from the pause screen and nowhere else
  * handlers.onToggleMute
  * handlers.onVolume    - one step of one slider: which bus, and which way (-1 or 1)
  */
@@ -86,6 +100,8 @@ export function initKeyboard(handlers) {
       if (slider && handlers.onVolume) handlers.onVolume(slider[0], slider[1]);
       if (HANGAR_KEYS.indexOf(code) >= 0 && handlers.onHangar) handlers.onHangar();
       if (CODEX_KEYS.indexOf(code) >= 0 && handlers.onCodex) handlers.onCodex();
+      if (PAUSE_KEYS.indexOf(code) >= 0 && handlers.onPause) handlers.onPause();
+      if (GIVEUP_KEYS.indexOf(code) >= 0 && handlers.onGiveUp) handlers.onGiveUp();
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
   });

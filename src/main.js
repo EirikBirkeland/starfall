@@ -2,7 +2,7 @@
 // module that is allowed to know about all of them at once.
 
 import { world, stepWorld } from './game/world.js';
-import { startRun, resetRun, canStartRun, continueRun, victoryCardIsAnswerable, victoryCardIsUp } from './game/run.js';
+import { startRun, resetRun, canStartRun, continueRun, victoryCardIsAnswerable, victoryCardIsUp, pauseRun, resumeRun, abandonRun } from './game/run.js';
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
@@ -40,7 +40,7 @@ import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, openHangar, openCodex, openPause, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, panelIsUp, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -71,6 +71,12 @@ let seedIsPinned = false;
 // after the run is won, not on the step it is - so the frame loop is what has to remember that it
 // has happened once, and it forgets again the moment the world is on any other screen.
 let victoryCardShown = false;
+// Whether the death's card has been put up for the ending the world is sitting on. Same bargain as
+// the win's two flags below: written once per ending, forgotten the moment the world is on any other
+// screen - and the reason a run ended by a key and a run ended by a bullet get the same card on the
+// same frame, whichever of the two frames the ending landed in.
+let overCardShown = false;
+
 // Has the won run's card been told what its keys do yet? Same bargain as the one above: it happens
 // once, and it is forgotten the moment the world is on another screen.
 let winHintRevealed = false;
@@ -142,6 +148,11 @@ function onCanvasPressed() {
     answerChoice(mouse.x, mouse.y);
     return;
   }
+  // Over a paused run a click is nothing at all. The pause is not a screen to be clicked through on
+  // the way back into the fight: the left button is the gun, so a click that resumed the run would
+  // also fire it, and a player who meant to dismiss a panel and missed would be shot off before they
+  // were even looking. Esc and P are the way out, and they mean one thing.
+  if (world.paused) return;
   if (world.state !== STATE.PLAY) pressAction();
 }
 
@@ -351,6 +362,94 @@ function rackMayOpen() {
 }
 
 /**
+ * The run as it stands, for the pause screen: the same numbers the ending's card prints, read
+ * mid-flight instead of after the fact, and nothing an ending has that a run does not have yet.
+ *
+ * `ranks` and `cut` are the build and the refusals (game/upgrades.js), which is what ui/screens.js
+ * turns into the second rack; the rest are one row apiece.
+ */
+function describePause() {
+  return {
+    score: world.score,
+    best: world.best,
+    level: world.player.level,
+    hull: world.player.hull,
+    maxHull: world.player.maxHull,
+    kills: world.kills,
+    shards: world.shardsCollected,
+    wave: world.waveNumber,
+    bosses: world.bossesDown,
+    seconds: Math.floor(world.elapsed),
+    seed: world.seed,
+    shipId: world.ship,
+    // What the run would be paid if it stopped this second (game/stardust.js) - which, with a "give
+    // up" key on this very panel, it might.
+    dust: dustForRun(world),
+    ranks: world.upgrades,
+    cut: banishedLines(world),
+  };
+}
+
+/**
+ * Paint the pause from the run as it stands, and put it up. Both the key and a window that has lost
+ * focus do this; only the key answers itself with a sound, because only a press has an ear waiting
+ * for one.
+ */
+function raisePause() {
+  showPause(describePause());
+  openPause();
+}
+
+/**
+ * Esc or P: the run held where it stands, or let go again (PLAN section 4's pause).
+ *
+ * One key both ways in and out, like the two panels - and the *only* key that means this: Esc does
+ * not close the hangar or the codex, because one key one meaning is how the three of them stay
+ * knowable. Over the cards the run has already stopped for the game and has its own answers to give,
+ * so the key is refused there like every press the screen cannot answer, and over an ending or the
+ * title there is no run to hold (game/run.js `pauseRun`).
+ */
+function onPauseKey() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  if (resumeRun(world)) {
+    closePanels();
+    uiTick('close');
+    return;
+  }
+  if (!pauseRun(world)) return;
+  raisePause();
+  uiTick('open');
+}
+
+/**
+ * G, and only ever with the pause on the glass: the run given up (PLAN section 4).
+ *
+ * It is the one press in the game that costs a run, so it is answered on the one screen that says it
+ * does and nowhere else - a stray finger in the middle of a fight ends nothing. What it does is end
+ * the run for real (game/run.js `abandonRun`): banked like any death, and up comes the same card,
+ * because a run the player stopped is a run that stopped and it is worth what it earned.
+ */
+function onGiveUp() {
+  initAudio();
+  if (!pauseIsUp()) return;
+  if (!abandonRun(world)) return;
+  // The card the frame puts up a moment later is not for a panel to sit on, and the run's own ending
+  // chord is the answer to the press - no tick over the top of it.
+  closePanels();
+}
+
+/**
+ * The window lost focus: the keys are let go of (input/index.js does that) and the run is held
+ * (PLAN section 6). Nobody should come back to a wreck they were not fighting, and a run that stops
+ * itself when nobody is watching is the one courtesy a browser game owes - so this is the same pause,
+ * put up by the game instead of by a key, and silent: an alarm of its own over a screen nobody is
+ * looking at is not an announcement.
+ */
+function loseFocus() {
+  if (pauseRun(world)) raisePause();
+}
+
+/**
  * Put the hangar up, on the two screens that may carry it, and answer whether it went up. `onPickCard`
  * asks for the same thing when a number names a ship nobody has bought: the key that wants that ship
  * is what sends the player to the price of it.
@@ -374,9 +473,8 @@ function onResize() {
   world.view.w = view.W;
   world.view.h = view.H;
   // ...and the one panel tall enough to run out of window asks whether it still fits - whichever of
-  // the two it is (ui/screens.js `fitPanel`).
-  if (hangarIsOpen()) fitHangar();
-  else if (codexIsOpen()) fitCodex();
+  // the three it is (ui/screens.js `fitOpenPanel`).
+  fitOpenPanel();
 }
 
 function describeRun() {
@@ -429,7 +527,6 @@ function frame(now) {
   const tick = clock.frame(now);
   lastFps = tick.fps;
   lastAlpha = tick.alpha;
-  const stateBefore = world.state;
   const input = readInput();
   // The controls speak in pixels on the glass and the simulation speaks in arena
   // coordinates, so the aim goes through the camera on its way in.
@@ -460,8 +557,9 @@ function frame(now) {
   //
   // A run paused for an upgrade choice is the other case: the pause lasts as long as
   // the player takes to read, so a request made during it is spent rather than kept -
-  // a dash that goes off three seconds after the key was pressed is not a gift.
-  if (heard || world.state === STATE.LEVEL) consumeInput();
+  // a dash that goes off three seconds after the key was pressed is not a gift. The player's own
+  // pause (game/run.js `pauseRun`) is the same case for the same reason, and it may last longer.
+  if (heard || world.state === STATE.LEVEL || world.paused) consumeInput();
   // The awards won since the last frame go on the glass now (render/toast.js). They were queued by
   // the step (game/awards.js `updateAwards`) and spent here, which is the same door the sound cues
   // are: the run says what happened, the frame decides when it is seen - and it is seen on this
@@ -469,8 +567,14 @@ function frame(now) {
   // half a second apart for no reason a player can name.
   for (const award of takeAwardToasts(world)) pushAwardToast(award);
 
-  // The game-over card lands on the same frame the run stops: there is nothing left to see.
-  if (stateBefore !== world.state && world.state === STATE.OVER) showGameOver(describeRun());
+  // The game-over card lands on the same frame the run stops: there is nothing left to see. It is
+  // remembered as a flag and not read off the frame's two states, because a run can stop *between*
+  // frames as well as during one - the give-up key ends it from a keypress, with no step running to
+  // do it in (game/run.js `abandonRun`) - and an ended run with no card over it is a bug either way.
+  if (world.state === STATE.OVER && !overCardShown) {
+    showGameOver(describeRun());
+    overCardShown = true;
+  }
   // A win is not. The arena holds still for `BALANCE.victory.hush` with nothing over it, so the
   // fight's own going-down is the first half of the moment and the card is the second
   // (game/run.js `winRun`, `victoryCardIsUp`).
@@ -488,6 +592,8 @@ function frame(now) {
   } else {
     victoryCardShown = false;
     winHintRevealed = false;
+    // Any screen but an ending is a run that has not ended yet, so the flag goes back with the rest.
+    overCardShown = false;
   }
   consumeCues(world.state);
   // The music is wound on the same frame the cue queue drains on: what the run looks
@@ -566,10 +672,16 @@ function boot() {
     onReroll: onReroll,
     onHangar: onHangar,
     onCodex: onCodex,
+    onPause: onPauseKey,
+    onGiveUp: onGiveUp,
     onToggleMute: onMuteSwitch,
     onVolume: onVolume,
   });
   window.addEventListener('resize', onResize);
+  // ...and the world is held the moment nobody is looking at it any more (PLAN section 6). The same
+  // blur that makes the controls let go of every held key makes the run stop, so a player who
+  // alt-tabbed away comes back to the arena they left and not to its wreck.
+  window.addEventListener('blur', loseFocus);
 
   requestAnimationFrame(frame);
 }
@@ -623,6 +735,9 @@ window.STARFALL = {
   stats: function () {
     return {
       state: world.state,
+      // Is the run being held where it stands (game/run.js `pauseRun`)? A fact about the run's clock
+      // and not about the screen it is on, so a headless player cannot tell it from `state` alone.
+      paused: world.paused,
       seed: world.seed,
       score: world.score,
       // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot

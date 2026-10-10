@@ -30,7 +30,7 @@ const game = await bootGame({
   seed: 5,
   width: 1280,
   height: 720,
-  layout: { hangarBody: NEED, codexBody: NEED },
+  layout: { hangarBody: NEED, codexBody: NEED, pauseBody: NEED },
   storage: {
     'starfall.save': JSON.stringify({ version: 1, hangar: { ships: everyShipBought() } }),
   },
@@ -129,3 +129,38 @@ test('the two panels never both ask for the window', () => {
 });
 
 function codexScale() { return game.screen.codexScale; }
+
+test('the pause is fitted the same way, because it is a third panel and not a different kind of thing', () => {
+  // A run to pause, and then the same arithmetic on the same three moments (ui/screens.js
+  // `fitOpenPanel`): the panel is a rack of rows like the other two, and a window too short for it
+  // loses its last rows in exactly the same way.
+  const pause = () => game.screen.pauseScale;
+  press('Space');
+  game.world.spawnTimer = Infinity;      // this test is about the panel, not the crowd
+  game.world.player.invuln = Infinity;
+  game.step(FRAME);
+  assert.equal(game.stats().state, game.STATE.PLAY, 'a run, so that there is something to hold');
+
+  press('Escape');
+  assert.equal(game.screen.pauseHidden, false, 'the pause went up over the run');
+  assert.equal(pause(), 'scale(' + (H / NEED.offsetHeight).toFixed(3) + ')',
+    'and it came down to the height the window had');
+
+  game.setViewport(1600, 1200);
+  assert.equal(pause(), '', 'a window with room needs no transform');
+  game.setViewport(640, 360);
+  assert.equal(pause(), 'scale(0.600)', 'and the same floor holds it up here');
+  game.setViewport(W, H);
+
+  // One panel at a time, and so one panel at a time asking for the window: H and C are refused over a
+  // run, which is the same rule that keeps the hangar off a paused one (main.js `rackMayOpen`).
+  press('KeyH');
+  press('KeyC');
+  assert.equal(game.screen.hangarHidden, true);
+  assert.equal(game.screen.codexHidden, true);
+  assert.equal(game.screen.pauseHidden, false, 'and the pause stayed up, because nothing took it down');
+
+  press('Escape');
+  assert.equal(game.screen.pauseHidden, true, 'the run is on its own again');
+  assert.equal(pause(), '', 'and a panel keeps no transform of its own while it is away');
+});

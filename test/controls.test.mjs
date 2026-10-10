@@ -167,6 +167,13 @@ test('losing focus drops a dash that was on its way', () => {
   for (let i = 0; i < 4; i++) game.step();
   assert.equal(ship.dashCd, 0, 'the dash arrived after all');
   game.key('Space', false);
+  // Losing focus holds the run as well as dropping its keys (PLAN section 6, game/run.js
+  // `pauseRun`), and a dash asked for while the run is held is spent and not banked. So the way out
+  // of this test is the pause key, and every test below is played on a run that is flying.
+  game.key('Escape', true);
+  game.key('Escape', false);
+  game.step();
+  assert.equal(game.stats().paused, false, 'and the run came back to life');
 });
 
 // And what the dash does to the screen. The canvas stub counts every fill and

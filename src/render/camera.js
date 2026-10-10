@@ -73,6 +73,15 @@ export function followCamera(dt, alpha, input) {
   const shipX = paintX(ship, alpha);
   const shipY = paintY(ship, alpha);
 
+  // A held run keeps the lean it had. The mouse is still the mouse and the frame is still being drawn,
+  // so without this the view would slide about behind a panel that is trying to be read - and easing
+  // back to the ship would be the same drift wearing a different face. Whatever the camera was doing
+  // the instant the key went down is what it does until the key comes back up (game/run.js `pauseRun`).
+  if (world.paused) {
+    centreOn(shipX + camera.leanX, shipY + camera.leanY);
+    return;
+  }
+
   // Only a run in progress leans. On the title screen the view sits still in the
   // middle of the arena behind the logo, wherever the mouse happens to be.
   let wantX = 0;

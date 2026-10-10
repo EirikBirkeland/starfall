@@ -980,7 +980,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
       windowful of letters by accident. `prefers-reduced-motion` is read twice - the CSS stops its
       fades and the canvas puts the mark up already lit and holds it there - and the starfield and the
       attract crowd were already live behind the title.)
-- [ ] Pause screen with stats.
+- [x] Pause screen with stats. (`Esc` or `P` holds a flying run where it stands and puts up a panel of
+      its own, the third of them: the run's numbers on one rack - ship and gun, level, hull, kills,
+      shards, wave, fights, what the run is worth into the purse, best, seed - and what it is built
+      from on the other, one row per line taken in the cards' own order quoting the card's own words,
+      with the lines the run cut out of its own deck after them, dim. `G` - offered on that panel and
+      answered nowhere else, because it is the one press that costs a run - gives the run up: banked
+      like any death, and up comes the same card. The world keeps a flag and not a sixth STATE
+      (game/run.js `pauseRun`), because a held run is still the run it was and simply not being
+      stepped; the window losing focus holds it the same way, silently, which is PLAN section 6's rule
+      arriving late. The camera keeps its lean, a dash asked for during a pause is spent and not kept,
+      and no other key changes meaning because the panel is up.)
 - [ ] Full game over summary.
 - [ ] Settings screen with everything from section 6.
 - [ ] Key rebinding.
