@@ -3353,7 +3353,7 @@ export const BALANCE = {
   // asked for by `uiTick` in audio/sfx.js, which is presentation and is allowed to know the
   // interface exists.
   //
-  // Two rules hold the six of them together. One: every tick answers a press that was *taken*,
+  // Two rules hold the whole set of them together. One: every tick answers a press that was *taken*,
   // so a key the game refused is silent - a tick that lies is worse than no tick, and the title
   // already works that way for a number with no ship behind it. Two: a rising tick means a yes or
   // a beginning and a falling one means something going away, so they are told apart by their
@@ -3370,7 +3370,7 @@ export const BALANCE = {
     // A run launched, or a won one handed back to be flown on. The same rise held longer:
     // nothing else in the interface commits you to as much.
     confirm: { freq: 300, dur: 0.16, wave: 'triangle', vol: 0.07, slide: 620 },
-    // A card taken off the table. Brightest of the six, because it is the one press a run is
+    // A card taken off the table. Loudest of the interface, because it is the one press a run is
     // made of, and it lands over a table of cards rather than over an empty arena.
     take: { freq: 620, dur: 0.09, wave: 'sine', vol: 0.06, slide: 930 },
     // The table dealt again: down, because these cards went away to be replaced.
@@ -3385,6 +3385,13 @@ export const BALANCE = {
     // The mute switch coming back. Shortest and highest, because it says one word ("you can
     // hear it again") and going quiet needs no sound at all to say itself.
     unmute: { freq: 900, dur: 0.05, wave: 'sine', vol: 0.05, slide: 0 },
+    // A slider moved up, and a slider moved down (audio/engine.js `nudgeLevel`). These two are
+    // the interface's own yes-and-less: the same pair of shapes every other tick is written in,
+    // and they are quietest of the lot because they are played *on the bus being moved* - the
+    // level you set is the loudness you hear, so a tick that tried to announce itself over it
+    // would be tuning the very thing it is supposed to be telling you about.
+    up: { freq: 620, dur: 0.055, wave: 'sine', vol: 0.035, slide: 830 },
+    down: { freq: 470, dur: 0.055, wave: 'sine', vol: 0.035, slide: 350 },
   },
 
   effects: {

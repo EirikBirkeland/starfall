@@ -864,11 +864,42 @@ When every item above is ticked, go back to the first unchecked item of mileston
       boss 0.50, last 0.33, with `MUSIC.peakLoad` at 0.5 and a test refusing any pattern over
       it, plus one that proves the meter still reads the tables it claims to. Drums are the
       noise buffer and a falling triangle for the kick, so nothing about them is a sample.)
-- [ ] Volume settings and mute.
+- [x] Volume settings and mute.
+      (Two sliders, one per bus, and the mute above them (`audio/engine.js`): 10 positions each,
+      the top one being exactly the shipped mix - 1 on the effects bus, 0.5 on the music's - so
+      the sliders can only ever take loudness away and cannot un-measure the game. A step is
+      **2 dB**, not a twentieth of the gain: `levelGain` is one exponential curve over a 20 dB
+      span, so ten presses cover the range in ten equal-sounding steps and 0 is a hard zero
+      rather than a very quiet something (a linear slider spends half its presses on the loudest
+      third of the range). Keys, not faders, until milestone 9's settings page: `[`/`]` for the
+      music, `-`/`=` for the sounds, one step per press with auto-repeat ignored, and a press at
+      the end of the travel refused in silence like every other refused press. **A press is
+      answered on the bus it changed** - the sounds slider ticks through the sounds bus
+      (`BALANCE.ui`'s new `up`/`down`, rising and falling like every other tick) and the music
+      slider plays one A through the music bus (`auditionMusic`, only when there is a pattern to
+      sit under, so the death's card stays honest), which means the answer is made of the very
+      thing that moved. The mute is untouched by all of it: it is the master gain, upstream of
+      which both buses hang, so it is still the one value that goes quiet whatever is scheduled,
+      and the music's muffle sits downstream of the music bus and is repriced by nothing. Bus
+      gains glide over 15 ms so a step cannot click a pad that is mid-chord. And because a key
+      that changes something invisible is a key that might not have been pressed, the mixer is
+      painted on the glass for a moment and a half after any of it (new `render/volume.js`, drawn
+      over everything including the cards): both rows, which one moved, the keys, and `MUTED`
+      while the master is shut - the readout computes its own layout in `panelLayout` so a test
+      can measure it without pixels. The title's control list says the keys exist.
+      `test/volume.test.mjs`, 20 tests: the shipped mix at the top of both, the graph built at
+      wherever the sliders stand, the equal-dB curve, one bus per slider, the clamps, the refused
+      press being silent *and* dark, mute above the sliders, every pitch each key answers with,
+      the audition staying out of the sequencer's ledger, the readout answering over the cards
+      and over the death's card and fitting its own plate. `STARFALL.stats()` reports the two
+      levels and the mute, and the reference run still traces byte for byte the same game.)
 - [ ] Release.
 
 ### Milestone 8: between runs
-- [ ] The save module: versioned, validated on load, falls back to a fresh save if corrupt. With tests.
+- [ ] The save module: versioned, validated on load, falls back to a fresh save if corrupt. With
+      tests. (It has a family to inherit: the two volume sliders and the mute from milestone 7 are
+      remembered for a visit and forgotten when the page reloads, because until now there was no
+      versioned document to put them in - `core/save.js` holds the best score and nothing else.)
 - [ ] Stardust rewards and the hangar screen.
 - [ ] Ship unlocks and permanent perks.
 - [ ] The codex.

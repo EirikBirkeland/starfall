@@ -28,9 +28,10 @@ import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
-import { initAudio, toggleMuted } from './audio/engine.js';
+import { initAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
-import { updateMusic } from './audio/music.js';
+import { auditionMusic, updateMusic } from './audio/music.js';
+import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -189,6 +190,28 @@ function onReroll() {
 function onMuteSwitch() {
   const mutedNow = toggleMuted();
   if (!mutedNow) uiTick('unmute');
+  showVolumePanel('mute');
+}
+
+/**
+ * One step of one slider: `[ ]` for the music, `- =` for the sounds (input/keyboard.js, and
+ * audio/engine.js for what a step is worth). Until milestone 9 puts a settings page on the glass
+ * these keys are the whole interface for it, which is why the press is answered twice over - the
+ * level painted on the screen, and the change heard *on the bus it changed*, so the answer is
+ * made of the very thing that moved and needs no calibration to read.
+ *
+ * A slider already at the end of its travel is refused in silence, like every other refused press
+ * (BALANCE.ui): the panel does not light for a key that did nothing, because a readout that moves
+ * when nothing moved is a readout you stop believing.
+ */
+function onVolume(which, delta) {
+  // Same bargain as every other key that can be the first press of a visit: this is a user
+  // gesture, so this is where the audio is allowed to be started.
+  initAudio();
+  if (nudgeLevel(which, delta) === null) return;
+  showVolumePanel(which);
+  if (which === 'music') auditionMusic(world, delta > 0);
+  else uiTick(delta > 0 ? 'up' : 'down');
 }
 
 function onResize() {
@@ -237,6 +260,8 @@ function frame(now) {
   // the clouds behind them belong to the eye, so neither can move a run.
   updateStars(tick.dt);
   updateNebula(tick.dt);
+  // ...and so does the mixer readout, which is answering a key and not a step (render/volume.js).
+  advanceVolumePanel(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.
   let heard = false;
@@ -309,6 +334,7 @@ function boot() {
     onPickCard: onPickCard,
     onReroll: onReroll,
     onToggleMute: onMuteSwitch,
+    onVolume: onVolume,
   });
   window.addEventListener('resize', onResize);
 
@@ -389,6 +415,12 @@ window.STARFALL = {
       // run cannot hear a pitch, so this is how a test can see the streak at all.
       shardStreak: world.shardStreak.count,
       shardStreakIn: world.shardStreak.left,
+      // Where the two sliders stand and whether the master is shut (audio/engine.js). A headless
+      // run cannot hear a bus, so this is the only way to see that a volume key did anything, and
+      // the F3 overlay wants the same three numbers.
+      musicLevel: musicLevel(),
+      effectsLevel: effectsLevel(),
+      muted: isMuted(),
       fireRate: shotsPerSecond(world),
       weapon: world.weapon,
       ship: world.ship,

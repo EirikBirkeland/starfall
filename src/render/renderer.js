@@ -17,6 +17,7 @@ import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnem
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
+import { drawVolumePanel } from './volume.js';
 import { drawCards } from './cards.js';
 
 /** A shake offset large enough to notice, small enough to never blur the HUD. */
@@ -163,4 +164,7 @@ export function renderFrame(tick, input, pointer) {
   // Last of all, over the interface it pauses: the run is holding still and the whole
   // window belongs to the choice (game/upgrades.js).
   if (world.state === STATE.LEVEL) drawCards(ctx, pointer);
+  // And last of the last, over the cards too: the mixer readout is answering a key the player
+  // just pressed, and nothing on the screen may be allowed to hide the answer (render/volume.js).
+  drawVolumePanel(ctx);
 }

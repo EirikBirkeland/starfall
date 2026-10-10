@@ -47,6 +47,11 @@
 // so the busiest the music can ever be is half of what a full sky of effects is already
 // allowed - music you feel under a fight, never a wall on top of it - and both still go
 // through the one compressor.
+//
+// One thing in this file is not the sequencer: `auditionMusic`, the single note the music's
+// volume slider answers with. It is here rather than in sfx.js because it has to be played on
+// the music's bus to say anything at all, and it is one voice per keypress instead of a
+// pattern, so nothing about the grid or its meter is asked to make room for it.
 
 import { STATE } from '../game/state.js';
 import { getContext, getMusicBus, isMuted } from './engine.js';
@@ -149,6 +154,10 @@ const ARP_BOSS_STEPS = [0, null, 2, 1, 3, null, 2, null, 0, null, 2, 1, 3, 2, 3,
 // quiet because the game stopped - it is quiet because it is listening to you.
 const PING = { wave: 'triangle', vol: 0.045, attack: 0.02, dur: 1.4 };
 const PING_STEPS = [1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
+// One note to say the music's slider moved. It is priced like a voice of the pad (0.03) on
+// purpose: it is the only thing this bus gets that `patternPeak` has not metered, and a pad's
+// price is the one number known to fit on top of any bar the sequencer can write.
+const AUDITION = { wave: 'triangle', vol: 0.03, attack: 0.006, dur: 0.16 };
 
 // The drums: three of them, all synthesis, none of them a loop. A kick is a chip kick - one
 // triangle falling through most of two octaves in a seventh of a second (`from` to `drop`),
@@ -343,6 +352,36 @@ function voice(actx, freq, tone, when) {
     return false;
   }
   return true;
+}
+
+/**
+ * The note a slider answers with: the tonic of the key the whole soundtrack is in (A4), and
+ * where it goes from there - up a fifth or down a fourth, both notes of the key, so the answer
+ * is a piece of the tune and not a test beep.
+ */
+export const AUDITION_NOTE = { at: hz(69), up: hz(69 + 7), down: hz(69 - 5) };
+
+/**
+ * One note on the music bus, to say the music's slider moved.
+ *
+ * It is on the bus and not beside it, which is the whole point: the level you just set is the
+ * loudness you hear, so the answer needs no arithmetic of its own. It rises if you turned the
+ * slider up and falls if you turned it down - the same two words the interface ticks are
+ * spoken in (game/balance.js `ui`).
+ *
+ * And it is only played when there is music to hear, because `patternFor` says so: on a
+ * death's card or the win's hush the bus is silent by choice and a note out of nowhere would
+ * be a lie about what the game is doing. It is not sequenced and not ledged, for the same
+ * reason it is not metered against `MUSIC.peakLoad`: it is one voice, one per keypress, and
+ * it belongs to the interface and not to the pattern.
+ */
+export function auditionMusic(world, rising) {
+  const actx = getContext();
+  if (!actx || isMuted()) return false;
+  if (patternFor(world) === NO_MUSIC) return false;
+  if (actx.state === 'suspended' && actx.resume) actx.resume();
+  const tone = { ...AUDITION, drop: rising ? AUDITION_NOTE.up : AUDITION_NOTE.down };
+  return voice(actx, AUDITION_NOTE.at, tone, actx.currentTime + 0.001);
 }
 
 /** The bar's chord, spread across two oscillators a comma apart: six voices, eight when harsh. */

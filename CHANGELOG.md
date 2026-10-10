@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 0.7.4 — 2026-10-10
+Two volume sliders, one mute above them, and a readout that says what the key you just pressed did.
+- **The music and the sounds have their own sliders.** `[ ]` moves the music, `- =` the sounds — ten
+  positions each, answered with a tick or a note and with the two rows painted on the glass for a
+  moment and a half, because milestone 9 is where a settings page lives and a key that changes
+  something invisible is a key that might not have been pressed. The top of either slider is
+  exactly the mix the game shipped with, so a slider can only ever take loudness away: the
+  headroom the effects are priced against and the ceiling the music is metered at stay measured.
+- **A step is 2 dB and not a tenth of the gain.** Loudness is a ratio, so the slider is one: one
+  exponential curve across a 20 dB span puts every press the same distance from the last, where a
+  linear slider would spend half its presses on the loudest third of its own range. Zero is a hard
+  zero — nothing on that bus — and a bus glides to wherever you put it over fifteen milliseconds,
+  because a 2 dB jump under a pad that is mid-chord is a click out of the speakers.
+- **A press is answered on the bus it changed.** The sounds slider ticks through the sounds bus —
+  rising going up, falling coming down, the same two words every other tick in the interface is
+  spoken in — and the music slider plays one note of the key through the music bus, so what you
+  hear is the level you just set and not a beep about it. It is only played where there is music to
+  sit under: on a death's card the bus is silent by choice and a note out of nowhere would be a
+  lie. A slider already at the end of its travel is refused in silence and in ink, like every other
+  refused press in the game.
+- **The mute is still the one switch.** It hangs on the master above both buses, so it is the only
+  value that goes quiet whatever is scheduled — music already queued half a second ahead, a slider
+  at its top, all of it — and the music's muffle sits downstream of the music bus and is repriced
+  by nothing. Mute also lights the readout now, and says MUTED while the master is shut, because
+  that is the one thing a slider cannot describe.
+- **The readout measures itself.** The mixer panel computes its whole layout in one function and is
+  drawn over everything, cards included, and a test can ask whether the labels are out and the pips
+  are in — which they were not when it was first written, arithmetic being the only thing that could
+  have noticed. 1,343 tests, 21 of them new in `test/volume.test.mjs`, and the reference seed still
+  traces byte for byte the same run: the sliders are a bus each and the simulation never learns.
+
 ## 0.7.3 — 2026-10-10
 The music plays the run it is under: drums join at two minutes, a boss speeds the whole grid up, and one hull left strips it to a heartbeat.
 - **Five patterns, and the run chooses.** The sequencer's layers became whole *patterns* — which lines play, how fast the grid runs, how the chord is voiced — and one is picked each frame out of what the world says about itself: the clock, whether a boss is standing in the arena, and how much hull the ship has got left. The title keeps its pad, a run drives on bass and arpeggio, and a run paused over its cards holds its music while you read.

@@ -1,7 +1,8 @@
 // One Web Audio context, one master bus with a compressor and two buses hanging off it -
 // one for sound effects, one for the music, the music's with a tone control of its own -
-// and the mute switch. Everything else about sound is in sfx.js, music.js and noise.js, and
-// what the bus will let through at once is in mix.js.
+// the mute switch, and the two volume sliders PLAN section 5 asks for. Everything else
+// about sound is in sfx.js, music.js and noise.js, and what the bus will let through at
+// once is in mix.js.
 
 let actx = null;
 let master = null;
@@ -16,10 +17,10 @@ const MASTER_GAIN = 0.22;
 // Why two buses when one master works: the mix's loudness numbers (audio/mix.js) are all
 // written for the effects, and the music has to join the master without asking the effects
 // budget to make room for it. A bus each means the two can be balanced against each other
-// without touching a single voice in either - and when milestone 9 puts volume sliders on
-// the glass, a slider is a bus, not a rewrite.
+// without touching a single voice in either - and when a slider was asked for it could be a
+// bus and not a rewrite (see the sliders below, and milestone 9 for putting them on the glass).
 //
-// The effects bus stays at 1 on purpose: every `vol` in the game is already priced against
+// The effects bus ships at 1 on purpose: every `vol` in the game is already priced against
 // the whole master (the headroom analysis in mix.js is arithmetic on those numbers), so a
 // different number here would silently reprice the entire game's sound. The music bus sits
 // at half because the loudest instant any pattern the sequencer can write reaches is
@@ -29,6 +30,55 @@ const MASTER_GAIN = 0.22;
 // wall on top of it.
 const SFX_BUS_GAIN = 1;
 const MUSIC_BUS_GAIN = 0.5;
+
+// ---------------------------------------------------------------------------
+// The two sliders.
+//
+// A slider is a bus, which is the whole reason there are two buses (see the note above):
+// these two numbers multiply the two bus gains and touch nothing else. The mute stays the
+// single value that goes quiet whatever is scheduled, because it hangs on the master above
+// both of them and no slider can out-mute it - and the music's tone filter sits *downstream*
+// of the music bus, so a slider can make the music quieter without repricing the muffle.
+//
+// **The top of a slider is the shipped mix, not twice the shipped mix.** Every `vol` in the
+// game is priced against the master through the headroom analysis in mix.js, and every bar
+// of music against `MUSIC.peakLoad` (audio/music.js): those two measurements are what stop
+// a late run turning into a hiss, and a slider that could go past them would un-measure the
+// game. So both sliders end at unity on their own bus - which is exactly what the game
+// shipped as before a player was allowed a say - and go *down* from there.
+//
+// **Each step is the same step to the ear, not the same number.** A linear 0..1 slider is
+// half the key presses spent on the loudest third of the range and nothing on the quietest:
+// loudness is a ratio, so the slider is one too. `span` dB spread over `steps` positions
+// means every press moves 2 dB, which is the smallest change a listener can tell, and 0 is
+// a hard zero - nothing on that bus, not a very quiet something.
+// ---------------------------------------------------------------------------
+export const VOLUME = {
+  /** Positions on a slider. The top one is the shipped mix; 0 shuts that bus. */
+  steps: 10,
+  /** dB the whole slider spans, so one step is `span / steps` dB. */
+  span: 20,
+  /** Where both sliders start: as loud as the game was measured to be. */
+  start: 10,
+};
+
+/** s of glide a bus takes to a new level - see `glideTo`. */
+const BUS_GLIDE = 0.015;
+
+/** Where the two sliders are. Kept here whether or not there is an audio device to apply them to. */
+const levels = { music: VOLUME.start, effects: VOLUME.start };
+
+/**
+ * What one slider position is worth as a gain: 1 at the top, 0 at the bottom, and the same
+ * ratio between every pair of neighbours. Rounds, because a slider has positions and not a
+ * continuum - and a caller who asks for 3.7 meant the third one.
+ */
+export function levelGain(level) {
+  const n = Math.round(level);
+  if (n <= 0) return 0;
+  if (n >= VOLUME.steps) return 1;
+  return Math.pow(10, (-VOLUME.span * (VOLUME.steps - n)) / (VOLUME.steps * 20));
+}
 
 // The music's tone control: a low-pass between the music bus and the master, sitting wide
 // open all game and swept shut for a moment by `muffleMusic` when the ship is hurt (PLAN
@@ -77,6 +127,7 @@ const COMPRESSOR = { threshold: -18, knee: 6, ratio: 4, attack: 0.004, release: 
 export function buildMaster(actx) {
   const gain = actx.createGain();
   gain.gain.value = muted ? 0 : MASTER_GAIN;
+  const gains = busGains();
 
   let bus = null;
   if (typeof actx.createDynamicsCompressor === 'function') {
@@ -93,7 +144,7 @@ export function buildMaster(actx) {
   }
 
   const music = actx.createGain();
-  music.gain.value = MUSIC_BUS_GAIN;
+  music.gain.value = gains.music;
 
   let tone = null;
   if (typeof actx.createBiquadFilter === 'function') {
@@ -108,10 +159,75 @@ export function buildMaster(actx) {
   }
 
   const sfx = actx.createGain();
-  sfx.gain.value = SFX_BUS_GAIN;
+  sfx.gain.value = gains.effects;
   sfx.connect(gain);
 
   return { gain, bus, music, sfx, tone };
+}
+
+/**
+ * What each bus is set to right now, in the unit its own shipped number is written in - the
+ * two sliders applied to the two constants above. A copy, and the answer both `buildMaster`
+ * and a live graph work from, so neither can drift from the other.
+ */
+export function busGains() {
+  return {
+    music: MUSIC_BUS_GAIN * levelGain(levels.music),
+    effects: SFX_BUS_GAIN * levelGain(levels.effects),
+  };
+}
+
+/**
+ * Take a bus to a new gain over a breath. A step is 2 dB and a bus carries everything that is
+ * sounding, so a bus moved between two frames would click: the pad is already in the middle
+ * of a chord and a chord that jumps is a pop out of the speakers. Fifteen milliseconds is
+ * far too fast to hear as a fade and about ten times longer than a click needs.
+ *
+ * A bus only ever exists once there is a context to schedule it on (initAudio below builds the
+ * graph or nothing), so there is no third case here: no bus means the level is remembered on
+ * this side of the wire and `buildMaster` will build the graph at it.
+ */
+function glideTo(node, value) {
+  if (!node) return;
+  const now = actx.currentTime;
+  node.gain.cancelScheduledValues(now);
+  node.gain.setValueAtTime(node.gain.value, now);
+  node.gain.setTargetAtTime(value, now, BUS_GLIDE);
+}
+
+function applyLevels() {
+  const gains = busGains();
+  glideTo(musicBus, gains.music);
+  glideTo(effectsBus, gains.effects);
+}
+
+/** Where one of the two sliders is. */
+export function musicLevel() {
+  return levels.music;
+}
+
+export function effectsLevel() {
+  return levels.effects;
+}
+
+/**
+ * Move one slider, and answer the position it landed on - or null when it was already there,
+ * which is how a caller knows there is nothing to answer the press with. Out of range is
+ * clamped rather than refused: a key pressed twice too often is a slider against the end of
+ * its travel, and the end of the travel is a real place to be.
+ */
+export function setLevel(which, level) {
+  if (levels[which] === undefined) throw new Error('no volume bus is called ' + which);
+  const next = Math.max(0, Math.min(VOLUME.steps, Math.round(level)));
+  if (next === levels[which]) return null;
+  levels[which] = next;
+  applyLevels();
+  return next;
+}
+
+/** One slider, one step, one direction. */
+export function nudgeLevel(which, delta) {
+  return setLevel(which, levels[which] + delta);
 }
 
 /** Safe to call on every click; it gives up quietly if audio is impossible. */
@@ -188,6 +304,12 @@ export function hasMusicTone() {
   return musicTone !== null;
 }
 
+/**
+ * The one switch. It works on the master above both buses, so it is still the only value
+ * that goes quiet whatever is scheduled - music already in the sequencer's half second of
+ * lookahead, a slider at its top, all of it. The sliders are balances between two things
+ * that are playing; this is whether anything is.
+ */
 export function setMuted(value) {
   muted = !!value;
   if (master) master.gain.value = muted ? 0 : MASTER_GAIN;

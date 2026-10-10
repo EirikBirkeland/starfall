@@ -27,6 +27,18 @@ function pickOf(code) {
 // a movement key, not the mute, and not the launch.
 const REROLL_KEYS = ['KeyR'];
 
+// The two volume sliders (audio/engine.js), one pair of neighbours each on the top row: `[ ]`
+// for the music, `- =` for the sounds. None of these four is a movement key, the launch, the
+// dash, a card number, the reroll or the mute, which is the whole of how a key gets chosen in
+// this game. Left of the pair turns a bus down and right turns it up, which is the direction
+// the glyphs themselves point in.
+const VOLUME_KEYS = {
+  BracketLeft: ['music', -1],
+  BracketRight: ['music', 1],
+  Minus: ['effects', -1],
+  Equal: ['effects', 1],
+};
+
 // One-shot requests: a key that means "do that thing" rather than "this is held".
 // input/index.js folds them into the descriptor and clears them once the
 // simulation has had its turn at them.
@@ -38,6 +50,7 @@ export const keyTaps = { dash: false };
  *                        whether it was asked for with Shift (banish, not take)
  * handlers.onReroll    - the deal was asked for again
  * handlers.onToggleMute
+ * handlers.onVolume    - one step of one slider: which bus, and which way (-1 or 1)
  */
 export function initKeyboard(handlers) {
   window.addEventListener('keydown', function (event) {
@@ -54,6 +67,8 @@ export function initKeyboard(handlers) {
       const pick = pickOf(code);
       if (pick !== 0 && handlers.onPickCard) handlers.onPickCard(pick, !!event.shiftKey);
       if (REROLL_KEYS.indexOf(code) >= 0 && handlers.onReroll) handlers.onReroll();
+      const slider = VOLUME_KEYS[code];
+      if (slider && handlers.onVolume) handlers.onVolume(slider[0], slider[1]);
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
   });
