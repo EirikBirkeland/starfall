@@ -8213,3 +8213,122 @@ intensity layers, and volume settings.
   Hive's owed spiral (session 60), the mid-build measurement gap in `tools/simulate.js`, the
   four unbuilt synergies, and `tools/agent/session.js` still having `choose_weapon` and no
   `choose_ship`.
+
+## Session 69 (2026-10-10) — The sound has a body: noise buffers, three sizes of explosion, and a hit that muffles the music. Released **0.7.1**
+
+Milestone 7's second item ("Effects for shots, hits, explosions, pickups, level-up, dash,
+player hit, UI") was opened. It is not ticked yet - the audit below says what is left - but the
+half of it that was missing is in: the game now has noise buffers, which PLAN section 5 asked
+for by name and which had never existed. Everything was an oscillator before this session.
+
+### The audit first, because that is what the item actually needed
+Walking the named effects against the code: shots (one row per gun, `game/weapons.js`), hits
+(`bullets.impactSound`), explosions (every kind's `sound`, blast rows), pickups
+(`pickups.js`), level-up (`progress.js`'s chord), dash (`player.js`), player hit
+(`playerHit.sound`) and the boss's siren and going-down chords all *existed* - as oscillators.
+Three named things are genuinely still missing and none of them is the noise:
+- **UI ticks. Nothing. Zero.** `src/ui/screens.js` and `src/main.js` queue no sound at all, so
+  the title, the ship row, the level-up card, the pause and both ending cards are silent. PLAN
+  section 5 wants "UI ticks". Whoever does this decides which events (hover? confirm? the card
+  landing?) - and note that the UI is presentation, not simulation, so it may talk to
+  `audio/sfx.js` directly rather than going through the cue queue.
+- **The shard pickup does not "rise in pitch with a streak"**. It picks a random frequency
+  inside `base..base+jitter` every time (game/pickups.js), which is jitter, not a streak. A
+  streak is a number the run is already keeping - `world.shardsCollected` - so the pitch has an
+  honest input waiting for it.
+- **Hits are not "pitched by enemy size"** either: `impactSound` is `min`/`max` random, not a
+  function of the body. `enemy.kind.stats.radius` is the size and it is right there at the call.
+
+### What landed here
+- **`src/audio/noise.js` (new).** One shared two-second buffer of grain, filled once (measured:
+  0.65 ms, and it happens on the first explosion rather than at boot, which is free), and a
+  voice: buffer source (looping, started at a random point in the buffer so thirty deaths are
+  not the same thirty microseconds of hiss) → biquad low-pass → gain → the effects bus. The
+  filter is swept *while the envelope closes*, and that sweep is the whole instrument: cutoff
+  above sweep is a crack settling into a rumble - an explosion - and the other way up is air
+  going past, a whoosh. Falls back to "no noise on this machine" the way the compressor does.
+- **Five `noise:` rows in `game/balance.js`, and one idea holding them together: `share`.** A
+  hiss is priced as a fraction of the tone it lies under, so every kind that had already priced
+  its own death down is quiet twice over without a new number anywhere. Small (every body coming
+  apart, `death.sound.noise`, 0.16 s, 1500→160 Hz), medium (the bomber's blast, 0.5 s,
+  1600→60), large (a boss's framework at 1.3 s and the ship's own ending at 1.1 s, both closing
+  to the bottom of the band), plus the dash's whoosh (260→3200, the only opening sweep) and the
+  player hit's thud.
+- **The music's tone control (`audio/engine.js`).** A low-pass sits between the music bus and
+  the master gain, wide open at 18 kHz all game, and `muffleMusic(to, back)` slams it shut in
+  30 ms and lets it back up on `setTargetAtTime` with a time constant of a quarter of `back`.
+  It is a wire and not a note: the sequencer always has half a second queued, and a filter on
+  the bus reaches the notes already on their way. `playerHit.duck` is `{ to: 320, back: 0.7 }` -
+  under the arpeggio and the top of the pad, so being hit takes the *melody* away and leaves
+  the bass driving, which is a flinch and not a wall of mud.
+- **Two new cue kinds** (`game/cues.js`): `cueNoise(spec, vol)` and `cueMuffle(to, back)`. The
+  muffle is the interesting one: it is handled in `consumeCues` on the way past the sort, not
+  as one of the voices competing for the frame, because it is not a voice and cannot be turned
+  away by the budget.
+- **`playerHit.sound.vol` went 0.2 → 0.16** and the noise takes 0.08 of it. The tone alone is
+  now what it used to be, not 1.5× it, because the budget is a sum and a hit already happens
+  more than once a run. (This also makes `audio/mix.js`'s comment about the loudest voice true
+  again; it had been lying by 0.04 for a while.)
+- **`tools/simulate.js --audio` prints what the mix made of the run** - asked, played, turned
+  away, peak load and voice count, the noise total, the music's steps. That is how the numbers
+  below were got, and it is the instrument for every sound change after this one.
+- **The harness grew the optional audio parts** (`tools/headless/harness.js`): `createBuffer`,
+  `createBufferSource`, `createBiquadFilter`, `sampleRate`, and a book of every *swept* AudioParam
+  (`log.ramps`) so a test can see a sweep happen and not merely a node being built. Envelopes are
+  deliberately not logged - a busy frame writes thousands and nobody reads them. `audio: 'raw'`
+  now means a machine with *none* of the optional parts, not just no compressor.
+
+### Verified, not assumed
+- 1292 tests, twice. New: `test/noise.test.mjs` (8: every noise row is a real sweep; one voice
+  per cue on one shared buffer; the buffer is *actually* grain - a real Float32Array, peak, RMS
+  and zero-crossings counted; the mix turns a hiss away like anything else; mute is silent; the
+  hit muffles and lets go; an old machine is survivable, including the worse one with buffers but
+  no filters), one graph test in `test/mix.test.mjs` (five wires pinned: both buses upstream of
+  the master, the tone only on the music, the compressor last before the speakers), and
+  **`test/simulate.test.mjs`'s "the sound cannot move a run"**, which runs the tool twice and
+  asserts the trace is identical with an audio device and without one.
+- Measured against a worktree at the previous commit, four three-minute runs each way: the game
+  now asks for 30,689 voices where it asked for 27,444, plays 27,362 where it played 26,060, and
+  turns away 3,327 where it turned away 1,384. So it asks for a sixth more, loses three fifths of
+  the difference - which is exactly the design working, the note surviving and the crump being
+  what a crowded frame cannot afford - and the peak did not move: 0.500 of 0.500, in 19 voices
+  both ways. A full ten-minute game with `--audio` voices 2,309 noise bursts and never goes over
+  the ceiling.
+- `test/structure.test.mjs`'s "only the seed chooser reaches for Math.random" **caught this on
+  the first run** and had to be widened on purpose, not by accident: see the decision below.
+
+### Decisions, so nobody relitigates them
+- **`audio/noise.js` uses `Math.random`, and is the one file in `src/` allowed to.** The seeded
+  stream belongs to the simulation; if the grain of an explosion came off it, then simply
+  *hearing* the game would move a run. The structure test now names it, the stream test already
+  keeps this module out of the seeded streams, and the new simulate test proves the trace does
+  not care. This is the load-bearing decision of the session and it is written in three places.
+- **`share` and not a volume per row.** One number per event prices both halves of it, respects
+  every kind that had priced itself down, and makes "too loud in a crowd" fixable in one line.
+- **The muffle is a cue, and its numbers are balance rows.** The simulation says "the ship was
+  hurt"; `playerHit.duck` says what that does to the music; `audio/` decides how. Going through
+  the cue queue rather than calling the engine from `game/` is the same rule as every other sound.
+- **The tone filter sits upstream of the master gain, downstream of the music bus.** Now pinned
+  wire by wire: anywhere else it would either duck the effects too or be able to out-shout the
+  mute.
+- **The noise shares the voice budget** (unlike the music, which is outside it): a hiss *is* an
+  unpredictable arrival, which is the whole reason the budget exists.
+
+### For the next session
+- **Finish milestone 7's effects item**, and it is the three pitch stories the audit above found:
+  the **UI ticks** (the only named thing with nothing behind it at all), the **shard that rises
+  with its streak**, and **hits pitched by the body's size**. All three are small; doing them
+  properly means deciding what each should say, not just wiring a number through. Tick the item
+  when they are in.
+- **Then intensity layers, boss music, low-hull variation** - drums after 2:00, a harsher pattern
+  at `world.boss`, a stripped one at `world.player.hull === 1`, which will want the world rather
+  than the state passed to `updateMusic`. The layers and the gate are built to take it. And the
+  noise gives the boss pattern somewhere to live now: a drum is a noise voice with a short decay.
+- **Then volume settings and mute** (the mute key exists; two sliders are the buses, which is
+  why they were built a session ago).
+- Still open from older sessions and unchanged: the shake's painter (session 66's note - still
+  the cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship`.
+- Worktree hygiene: `/tmp/s69-base` was the baseline worktree for the measurements above and is
+  gone again.
