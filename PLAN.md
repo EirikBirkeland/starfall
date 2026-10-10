@@ -7,6 +7,9 @@ A first playable version already exists as a single `index.html`. This plan grow
 beautiful, finished game. It is many days of work. Go through the milestones in order.
 Tick items as `[x]` when done. Each item is sized to fit one session; split it if it turns out bigger.
 
+The file "OVERLORDS_REQUESTS" contains outstanding urgent hotfixes
+
+
 ---
 
 ## 1. Pillars
@@ -1064,14 +1067,38 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [ ] Release.
 
 ### Milestone 10: balance and polish
-- [ ] An upgrade that widens the shard magnet (**the owner's request of 2026-10-10**, left in
+- [x] An upgrade that widens the shard magnet (**the owner's request of 2026-10-10**, left in
       `OVERLORDS_REQUESTS`: "an Attractor mod ... increases attraction range allowing you to collect
-      faster"). A card line like any other (3.5): ranks of reach on top of `shards.magnetRadius`, priced
-      off what the simulation says a wider net is worth in damage-per-second rather than in damage, and
-      measured with `tools/balance-report.js` before it ships. Nothing in the deck buys reach today -
-      `magnetar` is what a swallowed shard *does*, not how far away one is noticed - and the owner offered
-      the name "Speed-dating" as a joke they expected to rename, so it lands with a plain word instead.
-      Worth doing before the gamepad and touch items below: it is small, and they asked for it by name.
+      faster"). It shipped in 0.10.0 as **ATTRACTOR**, and it turns out to be PLAN 3.5's own
+      "Pickup radius" stat line arriving seventeen releases late rather than a new idea: five ranks of
+      +25% of `shards.magnetRadius`, so 145 px as the game shipped and 326 px at the fifth rank, read
+      where a shard is drawn in (`game/upgrades.js attractorReachOf` at `game/pickups.js`) so a rank
+      taken between two frames is felt by every shard already lying on the floor and not only by the
+      ones dropped after it. The pull gradient is measured over the reach and not over the table's
+      radius, which is the difference between a well that gets wider *and* deeper and one that gets
+      stretched thin: the tug at the rim stays `pullFar` and the tug at the hull stays `pullNear`, so a
+      shard that used to sit on the rim sits inside the new one and is pulled harder for it. The power
+      ladder cannot see a line whose trigger is picking something up, so it was priced on runs
+      (`tools/line-ab.js --line attractor --seeds 6 --seconds 600 --stats collected,level`): five free
+      ranks are +43.5% of a run's score and +39.7% of its damage against the DAMAGE line's +31.2% and
+      +51.5% on the same seeds, and what it really buys is levels - the median run goes from 35 to 58.
+      A rank too thin to be felt (5% to 12%) reads *worse* than having no such card at all, because a
+      player pays a level for it either way. The owner's name for it was "Speed-dating"; it lands with
+      the plain word from their own first line instead.
+- [ ] The point vacuum (**the owner's request of 2026-10-10, second half of the same note**): "every
+      10,000 points scored, every existing point on the screen should auto-stream to the player ship.
+      During this 10 second event, play some excited music, inspired by the classical Final Fantasy
+      fanfare." Filed here rather than under milestone 9 because it is a run event and not an interface
+      row, and it needs four decisions writing down before it is built: what "on the screen" means in a
+      3000 x 3000 arena read through a window (everything in the arena is the fun answer and the shards
+      off-screen are the ones a player would swear were missing); whether the event also vacuums what
+      drops *during* its ten seconds or only what was lying there when it began; that a free pile of
+      shards is free XP and therefore free cards, which is the same economy ATTRACTOR just showed is
+      load-bearing, so it wants measuring with `tools/line-ab.js`'s `collected` and `level` columns and
+      not a shrug; and a fanfare that is `music.js`'s business and not `sfx.js`'s, over the music the
+      run is already under, and loud enough to be the reward. The score's own vocabulary for a reward
+      fanfare already exists (`lastStand`, the piece the win is played under) - this is its opposite,
+      and it should be heard coming.
 - [ ] Use the simulation to check the difficulty arc: the bot should usually die between 4:00 and 9:00
       with no upgrades chosen wisely, and no enemy type should be responsible for over 40% of deaths.
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.

@@ -8,6 +8,7 @@ import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
 import { levelUp } from './progress.js';
 import { feedField } from './magnetar.js';
+import { attractorReachOf } from './upgrades.js';
 
 /** The shape of a shard. `worth` is what makes a large one (PLAN 3.3's elite drop). */
 export function makeShard() {
@@ -100,7 +101,12 @@ export function updateShards(world, dt) {
   const climb = sound.streak;
   coolStreak(world, dt);
   const drag = Math.pow(spec.drag, dt);
-  const magnet2 = spec.magnetRadius * spec.magnetRadius;
+  // How far the reach goes is the attractor line's answer, not the table's: a run that took three
+  // ranks of it is drawing in from twice as far off (game/upgrades.js `attractorReachOf`). The
+  // gradient below is measured over this same number, which is what makes a rank widen the well and
+  // deepen it at once instead of stretching the tug thin over a bigger circle.
+  const magnet = attractorReachOf(world);
+  const magnet2 = magnet * magnet;
   const collectR = spec.collectRadius;   // measured from the ship's centre, not its hit radius
   const collect2 = collectR * collectR;
   const shards = world.shards;
@@ -119,7 +125,7 @@ export function updateShards(world, dt) {
     const near2 = dx * dx + dy * dy;
     if (near2 < magnet2) {
       const dist = Math.sqrt(near2) || 1;
-      const pull = lerp(spec.pullNear, spec.pullFar, dist / spec.magnetRadius);
+      const pull = lerp(spec.pullNear, spec.pullFar, dist / magnet);
       shard.vx += (dx / dist) * pull * dt;
       shard.vy += (dy / dist) * pull * dt;
     }

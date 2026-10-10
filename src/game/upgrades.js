@@ -216,6 +216,14 @@ export const LINES = [
     flavour: 'A gun is set down across the road ahead and holds it for ten seconds, firing at whatever it can see.',
     icon: 'turret',
   },
+  {
+    id: 'attractor',
+    name: 'ATTRACTOR',
+    unit: SHARE_UNIT,
+    what: 'shard reach',
+    flavour: 'Shards notice you from further off. A pile is yours without a detour through it.',
+    icon: 'attractor',
+  },
   // The first synergy (PLAN 3.5's table, and the last entry in LINES on purpose: table order is
   // LINES order, so a synergy is always the right-hand card and a player learns to look there).
   // What it needs is in `BALANCE.upgrades.thermalShock.needs`, not here, because no number lives
@@ -257,6 +265,8 @@ const MINES_LINE = 'mines';
 const TETHER_LINE = 'tether';
 /** The line that sets guns down on the road ahead of the ship. */
 const TURRET_LINE = 'turret';
+/** The line that widens how far away a shard notices the ship. */
+const ATTRACTOR_LINE = 'attractor';
 
 const BY_ID = new Map(LINES.map((line) => [line.id, line]));
 
@@ -478,6 +488,24 @@ export function imagesOf(world) {
  */
 export function crackShotsOf(world) {
   return countOf(world, MAGNETAR_LINE);
+}
+
+/**
+ * How far away a shard lets go of the arena and starts coming in (the owner's request, filed as
+ * PLAN milestone 10's first item): `shards.magnetRadius` multiplied by the ranks standing behind
+ * it. Read where a shard is drawn in - game/pickups.js - which is the one place that answers the
+ * question, so a rank taken between two frames is felt by every shard on the arena on the next one
+ * rather than only by the ones dropped after it.
+ *
+ * The pull gradient is measured over *this* number and not over the balance table's, so the field
+ * keeps its shape as it widens: the tug at the rim is always `pullFar` and the tug at the hull is
+ * always `pullNear`, and a shard that used to sit on the rim now sits a little inside it and is
+ * pulled harder for it. The alternative - keeping the gradient on the old radius and clamping what
+ * fell past it - would hand the new outer ring a fixed weak tug and leave the near field exactly as
+ * it was, which is a card that only ever makes loot *slower to land*.
+ */
+export function attractorReachOf(world) {
+  return BALANCE.shards.magnetRadius * gainOf(world, ATTRACTOR_LINE);
 }
 
 /**

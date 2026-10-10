@@ -3228,6 +3228,66 @@ export const BALANCE = {
       },
     },
 
+    // Attractor (game/pickups.js): PLAN 3.5's own "Pickup radius" stat line, which the deck never
+    // had until the owner asked for it by name on 2026-10-10 ("an Attractor mod ... increases
+    // attraction range allowing you to collect faster"). It is the only line in the deck that buys
+    // *reach*: every other line multiplies the gun, adds a source of damage, or spends what the run
+    // already collects (magnetar). Nothing about it can be priced on the power ladder - a knot of
+    // immortal bodies never drops a shard for anything to collect, so it reads 1.00x there the way
+    // magnetar and mines do - and the instrument is the run itself.
+    //
+    // A rank buys a share of `shards.magnetRadius`, and the pull gradient is read over that radius,
+    // so a rank widens the well *and* deepens it: a shard standing where the old rim used to be sits
+    // nearer the middle of the new one and is tugged harder rather than weaker (game/pickups.js).
+    //
+    // Measured with `tools/line-ab.js --line attractor --seeds 6 --seconds 600 --stats
+    // collected,level`, the aware bot that never dashes. The window is ten minutes and not the tool's
+    // fifteen on purpose: by a quarter of an hour the deck is out of ranks, a level buys nothing and
+    // every column goes flat - which is exactly the window *not* to price a card in. The yardstick is
+    // the DAMAGE line, measured the same way on the same six seeds, where out / dealt / free read
+    // 1.000x / 1.070x / 1.312x of the score and 1.000x / 1.109x / 1.515x of the damage:
+    //
+    //   step   rank 5 reaches   dealt (score, damage)   free (score, damage)   levels out → free
+    //   +5%        182 px        0.726x, 0.739x          1.342x, 1.334x           35.5 → 48.5
+    //   +8%        203 px        0.664x, 0.669x          1.364x, 1.330x           35.5 → 51.5
+    //   +12%       232 px        0.350x, 0.339x          1.375x, 1.369x           35.5 → 52.5
+    //   +15%       261 px        1.099x, 1.068x          1.385x, 1.335x           35.5 → 53.5
+    //   +20%       290 px        1.146x, 1.099x          1.420x, 1.382x           35.5 → 56.5
+    //   +25%       326 px        1.114x, 1.064x          1.435x, 1.397x           35.5 → 58.0
+    //
+    // Three things come out of that table, and the first is the one that was not expected.
+    //
+    // **The card is not paid in damage, it is paid in levels.** Shards are the only way a run earns XP,
+    // so a wider net is a faster build of *everything*: five free ranks take the median level from 35
+    // to 58 and the median shards gathered from 1,570 to 5,272, and the damage follows the build. That
+    // is why a whole stack of it (+43.5% score, +39.7% damage) comes out in the yardstick's family
+    // (+31.2%, +51.5%) while being the cheaper card where damage is counted - and it is the opposite
+    // shape to game/magnetar.js, which is worth most to a run that stands and fights and nothing to one
+    // that runs. Whether an indirect card of this size is right is a question for a person playing it
+    // (NOTES session 86); what the instrument can say is that it is not above the best line in the deck.
+    //
+    // **A thin rank is a tax.** At +5%, +8% and +12% a rank the `dealt` column comes out *below* the
+    // same deck with the line out of it (0.726x, 0.664x, 0.350x), because the bot takes the shallowest
+    // line on the table and pays a level for a rank too thin to pay it back. Six seeds is not enough to
+    // say how far below - the same instrument reads 1.10x at +15% on the very next row - but the
+    // direction survived two windows and it is the whole argument for the number below being a quarter
+    // and not a tenth: a rank has to be a distance you can feel from the middle of the arena.
+    //
+    // **Past that it barely matters.** +5% a rank and +25% a rank read within ten points of each other
+    // on `free` (1.342x against 1.435x of the score): once the net clears the corridor a fleeing ship
+    // drags its loot down, extra width buys little. So the step is a feel knob rather than a power knob,
+    // and it is set at the near end of the flat part.
+    //
+    // And rank 0 is nothing at all, which is the claim the whole line rests on: with `ranks: 0` the
+    // ten-minute reference run (`tools/simulate.js --seed 20261006 --trace`) is byte-identical to the
+    // one this card was not in the deck for, every frame hash of it - the only line that differs is the
+    // build string, which now prints a nineteenth number. The gradient is read over `attractorReachOf`
+    // and at no ranks that is the balance table's own number, multiplied by one.
+    attractor: {
+      ranks: 5,
+      step: 0.25,        // of the shard's reach, per rank: 145 px as the game shipped, 326 px at five
+    },
+
     // Thermal shock (game/shock.js): the first of PLAN 3.5's synergies - "Burn 3 + Chill 3:
     // enemies that are both burning and chilled explode". It is not a line: it has one rank, it is
     // never dealt until the run has built its way into it, and it is not bought *instead of*

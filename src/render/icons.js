@@ -94,7 +94,14 @@ const TINT = {
   // also means the seventeenth card asks the canvas for no new sprite, which test/draw-cost.test.mjs
   // is watching.
   turret: PALETTE.playerLine,
-  // The eighteenth card on the rack, and the first one that is not a line: a synergy is two lines the
+  // The eighteenth card on the rack, and - following the six before it - not an eighteenth hue. It is
+  // the shard's own mint, which is what the card spends and what the arena draws every one of them in
+  // (render/entities.js), so a card about *how far off a shard is yours* wears exactly the colour of
+  // the thing being noticed. BULLET SPEED already wears mint and the two shapes could not be less
+  // alike - one is a shot with its wake, the other a wide fence with loot falling out of it - which is
+  // the only test a tint has to pass, and it means this card asks the canvas for no new sprite.
+  attractor: PALETTE.shard,
+  // The nineteenth card on the rack, and the first one that is not a line: a synergy is two lines the
   // run already owns, so it wears both of their colours and asks the canvas for no new sprite - the
   // flame is the tint everything below it already shines with, and the frost is a stroke. The frame
   // is what tells it apart (see `drawSynergyEdges`), not a hue, which is just as well: NOTES session
@@ -129,6 +136,7 @@ const ICONS = {
   mines: iconMines,
   tether: iconTether,
   turret: iconTurret,
+  attractor: iconAttractor,
 };
 
 /** The orbital icon: the ring's own radius, three of them on it, and a ship in the middle. */
@@ -889,6 +897,62 @@ function iconTurret(ctx, size, tint) {
   ctx.fill();
 
   shipPath(ctx, 0, size * 0.66, size * TURRET_SHIP, -Math.PI / 2, 1.6);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+}
+
+/**
+ * A dashed fence at the very edge of the icon, three shards sitting on it, and every one of them
+ * already falling in along a line that bows round on the way to the ship. The MAGNETAR card also
+ * draws loot coming in, and the difference between the two shapes is the difference between the two
+ * cards: that one is a place the ship carries, so its arrows are short and its ring is tight, while
+ * this one is about *distance* - the loot starts as far out as the icon gets, and the ring it starts
+ * on is dashed like every other reach in the arena is (a fence, not a wall). The three lines spiral
+ * in rather than run straight in so the shape reads as movement and not as a wheel.
+ */
+const FENCE_AT = 0.86;      // where the reach is drawn, and where the loot stands on it
+const FENCE_DASH = 0.075;   // px of dash and of gap, scaled with the icon like everything else
+const FALL_TO = 0.3;        // a shard's line ends at the ship's shoulder
+const FALL_BOW = 0.55;      // rad the line swings round on the way in - the whole spiral
+const FALL_LINE = 0.055;
+const FALL_SHARD = 0.125;
+const FALL_WAYS = 3;
+const REACH_SHIP = 0.22;    // the ship at the middle, small, as always
+
+function iconAttractor(ctx, size, tint) {
+  ctx.setLineDash([size * FENCE_DASH, size * FENCE_DASH]);
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = withAlpha(tint, 0.45);
+  ctx.beginPath();
+  ctx.arc(0, 0, size * FENCE_AT, 0, TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.lineCap = 'round';
+  const at = (angle, radius) => ({
+    x: Math.cos(angle) * size * radius,
+    y: Math.sin(angle) * size * radius,
+  });
+  for (let i = 0; i < FALL_WAYS; i++) {
+    const a = -Math.PI / 2 + (i / FALL_WAYS) * TAU;
+    const shard = at(a, FENCE_AT);
+    const bow = at(a + FALL_BOW * 0.6, (FENCE_AT + FALL_TO) / 2);
+    const nose = at(a + FALL_BOW, FALL_TO);
+
+    ctx.lineWidth = size * FALL_LINE;
+    ctx.strokeStyle = withAlpha(tint, 0.55);
+    ctx.beginPath();
+    ctx.moveTo(shard.x, shard.y);
+    ctx.quadraticCurveTo(bow.x, bow.y, nose.x, nose.y);
+    ctx.stroke();
+
+    polygon(ctx, shard.x, shard.y, size * FALL_SHARD, 4, Math.PI / 4);
+    ctx.fillStyle = withAlpha(tint, 0.92);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+
+  shipPath(ctx, 0, 0, size * REACH_SHIP, -Math.PI / 2, 1.7);
   ctx.fillStyle = withAlpha(tint, 0.9);
   ctx.fill();
 }

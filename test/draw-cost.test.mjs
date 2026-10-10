@@ -74,7 +74,7 @@ test('a busy frame paints light without blurring and without gradients', () => {
   assert.ok(busy.stamps > 5000, 'glow sprites are doing the shining: ' + busy.stamps);
   assert.equal(busy.shadows, 0, 'nothing asked the canvas for a blur');
   assert.equal(busy.gradients, 0, 'nothing built a gradient this frame');
-  assert.ok(glowStats().holders < 36, 'and it came from a bounded few sprites: ' + glowStats().holders);
+  assert.ok(glowStats().holders < 50, 'and it came from a bounded few sprites: ' + glowStats().holders);
   // (34, and the same run on the commit before the ship owned a fire stood at 27: two sprites
   // are the whole of the fire - one wide, one hot, stamped at the size of whatever is burning
   // - and the ninth card tint asked for one more. Chill is two more still - the rime, and the
@@ -93,6 +93,16 @@ test('a busy frame paints light without blurring and without gradients', () => {
   // One of them belongs to a screen no run is played on: the title's mark asks for exactly one sprite
   // (render/logo.js), the hot `spark` at 40 that serves as the pen tip drawing a letter and as the
   // head of the falling star, stamped at whatever size the frame wants. The bound went to 36 for it.
+  //
+  // The bound went to 50 for ATTRACTOR, and the reason it moved by more than one is worth knowing before
+  // anybody reads 42 as a leak: the count is not one per card in the game, it is one per card this run
+  // *met*, because a card's tint is baked the first time its icon is painted - on the rack or in the
+  // HUD's rail (render/icons.js, render/hud.js). Adding a nineteenth line to the deck changes which
+  // cards the deal hands out, and this seed's run went from six lines by this window to twelve, so six
+  // more tints were asked for and the mint this card wears was already baked long before it was dealt.
+  // The promise is "a bounded few, one per thing that shines" and not "however many the bot happens to
+  // be dealt", so the number has to move with the deck; the bound has room for two more cards in a run
+  // like this one before it needs arguing with again.
 });
 
 test('a steady frame builds nothing at all', () => {
