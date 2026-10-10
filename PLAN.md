@@ -1036,9 +1036,27 @@ When every item above is ticked, go back to the first unchecked item of mileston
       deliberately not a boss's phase flare or the hull bar's white breath: both are news, and a setting
       that takes news away is not an accessibility setting. Closing the panel over a held run puts the
       pause back up, because opening it never let the run go.)
-- [ ] An auto-fire toggle and an auto-aim toggle (section 6, and nothing in the milestone list asked
+- [x] An auto-fire toggle and an auto-aim toggle (section 6, and nothing in the milestone list asked
       for them): the game is supposed to be playable with one hand or keyboard only, and today it is
-      not - aiming is the mouse and there is no way to stop holding the trigger.
+      not - aiming is the mouse and there is no way to stop holding the trigger. (`game/assists.js`, the
+      last two rows of the settings panel: AUTO-FIRE holds the trigger and AUTO-AIM points the gun, so
+      with both on WASD is a whole set of controls. They ship off, which is the game as it was built and
+      balanced, and they are stored as two flags in the save's new `assists` section - a switch has two
+      places and nothing in between them, and a value that is not yes or no is no value at all. They are
+      the two rows on that panel that *can* change a run, which is why they sit past the end of the walk
+      and why `test/settings.test.mjs`'s "nothing here can move a run" promise does not cover them: a
+      wander with the arrow keys should not quietly take the trigger out of the player's hand. Auto-fire
+      is written into the same input descriptor the hand writes into, so an auto-fired shot and a shot
+      the player fired are one and the same shot - the test plays one seed twice, once with the left
+      button held and once with the switch on, and asks for the same shots on the same steps. Auto-aim
+      takes aim inside the step and not in the frame loop, because a frame owes a different number of
+      steps on a different display and one step gets exactly one aim; it picks the nearest body a shot
+      can actually hurt (`hp > 0`, not `immune`, the same question `damageEnemy` asks) and *keeps* it until
+      the nearest one is forty per cent further out, because a nose that snaps between two bodies trading
+      the lead every few steps sprays shots between them and kills neither. Nothing to aim at leaves the
+      nose where the hand left it: the switch does not make a target out of empty sky. The body held is
+      `world.aimLock`, derived state like the grid and the packs - it goes with the crowd, with the run,
+      and with the switch that asked for it.)
 - [ ] Key rebinding.
 - [ ] Gamepad support.
 - [ ] Touch support.
@@ -1046,6 +1064,14 @@ When every item above is ticked, go back to the first unchecked item of mileston
 - [ ] Release.
 
 ### Milestone 10: balance and polish
+- [ ] An upgrade that widens the shard magnet (**the owner's request of 2026-10-10**, left in
+      `OVERLORDS_REQUESTS`: "an Attractor mod ... increases attraction range allowing you to collect
+      faster"). A card line like any other (3.5): ranks of reach on top of `shards.magnetRadius`, priced
+      off what the simulation says a wider net is worth in damage-per-second rather than in damage, and
+      measured with `tools/balance-report.js` before it ships. Nothing in the deck buys reach today -
+      `magnetar` is what a swallowed shard *does*, not how far away one is noticed - and the owner offered
+      the name "Speed-dating" as a joke they expected to rename, so it lands with a plain word instead.
+      Worth doing before the gamepad and touch items below: it is small, and they asked for it by name.
 - [ ] Use the simulation to check the difficulty arc: the bot should usually die between 4:00 and 9:00
       with no upgrades chosen wisely, and no enemy type should be responsible for over 40% of deaths.
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.

@@ -113,6 +113,9 @@ export function resetRun(world) {
   world.shards.clear();
   world.grid.clear();
   world.gridReach = 0;       // nothing is standing anywhere to be found (game/enemies.js)
+  // And the auto-aim is not being held on anything (game/assists.js): the body it was held on went
+  // with the crowd above, and a run that starts aimed at last run's wreck is aimed at nothing.
+  world.aimLock = null;
   // And no boss is coming or here: the schedule starts again from the top, the cage is open,
   // and a fight left standing when the last run ended is not this run's to finish
   // (game/bosses.js). This also puts the ship's flying box back to the whole arena.

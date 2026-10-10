@@ -1,2 +1,0 @@
-- Screen shaking makes the game a headache. ONLY use screenshaking extraordinarily, e.g. boss battles only.
-- When the user has finished the last boss, if the user clicks a button, the final screen is gone! This is useless. Disable user input for 5 seconds after game completion.

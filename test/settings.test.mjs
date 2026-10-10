@@ -252,20 +252,23 @@ test('the cursor walks the panel and the rows step under it', async () => {
   press('KeyO');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
     'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
-  ], 'four things it does to the eyes, then three it does to the ears');
+    'AUTO-FIRE', 'AUTO-AIM',
+  ], 'four things it does to the eyes, three it does to the ears, and the two it does to the hand');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.chosen),
-    [true, false, false, false, false, false, false], 'one cursor, on the first row');
+    [true, false, false, false, false, false, false, false, false], 'one cursor, on the first row');
   for (const row of game.screen.settingsRows) {
     assert.ok(row.says.length > 0, row.name + ' says what it does');
   }
 
   // Up and down move the cursor and nothing else; twelve presses each way and it has not left.
   for (let i = 0; i < 12; i++) press('ArrowDown');
-  assert.equal(cursorOn(), 6, 'the bottom row is the last one');
+  assert.equal(cursorOn(), 8, 'the bottom row is the last one');
   for (let i = 0; i < 12; i++) press('ArrowUp');
   assert.equal(cursorOn(), 0);
   assert.deepEqual(game.stats().settings, { shake: 'full', flash: 'full', numbers: 'on',
     particles: 'all' }, 'walking the cursor changed no row');
+  assert.deepEqual(game.stats().assists, { fire: 'off', aim: 'off' },
+    'and not one of the two switches either - a cursor is not an answer');
 
   // Left and right step the row under it, and the value on the glass is the value in the game.
   press('ArrowLeft');
@@ -287,6 +290,7 @@ test('the cursor walks the panel and the rows step under it', async () => {
   const saved = JSON.parse(game.storage[SAVE_KEY]);
   assert.deepEqual(saved.view, { shake: 'full', flash: 'soft', numbers: 'on', particles: 'all' },
     'the row that was moved is kept, by name, for the next visit');
+  assert.deepEqual(saved.assists, {}, 'and the two switches were not walked over on the way');
   shippedAgain();
 });
 

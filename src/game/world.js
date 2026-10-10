@@ -28,6 +28,7 @@ import { newTurret, updateTurret } from './turret.js';
 import { newShock } from './shock.js';
 import { updateShields } from './shields.js';
 import { updateFlocks } from './flock.js';
+import { driveAssists } from './assists.js';
 import { updateWaves } from './waves.js';
 import { updateBosses, stepDarkness } from './bosses.js';
 import { openField } from './field.js';
@@ -305,6 +306,10 @@ function createWorld() {
     // arrived and has somebody still flying in it. Derived state like the grid -
     // rebuilt from the crowd every step, and emptied with it.
     flocks: [],
+    // Which body the auto-aim is being held on (game/assists.js), or none. Derived state like the grid
+    // and the packs: it is a fact about this step's crowd, a body that dies takes it with the crowd, and
+    // a new run starts with nothing held.
+    aimLock: null,
     // The collision broad phase. Rebuilt from the crowd every step, so it is
     // derived state that no run depends on. `gridReach` is part of that rebuild: the width
     // of the widest body standing in the arena, which is how wide every query has to be
@@ -389,6 +394,10 @@ export function stepWorld(dt, input) {
 function stepRun(dt, input) {
   world.elapsed += dt;
 
+  // The two switches that answer for the hand (game/assists.js) are asked here rather than in the
+  // frame loop, so that one step is handed exactly one aim however many steps the frame found time
+  // for - and with both of them off, which is how the game ships, nothing here is read or written.
+  driveAssists(world, input);
   updatePlayer(world, dt, input);
   updateWaves(world, dt);
   // Who is covering whom, and where each pack's middle is and what beat it is on,

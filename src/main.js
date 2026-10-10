@@ -30,6 +30,10 @@ import {
   ROWS as PICTURE_ROWS, loadFromSave as loadPicture, stepRow as stepPictureRow,
   wordsOf as pictureWords, stepIdOf as pictureStep,
 } from './game/settings.js';
+import {
+  ROWS as ASSIST_ROWS, loadFromSave as loadAssists, stepRow as stepAssistRow,
+  wordsOf as assistWords, stepIdOf as assistStep,
+} from './game/assists.js';
 import { initCanvas, resizeCanvas, view, calmMotion } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -327,10 +331,10 @@ function onVolume(which, delta) {
 }
 
 // --- the settings panel ---------------------------------------------------------
-// Four rows belong to game/settings.js and three to audio/engine.js; nothing on this panel keeps a
-// copy of either. What is kept here is the *cursor* - which row the arrow keys are pointing at - and
-// that is panel furniture and not a fact about a run or a save: it is forgotten when the panel comes
-// down, and no system outside this screen can see it.
+// Four rows belong to game/settings.js, three to audio/engine.js and two to game/assists.js; nothing
+// on this panel keeps a copy of any of them. What is kept here is the *cursor* - which row the arrow
+// keys are pointing at - and that is panel furniture and not a fact about a run or a save: it is
+// forgotten when the panel comes down, and no system outside this screen can see it.
 
 /** The cursor, counted from the top of the panel. Back to the top every time the panel goes up. */
 let settingCursor = 0;
@@ -345,7 +349,8 @@ function sliderWords(level) {
 
 /**
  * The panel's rows, in the order it prints them: the four the game keeps for its own picture
- * (game/settings.js), then the two sliders and the mute the mixer owns (audio/engine.js).
+ * (game/settings.js), then the two sliders and the mute the mixer owns (audio/engine.js), then the two
+ * switches that answer for the hand (game/assists.js).
  *
  * One list, so the cursor, the printing and the stepping all walk the same order and cannot drift
  * from one another - and one shape, so nothing on the panel has to know whether the thing under its
@@ -355,6 +360,12 @@ function sliderWords(level) {
  * changed, and the canvas readout lights beside the panel), and the mute is one switch either way.
  * A `step` answers whether anything moved, which is how a press at the end of a row's travel stays
  * as silent as a press of a key that nothing on the screen answers.
+ *
+ * The two assists come last, and that is a decision rather than an accident. Everything above them is
+ * the game's *report* about a run and cannot change one - which is the promise the whole panel is
+ * built on, and the one `test/settings.test.mjs` plays a seed twice to pay for. These two rows can,
+ * and do: they are the hand. Putting them past the end of the walk is the right friction for them, so
+ * that a wander round the arrow keys cannot quietly take the trigger out of the player's hand.
  */
 function settingRows() {
   const rows = [];
@@ -385,6 +396,18 @@ function settingRows() {
     value: isMuted() ? 'ON' : 'OFF',
     step: function () { return onMuteSwitch(); },
   });
+  for (const row of ASSIST_ROWS) {
+    rows.push({
+      name: row.name,
+      says: row.says,
+      value: assistWords(row.id),
+      step: function (delta) {
+        if (stepAssistRow(row.id, delta) === null) return false;
+        uiTick(delta > 0 ? 'up' : 'down');    // the same answer every other row gives, at the same moment
+        return true;
+      },
+    });
+  }
   return rows;
 }
 
@@ -395,7 +418,14 @@ function settingsSteps() {
   return out;
 }
 
-/** Paint the panel from the two owners, and fit it to the window: a value is a word, and words are
+/** Where the two switches that fly the ship stand, for `stats()`: 'off' or 'on' each. */
+function assistSteps() {
+  const out = {};
+  for (const row of ASSIST_ROWS) out[row.id] = assistStep(row.id);
+  return out;
+}
+
+/** Paint the panel from its three owners, and fit it to the window: a value is a word, and words are
  * not all the same width (ui/screens.js `fitSettings`). */
 function paintSettings() {
   const rows = settingRows();
@@ -800,6 +830,10 @@ function boot() {
   // give, so the request is what it gets, and a visit that has since chosen a shake for itself has
   // answered the same question more recently (game/settings.js `loadFromSave`).
   loadPicture(undefined, calmMotion());
+  // ...and the two switches that answer for the hand (game/assists.js), the held trigger and the
+  // pointed gun. Both of them ship off, which is the game as it was built and balanced, and only a
+  // save that says otherwise turns one on.
+  loadAssists();
   // ...and a player who left the game muted and came back has no sound and nothing on the screen
   // to say why, so the readout that answers the mute key answers the reload too.
   if (mixer.muted) showVolumePanel('mute');
@@ -932,6 +966,11 @@ window.STARFALL = {
       // because a screenshot is the only thing any of them changes - and a run played with all four at
       // one end of their travel has to be the same run as one played at the other.
       settings: settingsSteps(),
+      // ...and where the two switches that answer for the hand stand (game/assists.js): the held
+      // trigger and the pointed gun. They are on the same panel and kept the same way, and they are the
+      // two rows on it that change what a run does rather than what it looks like - which is exactly why
+      // a tool wants to be able to see them.
+      assists: assistSteps(),
       seed: world.seed,
       score: world.score,
       // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot

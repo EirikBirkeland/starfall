@@ -832,13 +832,14 @@ export function showPause(run) {
 
 /**
  * Paint the settings panel: every thing that can be set, what it is set to now, and which row the
- * cursor is on (game/settings.js, audio/engine.js, PLAN section 6).
+ * cursor is on (game/settings.js, audio/engine.js, game/assists.js, PLAN section 6).
  *
- * Every word on it is answered by whoever owns the thing it names - the four picture rows come out of
- * their own table and the three sound rows out of the mixer - and main.js composes the two lists into
- * this one, so the panel cannot offer a step the game has not implemented or a slider the mixer does
- * not have. There are no key chips on these rows for the same reason: nothing here is answered by a
- * number, because a number already means the ship it means everywhere else.
+ * Every word on it is answered by whoever owns the thing it names - the four picture rows out of their
+ * own table, the three sound rows out of the mixer, and the two switches out of the short table they
+ * share - and main.js composes those lists into this one, so the panel cannot offer a step the game has
+ * not implemented, a slider the mixer does not have, or a switch nobody built. There are no key chips
+ * on these rows for the same reason: nothing here is answered by a number, because a number already
+ * means the ship it means everywhere else.
  *
  * Unlike the other three panels this one is repainted *while it is up*, because a row that was just
  * changed is a row that has to say its new value on the same press. `fitSettings` is what re-measures

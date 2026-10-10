@@ -263,6 +263,14 @@ const SCHEMA = {
     numbers: KINDS.name,
     particles: KINDS.name,
   },
+  // The two switches that answer for the hand (game/assists.js, PLAN section 6): the trigger held down
+  // and the gun pointed at a body. Flags and not step names, because a switch has two places and
+  // nothing in between them - and a value that is not a yes or a no is not stored, which leaves the
+  // switch at off, which is the game as it was built.
+  assists: {
+    fire: KINDS.flag,
+    aim: KINDS.flag,
+  },
 };
 
 /** A document with nothing remembered in it at all: the version, and an empty section each. */

@@ -1,5 +1,27 @@
 # Starfall — changelog
 
+## 0.9.5 — 2026-10-10
+`AUTO-FIRE` and `AUTO-AIM`: the game can be flown with the keyboard alone.
+- **Two new rows at the end of the settings panel** (`O`): AUTO-FIRE holds the trigger down for you,
+  AUTO-AIM points the gun at the nearest body a shot can hurt. With both of them on, WASD is a whole set
+  of controls - which is what the plan asked for when it said "playable with one hand or keyboard only",
+  and what the game had never managed.
+- **Both ship off**, and off is the game exactly as it was. With neither one on, the step asks for nothing
+  and writes nothing: the ten-minute reference run is unchanged, byte for byte.
+- **Auto-fire is the left button held, not a new kind of shot.** It is written into the same controls your
+  hand writes into, and the test proves it: one seed played twice, once with the mouse held and once with
+  the switch on, comes out the same run - same shots on the same steps, same ship pointing the same way.
+- **Auto-aim keeps its mind.** It takes aim once per simulation step, on the nearest body a shot can
+  actually hurt (a dead one, or one in the middle of a phase change, is not a target), and holds on to it
+  until the nearest thing is forty per cent further out. Without that slack the nose snaps between two
+  bodies circling in together and sprays shots between them, killing neither. And when there is nothing to
+  aim at it leaves the nose where your hand left it, rather than swinging at empty sky.
+- **They are the two rows on that panel that *can* change a run**, and they sit past the end of the walk
+  for it: everything above them is the game's report about a run and cannot move one; these two are the
+  hand, so a wander with the arrow keys will not quietly take the trigger away from you.
+- **Kept like every other row** - two flags in the save's new `assists` section, read back at boot, and a
+  value that is not yes or no is no value at all. The title's own control line now says where they are.
+
 ## 0.9.4 — 2026-10-10
 `O` opens the settings, and none of it can change the run.
 - **A fourth panel, on the fourth key**: `O` for options - because `S`, the first letter of the word,

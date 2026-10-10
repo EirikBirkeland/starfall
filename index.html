@@ -197,9 +197,9 @@
      stopped and is not the thing being read any more (game/run.js `pauseRun`). */
   .pause { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
   .pause-body { display: flex; flex-direction: column; align-items: center; }
-  /* The settings (PLAN section 6): what the game does to your eyes and ears, and the one panel in the
-     game that changes anything rather than showing it. It dims as hard as the other three, for the
-     same reason - the panel is the thing being read now. */
+  /* The settings (PLAN section 6): what the game does to your eyes, ears and hand, and the one panel
+     in the game that changes anything rather than showing it. It dims as hard as the other three, for
+     the same reason - the panel is the thing being read now. */
   .settings { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
   .settings-body { display: flex; flex-direction: column; align-items: center; }
   .settings .setting-list { margin-top: 14px; }
@@ -279,11 +279,11 @@
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
-  /* The settings rack, and the one row of it (game/settings.js, audio/engine.js): what the row is,
-     what it is set to, and one plain line on what it does. No key chip, unlike a ship or a perk row -
-     and that is the point. A chip says "press this", and nothing on this panel is answered by a
-     number: the arrows put the cursor on a row and move it, and the numbers go on meaning the ship
-     they mean everywhere else. */
+  /* The settings rack, and the one row of it (game/settings.js, audio/engine.js, game/assists.js):
+     what the row is, what it is set to, and one plain line on what it does. No key chip, unlike a ship
+     or a perk row - and that is the point. A chip says "press this", and nothing on this panel is
+     answered by a number: the arrows put the cursor on a row and move it, and the numbers go on
+     meaning the ship they mean everywhere else. */
   .setting-list { display: grid; gap: 7px; }
   .setting {
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px;
@@ -483,7 +483,7 @@
     <div class="row"><span class="key">G</span><span>GIVE THE RUN UP, WHILE IT IS PAUSED</span></div>
     <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
     <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
-    <div class="row"><span class="key">O</span><span>SETTINGS &#183; SHAKE, FLASH, NUMBERS, SOUND</span></div>
+    <div class="row"><span class="key">O</span><span>SETTINGS &#183; SHAKE, SOUND, AUTO-FIRE, AUTO-AIM</span></div>
     <div class="row"><span class="key">M &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
   </div>
   <div class="standing rise">
@@ -583,12 +583,12 @@
  </div>
 </div>
 
-<!-- The settings (PLAN section 6): what the game does to your eyes and your ears, and the one panel
-     here that changes anything rather than showing it. It sits over the title, over the death's card,
-     or over a run that is being held - never over a run that is flying - and every row on it is kept
-     for the next visit (game/settings.js, audio/engine.js). No numbers on the rows, and that is the
-     point: the arrows pick a row and move it, while the numbers go on meaning the ship they mean on
-     every other screen. -->
+<!-- The settings (PLAN section 6): what the game does to your eyes, to your ears, and to your hand,
+     and the one panel here that changes anything rather than showing it. It sits over the title, over
+     the death's card, or over a run that is being held - never over a run that is flying - and every
+     row on it is kept for the next visit (game/settings.js, audio/engine.js, game/assists.js). No
+     numbers on the rows, and that is the point: the arrows pick a row and move it, while the numbers go
+     on meaning the ship they mean on every other screen. -->
 <div id="settingsScreen" class="screen settings hidden">
  <div class="settings-body" id="settingsBody">
   <h2 class="settings-title">SETTINGS</h2>

@@ -555,6 +555,7 @@ test('the settings panel shows the mixer, and steps it through the same door', a
   assert.equal(game.stats().settingsUp, true, 'O puts the settings up over the title');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
     'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
+    'AUTO-FIRE', 'AUTO-AIM',
   ], 'four things the game does to the eyes, then three it does to the ears');
 
   // Down to MUSIC, two steps down it, and read the same number off both places it is written: the row
@@ -578,7 +579,7 @@ test('the settings panel shows the mixer, and steps it through the same door', a
   // step, because a switch has two places and no ends.
   tap('ArrowDown');
   tap('ArrowDown');
-  assert.equal(game.screen.settingsRows[6].chosen, true, 'the last row is the mute');
+  assert.equal(game.screen.settingsRows[6].chosen, true, 'the mute is the last of the three the mixer owns');
   tap('ArrowLeft');
   assert.equal(game.screen.settingsRows[6].value, 'ON');
   assert.equal(isMuted(), true);

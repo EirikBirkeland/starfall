@@ -82,7 +82,7 @@ test('a write is a versioned document, and the same values always write the same
   const written = text(store);
   assert.deepEqual(JSON.parse(written), {
     version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {},
-    awards: {}, runs: {}, audio: {}, view: {},
+    awards: {}, runs: {}, audio: {}, view: {}, assists: {},
   });
 
   assert.equal(remember('audio', { music: 3, effects: 3, muted: false }), true);
@@ -100,7 +100,7 @@ test('a write is a versioned document, and the same values always write the same
 
   const keys = Object.keys(parsed(store));
   assert.deepEqual(keys,
-    ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'runs', 'audio', 'view'],
+    ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'runs', 'audio', 'view', 'assists'],
     'the document is written in schema order');
 });
 
