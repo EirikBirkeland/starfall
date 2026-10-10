@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.9.5",
+    "date": "2026-10-10",
+    "summary": "AUTO-FIRE and AUTO-AIM: the game can be flown with the keyboard alone"
+  },
+  {
     "version": "0.9.4",
     "date": "2026-10-10",
     "summary": "O opens the settings: shake, flash, score numbers, particles, and the mixer"
