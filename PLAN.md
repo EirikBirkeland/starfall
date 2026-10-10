@@ -887,13 +887,14 @@ When every item above is ticked, go back to the first unchecked item of mileston
       over everything including the cards): both rows, which one moved, the keys, and `MUTED`
       while the master is shut - the readout computes its own layout in `panelLayout` so a test
       can measure it without pixels. The title's control list says the keys exist.
-      `test/volume.test.mjs`, 20 tests: the shipped mix at the top of both, the graph built at
+      `test/volume.test.mjs`, 21 tests: the shipped mix at the top of both, the graph built at
       wherever the sliders stand, the equal-dB curve, one bus per slider, the clamps, the refused
       press being silent *and* dark, mute above the sliders, every pitch each key answers with,
       the audition staying out of the sequencer's ledger, the readout answering over the cards
       and over the death's card and fitting its own plate. `STARFALL.stats()` reports the two
       levels and the mute, and the reference run still traces byte for byte the same game.)
-- [ ] Release.
+- [x] Release. (0.7.4, which is the whole of milestone 7: the sound has a body, a vocabulary, an
+      intensity ladder of its own, and now a player with a say in how loud each half of it is.)
 
 ### Milestone 8: between runs
 - [ ] The save module: versioned, validated on load, falls back to a fresh save if corrupt. With
