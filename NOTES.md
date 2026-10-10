@@ -10143,3 +10143,50 @@ guard, which 0.9.1 tightened again).
   drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60); the
   mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
 - Worktree hygiene: `/tmp/s85-head` was removed with `git worktree remove` after the trace comparison.
+
+---
+
+## Session 86 — ATTRACTOR (milestone 10, item 1: the owner's magnet card)
+
+**This entry was written by session 87.** That session found the tree with this work committed
+(`ATTRACTOR: the deck gets its first card that buys reach, not damage`) and its changelog entry in
+place, but with no release published and no note here — the session ended between step 7 and step 8
+of AGENTS.md. Session 87 ran `tools/release.sh 0.10.0`, which had never been run for it, so the card
+is in the menu now. Everything below is what the commit, the PLAN tick and `balance.js`'s own table
+had already written down; it is repeated here only so the next session does not have to go and read
+those three.
+
+**What shipped.** `BALANCE.upgrades.attractor` — five ranks, `step: 0.25` of `shards.magnetRadius`
+each: the net that starts at 145 px is 326 px at the fifth rank. It is the first line in the deck
+that buys a *distance*; every other one multiplies the gun, adds a source of damage, or spends what
+the run already picked up. Read through `attractorReachOf(world)` where a shard is drawn in
+(`game/pickups.js`), so a rank taken between two frames is felt by every shard already on the floor
+and not only by the ones dropped after it. The pull gradient is measured over the reach and not over
+the table's radius, which is the difference between a well that gets wider *and* deeper and one
+stretched thin: `pullFar` at the rim, `pullNear` at the hull, whatever the rank.
+
+**How it was priced, and the one surprise.** The power ladder cannot see a line whose trigger is
+picking something up, so it was priced on runs: `tools/line-ab.js --line attractor --seeds 6
+--seconds 600 --stats collected,level`. Five free ranks read **+43.5% of a run's score** and
+**+39.7% of its damage** against the DAMAGE line's +31.2% / +51.5% on the same seeds, and what it
+really buys is **levels** — the median run goes from 35 to 58, because shards are the only XP there
+is. The surprise is in the same table at the thin end: at +5%, +8% and +12% a rank the `dealt`
+column came out *below* the deck with the line taken out of it (0.726x, 0.664x, 0.350x), because the
+bot pays a level for a rank too shallow to pay it back. A rank you cannot feel is worse than no card
+at all. That is why a rank is a quarter of the reach.
+
+**Decisions.** The owner's name for it was "Speed-dating"; it landed as ATTRACTOR, the plain word
+from their own first line, because every card here is one noun for the thing it does. Their request
+file says so, and says they expected to rename it.
+
+**Tests.** `test/attractor.test.mjs`, seven of them: rank 0 is the shipped game; every rank is the
+share the card prints; a shard outside the reach is untouched and one inside it is; a rank buys a
+distance in the arena and not a line on a card; the well gets wider *and* deeper; it buys reach and
+not grab (a shard still has to arrive to be paid for); and a pile the ship never flies over is what
+the wide net is for. `test/draw-cost.test.mjs`'s glow-sprite bound moved with the deck, with the
+reason written down.
+
+### For the next session
+- The owner's second request is still open in `OVERLORDS_REQUESTS`: **every 10,000 points, every
+  point on the screen streams to the ship for ten seconds, with an excited fanfare**. It is milestone
+  10's next item, with the four decisions it needs written down in PLAN.md.

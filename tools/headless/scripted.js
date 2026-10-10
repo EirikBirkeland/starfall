@@ -95,6 +95,28 @@ export function bulletFlyingToward(x, y, vx, vy, pierce, turns) {
 }
 
 /**
+ * A shard lying at (x, y) and standing still, written field by field like any spawner must.
+ *
+ * It is the pool's contract rather than a convenience: a shard recycled from an earlier test would
+ * otherwise keep that test's drift, its spin and - the one that bites - the last life left on it.
+ * `worth` is what makes it one of an elite's large ones.
+ */
+export function shardAt(x, y, worth) {
+  const shard = world.shards.spawn();
+  shard.x = x;
+  shard.y = y;
+  shard.px = x;
+  shard.py = y;
+  shard.vx = 0;
+  shard.vy = 0;
+  shard.life = BALANCE.shards.life;
+  shard.spin = 0;
+  shard.rot = 0;
+  shard.worth = worth === undefined ? 1 : worth;
+  return shard;
+}
+
+/**
  * Bring on the boss the way the schedule brings one on (game/bosses.js): put the clock just
  * before it is due and step until it is standing in the arena, siren spent and cage shut. The
  * first entry of `BALANCE.bosses.schedule` is the default; `index` is which entry of the

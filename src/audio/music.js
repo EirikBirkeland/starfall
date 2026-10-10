@@ -18,6 +18,15 @@
 // writes sixteenths where the run writes eighths, and gives its pad the scale's second to
 // rub on.
 //
+// **The one time the music plays a tune is the vacuum's.** Every pattern above is layers, not a
+// melody - until the point vacuum opens (game/vacuum.js) and the run's own pattern gets its
+// arpeggio's slot spent on a fanfare for ten seconds. It is a *layer swap* and not a new pattern of
+// its own so the reward is heard over the fight it happened in, and it is metered like every other
+// pattern (`patternPeak`, and the four `-fanfare` entries in `PATTERNS`) because "loud enough to be
+// the reward" is a number and the one that keeps this bus honest does not care which pattern is
+// spending it. Its ceiling is the loudest pattern's headroom, which is why the fanfare is no louder
+// than the arpeggio it replaces and makes itself known by register and rhythm instead.
+//
 // **How loud the music is allowed to be is measured, not hoped.** The sequencer sits
 // outside the voice budget (see the last paragraph of this header and audio/mix.js), so the
 // one thing standing between it and a wall of sound is the arithmetic in `patternPeak`,
@@ -54,6 +63,7 @@
 // pattern, so nothing about the grid or its meter is asked to make room for it.
 
 import { STATE } from '../game/state.js';
+import { isVacuuming } from '../game/vacuum.js';
 import { getContext, getMusicBus, isMuted } from './engine.js';
 import { noiseVoice } from './noise.js';
 
@@ -154,6 +164,18 @@ const ARP_BOSS_STEPS = [0, null, 2, 1, 3, null, 2, null, 0, null, 2, 1, 3, 2, 3,
 // quiet because the game stopped - it is quiet because it is listening to you.
 const PING = { wave: 'triangle', vol: 0.045, attack: 0.02, dur: 1.4 };
 const PING_STEPS = [1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
+// The fanfare (game/vacuum.js): what the music plays while the point vacuum is open. It takes the
+// arpeggio's slot and spends it on a tune - the arpeggio is sparkle, and a reward wants a tune - and
+// it is written the way every other line here is: intervals from the bar's own chord, so it is
+// consonant on all four chords of the progression and can begin on any bar the sequencer happens to
+// be standing in when the well opens.
+//
+// The shape is the oldest one in the book: four notes running up the chord, the octave held, an
+// answer coming back down, and a rest at the end of the bar so the next one lands on a clean beat.
+// It is one bar long for the same reason the arpeggio is - the sequencer never has to remember where
+// a figure started, which is what lets a reward interrupt a bar and still be music.
+const FANFARE = { wave: 'square', vol: 0.05, attack: 0.004, dur: 0.26 };
+const FANFARE_STEPS = [0, 1, 2, 3, null, 3, null, null, 3, null, 2, null, 1, null, null, null];
 // One note to say the music's slider moved. It is priced like a voice of the pad (0.03) on
 // purpose: it is the only thing this bus gets that `patternPeak` has not metered, and a pad's
 // price is the one number known to fit on top of any bar the sequencer can write.
@@ -265,8 +287,37 @@ const DRIVING = { name: 'driving', rate: 1, pad: PAD, harsh: false, bass: line(B
 const BOSS = { name: 'boss', rate: 4 / 3, pad: PAD_BOSS, harsh: true, bass: line(BASS_BOSS, BASS_BOSS_STEPS), arp: line(ARP_BOSS, ARP_BOSS_STEPS), drums: KIT_BOSS };
 const LAST = { name: 'last', rate: 1, pad: PAD, harsh: false, bass: line(BASS_LAST, BASS_LAST_STEPS), arp: line(PING, PING_STEPS), drums: KIT_LAST };
 
+/**
+ * One pattern with the fanfare over it: the same parts, the same tempo and the same chord, with the
+ * arpeggio's slot spent on the tune instead of on sparkle. It is a whole pattern and not a switch
+ * because that is what `patternPeak` can measure - "loud enough to be the reward" is a number, and
+ * the number is held to the same ceiling as every other pattern by test/music.test.mjs.
+ */
+function fanfareOver(pattern) {
+  return {
+    ...pattern,
+    name: pattern.name + '-fanfare',
+    fanfare: true,
+    arp: line(FANFARE, FANFARE_STEPS),
+  };
+}
+
+const RUN_FANFARE = fanfareOver(RUN);
+const DRIVING_FANFARE = fanfareOver(DRIVING);
+const BOSS_FANFARE = fanfareOver(BOSS);
+const LAST_FANFARE = fanfareOver(LAST);
+
 /** Every pattern by name, for the tests and the load meter, which have to be able to name one. */
-export const PATTERNS = { title: TITLE, run: RUN, driving: DRIVING, boss: BOSS, last: LAST };
+export const PATTERNS = {
+  title: TITLE, run: RUN, driving: DRIVING, boss: BOSS, last: LAST,
+  'run-fanfare': RUN_FANFARE, 'driving-fanfare': DRIVING_FANFARE,
+  'boss-fanfare': BOSS_FANFARE, 'last-fanfare': LAST_FANFARE,
+};
+
+/** The four a run can be playing when the well opens, by the name of the pattern they were made from. */
+const FANFARED = {
+  run: RUN_FANFARE, driving: DRIVING_FANFARE, boss: BOSS_FANFARE, last: LAST_FANFARE,
+};
 
 const NO_MUSIC = null;
 
@@ -286,16 +337,30 @@ const NO_MUSIC = null;
  * 3. **Two minutes in**, the drums come in and stay - PLAN's own threshold, read off the
  *    run's clock, so a run that dies at 90 s never heard them and a run that spends a
  *    minute reading its cards does not get them early.
+ *
+ * Above all three stands **the point vacuum** (game/vacuum.js), which is the one thing in the run
+ * that buys the music a tune of its own for ten seconds: whatever the run was playing gets its
+ * arpeggio swapped for the fanfare, so the reward is heard *over* the fight it happened in rather
+ * than instead of it. It outranks a boss and it outranks the last hull because it is ten seconds
+ * long and it is the game paying you out - the run's own business comes back on its own clock after
+ * it, and the same pattern is waiting there.
+ *
+ * Nothing re-anchors when it begins. The sequencer is scheduled up to `lookahead` ahead of the audio
+ * clock, so dropping the clock to make the figure start on a bar's head would play two bars at once -
+ * and a figure written in intervals of the bar's own chord cannot make a wrong note entering a bar
+ * halfway through it. This is the same bargain the boss pattern has always made with a bar already in
+ * progress, and for the same reason.
  */
 function patternFor(world) {
   const state = world.state;
   if (state === STATE.START) return TITLE;
   if (state !== STATE.PLAY && state !== STATE.LEVEL) return NO_MUSIC;
   const ship = world.player;
-  if (ship && ship.hull <= MUSIC.lastHull) return LAST;
-  if (world.boss) return BOSS;
-  if (world.elapsed >= MUSIC.drumsAfter) return DRIVING;
-  return RUN;
+  const base = ship && ship.hull <= MUSIC.lastHull ? LAST
+    : world.boss ? BOSS
+    : world.elapsed >= MUSIC.drumsAfter ? DRIVING
+    : RUN;
+  return isVacuuming(world) ? FANFARED[base.name] : base;
 }
 
 let stepIndex = 0;   // how far into the progression the schedule has reached

@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { dropShards } from '../src/game/pickups.js';
 import { attractorReachOf, effectOf, gainOf, lineOf } from '../src/game/upgrades.js';
-import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
+import { scriptedRun, shardAt, stepTheWorld } from '../tools/headless/scripted.js';
 
 const ATT = BALANCE.upgrades.attractor;
 const SHARDS = BALANCE.shards;
@@ -41,22 +41,6 @@ function wearing(rank, seed) {
   field.xpNeed = Infinity;
   field.upgrades.attractor = rank;
   return field;
-}
-
-/** A shard lying at (x, y) and standing still, written field by field like any spawner must. */
-function shardAt(field, x, y) {
-  const shard = field.shards.spawn();
-  shard.x = x;
-  shard.y = y;
-  shard.px = x;
-  shard.py = y;
-  shard.vx = 0;
-  shard.vy = 0;
-  shard.life = SHARDS.life;
-  shard.spin = 0;
-  shard.rot = 0;
-  shard.worth = 1;
-  return shard;
 }
 
 /** Step the world for `seconds` of the game's own steps. */
@@ -97,8 +81,8 @@ test('every rank is the share the card prints, and the line is a line of shares'
 test('a shard outside the reach is not touched, and one inside it is', () => {
   const field = wearing(0);
   const ship = shipAt(field);
-  const outside = shardAt(field, ship.x + BASE + 1, ship.y);
-  const inside = shardAt(field, ship.x + BASE - 1, ship.y);
+  const outside = shardAt(ship.x + BASE + 1, ship.y);
+  const inside = shardAt(ship.x + BASE - 1, ship.y);
   const outsideAt = BASE + 1;
   const insideAt = BASE - 1;
 
@@ -117,13 +101,13 @@ test('a rank buys a distance in the arena and not only a line on a card', () => 
   const out = BASE + 60;
 
   const cold = wearing(0);
-  const coldShard = shardAt(cold, shipAt(cold).x + out, shipAt(cold).y);
+  const coldShard = shardAt(shipAt(cold).x + out, shipAt(cold).y);
   forSeconds(6);
   assert.equal(cold.shardsCollected, 0, 'rank 0 never noticed it');
   assert.equal(coldShard.worth, 1, 'and it is still lying there');
 
   const warm = wearing(RANKS);
-  shardAt(warm, shipAt(warm).x + out, shipAt(warm).y);
+  shardAt(shipAt(warm).x + out, shipAt(warm).y);
   forSeconds(6);
   assert.equal(warm.shardsCollected, 1, 'five ranks of it are yours in six seconds');
 });
@@ -137,7 +121,7 @@ test('a rank widens the well and deepens it: the same shard is pulled harder', (
   const measure = (rank) => {
     const field = wearing(rank);
     const ship = shipAt(field);
-    const shard = shardAt(field, ship.x + at, ship.y);
+    const shard = shardAt(ship.x + at, ship.y);
     forSeconds(0.4);
     return -shard.vx;
   };
@@ -153,7 +137,7 @@ test('it buys reach and not grab: a shard still has to be paid for by arriving',
   const field = wearing(RANKS);
   const ship = shipAt(field);
   const just = SHARDS.collectRadius + 6;
-  const shard = shardAt(field, ship.x + just, ship.y);
+  const shard = shardAt(ship.x + just, ship.y);
 
   stepTheWorld();
   assert.equal(field.shardsCollected, 0, 'inside the net is not inside the ship');

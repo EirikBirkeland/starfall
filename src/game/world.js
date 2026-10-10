@@ -22,6 +22,7 @@ import { updateLeech, newLeech } from './leech.js';
 import { newOvercharge } from './overcharge.js';
 import { newAfterimage, updateAfterimage } from './afterimage.js';
 import { newMagnetar, updateMagnetar } from './magnetar.js';
+import { newVacuum, updateVacuum } from './vacuum.js';
 import { newMines, updateMines } from './mines.js';
 import { newTether, updateTether } from './tether.js';
 import { newTurret, updateTurret } from './turret.js';
@@ -280,6 +281,10 @@ function createWorld() {
     // ring round the hull is drawn straight out of it. A crack is over in the step it happens, so
     // there is nothing else to keep - the field remembers who it came round for nobody.
     magnetar: newMagnetar(),
+    // How long the point vacuum has left, and what it is next waiting for (game/vacuum.js): two
+    // numbers and no object in the arena, because the well is a state of the whole floor and not a
+    // place on it. `events` and `swallowed` are this run's own scorecard of the thing.
+    vacuum: newVacuum(),
     // What the ship has left lying on the arena behind it (game/mines.js): the mines standing in
     // the road, the wait until the next row falls out, and three counters of what the line has been
     // asked to do and what it got to do with it. Pooled and unordered like everything else that has
@@ -454,6 +459,10 @@ function stepRun(dt, input) {
   // an image is chased for every step of its two seconds and not one step less, and what is left
   // for it here is to be one step older (game/afterimage.js).
   updateAfterimage(world, dt);
+  // Before the loot is walked, so the well a kill just paid for is open by the time the shards that
+  // kill scattered are asked what they are doing (game/vacuum.js) - and so the step that crosses a
+  // threshold is the step the well opens on, whichever of the two doors the score came through.
+  updateVacuum(world, dt);
   updateShards(world, dt);
   // Right after the shards, because a shard picked up this step is charged for a crack this step -
   // the mint flying in and the field letting go are one event to the eye (game/magnetar.js).

@@ -8,6 +8,7 @@ import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
 import { levelUp } from './progress.js';
 import { feedField } from './magnetar.js';
+import { drawIn, isVacuuming, noteSwallowed } from './vacuum.js';
 import { attractorReachOf } from './upgrades.js';
 
 /** The shape of a shard. `worth` is what makes a large one (PLAN 3.3's elite drop). */
@@ -110,6 +111,9 @@ export function updateShards(world, dt) {
   const collectR = spec.collectRadius;   // measured from the ship's centre, not its hit radius
   const collect2 = collectR * collectR;
   const shards = world.shards;
+  // Is the well open (game/vacuum.js)? One question for the whole loop, because the well is a state of
+  // the arena and not of any one shard.
+  const vacuuming = isVacuuming(world);
 
   for (let i = shards.count - 1; i >= 0; i--) {
     const shard = shards.items[i];
@@ -123,14 +127,20 @@ export function updateShards(world, dt) {
     const dx = world.player.x - shard.x;
     const dy = world.player.y - shard.y;
     const near2 = dx * dx + dy * dy;
-    if (near2 < magnet2) {
-      const dist = Math.sqrt(near2) || 1;
-      const pull = lerp(spec.pullNear, spec.pullFar, dist / magnet);
-      shard.vx += (dx / dist) * pull * dt;
-      shard.vy += (dy / dist) * pull * dt;
+    if (vacuuming) {
+      // The whole floor is the net: the shard is carried in at the well's own speed and neither the
+      // gradient below nor the drag belongs to it while the well is open (game/vacuum.js).
+      drawIn(world, shard, dt);
+    } else {
+      if (near2 < magnet2) {
+        const dist = Math.sqrt(near2) || 1;
+        const pull = lerp(spec.pullNear, spec.pullFar, dist / magnet);
+        shard.vx += (dx / dist) * pull * dt;
+        shard.vy += (dy / dist) * pull * dt;
+      }
+      shard.vx *= drag;
+      shard.vy *= drag;
     }
-    shard.vx *= drag;
-    shard.vy *= drag;
     shard.px = shard.x;
     shard.py = shard.y;
     shard.x += shard.vx * dt;
@@ -144,6 +154,8 @@ export function updateShards(world, dt) {
       world.xp += spec.xp * worth;
       world.shardsCollected++;
       world.score += spec.score * worth;
+      // Which door it came in by - the well's, or the ship's own net (game/vacuum.js).
+      noteSwallowed(world);
       // And it charges the field round the ship, if the run bought the line that spends it
       // (game/magnetar.js). Here rather than there because this is the one door a shard comes in
       // by - there is no other moment at which a shard is *collected* - and a large shard is worth

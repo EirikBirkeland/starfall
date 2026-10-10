@@ -22,9 +22,21 @@ its list as "Pickup radius"; it had simply never been built.
 Every 10,000 points scored, every existing point on the screen should auto-stream to the player ship.
 During this 10 second event, play some excited music, inspired by the classical Final Fantasy fanfare.
 
-Finished? NO
-Not built yet. Filed as the next item of milestone 10 in PLAN.md, with the four decisions it needs
-written down: what "on the screen" means in a 3000 x 3000 arena, whether the ten seconds vacuums what
-drops during them, what free XP does to a run's build (see ATTRACTOR's numbers in BALANCE.upgrades),
-and a fanfare that belongs to the music and not to the sound effects.
+Finished? YES
+Shipped in 0.10.1 as **VACUUM**. Every 10,000 points the arena empties itself into the ship for ten
+seconds: every shard in the world and not only the ones on screen (the window is a tenth of the arena,
+and the loot you never saw is the loot you would swear was there), and anything you kill during those
+ten seconds comes in the moment it drops. The fanfare is the music's business, as you asked of music:
+the run keeps its tempo, its drums and its chord, and for the ten seconds the little arpeggio is spent
+on a rising tune in the same key - so it plays *over* the fight you were in, boss music and all, and
+stops when the well closes. A gold `VACUUM` and a countdown appear by the score, and a ring opens wide
+round the ship and collapses in to say how much floor was coming.
+
+Measured, because free shards are free levels: ten runs either side of it read +13.9% score, +16.5%
+levels and +49.5% shards at the median - about half of what a card you pay a level for is worth, which
+is what keeps it a reward and not a second build to optimise. The first one lands about 2m30s into a
+good run, then one every minute or two.
+
+No screen shake and no freeze in it, on purpose: your "only shake extraordinarily" rule still holds,
+and a freeze between a pause and its resume turns a press into a dash you never asked for.
 (edit this)

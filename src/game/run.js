@@ -28,6 +28,7 @@ import { resetLeech } from './leech.js';
 import { resetOvercharge } from './overcharge.js';
 import { resetAfterimage } from './afterimage.js';
 import { resetMagnetar } from './magnetar.js';
+import { resetVacuum } from './vacuum.js';
 import { resetMines } from './mines.js';
 import { resetTether } from './tether.js';
 import { resetTurret } from './turret.js';
@@ -94,6 +95,10 @@ export function resetRun(world) {
   // last run is not this run's to let go with, and a field left full would crack on the first step
   // of the next run for a shard it never swallowed.
   resetMagnetar(world);
+  // And the well the last run's score had opened (game/vacuum.js). Ten seconds of a dead run's reward
+  // would otherwise be spent on the next one's loot, and the threshold it was waiting for would still
+  // be the last run's - a run that starts 30,000 points behind its own first reward.
+  resetVacuum(world);
   // And every mine the last run left lying in the road (game/mines.js). They wait nine seconds at
   // the longest, so a restart would otherwise be chased by a trail it never laid.
   resetMines(world);

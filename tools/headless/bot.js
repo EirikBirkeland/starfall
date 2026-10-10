@@ -321,6 +321,10 @@ export function playOneRun(game, options) {
   let bossPhase = 0;
   let bossesDown = 0;
   let bossCores = 0;
+  // How many times the point vacuum has been seen opening (game/vacuum.js). The trace is the only
+  // place a tool can see the reward rhythm at all, and a fingerprint alone would not say which
+  // change was the well emptying the arena.
+  let vacuums = 0;
   while (frames < frameLimit) {
     botFrame(game, opts.policy);
     game.step(FRAME_MS);
@@ -346,6 +350,12 @@ export function playOneRun(game, options) {
     if (opts.every && frames % opts.every === 0) {
       const stats = game.stats();
       trace.push(frames + ':' + fingerprint(game));
+      // The well opening is a run event worth a line of its own: it is the one reward the game hands
+      // out by itself, and what that is worth on a run is the whole balance question behind it.
+      if (stats.vacuumEvents > vacuums) {
+        vacuums = stats.vacuumEvents;
+        trace.push(frames + ':vacuum ' + vacuums + ' opened at ' + Math.round(stats.score));
+      }
       // The three moments of a boss fight a trace is asked to show: who walked in, which phase it
       // moved to, and when it came down. A fingerprint only says that something changed, and a
       // boss is the one part of a run whose whole balance question is timing - how long the fight

@@ -1025,6 +1025,13 @@ window.STARFALL = {
       // run cannot hear a pitch, so this is how a test can see the streak at all.
       shardStreak: world.shardStreak.count,
       shardStreakIn: world.shardStreak.left,
+      // The point vacuum (game/vacuum.js): how long the well has left, what it is next waiting for,
+      // how many times it has opened and how much loot came through it. A headless tool cannot see a
+      // gold ring, and this is the only way one can tell that a run was rewarded at all.
+      vacuumLeft: world.vacuum.left,
+      vacuumNext: world.vacuum.next,
+      vacuumEvents: world.vacuum.events,
+      vacuumSwallowed: world.vacuum.swallowed,
       // Where the two sliders stand and whether the master is shut (audio/engine.js). A headless
       // run cannot hear a bus, so this is the only way to see that a volume key did anything, and
       // the F3 overlay wants the same three numbers.

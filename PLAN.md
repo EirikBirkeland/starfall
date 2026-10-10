@@ -1084,20 +1084,29 @@ When every item above is ticked, go back to the first unchecked item of mileston
       A rank too thin to be felt (5% to 12%) reads *worse* than having no such card at all, because a
       player pays a level for it either way. The owner's name for it was "Speed-dating"; it lands with
       the plain word from their own first line instead.
-- [ ] The point vacuum (**the owner's request of 2026-10-10, second half of the same note**): "every
+- [x] The point vacuum (**the owner's request of 2026-10-10, second half of the same note**): "every
       10,000 points scored, every existing point on the screen should auto-stream to the player ship.
       During this 10 second event, play some excited music, inspired by the classical Final Fantasy
-      fanfare." Filed here rather than under milestone 9 because it is a run event and not an interface
-      row, and it needs four decisions writing down before it is built: what "on the screen" means in a
-      3000 x 3000 arena read through a window (everything in the arena is the fun answer and the shards
-      off-screen are the ones a player would swear were missing); whether the event also vacuums what
-      drops *during* its ten seconds or only what was lying there when it began; that a free pile of
-      shards is free XP and therefore free cards, which is the same economy ATTRACTOR just showed is
-      load-bearing, so it wants measuring with `tools/line-ab.js`'s `collected` and `level` columns and
-      not a shrug; and a fanfare that is `music.js`'s business and not `sfx.js`'s, over the music the
-      run is already under, and loud enough to be the reward. The score's own vocabulary for a reward
-      fanfare already exists (`lastStand`, the piece the win is played under) - this is its opposite,
-      and it should be heard coming.
+      fanfare." Shipped in 0.10.1 as **VACUUM** - `game/vacuum.js`, `BALANCE.vacuum`, and six tests'
+      worth of behaviour in `test/vacuum.test.mjs` and `test/vacuum-art.test.mjs`. The two numbers are
+      the owner's and neither was touched: every 10,000 points, ten seconds. The four decisions this
+      list asked to be written down, and where they landed (all four argued in full in
+      `balance.js`'s `vacuum` row):
+      **in the arena, not on the screen** - the whole 3000 x 3000 floor, because a shard nobody saw is
+      a shard they will swear was there; **a window and not a photograph** - everything that drops
+      during the ten seconds is drawn in too, so a kill inside the reward is paid out at once; **a
+      shard's own clock keeps running** - nothing is rescued from its expiry, because the farthest
+      corner of the arena is a 3.7 s walk at the row's speed and a rule nobody can observe is a rule
+      nobody keeps; and **priced like a card, not like a treat** - ten runs of the aware bot either
+      side of it reads +13.9% score, +16.5% level and +49.5% shards at the median, which is about half
+      of what the DAMAGE line is worth for a level spent on it, and that is what makes it a rhythm and
+      not a build. The fanfare is `music.js`'s after all, and it is a *layer swap*: the run keeps its
+      tempo, its drums and its chord and the arpeggio's slot is spent on a tune for the ten seconds,
+      which is what lets a reward interrupt a boss fight without stopping it - and the four
+      `-fanfare` patterns are metered against the same bus ceiling as every other pattern, which is the
+      only reason "loud enough to be the reward" is a number and not a hope. The reference run
+      (`--seed 20261006 --trace`) is byte-identical to the 0.10.0 one until the frame the first well
+      opens on, which is the proof the whole feature is inert until it is earned.
 - [ ] Use the simulation to check the difficulty arc: the bot should usually die between 4:00 and 9:00
       with no upgrades chosen wisely, and no enemy type should be responsible for over 40% of deaths.
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.

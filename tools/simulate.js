@@ -115,6 +115,10 @@ export function reportLine(summary) {
     // is the answer to "how many bodies is it still standing on" (game/bosses.js `coresStanding`).
     + (s.bossCores > 1 ? ' bodies ' + s.bossCores : '')
     + (s.bossesDown > 0 ? '  bosses down ' + s.bossesDown : '')
+    // How many times the point vacuum opened and what it carried in (game/vacuum.js). Only when it
+    // happened: a short run never reaches the first threshold, and a zero on every line would be a
+    // column nobody reads.
+    + (s.vacuumEvents > 0 ? '  vacuums ' + s.vacuumEvents + ' (' + s.vacuumSwallowed + ' in)' : '')
     // And, when the run ended, what it ended of: a swarm, a wall, a spoke. The tally keeps it
     // (game/tally.js) and it is the difference between a balance number and a guess.
     + (summary.died ? '  killed by ' + (s.killedBy || 'nothing') : '')

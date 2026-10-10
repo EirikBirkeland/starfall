@@ -2148,6 +2148,99 @@ export const BALANCE = {
     },
   },
 
+  // The point vacuum (game/vacuum.js): every `every` points the run has scored, the arena empties
+  // itself into the ship for `duration` seconds while the music plays its fanfare over the pattern
+  // the run is already under (audio/music.js). The owner's request of 2026-10-10, verbatim: "every
+  // 10,000 points scored, every existing point on the screen should auto-stream to the player ship.
+  // During this 10 second event, play some excited music". `every` and `duration` are their two
+  // numbers, unwritten-by-me on purpose; the four decisions the request left out are below, and
+  // every one of them has a test in test/vacuum.test.mjs.
+  //
+  //   **"On the screen" means in the arena.** The window is a tenth of the world (PLAN section 4),
+  //     so a vacuum that only reached the view would leave nine tenths of the loot lying where it
+  //     was - and a shard the player never saw is a shard they will swear was there. The whole
+  //     arena is the fun answer, and it is the only answer that needs no apology.
+  //
+  //   **The ten seconds is a window and not a photograph.** Everything lying on the floor when the
+  //     well opens is drawn in, and so is everything that drops during them: a kill during the
+  //     event is paid out at once, because "the next ten seconds are yours" is the promise and a
+  //     shard that landed at second nine and then behaved normally would be a hole in it.
+  //
+  //   **A shard's own clock keeps running.** Nothing in the arena is more than 3.7 s from the ship
+  //     at the speed below, so no shard needs its expiry held back to make it in, and a rule that
+  //     stopped shard clocks would only ever be seen by a shard that was on its last tenth of a
+  //     second when the well opened. Loot that was already going is still going.
+  //
+  //   **It is free XP, so it is priced like a card and not like a treat.** A shard is the only XP in
+  //     the game and a level is the only way to buy a build (game/progress.js), so a reward of shards
+  //     is a reward of ranks - and ATTRACTOR (session 86) is the warning about what that does to a
+  //     run. So the whole thing was measured before and after, ten runs of the aware bot over the
+  //     full ten minutes, same seeds either side (NOTES session 87):
+  //
+  //       score median   59,612 → 67,872    (+13.9%)
+  //       level median   45.5  → 53        (+16.5%)
+  //       kills median   3,246 → 3,589     (+10.5%)
+  //       shards median  2,748 → 4,107     (+49.5%)
+  //       worst run      9m51s → 10m00s     (the bot stopped dying at all)
+  //
+  //     That is the number to judge it on: **the whole event is worth about half of a card the run
+  //     paid a level for** - the DAMAGE line reads +31.2% of score for five free ranks, and the
+  //     vacuum is free every time and reads a fifth of a run's score. It is a rhythm and not a
+  //     build, which is what the two rows below are set to keep it.
+  vacuum: {
+    // Points between two openings of the well - the owner's number, and it lands where they put it.
+    // Measured over six bot runs of the aware bot at ten minutes: the median strong run crosses
+    // 10,000 points 2m25s in (the weakest of the six not until 7m32s), and after that the well opens
+    // once every 60 to 130 s - six or seven openings in a full ten minutes, and one or two for a run
+    // that goes down at three. Each one brought in 175 to 340 shards for a bot that stands and
+    // fights, which is about three times what it picks up in ten seconds any other time.
+    every: 10000,
+    // The owner's other number, and the second half of the same sentence. Ten seconds is a little
+    // under half the life of the loot on the floor, which is what makes it an event with a shape -
+    // the well opens, everything in the world arrives, and then it is over and the fanfare stops
+    // with it. Longer and it is simply "the magnet is on now"; shorter and the far half of the arena
+    // never lands inside it (see `speed`).
+    duration: 10,
+    // How hard the well is down: the speed every shard in the arena is carried at, px/s. The arena's
+    // own diagonal is 4243 px, so the farthest place in the world is 3.7 s from the ship and the ten
+    // seconds is never a race a shard loses - which is the whole reason no shard's expiry is held
+    // back (above). Set from the far corner and not from the middle: a shard taken from the far side
+    // of a 3000 px arena at 700 px/s arrives with a second to spare, which is a promise kept only on
+    // the near half of the floor.
+    speed: 1150,
+    // How fast a shard's own drift is traded for the well's: this fraction of the gap is *left*
+    // standing after one second. It is an exponential, like every other turn in the game, so the
+    // shard keeps most of its heading for a tenth of a second and comes in on a curve instead of
+    // snapping onto the line and flying along it like a drawn arrow.
+    turn: 0.002,
+    // The moment the well opens. No trauma of its own - the owner's health rule holds the window
+    // still outside the extraordinary (test/shake-policy.test.mjs), and a reward is not
+    // extraordinary - and no hit-stop either, which was tried and is written down here so nobody
+    // puts it back: a freeze is the language of a thing that just got hit, and this is a thing that
+    // is starting. Worse, a freeze between a pause and its resume keeps a control request alive
+    // across the pause (main.js only hands a pending dash over on a frame that stepped), so a well
+    // opening on the first step after a held run is a dash the player never asked for, three frames
+    // late. The whole of the moment is light and sound.
+    start: {
+      word: 'VACUUM',
+      wordLift: 16,          // px over the ship, as level text is (game/endless.js `wordLift`)
+      // The mouth of the well, collapsing in: a ring born a long way out and falling to the ship,
+      // which is the only honest light for a pull - it says *this much floor* is on its way, and
+      // it never claims a wider circle than the one it came from (game/magnetar.js drew the same
+      // conclusion for the same reason).
+      mouth: { radius: 460, speed: -640, life: 0.7 },
+      // ...and the ship, which is where it all ends up.
+      flare: { radius: 12, speed: 560, life: 0.55 },
+      spark: { count: 26, speed: 300, life: 0.5 },
+      // The chord is the moment's own voice and it is on the effect bus because it has to be heard
+      // the same frame the well opens: the sequencer is scheduled up to half a second ahead
+      // (audio/music.js) and the fanfare lands whenever it next looks. A C-major arpeggio two
+      // octaves down from the win's, in the key the whole soundtrack is in, so the fanfare that
+      // follows it is the same thought and not a second argument.
+      sound: { notes: [262, 330, 392, 523], dur: 0.5, wave: 'triangle', vol: 0.1 },
+    },
+  },
+
   // Levels, and what one is worth (PLAN 3.6). A level is no longer a number: it is
   // the pause where the run is built (game/upgrades.js), so this curve *is* the pace
   // at which the player's power arrives.

@@ -10,6 +10,7 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { STATE } from '../src/game/state.js';
 import { BALANCE } from '../src/game/balance.js';
+import { resetBosses } from '../src/game/bosses.js';
 import { initAudio } from '../src/audio/engine.js';
 import { MUSIC, PATTERNS, musicLedger, patternPeak } from '../src/audio/music.js';
 
@@ -228,6 +229,50 @@ test('one hull outranks a boss, and the music says so', () => {
 
   game.world.player.hull = game.world.player.maxHull;
   assert.equal(musicOver(60).pattern, 'boss', 'and a hull bought back goes straight back to the fight');
+});
+
+test('the point vacuum buys the run a fanfare over the pattern it was already playing', () => {
+  // The owner's second half of the request: "during this 10 second event, play some excited music".
+  // It is a layer swap and not a new groove (audio/music.js): the run keeps its tempo, its drums and
+  // its chord, and the arpeggio's slot is spent on a tune instead - which is what lets a reward
+  // interrupt a boss fight without ever stopping it, and what keeps its loudness a measured number
+  // rather than a hope (the four `-fanfare` patterns are metered like every other one, below).
+  const world = game.world;
+  world.state = STATE.PLAY;
+  world.player.hull = world.player.maxHull;
+  // The fight the last test brought in is put away by the same door a new run puts it away by
+  // (game/bosses.js `resetBosses`) - a boss body left in the crowd without its fight is not a thing
+  // the painter knows how to draw. With the schedule spent, nothing else walks in mid-test.
+  resetBosses(world);
+  world.enemies.length = 0;      // and the crowd goes with the fight: a boss's own body is not a
+  // thing the painter can draw once its fight is gone, and nothing in this file is about the crowd
+  world.bossIndex = BALANCE.bosses.schedule.length;
+  world.elapsed = MUSIC.drumsAfter + 1;
+
+  const plain = musicOver(600);
+  assert.equal(plain.pattern, 'driving');
+
+  // Longer than the measuring window on purpose: `left` is spent in step time, so a well of exactly
+  // the row's ten seconds would be shut again by the end of the ten seconds of frames below.
+  world.vacuum.left = BALANCE.vacuum.duration * 2;
+  const warm = musicOver(600);
+  assert.equal(warm.pattern, 'driving-fanfare', 'the same groove with the tune over it');
+  assert.ok(warm.notes > plain.notes,
+    'and the tune is more line than the arpeggio it replaced: ' + warm.notes + ' against '
+      + plain.notes);
+  assert.ok(Math.abs(warm.drums - plain.drums) <= 2, 'the kit never stopped for it');
+
+  world.vacuum.left = 0;
+  assert.equal(musicOver(60).pattern, 'driving',
+    'and it goes back on its own when the well shuts, with no help');
+
+  // And on the last hull the reward still arrives: the fanfare outranks everything short of an
+  // ending, because ten seconds of being paid is not a reason to be nervy.
+  world.player.hull = MUSIC.lastHull;
+  world.vacuum.left = 4;
+  assert.equal(musicOver(60).pattern, 'last-fanfare');
+  world.player.hull = world.player.maxHull;
+  world.vacuum.left = 0;
 });
 
 test('the ledger says how long the run spent in every pattern', () => {

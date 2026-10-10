@@ -12,6 +12,7 @@ import { weaponName } from '../game/weapons.js';
 import { dueOf as frontDue } from '../game/nova.js';
 import { dueOf as dropDue } from '../game/mines.js';
 import { dueOf as crewDue } from '../game/turret.js';
+import { vacuumLeftOf } from '../game/vacuum.js';
 import { endlessTime } from '../game/endless.js';
 import { polygon, roundRect } from './shapes.js';
 import { drawIcon, tintOf } from './icons.js';
@@ -26,6 +27,7 @@ const FONT_TINY = '700 10px "Segoe UI", system-ui, sans-serif';
 const FONT_FPS = '600 10px "Segoe UI", system-ui, sans-serif';
 const GLOW_CYAN = 'rgba(94,247,255,0.8)';
 const GLOW_MINT = 'rgba(88,255,161,0.85)';
+const GLOW_GOLD = 'rgba(255,215,106,0.85)';
 // A halo is a wide faint stroke under the letters - the look of a blur for the
 // price of one more stroke (see render/glow.js for why nothing blurs here).
 const TEXT_HALO = 0.22;
@@ -94,6 +96,65 @@ function drawHullPips(ctx, x, y) {
     ctx.restore();
   }
   ctx.globalCompositeOperation = 'source-over';
+}
+
+// The well's own meter (game/vacuum.js): how much of the ten seconds is left. Nothing is drawn
+// until it opens, and then it is drawn in the gold every reward here is written in, on the one line
+// of the score block that the clock and the gun leave free.
+const VACUUM_W = 96;        // px wide - about the width of the word above it
+const VACUUM_H = 5;         // px tall
+const VACUUM_AT = 118;      // px down the glass the bar sits at, under the GUN line's baseline
+const VACUUM_WORD = 8;      // px the word sits above the bar
+const VACUUM_PAD = 1;       // px of track left at each end of the fill
+
+/**
+ * Where the vacuum's meter goes and how full it is, as plain numbers - the `bossBarLayout` bargain:
+ * a test with no pixels can measure the box and the countdown, and the painter and the test cannot
+ * disagree because only one of them does the arithmetic.
+ */
+export function vacuumLayout(left) {
+  // The whole claim of the bar in one number: the well's clock, over the clock the row gave it.
+  const frac = clamp(left / BALANCE.vacuum.duration, 0, 1);
+  return {
+    x: PAD,
+    y: VACUUM_AT,
+    w: VACUUM_W,
+    h: VACUUM_H,
+    frac: frac,
+    open: left > 0,
+    filled: Math.max(0, (VACUUM_W - VACUUM_PAD * 2) * frac),
+  };
+}
+
+/**
+ * The point vacuum, as a countdown: the word, and a bar emptying over the ten seconds.
+ *
+ * The word is what says *why* the fanfare started, and the bar is what says the moment had a length -
+ * without it the ten seconds are a fluke of luck and not a reward the game handed out.
+ */
+function drawVacuumMeter(ctx) {
+  const place = vacuumLayout(vacuumLeftOf(world));
+  if (!place.open) return;
+  const x = place.x;
+  const y = place.y;
+
+  ctx.font = FONT_TINY;
+  haloText(ctx, BALANCE.vacuum.start.word, x, y - VACUUM_WORD, PALETTE.elite, GLOW_GOLD);
+
+  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  roundRect(ctx, x, y, place.w, place.h, 2.5);
+  ctx.fill();
+  if (place.filled > 1) {
+    // The bar's own glow, the same wide faint stroke under the fill the XP bar uses (render/glow.js
+    // is for things with a fixed radius; a bar's width is continuous).
+    ctx.strokeStyle = withAlpha(PALETTE.elite, 0.3);
+    ctx.lineWidth = 4;
+    roundRect(ctx, x + VACUUM_PAD, y, place.filled, place.h, 2.5);
+    ctx.stroke();
+    ctx.fillStyle = PALETTE.elite;
+    roundRect(ctx, x + VACUUM_PAD, y, place.filled, place.h, 2.5);
+    ctx.fill();
+  }
 }
 
 /**
@@ -187,6 +248,9 @@ export function drawHUD(ctx, fps) {
   // and this is the place it can still be read while it matters.
   ctx.fillStyle = PALETTE.uiDim;
   ctx.fillText('GUN  ' + weaponName(world), PAD, PAD + 82);
+
+  // And, while it lasts, the well: what the fanfare was for (game/vacuum.js).
+  drawVacuumMeter(ctx);
 
   // Hull, top-right.
   ctx.textAlign = 'right';
