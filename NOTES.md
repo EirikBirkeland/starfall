@@ -8900,3 +8900,4 @@ same shape as session 73's (6,424 voices asked, 332 turned away, peak 0.53, `run
   cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
   `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
   `choose_weapon` and no `choose_ship`.
+- Worktree hygiene: `/tmp/s74-base` was the baseline worktree for the trace comparison and is gone.
