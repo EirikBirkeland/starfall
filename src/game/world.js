@@ -81,6 +81,12 @@ function createWorld() {
     xpNeed: firstLevelXp(),
     kills: 0,
     shardsCollected: 0,
+    // How fast the loot is coming in right now (game/pickups.js): `count` how many shards in a
+    // row, `left` how long the row has left before the next one starts again from nothing. It
+    // is only ever read for a pitch - the pickup note climbs with it, which is the one sound in
+    // the game that tells you the pile is going in - but it is a fact about the run, so it lives
+    // here and is reset with the run. Written into, never replaced.
+    shardStreak: { count: 0, left: 0 },
     shake: 0,
     // The upgrade the run is being built out of, and the choice on the table right
     // now (game/upgrades.js). `offer` is the ids of the cards dealt - empty whenever

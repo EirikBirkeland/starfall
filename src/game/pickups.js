@@ -50,11 +50,55 @@ export function dropBigShard(world, x, y) {
   scatter(world, x, y, 1, BALANCE.shards.big.worth);
 }
 
+/**
+ * The pickup note's climb, in steps (BALANCE.shards.sound.streak).
+ *
+ * A shard that lands within the window of the last one lifts the note; one that lands after the
+ * window has run out starts the climb again from the plain note. So a kill's handful arriving
+ * over half a second is a little run up the scale and a stroll between kills brings the note
+ * home - which is the whole of "pickups rise in pitch with a streak" (PLAN section 5), and the
+ * reason the streak is timed rather than counted: a counter would be at the top of its range by
+ * the second minute of any run and stop saying anything.
+ *
+ * It is called once per shard collected, before the note is asked for: the streak is the run's
+ * own fact (world.shardStreak) and the note is what it earns.
+ */
+function climbStreak(world, spec) {
+  const streak = world.shardStreak;
+  streak.count = streak.left > 0 ? Math.min(spec.max, streak.count + 1) : 0;
+  streak.left = spec.window;
+}
+
+/**
+ * The note one collection earns: the base, jittered a little, lifted by however far the streak
+ * has climbed - `step` of an octave split `stepsPerOctave` ways per shard in a row.
+ *
+ * Exactly one draw off the logic stream, the one draw the plain random ping it replaces used,
+ * so a pitch that follows the loot cannot move a run either way (test/pitch.test.mjs).
+ */
+function pickupHz(world, sound, climb) {
+  const lift = climb.step * world.shardStreak.count / climb.stepsPerOctave;
+  return (sound.base + logic.range(0, sound.jitter)) * Math.pow(2, lift);
+}
+
+/** Let the streak go cold: `dt` of the window spent since anything was collected. */
+function coolStreak(world, dt) {
+  const streak = world.shardStreak;
+  if (streak.left <= 0) return;
+  streak.left -= dt;
+  if (streak.left <= 0) {
+    streak.left = 0;
+    streak.count = 0;
+  }
+}
+
 export function updateShards(world, dt) {
   const spec = BALANCE.shards;
   const spark = spec.pickupSpark;
   const big = spec.big;
   const sound = spec.sound;
+  const climb = sound.streak;
+  coolStreak(world, dt);
   const drag = Math.pow(spec.drag, dt);
   const magnet2 = spec.magnetRadius * spec.magnetRadius;
   const collectR = spec.collectRadius;   // measured from the ship's centre, not its hit radius
@@ -105,7 +149,11 @@ export function updateShards(world, dt) {
       } else {
         burst(world, shard.x, shard.y, PALETTE.shard, spark.count, spark.speed, spark.life);
       }
-      cueBeep(logic.range(sound.base, sound.base + sound.jitter), sound.dur, sound.wave, sound.vol, sound.slide);
+      climbStreak(world, climb);
+      // The note is asked for once and the bend is a ratio of it, so the top of a streak still
+      // rises instead of sliding down to the ceiling the bottom one slid to.
+      const hz = pickupHz(world, sound, climb);
+      cueBeep(hz, sound.dur, sound.wave, sound.vol, hz * sound.bend);
       while (world.xp >= world.xpNeed) levelUp(world);
     }
   }

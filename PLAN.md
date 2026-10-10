@@ -789,7 +789,32 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the fight without touching a voice of it. The effects bus sits at 1 for exactly that reason;
       the music bus at half, which puts the heaviest bar the sequencer can write at a tenth of full
       scale. `test/mix.test.mjs` owns the graph, including the machine that has no compressor.)
-- [ ] Effects for shots, hits, explosions, pickups, level-up, dash, player hit, UI.
+- [x] Effects for shots, hits, explosions, pickups, level-up, dash, player hit, UI.
+      (Every one of those already had a voice - one row per gun, one per kind's going-down, a chime
+      for a level, a thud for being hurt - and three of them were not what their name said. **A hit
+      is now the body's own note**: twice the radius and an octave down, which is the one mapping
+      that stays musical over bodies from 7 px to 60 (a swarmling takes a shot at 617 Hz, a drifter
+      at 288, a tank at 166, a boss's framework at the floor of the band, clamped so a nonsense body
+      still ticks and does not whistle), where the whole crowd used to share one 300-360 Hz click.
+      **A pickup rises with a streak** (PLAN's own words): each shard that lands inside 0.15 s of
+      the last lifts the note one semitone, to one octave over the plain note, and the note comes
+      home when the loot stops - so a kill's handful is a little run up the scale and a stroll
+      between kills is the plain note again. The streak is timed and not counted
+      (`world.shardStreak`), because a counter would sit at the top of its range by the second
+      minute and stop saying anything, and the ping's old 270 Hz of jitter - twice the whole climb -
+      is 12 Hz now so what is heard is the climb (both numbers measured over six bot runs, NOTES 70).
+      And **the interface finally answers**: `BALANCE.ui` has six ticks - a ship picked, a run
+      launched, a card taken, the table dealt again, a line cut out of the run for good, and a run's
+      card landing - plus one for the mute switch coming back, because going quiet is already its own
+      answer. Those are the only sounds in the game the simulation did not ask for: a screen goes up
+      on a frame and not on a step and `game/` may not know audio exists, so `main.js` and
+      `ui/screens.js` go to `audio/sfx.js` `uiTick` directly and the cue queue stays the run's only
+      door. Every tick answers a press that was *taken*; a key the game refused is silent, so the
+      sound never lies about what a key did. `test/pitch.test.mjs` owns the two pitch stories at the
+      cue queue (nine bodies, nine notes, the ceiling is an octave, the row goes cold) and
+      `test/ui-sound.test.mjs` walks the interface in order and reads back the note each press was
+      answered with - the fake audio device logs a voice's pitch now, which is how a test can tell a
+      tick from a thud.)
 - [x] Voice limiting.
       (`audio/mix.js`: the master bus is allowed `MIX.headroom` worth of sounding voice volume,
       priced in each cue's own `vol`, and a voice pays for as long as it can be heard - so a sky

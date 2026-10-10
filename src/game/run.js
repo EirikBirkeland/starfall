@@ -149,6 +149,10 @@ export function resetRun(world) {
   world.freeze = 0;
   world.kills = 0;
   world.shardsCollected = 0;
+  // The pickup streak starts again with the run (game/pickups.js): a pile the last run was
+  // still swallowing when it ended is not this one's climb. Written back into, not replaced.
+  world.shardStreak.count = 0;
+  world.shardStreak.left = 0;
   world.newBest = false;
   // A fresh sheet for the new run (game/tally.js). A new object rather than emptying
   // the old one, so anything holding on to a finished run's tally keeps reading the

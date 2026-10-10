@@ -194,6 +194,9 @@ export function setMuted(value) {
 
 export function toggleMuted() {
   setMuted(!muted);
+  // Answers the way it landed, so the interface can answer the press (main.js): coming back is
+  // the half that needs a sound to say it happened, and going quiet is its own silence.
+  return muted;
 }
 
 export function isMuted() {

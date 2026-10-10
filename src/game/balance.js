@@ -650,7 +650,19 @@ export const BALANCE = {
     despawnMargin: 30,      // this far outside the arena, it is gone
     hitRadius: 3.5,         // added to the enemy radius for a hit
     impact: { count: 4, speed: 130, life: 0.24 },
-    impactSound: { min: 300, max: 360, dur: 0.03, wave: 'square', vol: 0.02, slide: 200 },
+    // What a shot landing on a body sounds like, and the body's own size is the pitch: twice
+    // the radius, an octave down. A ratio is the one relation that stays musical across a
+    // crowd this unequal (a swarmling is 7 px and a boss's frame is 60), and `at` is the body
+    // that rings at `hz`. The band is clamped so a body outside the crowd's sizes still makes a
+    // hit tick rather than a thud or a whistle, and `bend` is the drop below the note it
+    // started on - a ratio like the shard's, so a big body falls as far in pitch as a small
+    // one and not just to the same place.
+    // Measured off the crowd (NOTES session 70): a swarmling at 617 Hz, a drifter at 288, a
+    // tank at 166, a boss's frame at 90 - four sizes of body, two octaves of tick.
+    impactSound: {
+      at: 12, hz: 360, low: 90, high: 900, jitter: 28, bend: 0.62,
+      dur: 0.03, wave: 'square', vol: 0.02,
+    },
   },
 
   // What every enemy shot shares, whoever fired it. How fast and how big a
@@ -1977,7 +1989,28 @@ export const BALANCE = {
       spark: { count: 26, speed: 260, life: 0.45 },
       ring: { radius: 7, speed: 320, life: 0.35 },
     },
-    sound: { base: 1050, jitter: 270, dur: 0.05, wave: 'sine', vol: 0.05, slide: 1900 },
+    sound: {
+      base: 1050, jitter: 12, dur: 0.05, wave: 'sine', vol: 0.05,
+      // The note bends up a fifth above wherever it started, and the bend is a *ratio* and not
+      // a target hz (`slide` elsewhere in this table) so that a shard at the top of a streak
+      // still rises instead of sliding down to the same ceiling: a plain pickup runs 1050 ->
+      // 1890 and the top of a streak runs 2100 -> 3780, the same lift an octave up.
+      // The jitter is a fifth of the first step of the climb on purpose: it is what stops a pile
+      // of shards sounding like one held tone, and any more of it would be heard instead of the
+      // climb (a semitone at the base note is 62 Hz, so 12 of jitter is a fifth of a step).
+      bend: 1.8,
+      // PLAN section 5's "pickups rise in pitch with a streak". `window` is how long a shard
+      // has to wait for its neighbour to count as part of the same handful, `step` is how far
+      // the note lifts per shard in steps of an octave split `stepsPerOctave` ways, and `max` is
+      // how many steps the climb gets - one octave, which is a run you can hear going up and come
+      // back down and not a siren. Measured over six bot runs (NOTES session 70): a run that
+      // lives past its first minute takes half its loot inside 0.08 s of the last piece, so the
+      // window has to be short to be a streak at all - at 0.15 s about three pickups in ten land
+      // on the plain note and an eighth reach the top, which is a climb that tracks what the ship
+      // is really eating. The runs that died inside their first minute never got past four steps,
+      // which is the right answer: they were never in a pile at all.
+      streak: { window: 0.15, step: 1, max: 12, stepsPerOctave: 12 },
+    },
   },
 
   // Levels, and what one is worth (PLAN 3.6). A level is no longer a number: it is
@@ -3312,6 +3345,46 @@ export const BALANCE = {
     burst: { count: 22, speed: 280, life: 0.7 },
     ring: { radius: 10, speed: 340, life: 0.55 },
     sound: { notes: [660, 880, 1180], dur: 0.14, wave: 'triangle', vol: 0.1 },
+  },
+
+  // PLAN section 5's "UI ticks": what the interface itself sounds like. These are not run
+  // events - the simulation never queues one (game/cues.js is the only door it has to audio,
+  // and `victory` above says why a card landing is not the simulation's business) - they are
+  // asked for by `uiTick` in audio/sfx.js, which is presentation and is allowed to know the
+  // interface exists.
+  //
+  // Two rules hold the six of them together. One: every tick answers a press that was *taken*,
+  // so a key the game refused is silent - a tick that lies is worse than no tick, and the title
+  // already works that way for a number with no ship behind it. Two: a rising tick means a yes or
+  // a beginning and a falling one means something going away, so they are told apart by their
+  // shape and not only by their pitch - the one exception is the mute switch, which is a flat
+  // blip because it is not a yes or a no, it is a hello.
+  //
+  // They are all `must` voices in audio/sfx.js (one per press, never a sky of them), so the
+  // numbers below are quiet on purpose: this is furniture, and the loudest thing here is a
+  // fifth of the loudest thing in a fight.
+  ui: {
+    // A ship picked out of the title's list, with the gun it brings. Up, because a pick is the
+    // first decision of a run.
+    pick: { freq: 480, dur: 0.06, wave: 'triangle', vol: 0.05, slide: 720 },
+    // A run launched, or a won one handed back to be flown on. The same rise held longer:
+    // nothing else in the interface commits you to as much.
+    confirm: { freq: 300, dur: 0.16, wave: 'triangle', vol: 0.07, slide: 620 },
+    // A card taken off the table. Brightest of the six, because it is the one press a run is
+    // made of, and it lands over a table of cards rather than over an empty arena.
+    take: { freq: 620, dur: 0.09, wave: 'sine', vol: 0.06, slide: 930 },
+    // The table dealt again: down, because these cards went away to be replaced.
+    reroll: { freq: 700, dur: 0.09, wave: 'triangle', vol: 0.05, slide: 380 },
+    // A line cut out of the run for good. Lower than the reroll and sawtooth rather than
+    // triangle - the same gesture as a reroll with the edge on it, which is what a banish is.
+    banish: { freq: 300, dur: 0.14, wave: 'sawtooth', vol: 0.05, slide: 140 },
+    // A run's card landing, death or win: one soft knock under whatever the arena is still
+    // doing, because the card is a period and not an exclamation (the fight has already made
+    // its own noise, and `victory.sound` says why the win needs no second cue).
+    card: { freq: 190, dur: 0.28, wave: 'sine', vol: 0.06, slide: 120 },
+    // The mute switch coming back. Shortest and highest, because it says one word ("you can
+    // hear it again") and going quiet needs no sound at all to say itself.
+    unmute: { freq: 900, dur: 0.05, wave: 'sine', vol: 0.05, slide: 0 },
   },
 
   effects: {

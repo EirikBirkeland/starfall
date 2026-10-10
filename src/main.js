@@ -29,7 +29,7 @@ import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, toggleMuted } from './audio/engine.js';
-import { consumeCues } from './audio/sfx.js';
+import { consumeCues, uiTick } from './audio/sfx.js';
 import { updateMusic } from './audio/music.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip } from './ui/screens.js';
 
@@ -76,6 +76,7 @@ function beginRun() {
   if (!seedIsPinned) world.seed = randomSeed();
   startRun(world);
   hideScreens();
+  uiTick('confirm');
   return true;
 }
 
@@ -89,8 +90,10 @@ function pressAction() {
   if (continueRun(world)) {
     // The same bargain `beginRun` strikes with the launch key: Space is the dash as well, and a run
     // resumed out of the hush owes no free dash on the step it comes back on.
+    initAudio();
     consumeInput();
     hideScreens();
+    uiTick('confirm');
     return;
   }
   beginRun();
@@ -112,18 +115,33 @@ function onCanvasPressed() {
 function answerChoice(x, y) {
   const hit = choiceHit(x, y);
   if (hit === null) return;
-  if (hit.reroll) rerollOffer(world);
-  else if (hit.banish !== undefined) banishOffer(world, hit.banish);
-  else takeOffer(world, hit.card);
+  // The interface answers the press with a tick, and only when the answer was taken: a reroll the
+  // run has no asks left for is refused in silence, because a tick that lies is worse than no
+  // tick (BALANCE.ui).
+  if (hit.reroll) {
+    if (rerollOffer(world)) uiTick('reroll');
+  } else if (hit.banish !== undefined) {
+    if (banishOffer(world, hit.banish)) uiTick('banish');
+  } else if (takeOffer(world, hit.card)) {
+    uiTick('take');
+  }
 }
 
 /** A number key: over one of the cards on the table, or over the ship list. */
 function onPickCard(number, banishing) {
+  // A keypress is a user gesture and this one can arrive before anything else has been pressed,
+  // so this is the earliest the audio may be started at all (audio/engine.js). A machine with no
+  // audio is not disturbed by the ask, and `uiTick` on its own never starts a context: only a
+  // handler that is answering a press is allowed to.
+  initAudio();
   if (world.state === STATE.LEVEL) {
     // Shift turns the same number into the other thing a card can be answered with: it
     // cuts that line out of the run instead of taking it.
-    if (banishing) banishOffer(world, number - 1);
-    else takeOffer(world, number - 1);
+    if (banishing) {
+      if (banishOffer(world, number - 1)) uiTick('banish');
+    } else if (takeOffer(world, number - 1)) {
+      uiTick('take');
+    }
     return;
   }
   // The same keys, on the two screens that are not a run: the title picks the ship to fly,
@@ -143,7 +161,10 @@ function onPickCard(number, banishing) {
   }
   // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
   // taken, not to a key that was pressed.
-  if (setShipByIndex(world, number - 1)) showShip(world.ship);
+  if (setShipByIndex(world, number - 1)) {
+    showShip(world.ship);
+    uiTick('pick');
+  }
 }
 
 /**
@@ -152,8 +173,22 @@ function onPickCard(number, banishing) {
  * asks for nothing.
  */
 function onReroll() {
-  if (world.state === STATE.LEVEL) rerollOffer(world);
-  else if (victoryCardIsAnswerable(world)) beginRun();
+  initAudio();     // same reason as `onPickCard`: this key can be the first press of the visit
+  if (world.state === STATE.LEVEL) {
+    if (rerollOffer(world)) uiTick('reroll');
+  } else if (victoryCardIsAnswerable(world)) {
+    beginRun();
+  }
+}
+
+/**
+ * M, and the tick on its way back. The mute switch is the one control the player presses without
+ * looking at the screen, so the half of it that can be heard says something: going quiet is
+ * already its own answer, coming back needs a word to say it happened (BALANCE.ui).
+ */
+function onMuteSwitch() {
+  const mutedNow = toggleMuted();
+  if (!mutedNow) uiTick('unmute');
 }
 
 function onResize() {
@@ -272,7 +307,7 @@ function boot() {
     onPress: onCanvasPressed,
     onPickCard: onPickCard,
     onReroll: onReroll,
-    onToggleMute: toggleMuted,
+    onToggleMute: onMuteSwitch,
   });
   window.addEventListener('resize', onResize);
 
@@ -348,6 +383,11 @@ window.STARFALL = {
       gridCells: world.grid.stats().filled,
       parts: world.particles.count,
       collected: world.shardsCollected,
+      // How many shards in a row the pickup note is climbing with, and how long the row has
+      // left (game/pickups.js). A crack is the only other thing that reads it and a headless
+      // run cannot hear a pitch, so this is how a test can see the streak at all.
+      shardStreak: world.shardStreak.count,
+      shardStreakIn: world.shardStreak.left,
       fireRate: shotsPerSecond(world),
       weapon: world.weapon,
       ship: world.ship,

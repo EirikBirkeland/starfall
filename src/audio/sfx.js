@@ -10,6 +10,7 @@
 // there first.
 
 import { STATE } from '../game/state.js';
+import { BALANCE } from '../game/balance.js';
 import { drainCues } from '../game/cues.js';
 import { getContext, getSfxBus, isMuted, muffleMusic } from './engine.js';
 import { noiseVoice } from './noise.js';
@@ -80,6 +81,24 @@ function hiss(dur, vol, cutoff, sweep, q) {
 function blanket(to, back) {
   if (isMuted()) return;
   muffleMusic(to, back);
+}
+
+/**
+ * One tick of the interface: a ship picked, a card taken, a run launched (BALANCE.ui).
+ *
+ * This is the one sound the simulation did not ask for, and it has to be: a card lands when a
+ * screen is put up, which is a frame's fact and not a step's, and `game/` may not know audio
+ * exists at all. So the presentation layers - ui/screens.js and main.js - come here directly
+ * instead of queueing a cue, and the cue queue stays the only door the run has.
+ *
+ * Every tick is a `must` voice, on the same grounds as a level-up's chime: one per press, so
+ * there is never a sky of them for the budget to protect against, and a confirmation the mix
+ * ate is a key that appears not to have done anything.
+ */
+export function uiTick(name) {
+  const row = BALANCE.ui[name];
+  if (!row) throw new Error('no UI sound row is called ' + name);
+  beep(row.freq, row.dur, row.wave, row.vol, row.slide, true);
 }
 
 /** This frame's cues, in the order they are worth playing them in. */

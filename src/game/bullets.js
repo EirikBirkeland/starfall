@@ -182,6 +182,16 @@ function turnOnto(world, bullet, spec, target) {
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
 }
 
+/**
+ * The note a body makes when a shot lands on it: its own size, inversely - `hz` is the note a
+ * body of `at` px rings at and every doubling of the radius takes it an octave down, which is
+ * the one mapping that stays musical over bodies this unequal. Clamped to the row's own band,
+ * so a body outside the crowd's sizes still makes a hit tick and not a whistle or a thud.
+ */
+function bodyNote(row, radius) {
+  return Math.min(row.high, Math.max(row.low, row.hz * row.at / radius));
+}
+
 export function updateBullets(world, dt) {
   const spec = BALANCE.bullets;
   const impact = spec.impact;
@@ -258,8 +268,14 @@ export function updateBullets(world, dt) {
       // And a shell that came off a gun the ship left standing in the road is counted there, because
       // that is where that line keeps its own books (game/turret.js).
       if (bullet.turret) noteShell(world);
-      // Only a hit that did not kill makes the impact sound; a kill plays its own.
-      if (!killed) cueBeep(logic.range(sound.min, sound.max), sound.dur, sound.wave, sound.vol, sound.slide);
+      // Only a hit that did not kill makes the impact sound; a kill plays its own. The note is
+      // the body's own size (BALANCE.bullets.impactSound): a swarmling's shoulder and a boss's
+      // framework are not the same event arriving and should not be the same tick.
+      if (!killed) {
+        const hz = bodyNote(sound, enemy.r);
+        cueBeep(hz + logic.range(0, sound.jitter), sound.dur, sound.wave, sound.vol,
+          hz * sound.bend);
+      }
 
       // A micro-missile is spent where it lands, and what it leaves is a blast (game/missiles.js).
       // There is no "next move" for it: the pierce line has no body left to pass through and the

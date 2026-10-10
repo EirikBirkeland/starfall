@@ -4,6 +4,7 @@
 
 import { SHIPS } from '../game/ships.js';
 import { BALANCE } from '../game/balance.js';
+import { uiTick } from '../audio/sfx.js';
 
 let el = null;
 
@@ -127,6 +128,9 @@ export function showGameOver(summary) {
   el.build.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   el.over.classList.remove('hidden');
+  // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
+  // was written, so this is a screen's own event and the simulation has no idea it happened.
+  uiTick('card');
 }
 
 /**
@@ -155,6 +159,7 @@ export function showVictory(summary) {
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).
   el.winHint.classList.add('hidden');
   el.win.classList.remove('hidden');
+  uiTick('card');      // the same knock the death's card gets: it is the same event, landing
 }
 
 /**

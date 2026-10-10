@@ -189,11 +189,16 @@ function makeContextStub(counters, drawLog) {
  * those. That log is how a test can see a sweep *happen* rather than only that a node was
  * built, which is the difference between knowing the game made a filter and knowing it moved
  * one.
+ *
+ * A voice's pitch is logged too, and it is not an envelope: it is the one thing about a voice a
+ * test can ask a question about - was that tick the body's own note, did the interface answer
+ * with the note its row says - and a voice writes two of them (the note, and where it slides)
+ * against the thousands of gain moves that nobody reads.
  */
 function makeAudioContextStub(log, now) {
   const voice = () => ({
     type: '',
-    frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+    frequency: knob('pitch'),
     connect() {},
     start() {},
     stop() {},
