@@ -8313,6 +8313,10 @@ Three named things are genuinely still missing and none of them is the noise:
   mute.
 - **The noise shares the voice budget** (unlike the music, which is outside it): a hiss *is* an
   unpredictable arrival, which is the whole reason the budget exists.
+- And one thing the session caught on its own last read: `noiseVoice` builds its buffer *inside*
+  its own try, because `hiss` in `audio/sfx.js` trusts it the way it trusts `beep` to be the
+  safety net for a voice. A browser that throws at `createBuffer`, rather than simply not having
+  one, was a thrown frame.
 
 ### For the next session
 - **Finish milestone 7's effects item**, and it is the three pitch stories the audit above found:
@@ -8332,7 +8336,3 @@ Three named things are genuinely still missing and none of them is the noise:
   `choose_weapon` and no `choose_ship`.
 - Worktree hygiene: `/tmp/s69-base` was the baseline worktree for the measurements above and is
   gone again.
-- One line the session ended on, so it is not rediscovered the hard way: `noiseVoice` now builds
-  its buffer *inside* its own try. A browser that throws at `createBuffer` rather than simply
-  not having it was a thrown frame, because `hiss` in `audio/sfx.js` trusts `noiseVoice` the way
-  it trusts `beep` to be the safety net for a voice.
