@@ -124,6 +124,10 @@ export function resetRun(world) {
   // And the run is not endless: a run that outlasted the schedule and was then handed its arena back
   // is one run, and the next one starts with the schedule whole again (game/run.js `continueRun`).
   world.endless = false;
+  // ...and the second clock goes back to zero with it. An endless run's growth is measured from the
+  // hand-back and from nowhere else (game/endless.js), so the number it is measured against has to
+  // belong to this run and not to the one that won.
+  world.endlessAt = 0;
   // The run starts with nothing bought and nothing on the table: a card left over from
   // the last run would pause a run that has earned nothing.
   resetRanks(world);
@@ -269,7 +273,8 @@ export function victoryCardIsAnswerable(world) {
  *
  * What the run does not get back is a fight. The schedule is walked once and it has been walked out
  * (game/bosses.js), so what comes out of the dark from here is the wave director and nobody else.
- * What goes on scaling from here is `BALANCE.endless`'s business, and the next session's.
+ * What goes on scaling from here is the second clock's business - `world.endlessAt` below is where
+ * it starts counting from, and game/endless.js is what reads it.
  *
  * Answers false for a world this does not apply to - a run that is flying, a wreck, a won run
  * whose card is not up yet, and a won run whose card has not been up long enough to have been
@@ -283,6 +288,11 @@ export function continueRun(world) {
   world.state = STATE.PLAY;
   world.overTimer = 0;
   world.endless = true;
+  // The second clock starts here and not at the win: the run's own clock did not move while the card
+  // was up, and the growth is measured from the moment the arena came back rather than from the
+  // moment it stopped (game/endless.js). A run that leaves the card up for a minute before pressing
+  // is not punished for reading.
+  world.endlessAt = world.elapsed;
   noteEndless(world);
   // The world stopped with the crowd standing where it stopped, some of it on top of a ship that had
   // no reason to be anywhere. It gets the breathing room a run is given when it starts.

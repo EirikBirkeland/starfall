@@ -51,6 +51,9 @@ function createWorld() {
     // with? Written once, by game/run.js `continueRun`, and read by the interface (render/hud.js):
     // the schedule is spent either way, so nothing in the simulation needs to be told twice.
     endless: false,
+    // Where the run's clock stood when that happened, which is the only thing the endless growth is
+    // measured against (game/endless.js). 0 until a run is handed back, and 0 again with the next.
+    endlessAt: 0,
     // Which ship the runs of this world fly, and with it which primary (game/ships.js).
     // Picked on the title screen until the hangar exists, and deliberately not cleared by a
     // new run: what you picked is what you fly on, like the seed and the gun.

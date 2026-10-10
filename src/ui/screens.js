@@ -101,7 +101,11 @@ function bossWords(count) {
   return count + ' BOSS' + (count > 1 ? 'ES' : '');
 }
 
-/** summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, weapon, build } */
+/**
+ * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, weapon,
+ * build, endlessPast } - `endlessPast` being how much of the run was flown after it had already
+ * been won, 0 for every run that never got that far.
+ */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
   el.finalBest.textContent = summary.best.toLocaleString('en-US');
@@ -112,6 +116,11 @@ export function showGameOver(summary) {
     // around (PLAN 3.4), and it only shows up at all when the run got that far.
     + (summary.bosses > 0 ? '   \u00b7   ' + bossWords(summary.bosses) : '')
     + '   \u00b7   ' + clockWords(summary.seconds)
+    // A run that was handed its arena back after winning and then finally went down says which part
+    // of it was the endless one: the clock above is the whole of the run, and this is the stretch
+    // past the win the player stayed out there for (game/endless.js).
+    + (summary.endlessPast > 0
+      ? '   \u00b7   ' + BALANCE.endless.word + ' FOR ' + clockWords(summary.endlessPast) : '')
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');

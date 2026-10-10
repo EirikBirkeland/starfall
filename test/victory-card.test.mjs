@@ -19,6 +19,7 @@ import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { SHIPS } from '../src/game/ships.js';
 import { damageEnemy } from '../src/game/enemies.js';
+import { makeEnemy } from '../src/game/kinds.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 4, audio: true });
@@ -298,4 +299,75 @@ test('the card says what its keys do', () => {
   assert.match(words, /SPACE/, 'the key that keeps the run flying');
   assert.match(words, /\bR\b/, 'and the one that asks for a new run');
   assert.doesNotMatch(card, /FINAL SCORE/, 'the score is not final while the run can be kept');
+});
+
+// ---------------------------------------------------------------------------
+// And then the run goes on: the endless stretch, on the glass
+// ---------------------------------------------------------------------------
+
+/**
+ * Another win on this boot: the last fight walks in, comes down, and the card is waited out.
+ * The three tests above each reached a win their own way; this is the one that needs to stand in
+ * the endless stretch afterwards with its minutes on it.
+ */
+function winAgain() {
+  const world = game.world;
+  world.elapsed = DUE - 0.05;
+  world.bossIndex = LAST;
+  ship().invuln = Infinity;
+  world.spawnTimer = Infinity;
+  world.enemies.length = 0;
+  assert.ok(until(() => game.stats().bossCores > 0, 20), 'the last fight never walked in again');
+  damageEnemy(world, game.world.boss.enemy, game.world.boss.enemy.maxhp * 10, true);
+  assert.ok(until(() => game.stats().state === game.STATE.WON, 6), 'and the win never came again');
+  assert.ok(until(() => game.screen.winHidden === false, HUSH + 1), 'and the card never came up');
+  wait(GUARD + 0.2);
+}
+
+/** The word beside the run clock, or undefined when the glass is not showing one. */
+function endlessMark() {
+  const painted = game.texts();
+  const clock = painted.find((t) => t.text.startsWith('TIME '));
+  assert.ok(clock, 'the run clock is painted');
+  return painted.find((t) => t.y === clock.y && t.text.includes(BALANCE.endless.word));
+}
+
+test('the glass counts the minutes past the win', () => {
+  winAgain();
+  game.key('Space', true);
+  game.key('Space', false);
+  game.step(FRAME);
+  assert.equal(game.stats().endless, true, 'the run is flying on');
+  assert.ok(game.stats().endlessPast < 0.05,
+    'and the second clock reads nothing on the step it starts on (' + game.stats().endlessPast + 's)');
+
+  const atTheStart = endlessMark();
+  assert.ok(atTheStart, 'the word is beside the clock');
+  assert.equal(atTheStart.text.trim(), BALANCE.endless.word, 'with nothing to count yet');
+
+  // Wind the second clock rather than play it: the minutes are derived from where the run clock
+  // stood at the hand-back (game/endless.js), and what is being checked is the glass.
+  game.world.endlessAt = game.world.elapsed - 7 * 60;
+  game.step(FRAME);
+  const later = endlessMark();
+  assert.equal(later.text.trim(), BALANCE.endless.word + ' +7m',
+    'seven minutes past the win, which is the clock the crowd is being paced by');
+  assert.equal(Math.round(game.stats().endlessPast), 420, 'and the run agrees with the glass');
+});
+
+test('a wreck out past the win says how long the run went on for', () => {
+  // Still the same endless run, seven parked minutes deep. It ends here, and the card has to say
+  // both what the run was and which part of it was the endless stretch.
+  ship().invuln = 0;
+  ship().hull = 1;
+  const body = makeEnemy(game.world, 'weaver', ship().x, ship().y, null);
+  body.speed = 0;
+  body.spin = 0;
+  game.world.enemies.push(body);
+  assert.ok(until(() => game.stats().state === game.STATE.OVER, 6), 'and the crowd took the run in the end');
+
+  const stats = game.screen.stats;
+  assert.ok(stats.includes(BALANCE.endless.word + ' FOR 7m'), 'the endless stretch, on the card: ' + stats);
+  assert.match(stats, /SEED \d+/, 'and the rest of the line it has always carried');
+  assert.equal(game.screen.overHidden, false, 'the wreck is what is on the glass');
 });

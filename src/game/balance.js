@@ -1009,6 +1009,14 @@ export const BALANCE = {
   enemies: {
     hpScaleWindow: 95, hpScaleMax: 1.6,
     speedScaleWindow: 190, speedScaleMax: 0.5,
+    // The wall over the *whole* of a body's speed multiplier - the schedule's ramp above and the
+    // endless clock's growth (game/endless.js) both push against this one number and neither gets
+    // past it. It sits here rather than in the endless row because it is a rule about bodies and not
+    // about endless mode: nothing may walk faster than about twice its kind's own pace, because a
+    // body the ship cannot outrun and cannot stop is a countdown and not a fight. Held above
+    // `1 + speedScaleMax` by a test, so the wall cannot eat the schedule's own growth, and argued
+    // against the fastest kind in the game in test/endless-growth.test.mjs.
+    speedScaleCeil: 1.9,
     separationDrag: 0.02,   // leftover impulse decays to this fraction per second
     separationEpsilon: 0.0001,   // closer than this, and the push is meaningless
     separationPush: 0.5,    // each of a touching pair gives way this much
@@ -3197,6 +3205,55 @@ export const BALANCE = {
     // Lower and more open than the win's own chord, and shorter than it: the fanfare has been and
     // gone, and this is the arena being let back in rather than a second celebration.
     sound: { notes: [392, 588, 784], dur: 0.5, wave: 'triangle', vol: 0.09 },
+
+    // What keeps growing once the arena has been handed back, and the rest of PLAN 3.4's sentence
+    // ("continues with all values scaling for as long as the player lasts"). Every row here is a
+    // rate **per minute past the hand-back**, read through game/endless.js, which is the only file
+    // in the game that reads them, and measured by tools/endless-gauge.js.
+    //
+    // They are per minute of endless and not per minute of run because the run's own clock has been
+    // spent: `waves.crowdMax`, `enemies.hpScaleMax` and `enemies.speedScaleMax` are all reached
+    // inside the first three minutes, so a second curve built on the same clock would still be flat
+    // by the time the last fight walks in. Counted from the hand-back instead, every endless run
+    // starts from the same place and grows at the same rate from whatever height it reached.
+    //
+    //   hullPerMinute    added to a body's hull scale. Uncapped, on purpose: this is the number that
+    //                    ends an endless run. A build's damage stops improving when the cards run
+    //                    out and the crowd's does not, so the bodies eventually outlast the gun.
+    //   speedPerMinute   added to a body's speed scale, up to `enemies.speedScaleCeil` and no
+    //                    further. The one growth that has a wall: see that row.
+    //   crowdPerMinute   points of enemy added to the director's budget, past `waves.crowdMax`.
+    //   bodiesPerMinute  how far the ceiling on standing bodies lifts with it - the crowd cannot
+    //                    actually get bigger if the count of bodies says it may not.
+    //   bodiesCeil       the wall over that. A frame budget and not a difficulty knob, like
+    //                    `waves.maxBodies`: measured at 0.10 ms for a simulation step with this
+    //                    many bodies standing, against 0.05 ms at the schedule's 100 - two of them
+    //                    to a 60 fps frame is a fifth of a millisecond, and the rest of the frame
+    //                    belongs to the painter. The painter was counted in draw calls and not in
+    //                    milliseconds, because that is all there is to count here: 200 bodies is
+    //                    about 870 strokes, 370 fills and 260 sprite stamps a frame, against about
+    //                    360 / 285 / 140 at the schedule's own wall. PLAN section 2's target is 600
+    //                    enemies, so this ceiling is well inside what the game is built for.
+    //
+    // The crowd and the body count are tuned to reach their walls together: an endless crowd averages
+    // about 4.5 points a body, so the 200-body wall is worth about 900 points, which is 500 past
+    // `waves.crowdMax` and is what 56 a minute takes eight and a half minutes to reach - the same
+    // eight and a half 12 a minute takes to lift the count. Neither wall is decoration and neither
+    // arrives before the other.
+    //
+    // The hull rate is the one that ends the run, and it was set by measurement and not by taste:
+    // tools/endless-gauge.js plays a build with every line maxed - what a real run has by the time
+    // the last fight walks in - on into endless. At 4 a minute the strongest player the game can
+    // describe was buried at +14m, +17m, +23m and +29m on four seeds, every one of them with the
+    // crowd standing at the body wall, and every minute before that had been winnable. Below about
+    // 2 it did not end at all inside half an hour, which is the failure this row exists to prevent.
+    growth: {
+      hullPerMinute: 4,
+      speedPerMinute: 0.06,
+      crowdPerMinute: 56,
+      bodiesPerMinute: 12,
+      bodiesCeil: 200,
+    },
   },
 
   levelUp: {

@@ -14,6 +14,11 @@
 // Running away does neither - it just keeps the same crowd on screen - which is the
 // whole reason the run tightens as it goes.
 //
+// Both of the walls here have a second, slower clock behind them for a run that has been
+// handed its arena back after winning: the budget past `crowdMax` and the count of bodies past
+// `maxBodies` are both grown by game/endless.js, and are exactly 0 for every other run. The
+// director itself does not care which of the two clocks is spending it.
+//
 // This file is also the one place that decides *where* an enemy may appear: just off
 // the part of the arena the player can see, and never on top of them - with the one
 // exception of a kind that cannot walk, which has to be landed where the player can
@@ -35,6 +40,7 @@ import { newPack } from './flock.js';
 import { logic } from '../core/rng.js';
 import { dist2, TAU } from '../core/math.js';
 import { noteArrival } from './tally.js';
+import { crowdGrowth, bodyGrowth } from './endless.js';
 
 const EDGES = 4;   // an arrival with no bearing picks one of four sides
 
@@ -82,7 +88,28 @@ const NUDGE_RETRY = 0.5;
 export function crowdBudget(world) {
   const spec = BALANCE.waves;
   const grown = spec.crowdBase + world.elapsed / SECONDS_PER_MINUTE * spec.crowdPerMinute;
-  return Math.min(spec.crowdMax, grown);
+  // The schedule's curve, and then whatever the endless clock has added to it (game/endless.js).
+  // That second term is 0 for every run that has not been handed its arena back, which is what keeps
+  // a normal run's budget exactly where it always was - the ceiling in the middle of this expression
+  // is the schedule's and nothing else may lean on it.
+  return Math.min(spec.crowdMax, grown) + crowdGrowth(world);
+}
+
+/**
+ * How many bodies may be standing in the arena at once, wherever the budget has got to.
+ *
+ * The two are different walls on purpose: the budget is a difficulty and this is a frame budget
+ * (`waves.maxBodies`, and `endless.growth.bodiesCeil` for how far endless may lift it). A crowd is
+ * only as big as the smaller of the two, and before the endless clock existed the schedule's own
+ * budget reached its ceiling at about the same moment the body wall did, which is why one number
+ * appeared to be doing the work of both.
+ */
+export function bodyCeiling(world) {
+  const spec = BALANCE.waves;
+  // Floored: this counts bodies, and a fractional one would be bought as a fractional pack
+  // (`packFits` hands the difference to a loop). The lift is a rate per minute and lands on whole
+  // bodies one at a time, which is also how the crowd notices it.
+  return Math.min(spec.maxBodies + Math.floor(bodyGrowth(world)), BALANCE.endless.growth.bodiesCeil);
 }
 
 /**
@@ -315,7 +342,7 @@ function arrivalSpotFor(world, stats, bearing) {
  * pack. A pack arrives through a wave, which is the only thing that can pay for one.
  */
 export function spawnEnemy(world, type, bearing, elite) {
-  if (world.enemies.length >= BALANCE.waves.maxBodies) return null;
+  if (world.enemies.length >= bodyCeiling(world)) return null;
   const name = type || pickMember(world, Infinity);
   const spot = arrivalSpotFor(world, kindOf(name).stats, bearing);
   return placeEnemy(world, name, spot, elite === true, null);
@@ -333,7 +360,7 @@ const PLACE = { elite: false, flock: null };
  * arrival comes through here.
  */
 function placeEnemy(world, type, spot, elite, pack) {
-  if (spot === null || world.enemies.length >= BALANCE.waves.maxBodies) return null;
+  if (spot === null || world.enemies.length >= bodyCeiling(world)) return null;
   PLACE.elite = elite === true;
   PLACE.flock = pack === undefined ? null : pack;
   const enemy = makeEnemy(world, type, spot.x, spot.y, PLACE);
@@ -462,7 +489,7 @@ function sendWave(world, points) {
   const spec = BALANCE.waves;
   const goldPrice = BALANCE.elite.costMul;
   const bearing = logic.range(0, TAU);
-  const bodyRoom = spec.maxBodies - world.enemies.length;
+  const bodyRoom = bodyCeiling(world) - world.enemies.length;
 
   const types = BUY;
   types.length = 0;
@@ -551,7 +578,7 @@ export function updateWaves(world, dt) {
   if (world.spawnTimer > 0) return null;
 
   const room = roomToSpare(world);
-  if (room < spec.waveMinPoints || world.enemies.length >= spec.maxBodies) {
+  if (room < spec.waveMinPoints || world.enemies.length >= bodyCeiling(world)) {
     world.spawnTimer = spec.retry;
     return null;
   }

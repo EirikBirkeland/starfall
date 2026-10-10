@@ -14,6 +14,7 @@ import {
   darknessOf,
 } from './game/bosses.js';
 import { fieldIsCaged } from './game/field.js';
+import { endlessTime } from './game/endless.js';
 import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
@@ -175,6 +176,9 @@ function describeRun() {
     bosses: world.bossesDown,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    // How much of this run was flown past its own win, and so whether it was endless at all
+    // (game/endless.js). The death card says so when there is something to say.
+    endlessPast: endlessTime(world),
     ship: shipName(world),
     weapon: weaponName(world),
     build: describeRanks(world),
@@ -365,6 +369,9 @@ window.STARFALL = {
       // `continueRun`)? A headless run that wins and keeps winning has no other way to say which of
       // the two it is, and neither has the interface this reads it from.
       endless: world.endless,
+      // ...and how long it has been flying since the hand-back, which is the clock every growth in
+      // the game is measured on (game/endless.js). 0 for every run that has not been handed back.
+      endlessPast: endlessTime(world),
       // How far the room has been put under (game/bosses.js `darknessOf`). The frame is the only
       // thing in the game that acts on it, and a headless run has no other way to know it is dark.
       dark: darknessOf(world),

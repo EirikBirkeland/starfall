@@ -750,7 +750,30 @@ When every item above is ticked, go back to the first unchecked item of mileston
       `test/eclipse.test.mjs`,
       `test/darkness.test.mjs`, `test/darkness-art.test.mjs`, `test/arms.test.mjs`,
       `test/arms-art.test.mjs` and the sun tests of `test/boss-art.test.mjs` own what is here.)
-- [ ] Victory screen and the endless mode that follows.
+- [x] Victory screen and the endless mode that follows.
+      (Shipped in two halves. **The win**: an ending that is not a pause - the arena stops, the fight's
+      own going-down is heard over a still room for `victory.hush`, and a mint-and-gold card arrives
+      late saying ARENA CLEARED, the fights it took, the score and the build; `world.overTimer` is one
+      clock behind both the card going up and the keys answering it, and the keys answer to nothing at
+      all for the first five seconds, because a card that can be clicked away before it has been read
+      has not been shown (game/run.js `winRun`, `victoryCardIsUp`, `victoryCardIsAnswerable`; it is
+      the last fight on the schedule coming down that wins the run, game/bosses.js, so adding a fourth
+      boss moves the win and nothing else has to be told). **Endless**: that card is a door *into* the
+      run - the same key that would have begun a new one unwinds this one back into `PLAY` with
+      everything it earned (`continueRun`), and the schedule stays spent, so from there the wave
+      director is all there is to fight. And it scales, which is the rest of the sentence: every
+      ceiling the schedule spends in its first three minutes is behind the run now, so a **second
+      clock**, counted from the hand-back and not from the start of the run, keeps a body's hull and
+      the crowd's budget growing for as long as the run lasts, and lifts the ceiling on how many
+      bodies may stand at once with them (game/endless.js, `BALANCE.endless.growth`). Two of the four
+      are uncapped on purpose - hull and crowd are what end an endless run - and two have walls:
+      speed stops where the fastest kind has outrun what a ship can be asked to dodge, and the body
+      count stops where the frame budget says to stop. `tools/endless-gauge.js` prints the curve and
+      then plays a fully-built run into it and waits: at these numbers the strongest build the game
+      can describe is buried 14 to 29 minutes past the win, every time, with the crowd standing at
+      the wall. The glass says where the run is: `ENDLESS +7m` beside the clock, and `ENDLESS FOR
+      7m12s` on the card that finally says where it ended. `test/endless-growth.test.mjs`,
+      `test/endless.test.mjs` and `test/victory-card.test.mjs` own all of it.)
 - [ ] Release.
 
 ### Milestone 7: sound

@@ -41,6 +41,7 @@ import { blast } from './blast.js';
 import { collapseField } from './shields.js';
 import { isBraced, isDiving, packOf } from './flock.js';
 import { noteArrival } from './tally.js';
+import { hullGrowth, speedGrowth } from './endless.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -165,8 +166,14 @@ export function makeEnemy(world, type, x, y, opts) {
   const elite = chosen(opts, 'elite', false) === true;
   const mul = elite ? BALANCE.elite : PLAIN;
   const e = BALANCE.enemies;
-  const hpScale = 1 + clamp(world.elapsed / e.hpScaleWindow, 0, e.hpScaleMax);
-  const speedScale = 1 + clamp(world.elapsed / e.speedScaleWindow, 0, 1) * e.speedScaleMax;
+  // Two clocks, not one. The run's own bought the schedule's share inside the first three minutes and
+  // stops there; the endless clock (game/endless.js) is what keeps going for a run that outlasted
+  // the schedule, and is exactly 0 for every other run - so a body built by a normal run is built
+  // from the same numbers it always was. The hull has no wall; the speed has one, and it is shared.
+  const hpScale = 1 + clamp(world.elapsed / e.hpScaleWindow, 0, e.hpScaleMax) + hullGrowth(world);
+  const speedScale = Math.min(
+    1 + clamp(world.elapsed / e.speedScaleWindow, 0, 1) * e.speedScaleMax + speedGrowth(world),
+    e.speedScaleCeil);
 
   const enemy = {
     type: type,

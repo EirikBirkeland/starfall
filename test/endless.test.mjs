@@ -29,6 +29,7 @@ import {
   canStartRun, continueRun, endRun, startRun, victoryCardIsAnswerable, victoryCardIsUp,
 } from '../src/game/run.js';
 import { damageEnemy } from '../src/game/enemies.js';
+import { endlessTime } from '../src/game/endless.js';
 import { drainCues, clearCues } from '../src/game/cues.js';
 import { scriptedRun, stepTheWorld, bossOnTheField, enemyAt } from '../tools/headless/scripted.js';
 
@@ -197,6 +198,28 @@ test('the run keeps everything it earned', () => {
   }
   assert.equal(field.tally.won, true, 'the sheet still says it was won');
   assert.equal(field.tally.endless, true, 'and that it then went on');
+});
+
+test('the second clock starts on the hand-back and belongs to this run only', () => {
+  winTheRun();
+  assert.equal(endlessTime(field), 0, 'a won run that is still being read has not started counting');
+  waitOutOfTheGuard();
+  assert.equal(endlessTime(field), 0, 'nor while the guard is being waited out');
+
+  const at = field.elapsed;
+  assert.equal(continueRun(field), true);
+  assert.equal(field.endlessAt, at, 'the clock is taken from the run clock, on the step of the hand-back');
+  assert.equal(endlessTime(field), 0, 'and reads nothing there');
+
+  // A second of flying past the win is a second on this clock - and one step of error either way is
+  // a frame of the run, so the comparison is loose by that much and by nothing more.
+  for (let i = 0; i < 120; i++) step();
+  assert.ok(Math.abs(endlessTime(field) - 1) < 0.02,
+    'a second past the win reads ' + endlessTime(field).toFixed(3) + 's');
+
+  startRun(field);
+  assert.equal(field.endlessAt, 0, 'a new run puts the clock back on the shelf with the last one');
+  assert.equal(endlessTime(field), 0, 'and nothing is growing for a run that has not won');
 });
 
 test('a new run asked for over the card is new in every way, endless included', () => {

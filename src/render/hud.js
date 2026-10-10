@@ -12,6 +12,7 @@ import { weaponName } from '../game/weapons.js';
 import { dueOf as frontDue } from '../game/nova.js';
 import { dueOf as dropDue } from '../game/mines.js';
 import { dueOf as crewDue } from '../game/turret.js';
+import { endlessTime } from '../game/endless.js';
 import { polygon, roundRect } from './shapes.js';
 import { drawIcon, tintOf } from './icons.js';
 import { fitOneLine } from './fit.js';
@@ -143,6 +144,18 @@ function drawLeechMeter(ctx, x, y) {
   ctx.stroke();
 }
 
+/**
+ * The endless mark that goes beside the clock: the word, and once it has been a minute out of the
+ * schedule, how many of them. The minutes are the number the crowd is being paced by - every growth
+ * in the game is measured from the hand-back and from nowhere else (game/endless.js) - so they are
+ * the one thing beside the clock worth knowing while the crowd is being dodged.
+ */
+function endlessMark(field) {
+  const word = BALANCE.endless.word;
+  const minutes = Math.floor(endlessTime(field) / 60);
+  return minutes < 1 ? word : word + ' +' + minutes + 'm';
+}
+
 export function drawHUD(ctx, fps) {
   const W = view.W;
   const H = view.H;
@@ -167,7 +180,7 @@ export function drawHUD(ctx, fps) {
   ctx.fillText(clockLine, PAD, PAD + 64);
   if (world.endless) {
     ctx.fillStyle = PALETTE.elite;
-    ctx.fillText('   ' + BALANCE.endless.word, PAD + ctx.measureText(clockLine).width, PAD + 64);
+    ctx.fillText('   ' + endlessMark(world), PAD + ctx.measureText(clockLine).width, PAD + 64);
   }
 
   // Which primary the run is flying (game/weapons.js). It is picked once, on the title,
