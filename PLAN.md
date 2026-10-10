@@ -962,7 +962,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       *records*, judged whole rather than field by field and never reordered, unlike the sets and the
       tally it sits beside (core/save.js `records`). The visit reads at most what this build keeps
       (BALANCE.history), so a log left by a build that kept more is read as this one's log.)
-- [ ] Release.
+- [x] Release. (0.8.7, which closes this milestone: the awards table became readable on the back of the
+      hangar, which was the one part of it nobody could look at.)
 
 ### Milestone 9: interface and access
 - [ ] Animated title screen and logo.
