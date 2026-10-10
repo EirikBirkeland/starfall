@@ -8029,3 +8029,108 @@ actually blocks a press.
 - If the owner's next report mentions the shake again, the dial to reach for is the *amplitude curve*
   in `render/renderer.js`, not more zeroes: the crowd is already still, so the remaining shake is all
   boss and endings.
+
+## Session 67 (2026-10-10) — The endless stretch was measured properly, and it does end. Released **0.6.12**
+
+`git status` again opened with somebody else's unfinished work: **the endless scaling half of PLAN 3.4
+was already written and uncommitted** (game/endless.js, `BALANCE.endless.growth`, the second clock
+wired into `makeEnemy` and the wave director, `test/endless-growth.test.mjs`,
+`tools/endless-gauge.js`, and the PLAN tick). Like session 66's predecessor, that session ended
+before it could verify and commit. Read it end to end, ran everything, and it held: 1271 tests green,
+the reference trace byte-for-byte unchanged, the gauge playing a run out into endless without
+throwing. It went in as its own commit, then this session's work went on top of it.
+
+### What landed here: the second claim in PLAN 3.4, measured instead of asserted
+"Continues with all values scaling **for as long as the player lasts**" is two promises, and the
+second one - that the run *stops* - was resting on a sentence in a balance comment that did not
+reproduce: "buried at +14m, +17m, +23m and +29m on four seeds, every one of them". Measured again, on
+those seeds and more, four of the runs were **still flying when a 30-minute cap stopped them**, and
+the median the tool printed had quietly counted them as if they had died at 30m.
+
+So the work was the instrument, then the numbers.
+
+- **`burialSummary`, `burialLine`, `burialVerdict`** (tools/endless-gauge.js). A run the cap stopped
+  is not a run that ended: its true length is longer than the cap and unknown. The summary counts the
+  `buried` and the `cappedCount` apart, takes the median over the buried *only* (and answers `null`
+  rather than the cap when nothing ended), and `majorityBuried` says whether that median describes
+  the batch at all. `--need-buried` now refuses a batch most of which never ended, with the reason in
+  the line it prints, and refuses a batch where a run never reached endless at all. `--cap` defaults
+  to **45** now: at 30 the instrument was measuring its own cap.
+- **Five tests** in `test/endless-growth.test.mjs` (1271 → 1276) own that arithmetic - including the
+  exact lie it exists to prevent: three runs capped at 30m and one buried at 12m used to average to a
+  median of 30, "a number that looks like an ending and describes none".
+- **The numbers now written into `BALANCE.endless.growth` and PLAN, from this session's runs.** A
+  build with every line maxed, on into endless: **twenty seeds, all twenty went down, between 14m06s
+  and 33m24s past the win, median 22m**, nearly every one with the crowd standing at the 200-body
+  wall - the bodies outlasting the gun, which is the mechanism the hull row is for (the last kill
+  was a sniper's beam or a sniper's body in most of them). A build kept two ranks deep
+  (`--ranks 2`, 35 ranks - nearer what a real run has earned by the last fight) goes under in **6 to
+  16 minutes**. And the failure the row exists to prevent was reproduced: at `hullPerMinute: 1.5` two
+  runs were **still flying half an hour past the win**. So 4 a minute stands, now on measurements.
+
+### Proof a run that has not won is untouched
+Compared against a worktree at the commit *before* the endless work: `--seed 20261006 --seconds 600
+--trace` byte-identical (and again after this session's changes, 120s spot check). Every growth is
+exactly 0 until `world.endless`, which is what makes that possible; `crowdBudget` keeps the
+schedule's `Math.min` and adds the endless term *outside* it, so nothing could lean on the ceiling.
+Also re-measured the frame-budget claim on that row, because it is quoted as a measurement: a
+simulation step with a mixed crowd is **0.040 ms at 100 bodies, 0.096 ms at 200, 0.302 ms at 400,
+0.646 ms at 600** - so `bodiesCeil: 200` is two steps at a fifth of a millisecond a 60 fps frame,
+exactly as the comment says, and PLAN's 600-enemy target is still 1.3 ms.
+
+### The thing I could not pin down, and what is ruled out
+The same seed does not always replay to the same length **in this one tool**. Seed 2 was still flying
+at 30m in one command and buried at 20m02s in another; at a 12m cap it came out 129 bodies standing
+alone and 132 bodies second in a batch. Ruled out by direct experiment (throwaway scripts, four of
+them):
+- **`--minutes`** (how far the printed curve goes): same result either way, because `growthCurve`
+  runs before the runs and the logic stream is reseeded at the launch anyway.
+- **a finished ordinary run leaving the page changed**: a fresh boot and a `resetToTitle` hand-back
+  produced *identical* 600-frame and 6000-frame fingerprints - score, kills, wave, ship position to
+  the pixel. The only difference in `world` was `best` (4863 against 0), and nothing in `game/` reads
+  `best` except the HUD's BEST line and `run.js`'s new-best check.
+- **the same command twice**: byte-identical, both times.
+What is left is the parked endless setup measured in a different batch position - one step of the
+bot's aim is a different run, and `oneEndlessRun` sets ranks and parks the clock a frame after the
+launch, so some phase difference can be caught there and only shows up late (the first ~100 s of the
+parked run matched exactly). **Not a game bug**: a fresh boot and a hand-back replay the same
+ordinary run. The honest consequence is written into the tool's header: quote the median of a batch,
+not a per-seed number, and say which cap and which `--ranks` it was measured under. If it gets
+chased, start by stepping the parked run two seeds side by side and diffing the fingerprints
+frame-by-frame rather than every 600 frames.
+
+### Decisions, so nobody relitigates them
+- **`hullPerMinute: 4` stands.** Nothing in the measurement argued for moving it; what was wrong was
+  the claim, not the number. It is now argued from twenty runs and one reproduction of the too-slow
+  case.
+- **No burial gate in `tools/release.sh`.** The shake gate costs seconds; a burial check costs about
+  2.5 minutes of wall clock *per run* (a maxed run has to live through the Eclipse and then half an
+  hour more). The curve is held by `test/endless-growth.test.mjs`, which is in the release checks.
+- **The speed and body walls stay.** `enemies.speedScaleCeil` (1.9 - swarmling at 361 px/s against
+  the ship's 320) and `growth.bodiesCeil` (200) are where the curve stops getting harder in the two
+  ways that stop being a fight; the hull and the crowd budget stay uncapped and are the ending.
+- Both `Release.` ticks that had been left behind (milestone 4, milestone 6) are ticked, milestone 4's
+  with a note that it shipped as 0.4.0-0.4.21.
+
+### Released **v0.6.12**. Milestone 6 is walked out.
+
+### For the next session
+- **Milestone 7: sound** is next in PLAN - the audio engine's music and effects buses first
+  (`audio/engine.js` has a master gain and a mute today; PLAN 7 wants a compressor and two buses),
+  then the step sequencer and the base music pattern. Note that the sim has always talked to audio
+  through a *cue queue* drained once per frame (game/cues.js → audio/sfx.js), which is the seam the
+  music will want: intensity is a question the frame can answer, and the simulation must not learn
+  that music exists.
+- **The shake's painter** is still open and still the cheapest feel win (session 66's note):
+  `shakeOffset` in render/renderer.js picks a fresh full-amplitude random offset every frame, which
+  is the worst kind of jitter for a stomach; a new offset every other frame, or a curved amplitude,
+  costs nothing and `tools/shake-meter.js` will show it. The crowd is already still (the release gate
+  measures 99.9% still frames), so what is left is all boss and endings.
+- Still open and smaller: the Hive's owed spiral (session 60's note), the **mid-build measurement
+  gap** - `--ranks` partly answers it for endless (6 to 16 minutes at two ranks deep) but
+  `tools/simulate.js` still cannot hand a run ranks, so boss hulls are priced against a level-1 bot
+  and a level-87 bot and nothing between - the four unbuilt synergies, and `tools/agent/session.js`
+  still having `choose_weapon` and no `choose_ship`.
+- Worktree hygiene: `/tmp/s67-base` was named for the session and removed at the end of it. Note it
+  was *left over* from the predecessor's session under the same name - if a `/tmp/sNN-base` exists
+  already, check what commit it is on before trusting it.
