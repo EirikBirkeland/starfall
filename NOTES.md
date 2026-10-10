@@ -8565,3 +8565,104 @@ one, which is the "faster" claim measured as the one thing that cannot be faked.
   cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
   `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
   `choose_weapon` and no `choose_ship`.
+
+## Session 72 (2026-10-10) — Two volume sliders, one mute above them. Released **0.7.4** — milestone 7 is done
+
+Milestone 7's last mechanic, "volume settings and mute", and with it the milestone. PLAN section
+5's sentence is "separate volume sliders for music and effects, and a mute key (M)": the mute has
+been here since milestone 0 and the two buses since session 68, so this was the two numbers that
+ride on them, a way to reach them with no settings page (that is milestone 9), and a readout that
+says what a key did.
+
+### What landed
+- **A slider is a bus** (`audio/engine.js`). `VOLUME` is the table - 10 positions, a 20 dB span,
+  both starting at the top - and `levelGain(level)` is the whole curve: 1 at the top, a hard 0 at
+  the bottom, and `10 ** (-span * (steps - n) / (steps * 20))` in between, so every press is
+  **2 dB** - the smallest change a listener can tell - where a linear slider would spend half its
+  presses on the loudest third of its own range. The two bus gains are `MUSIC_BUS_GAIN *` and
+  `SFX_BUS_GAIN *` that number, which is why the top of a slider is exactly the shipped mix: the
+  headroom in mix.js and `MUSIC.peakLoad` are arithmetic on those two constants, and a slider that
+  could go past them would un-measure the game. `busGains()` is the one answer both the live graph
+  and `buildMaster` work from, so a level set before there was an audio device is there when the
+  graph is built. A bus glides to a new level over 15 ms (`setTargetAtTime`), because a 2 dB jump
+  under a pad that is mid-chord is a click out of the speakers.
+- **Keys, until there is a page for faders**: `[`/`]` for the music, `-`/`=` for the sounds
+  (`VOLUME_KEYS` in `input/keyboard.js`, one step per press, auto-repeat ignored like the mute).
+  Out-of-range is clamped and a press that changed nothing is *refused* - no tick, no readout, like
+  every refused press in the game (BALANCE.ui's first rule).
+- **A press is answered on the bus it changed.** The sounds slider ticks through the sounds bus
+  with two new rows, `BALANCE.ui.up`/`down` - rising going up, falling coming down, the same two
+  words every other tick speaks in, and quietest of the set at 0.035 for exactly that reason. The
+  music slider plays `auditionMusic` (new in `audio/music.js`): one A4 through the music bus,
+  bent up a fifth or down a fourth, priced like a voice of the pad because that is the one number
+  known to fit on top of any bar the sequencer can write. It is only played where `patternFor` says
+  there is music, so the death's card and the win's hush stay honest, and it is not sequenced and
+  not written to the ledger - a note per keypress is not a bar of the run's intensity curve.
+- **`render/volume.js` is the mixer on the glass**: both rows as ten pips each, the row you moved
+  brighter than the one you did not, a line of the keys underneath (there is nowhere else in the
+  game that says they exist), `MUTED — PRESS M TO HEAR IT AGAIN` while the master is shut, up for
+  1.7 s and out over the last 0.45. `main.js` burns its clock next to the star drift and
+  `renderer.js` draws it last of everything, over the upgrade cards too, because it is answering a
+  press and the cards do not own the answer. It is not a pause or a dialog: turning the music down
+  mid-fight is a thing people do.
+- `STARFALL.stats()` reports `musicLevel`, `effectsLevel`, `muted`; the title's control list has
+  two new rows; `M` now lights the readout as well as answering itself.
+
+### Decisions, so nobody relitigates them
+- **The mute stays the single switch.** Buses hang upstream of the master gain and the mute is that
+  one value, so no slider can out-mute it and muting touches neither level. The music's muffle is
+  *downstream* of the music bus, so a slider cannot reprice it either. Both facts have tests.
+- **Ten positions, not a continuum.** A press is a step, a step is 2 dB, and the ends are places
+  rather than errors - so "refused at the top" and "clamped at the bottom" are the same line.
+- **The panel computes, the painter paints.** `panelLayout()` returns the plate, each row's label
+  and pip boxes, which row is lit, and the fade. There are no pixels in here; a brightness and a
+  box are numbers, so that is where they live, and it is what made both of the bugs below visible.
+- **Persistence waits for milestone 8.** The levels and the mute live for a visit and are forgotten
+  on reload: `core/save.js` holds the best score and nothing else, and milestone 8's first item is
+  the versioned save that should adopt them. Said in PLAN's M8 item too so it is not lost.
+- The slider ticks are 620/470 Hz, close cousins of `pick` and `take`: the confirmation family, told
+  apart by being the shortest and quietest of the lot rather than by a new colour of note.
+
+### Two bugs the layout caught, both mine, both from the same habit
+- **The labels overlapped the pips.** The plate was a hand-written width (268) and the pip column
+  was arithmetic from the right edge, and they crossed over by a few pixels. Nothing could have
+  noticed by reading: no pixels here. Now `PLATE_W` is derived from the parts (`pad + label + gap +
+  pips + pad`) and `test/volume.test.mjs` measures the boxes and every word that landed in them -
+  and putting `label: -30` back makes that test fail, which is the only proof it is worth anything.
+- **The row you moved never lit.** `drawVolumePanel` asked for `row.key`, and `panelLayout` never
+  set it, so `layout.lit === row.key` was `undefined === undefined` and every row stayed at the
+  quiet brightness. Fixed by moving the lit/quiet decision into the layout as `row.lit`, which is
+  something a test can read: "the row you moved is the one that is bright" checks the moved row
+  beats the other, that the mute lights both, and that the fade is actually wired to the clock (it
+  refuses a panel that vanishes instead of fading). Forcing `lit: ROW_QUIET` fails it, as it should.
+- Test-state leakage, worth remembering: my first draft had tests whose *preconditions* were the
+  last test's leftovers, so one failure left the game muted and three later tests failed for a
+  reason that looked nothing like the cause. Every test in that file now starts from `settle()`,
+  which puts both sliders at the top, opens the master, and waits for the readout to go down.
+
+### Numbers
+- **1,322 tests to 1,343**, all passing; 21 of them new in `test/volume.test.mjs`.
+- **`--seed 20261006 --seconds 600 --trace` is byte for byte the run recorded in session 64**,
+  checked against a worktree at the previous commit. The sliders multiply two gain nodes and the
+  audition is one voice; the simulation never learns either exists, and no `logic` draw moved.
+- A three-minute `--audio` run is unchanged in shape (6,424 voices asked, 332 turned away, peak
+  0.53 of the 0.5 allowed, `run 2m02s, driving 0m59s`) - the bot never presses a volume key, so
+  the audition is not in that number and cannot be.
+- The release's shake gate still passes at 99.9% still against the 95% it needs.
+
+### For the next session
+- **Milestone 7 is complete and released as 0.7.4. Milestone 8 ("between runs") starts now**, first
+  item: **the save module** - versioned, validated on load, falls back to a fresh save if corrupt,
+  with tests. It inherits `starfall.best` from `core/save.js` (which is the only thing stored
+  today) and, if it wants to, the two sliders and the mute from this session, which currently only
+  last a visit. The rest of M8 is stardust and the hangar, ship unlocks and perks, the codex,
+  achievements, and the last twenty runs.
+- Small things still open from older sessions, unchanged: the shake's painter (session 66's note,
+  still the cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap
+  in `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship`.
+- If milestone 9's settings page wants to adopt these keys, the numbers it needs are
+  `musicLevel()`/`effectsLevel()`/`isMuted()` and the two setters; `render/volume.js` is already
+  the readout and `panelLayout` is already the geometry. `M` and the four slider keys would want
+  rebinding along with everything else there.
+- Worktree hygiene: `/tmp/s72-base` was the baseline worktree for the trace comparison and is gone.
