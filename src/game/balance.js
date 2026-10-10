@@ -822,7 +822,8 @@ export const BALANCE = {
   // Three more numbers per kind are the wave director's (game/waves.js), and they
   // describe the kind as a *spawn*, not as a fighter:
   //
-  //   from    seconds of run before it may arrive at all (PLAN 3.3's "appears from")
+  //   from    seconds of run before it may arrive at all (PLAN 3.3's "appears from",
+  //           except on the two rows that say why they come earlier than he wrote)
   //   weight  how often one of them is wanted when the director is buying
   //   cost    how much of the run's spawn budget one of them takes up
   //
@@ -840,6 +841,33 @@ export const BALANCE = {
       death: { particles: 16, speed: 240, debris: 4, debrisSpeed: 120 },
       sound: { freq: 210, dur: 0.12 },
     },
+    // PLAN 3.3 gives this body 4:30 and it gets 0:00 here, which is the one place the arrival
+    // clock and the plan plainly disagree, so the reason is measured rather than assumed
+    // (session 90, `tools/run-shape.js --seeds 1-48`, the person-shaped bot answering the
+    // level-up with a die). The case for the plan's clock is strong: the weaver is the fastest
+    // thing in the arena and dies to one shot, so it spends speed instead of hull, and it takes
+    // 40% of a careless batch's deaths and 40% of its hulls - PLAN's whole "no enemy type over
+    // 40%" ceiling, spent by one body that arrives before a run has bought anything. Moving it to
+    // 4:30 does fix the ceiling (the widest becomes the darter at 38%) and does move the middle of
+    // that batch from 2m33s to 2m53s, which is two more of the 48 runs inside PLAN's band. It is
+    // not worth what it costs. The weaver is the cheapest kill in the game and so is what the
+    // opening is *paid* in: a minute in, the middle of the batch is level 4 with 1,001 score on
+    // this clock and level 3 with 642 on the plan's, and of the runs still flying at four minutes
+    // the middle one is level 12 with 6,509 score here against level 5 with 2,313 there, against
+    // the same crowd - and the reference run's ten minutes fall from 75,596 to 57,249, which is the
+    // money the hangar is priced with. The runs the change really frees are the ones that were
+    // already safe, too: a pair of perfect hands goes from 22 of 48 never dying to 35 of 48. The
+    // careless batch it was meant to protect dies *more* often, 47 of 48 instead of 43. Longer and
+    // poorer is not the arc PLAN asks for and it is squarely against the standing "do not make the
+    // game easier: do not slow the spawn budget or the difficulty ramp". And the ceiling it would
+    // fix is not a lever either: nothing measured in the crowd, and nothing that makes the ship
+    // stronger, moves the middle of a careless batch's deaths off the two-and-a-half-minute mark -
+    // half again the pulse's rate leaves it at 2m36s while the runs that never die go from 5 of 48
+    // to 19 (session 90 again). The weaver taking 40% is the fastest body in the arena doing what
+    // the fastest body does, and the darter takes 38% when it is gone. Taxing it instead of
+    // scheduling it is worse still - `cost` 3 -> 5 middles the batch at 2m04s, because the room a
+    // dearer weaver leaves is filled by two drifters - and that is the whole lesson of this row:
+    // the crowd is not a difficulty dial, it is the run's income, and thinning it thins the ship.
     weaver: {
       radius: 10, speed: 172, hull: 1, score: 15, drop: 1,
       from: 0, cost: 3, weight: 5,
@@ -909,6 +937,13 @@ export const BALANCE = {
     },
     tank: {
       radius: 26, speed: 48, hull: 9, score: 35, drop: 5,
+      // PLAN 3.3's Tank appears at 2:00; it arrives at ten seconds here, and that too is
+      // measured (session 90). A tank is the one early body that spends 8 points of the crowd
+      // budget on something slow enough to shoot out of the way and pays five shards for the
+      // trouble. On the plan's clock, alone, the careless batch middles at 1m43s instead of 2m32s
+      // and the weaver takes 54% of its deaths - the slow body is what stops the opening filling
+      // with fast ones a two-level ship cannot answer. Moving it together with the weaver middles
+      // the batch at 2m11s, against the 3m17s the weaver move alone buys.
       from: 10, cost: 8, weight: 3,
       color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
       rotateRate: 0.55,

@@ -1196,20 +1196,69 @@ When every item above is ticked, go back to the first unchecked item of mileston
       is elsewhere, the hand is off by the fumble and no further, one seed is one afternoon, and a
       person is hit more than a program and far less than a statue) and 13 in
       `test/skill-ladder.test.mjs`.
-- [ ] The tuning the third player asks for, which is a design conversation and not a dial. Three
-      measured players now bracket PLAN's band on the same seeds and only one of them sits in it: a
-      careless build dies at 2m20s with nobody dodging, at 2m33s with a person dodging, and at 4m19s -
-      of its deaths, with 22 of 48 never dying at all - with a perfect one. So either (a) the sentence
-      means a careless *build* on a competent hand, in which case the aware batch is nearly the answer
-      (42% of its deaths were in the band) and PLAN should say so out loud instead of leaving `usually`
-      to be read against whatever player is loaded; or (b) it means a careless build on a person's
-      hands, in which case the early ramp is too steep for the game to be honest about it, and the
-      knobs are the crowd budget in `game/waves.js` and the hull the run starts on - the crowd is what
-      does the killing, since all but 10% of a careless person's hulls went to bodies. Either way the
-      weaver is at the ceiling already with a human player (40% of the deaths and 40% of the hulls of
-      the same batch) and wants its own look. Do not answer any of this by making the bot worse: the
-      rung a number was measured on is a fact about the measurement, and the ladder is how to keep it
-      honest.
+- [x] The tuning the third player asks for, which is a design conversation and not a dial. **PLAN's
+      `usually` is read on a careless build on a person's hands** - `--bot human --picks random`, the
+      default of both `tools/difficulty-arc.js` and `tools/run-shape.js` - and reading it on the aware
+      hand is declined, because 42% of that batch's deaths were in the band with 22 of 48 never dying
+      at all, which makes the check a formality about a player nobody has. So the sentence stands as
+      written, and its two named knobs are both spent, measured. What decided it was seeing the runs
+      from the inside rather than only their endings (the new `tools/run-shape.js`; a histogram of
+      deaths cannot tell an overrun crowd from a ship that never got strong, and these tables can).
+      On 48 seeds the careless batch is not a ramp at all, it is a cliff: at 1m the middle run is
+      level 4 with all three hull and 19 bodies on screen, at 2m level 5.5 with two hull, at 3m 20 of
+      the 48 are still flying at level 6.5, at 4m it is 12 of 48 at level 12, and by 5m the six that
+      are left are level 37 with their hull whole and cannot be killed - the five still flying at
+      fourteen minutes are level 65 with 110,991 and three hull to spare. So 36 of 48 are dead before
+      the fourth minute and the rest are immortal: nothing about the crowd moves a cliff that sharp,
+      and the weaver's 40% is the fastest body in the arena doing what the fastest body does, not a
+      kind to be fixed by taking it away. Everything the item named, and five more, measured as the
+      middle of the batch's deaths - on seeds 1-24 unless a bullet says 48, where the shipped game
+      middles at 2m32s and 2m33s, 7 of 48 in the band, the weaver widest at 40%:
+      - the crowd budget, `crowdBase` 18 and `crowdPerMinute` 64 both down a quarter: **2m28s**,
+        which is nothing. The budget is the run's income as much as its danger - fewer bodies are
+        fewer shards, and the run dies of being poor.
+      - the weaver on PLAN's own 4:30: **2m53s on 48 seeds** (3m17s on these 24), the band 15% to
+        19%, and the ceiling quiet at last with the darter widest at 38%. Declined anyway, and the
+        reason is on the row in `src/game/balance.js` and pinned in `test/waves.test.mjs`: of the runs
+        still flying at four minutes the middle one stands at level 5 where it stood at level 12, the
+        reference run falls from 75,596 to 57,249 - and that score is what the hangar is priced with -
+        while 35 of 48 perfect hands never die where 22 did. The weaver is the cheapest kill in the
+        game, so it is what the opening is paid in, and taking it away is "do not make the game easier"
+        in disguise.
+      - the tank on PLAN's 2:00: **1m43s**, with the weaver taking 54% of the deaths; both clocks
+        together **2m11s**. Neither moves. Taxing the weaver instead of scheduling it, `cost` 3 to 5:
+        **2m04s**, worse still, because the room a dearer weaver leaves is filled by two drifters.
+      - `waves.minDistance` 260 to 400: the numbers did not move at all, so where an arrival lands is
+        not a lever (they come in off the window, which is further than either number).
+      - a cheaper first card, `progression.base` 90 to 60: **2m22s**. More cards are not more gun.
+      - the hull the run starts on, 4 instead of 3: **3m48s with 38% of the batch inside the band** -
+        the one dial that reaches, and it is not this item's to spend, because PLAN 3.1 says three
+        hulls and the hangar sells that trade for 250 dust as the Bulwark (4 hull for a fifth of the
+        speed, "a pip of hull for a fifth of speed"). Measured on the ship and not the dial, the same
+        batch on the Bulwark *overshoots the whole window*: 31 of 48 never die, and the middle one of
+        them stands at level 9 with all four hull a minute in against the wisp's level 4.
+      - and firepower, which is the thing PLAN's own priority order named. Half again the pulse's
+        rate, `fireRate` 4.4 to 6.6: the middle of the batch's deaths **does not move at all - 2m36s
+        against the shipped 2m33s** - while the runs that never die go from 5 of 48 to 19 of 48. A
+        quarter more of the same gun (5.5) middles at 2m06s with 18 never dying and the weaver back at
+        50% of the deaths. Power does not buy a careless run time; it converts some of its deaths into
+        immortality, sooner.
+      So the answer to the item is the thing the item said it was. Every dial in reach moves the tails
+      and not the middle: across the ten measurements above the middle of a careless batch's deaths
+      sits somewhere between 1m43s and 3m48s - and only the extra hull for the ship gets past three
+      minutes and a half - while the runs that never die at all swing from 1 of 48 to 31 of 48. What a
+      careless run's life is worth is decided in its first hundred seconds and it is decided by where
+      the ship is standing, not by what the ship owns - and no number in `balance.js` is about where
+      the ship is standing. Naming the hand and spending the two knobs the item named is this session's
+      part; the gap to PLAN's band wants a mechanic that punishes being cornered instead of killing for
+      it, which is a feature and not a dial and belongs after the weapon ladder. Nothing here made the
+      bot worse: its rungs are untouched and every number above is the middle of a batch of them, 48
+      seeds where a single reading would have been a coin flip.
+- [ ] Tune every weapon so that none is over 25% better than the others in the balance report. One
+      warning the item above leaves behind: raising the whole ladder is not how the difficulty arc gets
+      fixed, because a stronger gun was measured to leave a careless batch's middle of deaths exactly
+      where it was and turn more of its runs immortal instead. Tune this ladder for parity and for the
+      feel of firing, and not against `tools/difficulty-arc.js`.
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.

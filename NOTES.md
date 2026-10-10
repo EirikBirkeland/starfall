@@ -10595,3 +10595,135 @@ moving it** - the sharpest rung (0.12 s) still dies at under three minutes with 
   has no `choose_ship`, and now does not know a third bot policy exists either.
 - Worktree: nothing checked out this session; the throwaway probes lived in `/tmp` (`dial2.mjs` passes
   a dial patch through `playRuns`, which is how to measure the dial without editing the file).
+
+---
+
+## Session 90 — the difficulty arc's tuning item, answered with measurements instead of a dial
+
+Milestone 10's item *"the tuning the third player asks for, which is a design conversation and not a
+dial"*. **Nothing in `src/` changes behaviour this session** - the two edits there are comments on the
+rows that deviate from PLAN's arrival clock, plus a test that pins that clock - so there is no release
+and the reference run is byte for byte what it was (`--seed 20261006` is still 10m00s / 75,596 / level
+58 / kills 4004 / shards 5162 / vacuums 7 (2065 in)). Suite is **1678 tests** (was 1669): 8 new in
+`test/run-shape.test.mjs`, 1 new in `test/waves.test.mjs`. `node tools/simulate.js` and
+`node tools/difficulty-arc.js` both behave as before.
+
+### The answer, in one paragraph
+
+PLAN's `usually` is read on **a careless build on a person's hands** (`--bot human --picks random`,
+the default of both arc tools), and reading it on the aware bot is refused: that batch already puts
+42% of its deaths in the band with 22 of 48 never dying, which would make the sentence a formality
+about a player nobody has. On that hand the item's two named knobs are **both spent**, measured: the
+crowd budget moves nothing, because the crowd is the run's income and not only its danger, and the
+hull is the hangar's to sell. What the shape tables showed is that the careless batch is not a ramp
+that starts too soon but a **cliff**: 36 of 48 are dead before the fourth minute, and the
+half-dozen over the cliff are level 37 with their hull whole and cannot be killed at all. Every dial
+in reach moves the *tails* of that distribution and not its middle - across eleven measurements the
+middle of a careless batch's deaths sits between 1m43s and 3m48s, and only one of them gets past three
+minutes and a half, while the runs that never die swing from 1 of 48 to 31 of 48. A careless run's
+life is decided in its first hundred seconds by **where the ship
+is standing**, and no number in `balance.js` is about where the ship is standing. That is the
+conversation the item asked for; it is written up in PLAN with every number, and the item is ticked.
+
+### What was built
+
+**`tools/run-shape.js`** - a batch's runs from the inside, minute by minute, and in parallel. One
+game per process is the harness's rule, so `--shards 8` splits the seeds over eight child processes
+(`--play-only`, which plays and writes and judges nothing), pools their JSON rows and prints one verdict
+- 48 seeds at the 15-minute cap in about a minute instead of 25. Its table is the point:
+
+```
+at      flying  bodies  level  hull   score     (shipped game, seeds 1-48, human + die)
+0m00s   48           0      1     3       0
+1m00s   46          19      4     3    1001
+2m00s   34          31    5.5     2    2099
+3m00s   20        45.5    6.5   2.5    3461
+4m00s   12        48.5   12.5   2.5    6509
+5m00s    6          39     37     3   26733
+8m00s    5           21     49     3   51396
+```
+
+Read `flying` first: by the third minute 28 of the 48 are gone and the median survivor has two hull
+and six levels; by the fifth the six left over are level 37 and the five still flying at fourteen
+minutes are level 65 with 110,991 and three hull to spare. A histogram of deaths could not have said
+this. The tool
+pools through `difficulty-arc.js`'s own `arcOf`/`verdictOf`, and it reproduces that tool's shipped
+reading exactly - 43 dead of 48, middle 2m33s, 7 in band, weaver widest at 40% - which is the check
+that sharding did not bend the measurement. Rows are sampled on the first frame of each slice (so a row
+says "as it stood at 3m00s"), one per run per slice, and `--out`/`--in` keep them for re-reading.
+
+Also: the `from` column in `src/game/balance.js` no longer claims to be PLAN 3.3's unconditionally -
+the two rows that come earlier (tank 0:10 not 2:00, weaver 0:00 not 4:30) say why in numbers on the
+row, and **`test/waves.test.mjs` pins the whole clock** so a future session cannot "restore the plan's
+schedule" without the test telling it what that costs. `tools/difficulty-arc.js`'s header now quotes
+the current reading and points at the new tool.
+
+### The knobs, all measured the same way
+
+`--bot human --picks random`, 15-minute window, the middle of the batch's deaths. Shipped: **2m33s**
+on 48 seeds, **2m32s** on seeds 1-24.
+
+| change | middle | in band | never died | widest killer |
+|---|---|---|---|---|
+| shipped (48 seeds) | 2m33s | 7 (15%) | 5 | WEAVER 40% - the ceiling, on the line |
+| weaver on PLAN's 4:30 (48 seeds) | 2m53s | 9 (19%) | 1 | DARTER 38% |
+| weaver on 4:30 (seeds 1-24 / 200-223) | 3m17s / 2m36s | 25% / 8% | 0 / – | DARTER 38% |
+| tank on PLAN's 2:00 (1-24) | 1m43s | 4% | 0 | WEAVER 54% FAIL |
+| both clocks moved (1-24) | 2m11s | 9% | 1 | DRIFTER 43% FAIL |
+| weaver `cost` 3 to 5 (1-24) | 2m04s | 4% | – | |
+| wisp `hull` 3 to 4 (1-24) | **3m48s** | **38%** | – | |
+| the Bulwark instead of the wisp (48 seeds) | 2m25s | 1 (2%) | **31** | 17 deaths: not a share |
+| pulse `fireRate` 4.4 to 6.6 (48 seeds) | 2m36s | 10% | 19 | DARTER 34% |
+| pulse `fireRate` 4.4 to 5.5 (48 seeds) | 2m06s | 10% | 18 | WEAVER 50% FAIL |
+| crowd 12 base / 48 a minute (1-24) | 2m28s | 8% | – | |
+| `waves.minDistance` 260 to 400 (1-24) | identical to its control | | | a no-op |
+| `progression.base` 90 to 60 (1-24) | 2m22s | 4% | – | |
+
+### The one that nearly shipped
+
+I put the weaver on PLAN's own 4:30, updated three tests for it, watched the suite go green, and
+measured it: the ceiling goes quiet (the darter takes 38% instead of the weaver's 40%), the middle of
+the batch moves 2m33s to 2m53s. It is **reverted**, on the numbers. The weaver is the cheapest kill in
+the game, so the opening is *paid* in it: a minute in, the middle of the batch is level 4 with 1,001
+score as shipped and level 3 with 642 on the plan's clock, and of the runs still flying at four minutes
+the middle is level 12 with 6,509 against level 5 with 2,313 against the same crowd; the reference run
+falls 75,596 to 57,249, and that score is what the hangar is priced with. Meanwhile the runs the change
+really frees were already safe - the perfect-hands batch goes from 22 of 48 never dying to 35 of 48 -
+and the careless batch it was meant to protect dies *more* often, 47 of 48 rather than 43. That is
+PLAN's "do not make the game easier: do not slow the spawn budget or the difficulty ramp" wearing a
+plan-compliance hat. It is the second time this milestone has found a clock value that disagrees with
+PLAN 3.3 and is right anyway (the tank's 0:10 is the first).
+
+### Things that surprised me
+
+- **Firepower is not the arc's lever either**, which is the opposite of what PLAN's priority order
+  implies and of what I believed an hour into the session. Half again the pulse's rate leaves the
+  careless batch's middle of deaths exactly where it was (2m36s against 2m33s) and turns 5 never-dying
+  runs into 19. I had a "+75 s" number for it that came from a copy with *two* changes in it; the clean
+  measurement killed it. The weapon-ladder item now carries a warning not to aim itself at the arc.
+- **The Bulwark overshoots the whole window**: 31 of 48 careless runs never die, and the middle one is
+  level 9 with all four hull a minute in. A fourth hull is the only dial that reaches the band (3m48s,
+  38%) and the ship that sells it goes straight past. Somebody should look at what 250 dust is buying;
+  that is a hangar conversation and not this item's.
+- The ceiling reading is a coin flip on 24 seeds: the same shipped game puts the weaver at 40% of 48
+  seeds' deaths and tied with the drifter at 36% of seeds 1-24's, and at 54% of those same seeds once
+  the tank is on PLAN's clock. Session 88 warned about this and it is now the reason `--runs 48` is
+  cheap enough to be the default habit.
+- A measurement copy in `/tmp/exp` has to be re-copied after every edit to `src/`: one "experiment"
+  came back byte-identical to its control and the only thing I learned from it is that
+  `waves.minDistance` does nothing at all (arrivals come in off the window, which is further out than
+  either value).
+- There was a stale `.git/index.lock` (0 bytes, 21:13) with no git process holding it; removed. If a
+  commit refuses, check for that before anything else.
+- `OVERLORDS_REQUESTS` holds no request at all right now - the boilerplate header and footer and nothing
+  between - so nothing moved to `archive/COMPLETED_OVERLORDS_REQUESTS`.
+
+### What should come next
+
+- The Bulwark question above, and while it is open the same measurement on `volt`, `needle` and `brood`
+  (`node tools/run-shape.js --seeds 1-48 --shards 8 --ship volt`). The hangar has never been arc-tested.
+- If PLAN's band is ever to be reached it will not be with a dial: it wants something that punishes
+  *being cornered* rather than killing for it - the crowd herding instead of crowding, or the arena
+  itself, say. That is a feature and it belongs after the weapon ladder, and PLAN's answer says so.
+- Any balance change from now on deserves `node tools/run-shape.js --seeds 1-48 --shards 8` after it.
+  It is a minute of wall clock and it is the only way to tell "moved the middle" from "moved the tails".

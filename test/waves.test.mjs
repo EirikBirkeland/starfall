@@ -293,6 +293,34 @@ test('the roll can bring any kind that is unlocked, and none that is not', () =>
   }
 });
 
+test('the arrival clock is PLAN 3.3\'s, except for the two rows that say why they are not', () => {
+  // PLAN 3.3's "appears from" column is drifter 0:00, darter 1:00, tank 2:00, spitter 3:00,
+  // weaver 4:30, bomber 6:00, shielder 7:30, splitter swarm 9:00, sniper 10:30. Seven of the
+  // nine are exactly that. Two come earlier, both measured rather than assumed (session 90,
+  // `tools/run-shape.js`, the person-shaped bot answering the level-up with a die), and the
+  // numbers are written here as well as in `src/game/balance.js` because each of the two looks
+  // like nothing more than catching up with the plan from here:
+  //
+  //   tank    0:10 and not 2:00. The slow 8-point body is what stops the opening filling with
+  //           fast ones a two-level ship cannot answer: on the plan's clock a careless batch
+  //           middles at 1m43s instead of 2m32s, and the weaver takes 54% of its deaths.
+  //   weaver  0:00 and not 4:30. It is the cheapest kill in the game, so it is what the opening
+  //           is paid in: on the plan's clock the batch's middle dies 20 s later but stands at
+  //           level 5 instead of level 12 at the four-minute mark, and 35 of 48 runs with perfect
+  //           hands never die at all where 22 did - growth taken from everyone, danger given
+  //           back to the people who had already handled it.
+  //
+  // A fourth body for the ship (hull 4 instead of 3) is the one dial that reaches PLAN's band at
+  // all - it middles the batch at 3m48s with 38% of the runs inside it - and it stays out of this
+  // table because PLAN 3.1 says three hulls and the hangar sells the fourth as the Bulwark's.
+  const clock = {};
+  for (const kind of Object.keys(BALANCE.kinds)) clock[kind] = BALANCE.kinds[kind].from;
+  assert.deepEqual(clock, {
+    drifter: 0, darter: 60, tank: 10, spitter: 180, weaver: 0, bomber: 360,
+    shielder: 450, swarmling: 540, sniper: 630,
+  });
+});
+
 test('the roll is weighted by what each kind is worth', () => {
   // Every kind unlocked is offered its weight of the roll, no more and no less -
   // which is what makes the two passes over the roster agree with each other.

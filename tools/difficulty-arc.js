@@ -48,10 +48,14 @@
 // it can be run before a release and read as red or green. `tools/balance-report.js` is the one
 // that prints numbers and judges none of them; this one judges two.
 //
-// Today the band reads red the other way up - a careless batch of people dies at two and a half
-// minutes, and it is the *program* at the top of the ladder that cannot be made to die inside the
-// window at all - and the ceiling reads green with the widest body sitting on the line and not under
-// it. Both are findings rather than bugs, and the PLAN item of the same name has the numbers.
+// Today the band reads red the other way up - a careless batch of people middles its deaths at
+// 2m33s of 48 seeds, with 7 of them in the band and 5 never dying at all - and the ceiling reads
+// green with the widest body sitting on the line and not under it (the weaver, at 40%). Both are
+// findings rather than bugs, and the PLAN item of the same name has the numbers, along with the
+// nine knobs that were measured and moved the tails instead. `tools/run-shape.js` plays this same
+// batch over eight processes in about a quarter of the time and prints what the runs were *doing*
+// at each minute, which is where the finding came from: a careless batch is not a ramp that starts
+// too soon, it is a cliff, and the six runs over it are level 37 and unkillable by the fifth minute.
 
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
