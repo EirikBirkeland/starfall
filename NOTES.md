@@ -9476,3 +9476,113 @@ made from a run that has stopped, which is the tally's and the codex's promise k
   mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies; `tools/agent/session.js`
   exposes `choose_weapon` and no `choose_ship` and cannot see locks, the codex or the log.
 - Worktree hygiene: `/tmp/s79-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 80 (2026-10-10) — The awards go on the glass. Released **0.8.7** — milestone 8 closed
+
+Session 79 left a note saying the award table had never been readable: 0.8.5's changelog and the PLAN
+tick both claimed a list "in four rows on the back of the hangar" and neither existed - what had shipped
+was the mid-run plate, the card's line, and a `AWARDS n OF 30` on the title with nothing to open. That
+was the one piece of milestone 8 nobody could look at, so this session was that, plus the corrections,
+plus the release that closes the milestone.
+
+### What landed
+- **The hangar has a third rack, `AWARDS`** (`index.html`, `ui/screens.js showAwards`): one row per
+  award in the table, in the table's own order, quoting the table's own words - `CENTURY`, then
+  `bring down a hundred bodies in one run`, then `PAYS 20` in the purse's gold. A row this save has
+  won is lit and loses its number (it is paid; the shop is not selling it again); a row it has not is
+  dim and keeps its number, which is what the purse is being saved up for. The rack's own heading is
+  painted with it: `AWARDS 7 OF 30`.
+- **`game/awards.js` grew `shareOf(won)`** and `wonShare(world)` now reads through it, so the title's
+  line and the rack's heading are two printings of one function rather than two counts. `of` is always
+  *this build's* table: an id in the save that this build does not know is counted out of the total
+  rather than invented a row it could not print - and it still rides back out through the next write
+  (proved in test/awards-rack-saved.test.mjs with a planted `moonlit`).
+- **`ui/screens.js` grew a row builder rather than a copy of one**: `buildRow(list, cls, parts)` builds
+  "a line made of named spans"; `buildEntryRow` (the codex's four racks) and the new `buildAwardRow`
+  (three spans, the third being what it pays) both go through it. `showAwards` is painted at boot and at
+  both endings, beside `showCodex` and `showLog` - the same promise three times now, that a panel is
+  never behind the card that went up a frame before it.
+- **`describeRun()` carries `awardsOwned`** (the ids themselves, not the names of the new ones) for
+  that repaint, and `STARFALL.stats().awards` already reported them so no headless surface needed
+  changing. The harness grew `awardRow`/`awardTitle` elements and `game.screen.awards` /
+  `game.screen.awardTitle`.
+- **Docs corrected**: PLAN's awards tick says thirty (not thirty-one) and describes what is actually on
+  the panel; the CHANGELOG's new entry says plainly that 0.8.5's entry described a list that was never
+  in the game and printed names that were not in it either. Old entries were left alone - the history is
+  the history, and the new one owns the correction.
+
+### Decisions
+- **The hangar and not the codex**, against session 79's suggestion of a fifth codex rack. Three reasons,
+  written into PLAN as well as here so nobody flips it back: an award *is stardust* and the hangar is the
+  panel stardust is spent from, so the purse and the thirty ways it was earned end up on one panel; the
+  codex's tally is `MET n OF 30` and would have started meaning two different 30s; and the codex is
+  already four racks and the longest text in the game - a fifth column of 30 rows on that panel was
+  going to be shrunk to the fit floor or clipped, and the hangar has room that the codex does not.
+  Session 79's own argument ("a row with no key and no price has nothing to do among rows that can be
+  bought") holds against the *log*, whose rows are pure memory; an award row has a price column, it is
+  just a price that is paid *to* you.
+- **The rows quote the table instead of describing it again.** The rack could have had short forms
+  (`100 KILLS`) to save height, but that would be a second description of each award, free to drift from
+  the rule that actually decides it. `name` and `says` are painted once at init from `AWARDS` and never
+  touched again; the only text `showAwards` writes is the pays column and the heading.
+- **One line per award, as a promise**: `.award .says { white-space: nowrap }`. Thirty rows is a rack
+  only while it is thirty lines tall, and the hangar has two other racks to fit beside it. If a future
+  rule is written too long for a line it wraps *whole*, onto its own line under its own name, rather
+  than breaking a sentence in half mid-column.
+- **`PAYS 20` and not `+20`**. Three characters more and the column says what it is without borrowing the
+  in-play meaning of a plus; the gold is what ties it to the purse line above.
+
+### Tests: +6 (1506 to 1512, all passing)
+- **`test/awards-rack.test.mjs`** (4, fresh save): every row is the table's own name and sentence in the
+  table's own order, all dim, each saying what it pays; the heading and the title say `0 OF 30` and say
+  it from one number; H puts the rack up and takes it down and C does not (and the two panels are never
+  up at once); a run that walks past CENTURY's rule lights exactly that row, empties its number, moves
+  the count to 1 in both places and writes the id; an ending that wins nothing leaves the rack byte for
+  byte as it was.
+- **`test/awards-rack-saved.test.mjs`** (2, a save that came with `century`, `warmed-up` and a stranger
+  called `moonlit`): two rows lit and not three, the heading counting this build's table; a new award
+  joins on the rack and in the save, and the stranger is still in the write afterwards.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte /tmp/s80-base.trace, taken before a
+line was changed. Nothing here is in the step: the rack reads `world.awards`, which the ending already
+wrote, and `shareOf` is a count over a list.
+
+### Things worth writing down
+- **The panels' fit is still unmeasured.** There is no layout engine here, so nobody - including this
+  session - can say what the hangar's three racks actually do at 1280×720. The reasoning that went into
+  the sizes: the awards rack is 10px (the perks' numbers' size), gap 4px, one line per row, so it is
+  ~510px of height against the ships' ~270 and the perks' ~220; `.racks` wraps and `fitHangar` scales
+  the whole panel, floor 0.6. If a browser ever gets pointed at this and the hangar comes back shrunk to
+  the floor, the fix is to split the awards list into two columns of fifteen (`grid-auto-flow: column`
+  with a fixed row count) rather than to shrink the type again - it trades height for width, and the
+  flex row gives the width back when the window has it. `test/hangar-fit.test.mjs` covers the arithmetic
+  and the moments it is asked, not the pixels.
+- The codex is at its own limit: four racks at `max-width: 34ch` is already ~1,250px of column, which is
+  a 1280 window with no room to spare. A sixth rack - on either panel - wants the layout re-thrown and
+  not just appended to.
+- `showAwardLine` is what the private `showAwards(where, names, dust)` used to be; it was renamed so the
+  rack could have the honest public name. Two words that were nearly the same function are now two words
+  that are not.
+- The award *order* is the catalogue order in `AWARDS` (bodies, score, levels, time, loot, the crowd,
+  the fights, the finish, the five ships, how it was flown, the build, the endless stretch). It is not
+  sorted by won/unwon: a list that reorders itself when you win something is a list you cannot find
+  anything in. No group headings either - that would need a field in the table that only the panel
+  reads, for a saving of five lines.
+- The DOM stub still has no `insertBefore` and no text nodes; the award rack needs neither because its
+  rows are built once at init, like every other static rack.
+
+### Next
+- Milestone 8 is closed. Milestone 9 is interface and access, and its first item is an **animated title
+  screen and logo** - the title has never moved beyond the pulsing hint line. After that the pause screen
+  with stats, which is where the volume nudge that no run can reach has been waiting since session 78,
+  and where the click question (neither panel answers a click) gets answered once for all of them - and
+  the same screen is the honest place to say that `H` and `C` exist, which nothing outside the title's two
+  control rows does today.
+- Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord
+  are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
+  the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies;
+  `tools/agent/session.js` exposes `choose_weapon` and no `choose_ship` and cannot see locks, the codex,
+  the log or the awards.
+- Worktree hygiene: nothing left in /tmp but traces (`s80-base.trace`, `s80-new.trace`, `s80-tests.log`),
+  which are outside the repo and can be ignored.
