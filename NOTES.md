@@ -9247,3 +9247,123 @@ looked nothing like it. Panel state is shared state; close what you opened.
   screen inherits session 75's decision and this one's, and should answer the click question once for
   all three rather than bolting listeners onto whichever panel is being built that week.
 - Worktree hygiene: `/tmp/s77-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 78 (2026-10-10) — The awards arrive. Released **0.8.5** — milestone 8 item 5
+
+Milestone 8's fifth item was "achievements, with a small toast when earned" - PLAN 3.7's fourth
+bullet, and the third new row of the save this milestone has to hold. The one decision the plan left
+open was where they are *read*, and this session spent most of its first half on that before writing
+a line of it.
+
+### What landed
+- **`src/game/awards.js`** is the whole feature's brain: `AWARDS` (thirty-one, in four `PANELS` -
+  RUNS AND SCORE, FIGHTS, BUILDS AND SHIPS, DASHES, TIME AND PATIENCE), and the ledger -
+  `wonFromSave`, `wonLedger`, `wonShare`, `dustTotal`, `namesOf`/`descriptionOf`/`dustOf`/`nameOf`,
+  `resetAwards`, `updateAwards` (the live pass, at the end of a step), `takeAwardToasts` (spent by
+  the frame), `bankAwards` (in `bankRun`). Each row is `{ id, name, says, kind, at }` and *nothing
+  else*: no callback, no closure, so the table can be asked which ids a given fact could ever earn
+  and a test can walk it without running anything.
+- **`BALANCE.awards`**: `rows` - one price sheet, `{ need, dust }` per id, every `need` in the table
+  read from it - and `sound`, the tones the award note is built from. Both half of the table lives in
+  balance.js for the same reason the codex's rows and the schedule do: it is content, and the
+  structure that reads it does not belong next to it.
+- **`src/render/toast.js`** is the plate: a 320x52 plate centred under the boss bar, a gold edge, the
+  name in elite gold, what it paid right-aligned on the same line, and the `says` line under them
+  fitted with `fitOneLine`. It falls 14px in over 0.18s, holds 3.1s, fades 0.55s; four at most and a
+  fifth drops the oldest. Costs 2 rounded rects, one stroke, four pieces of type: no gradient, no
+  blur, no sprite. `toastLayout()` is exported so painter and test cannot disagree about where a
+  plate is, the same trick `codexLayout` and `buildRailLayout` use.
+- **The save grew `awards.won`** - the `names` kind again, with its own `MAX_AWARDS = 64` (see the
+  surprises). `world.awards` is the save's list and `world.runAwards` / `awardNews` / `awardToasts`
+  are the run's, cleared by `resetRun` with the rest of them.
+- **`grantDust(world, amount)`** is the new one door *up* into the purse (game/stardust.js):
+  `payForRun` now goes through it with the run's worth and `bankAwards` goes through it with an
+  award's price, so there is still exactly one line that moves the purse up and `spendDust` is still
+  the only one that moves it down. It throws on a negative on purpose - the two directions getting
+  mixed is a bug worth a stack trace.
+- **`tally.dashes`, counted in `beginDash`** (game/player.js), because three awards are a claim about
+  dashes and a dash that was not granted left no trace anywhere in the game. Granted, not requested:
+  a press during the wait is not a dash.
+- **Where they are read.** The hangar's right hand column, under the purse, in the codex's own
+  `codex-panel`/`codex-row`/`codex-name`/`codex-says` shapes: a new `#awardRow` in `hangarBody`, built
+  once in `main.js` beside `showCodex`'s and painted by `showAwards(ledger, purse)` when a purchase
+  might have won one. `showCodex` and `fitCodex` gained a third `awards` argument each (and
+  `fitCodex` now measures with the tallest of the two panels, the codex being the wider of them). The
+  purse line says `1,730 BANKED · +710 FROM AWARDS` and each row's price is printed in gold and dims
+  to the grey of a taken line once it is won - so the awards pay the purse *and* buy the list.
+- **Two more title/card lines**: the title's standing block says `AWARDS 7 OF 31` before you launch
+  (`showStanding` gained its third argument), and both endings' cards say `AWARDS · NAME · NAME · +N
+  STARDUST` for what *that* ending won, naming the first three and counting the rest. An empty line
+  is `display: none`, so a card that won nothing is the card it was before there were awards.
+- **Tests: +31** (1458 to 1489, all passing). `test/awards-rules.test.mjs` (table and sheet agree,
+  one queue for two rules on one fact, live announcements and the chime, once per save and then never
+  again, one earned case for every row on the table, including the two `after` awards and endless
+  time); `test/awards.test.mjs` (a first visit, the calm frame, a plate mid-run, a new run clearing
+  the last one's plates, a whole schedule ended at once, the same seed twice, the write, the purse,
+  the title line); `test/awards-art.test.mjs` (the plate's geometry and cost, *every* award's words
+  fitting the plate, the stack's fifth, and the fade); `test/awards-saved.test.mjs` (a save that
+  arrives already owning two: not announced, not paid, and the new one joining them in the write);
+  plus the awards section in `test/save.test.mjs`.
+
+### Decisions
+- **One row of the store, not the three PLAN 3.7 sketched**, and four panel-headings down it. The
+  budget is one column of ~42px rows under the purse and the ship's stats; three rows would start
+  below the fold, and a list you have to walk to is a list you do not read. Said out loud in the
+  PLAN tick and here, because it is a deviation and not an oversight.
+- **Awards pay once per save, and are paid at an ending**, never mid-run: the purse only ever moves
+  when a run is not flying, and a run that was won, handed back and died later is one meeting.
+- **`live` awards announce; `after` awards do not.** Half the table is only true of a run that has
+  stopped, and there is no run left to announce those to - the card says them. `BANKED` is the one
+  live row with a 200,000 line, and it can land on the card's frame, which is what `showAwards`'s
+  own `hidden` toggle is for (the card is shown by a class flip a frame later).
+- **The plate goes under the boss bar, centred**, and not bottom-centre: the XP bar, the hull pips and
+  the build rail all live at the bottom and the rail is 272px wide on the left, so a bottom plate is
+  bolted to something. Centred is the honest claim - this is news about the run, not a readout.
+- **The note is the codex's opening note** (`sound.awards`, 880/1320/1760/2637 Hz over the codex's
+  523/784/1046). A new award and a new codex row are the same event in the player's ear; two notes
+  would be two more things to tell apart.
+- **No `world.tally` re-reads and no rule in the step.** `updateAwards(world)` sits last in `stepRun`
+  and only queues. The reference trace for seed 20261006 is byte-identical before and after this
+  feature (`tools/simulate.js --seed 20261006 --trace`), which is the "mirror, never a cause" promise
+  being worth something.
+
+### Things that surprised me
+- **`MAX_NAMES = 32` was going to be a real bug.** The hangar's ceiling for a stored name list was
+  thirty-two, and the awards table has thirty-one rows *now*: a full list would have been dropped for
+  being "not a rack" on the day it shipped. The save now has its own `MAX_AWARDS = 64` next to the
+  codex's `MAX_CODEX = 96`, with the same reason written above it.
+- **The harness's `measure()` paints on a stub of its own**, so its words never appear in
+  `game.texts()` - my first `awards-art` paint helper read the words back from the wrong place and
+  passed by accident, because the game's *own* frame had drawn the plate into the log. The fixed
+  version is better than what I meant: stepping is what draws the plate, so the test proves the
+  renderer wiring and not just the arithmetic. `game.texts()` after `game.step()` is the frame's
+  words; `game.measure()` is for costs only.
+- **Two old tests broke, both honestly.** `test/build-rail.test.mjs` counts drawn points to find pips,
+  and the plate's two rounded rects landed inside a pip row - so `take()` there now `clearToasts()`,
+  with a line saying the plate has its own tests. `test/perks.test.mjs` asserted the purse grew by
+  exactly the Gleaner's share, and a 10,000-score run also wins BRIGHT SPARK (+25), so the assertion
+  now adds `dustTotal(stats().awardsNew)` and says why.
+- **One boot per file bites again** (session 77's lesson, second confirmation): a second `bootGame`
+  in `test/awards-saved.test.mjs` failed with "the game booted but did not expose window.STARFALL".
+  The junk-save case belongs in `test/save.test.mjs` anyway, where it tests the store rather than a
+  booted game.
+- **`tools/simulate.js --check` does not exist.** NOTES has mentioned it twice; the release script
+  runs `simulate.js` plain plus `shake-meter.js` and that is the gate.
+- The longest `says` line is 68 characters with its `+ 300 STARDUST` on the end, which is why the
+  money went up beside the name instead of under the reason: the plate would have had to be 417px to
+  hold it at a readable size.
+
+### Next
+- Milestone 8 item 6: **run history** - the last 20 runs with seed, ship, time and score. `endRunText`
+  (game/report.js) already writes a finished sentence per run; the real work is a save section that
+  holds *records* rather than names or counts, which the store has no kind for yet. Expect to add one
+  (`runs.log`, capped, each entry validated field by field) and a fifth panel or a new row to read it.
+- Still open from earlier sessions, all of them bigger than a session: the volume nudge cannot be
+  reached during a run (no pause); nothing in the UI says `H` or `C` exists (a small line under
+  `PRESS SPACE OR CLICK TO LAUNCH` would do it, and `H` is now doing three things); neither panel
+  answers a click; the streak's arc and the tether's cord are drawn by neither painter; milestone 5's
+  settings screen; the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+- If awards grow: the four-panel shape takes more rows without change, and a row's `kind` is the only
+  place a new fact has to be plumbed. A `won` award's `need` may be a string (`first-blood`) - anything
+  that walks the sheet assuming a number has to ask first, as `test/awards-art.test.mjs` has to.
+- Worktree hygiene: `/tmp/s78-base` was the baseline worktree for the trace comparison and is gone.
