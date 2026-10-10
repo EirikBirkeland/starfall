@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.7.3",
+    "date": "2026-10-10",
+    "summary": "The music plays the run: drums at 2:00, a boss tempo, and a heartbeat at one hull"
+  },
+  {
     "version": "0.7.2",
     "date": "2026-10-10",
     "summary": "UI ticks, hits pitched by the body's size, and loot that climbs as it comes in"
