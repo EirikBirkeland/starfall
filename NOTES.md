@@ -9030,7 +9030,7 @@ The release's stillness gate passed at 99.9%.
 
 Session 75's plan for this one was "the perks". It arrived as two jobs, because the tree was not
 whole when this session started: `src/game/perks.js` and the whole of its wiring were sitting
-uncommitted with **16 failing tests** in `test/ship-pick.test.mjs` and `test/ui-sound.test.mjs`.
+uncommitted with **8 failing tests** in `test/ship-pick.test.mjs` and `test/ui-sound.test.mjs`.
 Both files pressed `Digit6`/`Digit9` as "a key past the list" and the perk rack had just taken those
 keys. So: first make the tree honest, then finish the item, then the layout the item created.
 
@@ -9088,7 +9088,7 @@ Two answers, both in:
   nothing can be done. It is the only honest way to test a layout with no layout engine, and it is
   arithmetic instead of a screenshot.
 
-### Tests: 1,437, all passing (was 1,414 as claimed last session; the tree actually had 1,398 passing and 16 failing)
+### Tests: 1,437, all passing (the tree this session started on was 1,413 with 8 of them failing)
 ### Proof the simulation did not move
 `node tools/simulate.js --seed 20261006 --trace` is byte for byte the run recorded in session 64,
 against a worktree at this session's starting commit. The release's stillness gate passed at 99.9%.
