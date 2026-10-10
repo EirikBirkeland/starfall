@@ -9,6 +9,7 @@ import { remember } from '../core/save.js';
 import { payForRun } from './stardust.js';
 import { recordRun } from './codex.js';
 import { bankAwards, resetAwards } from './awards.js';
+import { logRun } from './history.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -178,6 +179,9 @@ export function resetRun(world) {
   // this run earned, what the last ending paid out and anything still waiting to be announced all
   // go with the run they belong to.
   resetAwards(world);
+  // ...and this run has not written its line in the log yet (game/history.js). The log itself is
+  // above, in `world.pastRuns`, and is none of this run's to forget.
+  world.runLogged = false;
   // ...and the run has not been won or paid for yet (game/stardust.js). The purse above is left
   // alone: what the last run earned is spent or it is not, and either way it is not this run's.
   world.won = false;
@@ -219,6 +223,10 @@ export function startRun(world) {
  * nowhere else - once per save, which is what makes the second ending of a won run pay nothing
  * again. Their stardust goes on top of the purse after the run's own, so the card can say what the
  * run earned and what being remembered earned separately, and neither number is the other's.
+ *
+ * The log is written here for the fourth and same reason (game/history.js): a row about a run is a
+ * sentence that only finishes when the run does. One run makes one row, and the second ending of a
+ * run that was won and flown on rewrites that row instead of adding a second one.
  */
 function bankRun(world) {
   world.newBest = world.score > world.best;
@@ -229,6 +237,7 @@ function bankRun(world) {
   payForRun(world);
   recordRun(world);
   bankAwards(world);
+  logRun(world);
 }
 
 /** The ship is gone. Bank the score and let the screen show it. */

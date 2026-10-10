@@ -11,6 +11,7 @@ import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex } from './gam
 import { perkAt, perkLedger } from './game/perks.js';
 import { foundFromSave, foundLedger } from './game/codex.js';
 import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './game/awards.js';
+import { loggedFromSave, runLedger } from './game/history.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -38,7 +39,7 @@ import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -403,6 +404,10 @@ function describeRun() {
     awards: namesOf(world.awardNews),
     awardDust: dustTotal(world.awardNews),
     awardsWon: wonShare(world),
+    // And the log the codex prints, which this run has just been written into (game/history.js) - the
+    // same reason the codex ledger travels with the card: the panel that goes up over this card has
+    // to agree with the card.
+    pastRuns: runLedger(world),
   };
 }
 
@@ -514,11 +519,15 @@ function boot() {
   // for the same reason. An empty list is a first visit, and the whole table is still in front of
   // whoever plays it.
   world.awards = wonFromSave();
+  // ...and the runs this save has flown (game/history.js), read the same once for the same reason. An
+  // empty log is a first visit, and the panel has one line to say about that.
+  world.pastRuns = loggedFromSave();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust, wonShare(world));
   showRack(world.ownedShips);
   showPerks(perkLedger(world));
   showCodex(world.found);
+  showLog(world.pastRuns);
   showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
@@ -617,6 +626,11 @@ window.STARFALL = {
       awardsNew: world.awardNews.slice(),
       awardsDust: dustTotal(world.awardNews),
       awardsWon: wonShare(world),
+      // ...and what the last runs of this save were (game/history.js), newest first, in the shape the
+      // panel prints them from. A tool that wants to ask how a run went compared with the ones before
+      // it has no other way to ask.
+      runs: world.pastRuns.length,
+      runLog: runLedger(world),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

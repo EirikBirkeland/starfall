@@ -939,7 +939,23 @@ When every item above is ticked, go back to the first unchecked item of mileston
       fades (render/toast.js), with the sound the codex opening uses. A rule is read off the run's
       tally and the schedule at the end of a step, never in the middle of one (game/awards.js), so a
       player who has already seen an award is not told twice and an old save starts clean.)
-- [ ] Run history: the last 20 runs with their seed, ship, time, and score.
+- [x] Run history: the last 20 runs with their seed, ship, time, and score. (Done: the codex's fourth
+      rack, `PAST RUNS`, read with `C` and painted at boot and at every ending like the three panels
+      beside it. It is not a fifth screen on a fifth key and not a row in the hangar: a run is a thing
+      this save has done, which is the codex's subject, and a row with no key and no price has nothing
+      to do among rows that can be bought - the same argument that put the codex on its own key. A row
+      reads `SEED 41832 - WISP   12m04s   18,300   CLEARED`: the seed first, because that is how a run
+      is asked for again (`?seed=`), then the four facts - and a fifth the plan did not ask for and the
+      row needs, whether that run cleared the schedule, because a cleared run and a wreck that both
+      scored 18,300 are not the same memory.
+      One row per run and not one per ending (game/history.js): a run that was won, handed back and
+      finally buried rewrites the row it wrote at the win rather than adding a second one, so the log
+      says how the run ended and not how many times it stopped; nothing is deduped, so the same seed
+      flown twice is two rows, and the order is newest first because that is the information. Stored
+      in the save document as `runs.log` - which needed a new kind in the store, a list of small
+      *records*, judged whole rather than field by field and never reordered, unlike the sets and the
+      tally it sits beside (core/save.js `records`). The visit reads at most what this build keeps
+      (BALANCE.history), so a log left by a build that kept more is read as this one's log.)
 - [ ] Release.
 
 ### Milestone 9: interface and access

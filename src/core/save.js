@@ -76,6 +76,20 @@ const MAX_AWARDS = 64;
 // worth one, so a count of a thousand is not a count the game made.
 const MAX_COUNT = 1000;
 
+// ...and the run log, which is the one list that is *records* and not names (game/history.js): the
+// last twenty runs, newest first. The ceiling is the store's, not the game's - the game decides how
+// many runs it keeps (BALANCE.history.keep) and the store only says what a list of runs may
+// reasonably be. A log of seventy runs is not the game's log trimmed a little; it is somebody else's
+// numbers.
+const MAX_RUNS = 64;
+
+// A seed is a uint32 (core/rng.js), which is the widest number this field can legitimately hold.
+const MAX_SEED = 4294967295;
+
+// A day of flying is not a run the game ended; it is a number from somewhere else, or a clock that
+// was never the run's own.
+const MAX_RUN_SECONDS = 86400;
+
 /**
  * What a remembered thing is allowed to be. A kind answers with the value it was given, or
  * null for "that is not one of these". A whole number is a non-negative integer: every number
@@ -88,6 +102,8 @@ const KINDS = {
   whole: (max) => (value) =>
     (Number.isInteger(value) && value >= 0 && value <= max ? value : null),
   flag: (value) => (typeof value === 'boolean' ? value : null),
+  /** One short name on its own - one field of a record, where `names` below is a whole set. */
+  name: (value) => (typeof value === 'string' && NAME.test(value) ? value : null),
   /**
    * A set of short names, kept as a list: which ships the purse has bought, later which perks.
    * The store knows it is a list of names and nothing about what the names mean - the feature
@@ -103,7 +119,7 @@ const KINDS = {
     if (!Array.isArray(value)) return null;
     const kept = [];
     for (const entry of value) {
-      if (typeof entry !== 'string' || !NAME.test(entry)) continue;
+      if (KINDS.name(entry) === null) continue;
       if (kept.indexOf(entry) < 0) kept.push(entry);
     }
     // A list that had something in it and gave up nothing this build can read is not the game's list
@@ -141,6 +157,57 @@ const KINDS = {
     if (Object.keys(kept).length > maxNames) return null;
     return kept;
   },
+  /**
+   * A log of small records: the last twenty runs, and what each one was (game/history.js, PLAN
+   * 3.7). Where `names` is a set and `counts` a ledger, this is a *list of rows*, and the rows are
+   * small fixed shapes - one object per run, holding a seed, a ship, a time, a score and a win.
+   *
+   * Two things make this kind different from the other two lists, and both of them matter:
+   *
+   *   **The order is the information.** A log reads newest-first, so this is the one list the store
+   *   hands back exactly as it came: nothing is sorted and nothing is deduped - the same seed flown
+   *   twice is two runs and two rows, which is the truth about them.
+   *
+   *   **An entry is judged whole.** Every field in `fields` is required, and one field that is not
+   *   that kind condemns the whole row rather than just itself: a record that lost its score is not
+   *   a record with a spare field, it is a line that cannot be printed. Its neighbours on the list
+   *   are kept, as always.
+   */
+  records: (maxEntries, fields) => (value) => {
+    if (!Array.isArray(value)) return null;
+    const names = Object.keys(fields);
+    const kept = [];
+    for (const entry of value) {
+      if (!isPlainObject(entry)) continue;
+      const record = {};
+      let whole = true;
+      for (const name of names) {
+        const read = fields[name](entry[name]);
+        if (read === null) { whole = false; break; }
+        record[name] = read;
+      }
+      if (whole) kept.push(record);
+    }
+    // The same bargain the other lists strike: a list that held something and gave up nothing this
+    // build can read is the wrong kind of field, not an empty log. An empty list *is* an answer -
+    // nothing has been flown yet - and is kept as one.
+    if (value.length > 0 && kept.length === 0) return null;
+    if (kept.length > maxEntries) return null;
+    return kept;
+  },
+};
+
+/**
+ * What one entry of the run log is made of (game/history.js). Every field is required: a record
+ * missing one is not a half a run, it is a wrecked line, and a wrecked line in a log of twenty is
+ * dropped rather than printed with a hole where the score should be.
+ */
+const RUN_FIELDS = {
+  seed: KINDS.whole(MAX_SEED),
+  ship: KINDS.name,
+  seconds: KINDS.whole(MAX_RUN_SECONDS),
+  score: KINDS.whole(MAX_WHOLE),
+  won: KINDS.flag,
 };
 
 // The document's definition: the sections, and the kind of every key in them. A section that is
@@ -170,6 +237,13 @@ const SCHEMA = {
   // rather than a tally because an award is won once - there is no second rank of it to buy.
   awards: {
     won: KINDS.names(MAX_AWARDS),
+  },
+  // The runs themselves (game/history.js, PLAN 3.7): the last twenty, newest first, each one a
+  // record of what was flown - the seed it was flown on, the ship that flew it, how long it lasted,
+  // what it scored, and whether it ended in a win. One field and not one per fact because a run is
+  // one thing, and because the store has no business knowing what a run means (see `records`).
+  runs: {
+    log: KINDS.records(MAX_RUNS, RUN_FIELDS),
   },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again

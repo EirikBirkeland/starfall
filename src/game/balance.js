@@ -345,6 +345,19 @@ export const BALANCE = {
     },
   },
 
+  // The run log (PLAN 3.7): the last few runs this save has flown, kept so that "what did I just
+  // play, and how did it go" is a question the game can answer after the card has gone away.
+  // The rows themselves are game/history.js and the panel that prints them is the codex's; this is
+  // only how many are kept, which is a design number and not a storage one (the store has its own,
+  // much larger, ceiling for what a list of runs may be - core/save.js).
+  //
+  // Twenty is a column of rows that fits a window at the size the codex's other panels are set in,
+  // and about two sittings of the arena: long enough that the best run of an evening is still on the
+  // list when you come back for one more, short enough that the whole of it can be read at once.
+  history: {
+    keep: 20,
+  },
+
   // The primaries (PLAN 3.2). One is flown at a time, and it comes with the ship that was picked
   // (game/ships.js); `default` is what a run that has not picked anything flies.
   //

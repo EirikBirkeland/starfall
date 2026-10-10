@@ -1,5 +1,6 @@
-// The DOM screens: the title, the hangar a run is chosen in, the codex of what has been met, the
-// game-over card and the win card. The level-up choice is not here - it is painted on the canvas
+// The DOM screens: the title, the hangar a run is chosen in, the codex of what has been met and what
+// has been flown, the game-over card and the win card. The level-up choice is not here - it is
+// painted on the canvas
 // (render/cards.js), because its cards are drawn, not typed. Everything the run shows while it is
 // being played is on the canvas too.
 //
@@ -44,6 +45,12 @@ let panelUp = '';
 let hostRows = [];
 let cardRows = [];
 let synRows = [];
+
+// The codex's fourth rack: the last runs this save has flown (game/history.js). It is kept apart
+// from the three above because it is the only list on this panel whose length is the visit's own -
+// one row per run flown, so it is built as it is painted (`showLog`) and not at init with the tables
+// that never change size.
+let logRows = [];
 
 /**
  * The run's clock the way a card reads it: `47s` inside a minute and `15m02s` past one. The win
@@ -177,9 +184,11 @@ function buildPerkRow(perk, index) {
 
 /**
  * One row of the codex: a name and one line about it, and nothing else - no key and no price, which
- * is the whole difference between a thing a save has met and a thing the hangar is selling.
+ * is the whole difference between a thing a save has met and a thing the hangar is selling. The
+ * words are written by whoever owns the list (`showCodex`, `showLog`), because neither is known when
+ * the row is built.
  */
-function buildEntryRow(entry, list) {
+function buildEntryRow(list) {
   const row = document.createElement('div');
   row.classList.add('entry');
 
@@ -222,6 +231,7 @@ export function initScreens() {
     hostRow: document.getElementById('hostRow'),
     lineRow: document.getElementById('lineRow'),
     synRow: document.getElementById('synRow'),
+    logRow: document.getElementById('logRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleShip: document.getElementById('titleShip'),
@@ -237,9 +247,9 @@ export function initScreens() {
   perkNumbers = [];
   perkPrices = [];
   perkRows = PERKS.map(buildPerkRow);
-  hostRows = HOSTS.map((entry) => buildEntryRow(entry, el.hostRow));
-  cardRows = CARDS.map((entry) => buildEntryRow(entry, el.lineRow));
-  synRows = SYNERGIES.map((entry) => buildEntryRow(entry, el.synRow));
+  hostRows = HOSTS.map(() => buildEntryRow(el.hostRow));
+  cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
+  synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
@@ -463,6 +473,63 @@ function paintEntries(rows, entries, met, refused) {
   }
 }
 
+/** The word a log row says about a run that finished the schedule (game/run.js `winRun`). It is the
+    same word the win's own card opens with, because it is the same fact. */
+const LOG_CLEARED = 'CLEARED';
+
+/**
+ * The ship a log row names (game/ships.js). A save written by a newer build can name a ship this
+ * build has never met - the store keeps any well-formed name and it is not wrong to (core/save.js)
+ * - so an id this build does not know is named by its own text rather than throwing the panel away.
+ */
+function logShip(id) {
+  const spec = BALANCE.ships[id];
+  return spec === undefined ? String(id).toUpperCase() : spec.name;
+}
+
+/**
+ * What one run's row says (game/history.js): which seed it was flown on - which is how a run gets
+ * asked for again, `?seed=` in the address bar - and then the four facts about the flying of it: the
+ * body it was flown in, how long it lasted, what it scored, and whether it cleared the schedule.
+ */
+function logLine(run) {
+  return {
+    name: 'SEED ' + run.seed,
+    says: logShip(run.ship) + '   \u00b7   ' + clockWords(run.seconds)
+      + '   \u00b7   ' + run.score.toLocaleString('en-US')
+      + (run.won ? '   \u00b7   ' + LOG_CLEARED : ''),
+  };
+}
+
+/** What the rack says before there is a run to name (game/history.js). */
+function emptyLogLine() {
+  return {
+    name: 'NO RUNS YET',
+    says: 'THE LAST ' + BALANCE.history.keep + ' ARE KEPT HERE',
+  };
+}
+
+/**
+ * Paint the last runs this save has flown (game/history.js), newest first.
+ *
+ * One row per run, and as many rows as there have been runs: this is the one list on the panel whose
+ * length belongs to the visit, so its rows are built here and taken back here rather than at init
+ * beside the three tables that never change size. A first visit gets one row saying what will fill
+ * it, because an empty column under a heading reads as a panel that broke.
+ *
+ * Called once when the visit opens and again at every ending, beside `showCodex` - a log that has not
+ * noticed the run that just stopped would be the panel being one run behind its own card.
+ */
+export function showLog(runs) {
+  const lines = runs.length === 0 ? [emptyLogLine()] : runs.map(logLine);
+  while (logRows.length > lines.length) el.logRow.removeChild(logRows.pop().row);
+  while (logRows.length < lines.length) logRows.push(buildEntryRow(el.logRow));
+  for (let i = 0; i < lines.length; i++) {
+    logRows[i].name.textContent = lines[i].name;
+    logRows[i].says.textContent = lines[i].says;
+  }
+}
+
 /**
  * What the visit has to show for itself, in both places it is read: the best score, the purse, and
  * how much of the awards table this save has cleared. The three are written together because they
@@ -537,12 +604,14 @@ function codexWords(count) {
 
 /**
  * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, shipId,
- * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust, awardsWon }
+ * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust, awardsWon,
+ * pastRuns }
  * - `endlessPast` being how much of the run was flown after it had already been won, 0 for every run
  * that never got that far, `dust` / `dustBank` being what the run earned between runs and what the
  * purse holds after it (game/stardust.js), `codexNew` / `codexFound` being what the run added to the
- * codex and what it holds afterwards (game/codex.js), and `awards` / `awardDust` / `awardsWon` being
- * what this run won, what it paid, and where the whole table stands now (game/awards.js).
+ * codex and what it holds afterwards (game/codex.js), `awards` / `awardDust` / `awardsWon` being
+ * what this run won, what it paid, and where the whole table stands now (game/awards.js), and
+ * `pastRuns` being the log, with this run written into it (game/history.js).
  */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
@@ -575,6 +644,7 @@ export function showGameOver(summary) {
   // ...and the codex, which this run has just been added to (game/codex.js): the panel that goes up
   // over this card has to be the one that knows what the card is saying.
   showCodex(summary.codexFound);
+  showLog(summary.pastRuns);     // ...and the same promise about the log (game/history.js)
   el.over.classList.remove('hidden');
   // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
   // was written, so this is a screen's own event and the simulation has no idea it happened.
@@ -608,6 +678,7 @@ export function showVictory(summary) {
   showStanding(summary.best, summary.dustBank, summary.awardsWon);
   showShip(summary.shipId);
   showCodex(summary.codexFound);    // the same promise the death's card makes (see above)
+  showLog(summary.pastRuns);        // ...and the log's
   // The invitation waits. The card goes up on the hush and the game answers to nothing until the
   // guard is spent, and a line saying "press" that nothing may be pressed with is the exact thing
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).

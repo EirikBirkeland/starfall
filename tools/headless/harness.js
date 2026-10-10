@@ -317,6 +317,8 @@ const ELEMENT_IDS = [
   'titleBest', 'titleDust', 'titleAwards', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
+  // ...and the fourth rack, what they have flown (index.html, game/history.js).
+  'logRow',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',
@@ -348,6 +350,18 @@ function makeElement(tag, classes) {
       contains(cls) { return this._set.has(cls); },
     },
     appendChild(child) { this.children.push(child); return child; },
+    /**
+     * The DOM's other half of `appendChild`, and just as strict: a child that is not in here is a
+     * bug in the caller, and the stub says so rather than agreeing. The codex's run log takes its own
+     * rows back this way when the list it is painting is shorter than the last one was
+     * (ui/screens.js `showLog`).
+     */
+    removeChild(child) {
+      const at = this.children.indexOf(child);
+      if (at < 0) throw new Error('this element has no such child to take away');
+      this.children.splice(at, 1);
+      return child;
+    },
   };
   return el;
 }
@@ -362,6 +376,15 @@ function codexRow(row) {
     says: row.children[1].textContent,
     unknown: row.classList.contains('unknown'),
   };
+}
+
+/**
+ * One row of the run log (game/history.js). The same two parts of the line, and no `unknown`: a log
+ * row is never a thing that has not happened, and a row that is not in the list at all is that row's
+ * way of saying the same thing (ui/screens.js `showLog`).
+ */
+function logRow(row) {
+  return { name: row.children[0].textContent, says: row.children[1].textContent };
 }
 
 /**
@@ -693,6 +716,9 @@ export async function bootGame(options) {
           lines: elements.lineRow.children.map(codexRow),
           synergies: elements.synRow.children.map(codexRow),
         },
+        // ...and the fourth rack: the last runs this save has flown, newest first, or the one line
+        // that says there have been none (game/history.js).
+        pastRuns: elements.logRow.children.map(logRow),
       };
     },
     get audio() { return audioLog; },

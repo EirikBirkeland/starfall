@@ -40,6 +40,7 @@ import { defaultWeapon } from './weapons.js';
 import { defaultShip, shipBody } from './ships.js';
 import { newPerkRanks } from './perks.js';
 import { emptyFound } from './codex.js';
+import { emptyLog } from './history.js';
 import { updateAwards } from './awards.js';
 
 function createWorld() {
@@ -118,6 +119,13 @@ function createWorld() {
     runAwards: [],
     awardNews: [],
     awardToasts: [],
+    // The runs this save has flown (game/history.js): the last twenty, newest first, each one a
+    // record of what was flown. Read out of the save when the visit opens like everything else above
+    // that a run may spend but not lose, and added to at an ending. `runLogged` is this run's own
+    // note that it has written its row, which is what makes a run that stops twice - won, handed
+    // back, and finally buried - one row in the log rather than two.
+    pastRuns: emptyLog(),
+    runLogged: false,
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),

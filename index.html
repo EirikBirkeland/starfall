@@ -177,7 +177,9 @@
   }
   /* The three panels stand in the hangar's `.racks` row, and each of them is capped: the card flavours
      are the longest sentences in the game, and a column that grows to fit them is a column that pushes
-     the other two off the window. They wrap inside their own column instead. */
+     the other two off the window. They wrap inside their own column instead. The fourth rack - the log
+     of past runs - is capped the same way and needs no rule of its own: its rows are numbers and short
+     words, and a row that runs long already wraps under itself (.entry). */
   .codex .rack { max-width: 34ch; }
   .codex .entry-list { margin-top: 14px; }
   .entry-list { display: grid; gap: 7px; }
@@ -313,7 +315,7 @@
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
     <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
-    <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET</span></div>
+    <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
     <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
   </div>
@@ -348,9 +350,10 @@
  </div>
 </div>
 
-<!-- The codex (PLAN 3.7): what the runs of this save have met, and which rows are still empty. Read
-     and not bought, which is why it is a panel of its own on a key of its own with no numbers on its
-     rows at all (game/codex.js). Like the hangar it is an overlay and not a state. -->
+<!-- The codex (PLAN 3.7): what the runs of this save have met, which rows are still empty, and what
+     they have flown. Read and not bought, which is why it is a panel of its own on a key of its own
+     with no numbers on its rows at all (game/codex.js, game/history.js). Like the hangar it is an
+     overlay and not a state. -->
 <div id="codexScreen" class="screen codex hidden">
  <div class="codex-body" id="codexBody">
   <h2 class="codex-title">CODEX</h2>
@@ -367,6 +370,13 @@
    <div class="rack">
     <p class="rack-title">SYNERGIES</p>
     <div class="entry-list" id="synRow"></div>
+   </div>
+   <!-- The fourth rack is not part of "met n of 30" above it: it is what this save has *flown* and not
+        what it has met (game/history.js). Same row shape and same panel for the same reason - a row
+        with no key and no price has nothing to do among rows that can be bought. -->
+   <div class="rack">
+    <p class="rack-title">PAST RUNS</p>
+    <div class="entry-list" id="logRow"></div>
    </div>
   </div>
   <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK</div>

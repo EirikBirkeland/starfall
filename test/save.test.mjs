@@ -81,7 +81,7 @@ test('a write is a versioned document, and the same values always write the same
   const written = text(store);
   assert.deepEqual(JSON.parse(written), {
     version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {},
-    awards: {}, audio: {},
+    awards: {}, runs: {}, audio: {},
   });
 
   assert.equal(remember('audio', { music: 3, effects: 3, muted: false }), true);
@@ -93,7 +93,7 @@ test('a write is a versioned document, and the same values always write the same
   assert.equal(text(store), both, 'the same values again is the same text, byte for byte');
 
   const keys = Object.keys(parsed(store));
-  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'audio'],
+  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'awards', 'runs', 'audio'],
     'the document is written in schema order');
 });
 
@@ -239,6 +239,88 @@ test('the awards are a longer set again, and nonsense in them is no awards', () 
   assert.equal(remember('awards', { won: ['century', 'old-hand'] }), true);
   assert.deepEqual(parsed(store).awards, { won: ['century', 'old-hand'] },
     'and what was won is written back as it was given');
+});
+
+/** One run's record (game/history.js), with any of its fields changed - the way a wrecked log turns
+    up in somebody's storage. */
+function runRecord(seed, over) {
+  return Object.assign(
+    { seed: seed, ship: 'wisp', seconds: 95, score: 1200, won: false },
+    over || {});
+}
+
+test('the run log is a list of records, and its order is part of the record', () => {
+  // The fourth kind of thing this store is asked to hold (PLAN 3.7: the last twenty runs): not a
+  // number, not a set, not a ledger, but a *list of rows* - and the one list the store does not put
+  // in order, because "which run was the last one" is the information the panel reads.
+  const LOG = { log: [] };
+  const log = [runRecord(700), runRecord(42), runRecord(1)];
+  browser(stored({ runs: { log } }));
+  assert.deepEqual(section('runs', LOG).log, log, 'read back in the order it was written');
+
+  browser(stored({ runs: { log: log.slice().reverse() } }));
+  assert.deepEqual(section('runs', LOG).log.map((run) => run.seed), [1, 42, 700],
+    'the same runs the other way round stay the other way round');
+
+  // A seed twice is two runs and two rows: a log is a record of what was flown, not a set of seeds.
+  browser(stored({ runs: { log: [runRecord(9), runRecord(9)] } }));
+  assert.equal(section('runs', LOG).log.length, 2, 'nothing here dedupes anything');
+
+  // Every field is read, including the ones that are zero and the widest seed there is - a run that
+  // scored nothing in no seconds is a run, and `won: false` is an answer and not an absent field.
+  const edges = [runRecord(4294967295, { ship: 'brood', seconds: 0, score: 0, won: true })];
+  browser(stored({ runs: { log: edges } }));
+  assert.deepEqual(section('runs', LOG).log, edges);
+
+  const store = browser({});
+  assert.equal(remember('runs', { log }), true);
+  assert.deepEqual(parsed(store).runs.log, log, 'and a write is given back exactly as it was given');
+});
+
+test('a run record that is not whole is dropped, and the log keeps its neighbours', () => {
+  // Where the set and the ledger forgive an entry field by field, a record is judged whole: a row that
+  // lost its score cannot be printed, so it is not kept with a hole in it.
+  const LOG = { log: [] };
+  const whole = [runRecord(5), { seed: 6, ship: 'volt', seconds: 1, score: 0, won: true }];
+  const log = [
+    whole[0],
+    { seed: 1, ship: 'wisp', seconds: 3 },                        // no score, no win
+    { seed: 2, ship: 'WISP', seconds: 3, score: 1, won: false },  // a ship id that is not a name
+    { seed: -1, ship: 'wisp', seconds: 3, score: 1, won: false }, // a seed below nothing
+    { seed: 3, ship: 'wisp', seconds: 1e6, score: 1, won: false },// a day-long run is not a run
+    { seed: 4, ship: 'wisp', seconds: 3, score: 1.5, won: false },// a run does not end mid-point
+    { seed: 5, ship: 'wisp', seconds: 3, score: 1, won: 'yes' },  // a win that is not a yes or a no
+    Object.assign({}, whole[1], { extra: 'x' }),                 // a whole row with a field to spare
+    'not a record', null, [], 42,
+  ];
+  browser(stored({ runs: { log } }));
+  assert.equal(saveProblem(), '', 'the document itself is fine');
+  assert.deepEqual(section('runs', LOG).log, whole,
+    'the whole records survived, and the one unknown field did not ride along');
+});
+
+test('a log that is not a log is not stored, and an empty one is an answer', () => {
+  const first = runRecord(1);
+  const ONE = { log: [first] };
+  // Not a list at all, and a list with nothing a whole record in it: both are the field being the
+  // wrong kind, so the feature falls back to its own default like any other wreck.
+  for (const bad of ['log', 4, true, { a: 1 }, ['x'], [null], [{}], [runRecord(2, { seed: -1 })]]) {
+    browser(stored({ runs: { log: bad } }));
+    assert.deepEqual(section('runs', ONE).log, [first], JSON.stringify(bad));
+  }
+  // Longer than the game could have written (core/save.js's own ceiling, well past BALANCE.history).
+  const tooMany = [];
+  for (let i = 0; i < 70; i++) tooMany.push(runRecord(i));
+  browser(stored({ runs: { log: tooMany } }));
+  assert.deepEqual(section('runs', ONE).log, [first], 'seventy runs is not a log');
+
+  // But an empty list is the plainest answer there is: nothing has been flown yet.
+  browser(stored({ runs: { log: [] } }));
+  assert.deepEqual(section('runs', ONE).log, [], 'a first visit remembers no runs, on purpose');
+
+  assert.throws(() => remember('runs', { log: 'one run' }), /refusing to remember runs.log/);
+  assert.throws(() => remember('runs', { log: [{ seed: 1 }] }), /refusing to remember runs.log/);
+  assert.throws(() => section('runs', { log: 'one run' }), /cannot default runs.log/);
 });
 
 test('a set that is not a set is not stored, and an empty one is an answer', () => {
