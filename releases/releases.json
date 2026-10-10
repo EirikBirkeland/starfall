@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.10.0",
+    "date": "2026-10-10",
+    "summary": "ATTRACTOR: a card that buys how far off the loot is yours"
+  },
+  {
     "version": "0.9.5",
     "date": "2026-10-10",
     "summary": "AUTO-FIRE and AUTO-AIM: the game can be flown with the keyboard alone"
