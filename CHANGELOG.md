@@ -1,6 +1,6 @@
 # Starfall — changelog
 
-## 0.9.2 — 2026-10-11
+## 0.9.2 — 2026-10-10
 The run can be stopped, and while it is stopped it says what it is made of.
 - **`Esc` or `P` holds the run where it stands** and puts up a panel of its own: the score and the clock
   it has taken, then two racks - the run's numbers (the body and the gun it is flown in, level, hull,
