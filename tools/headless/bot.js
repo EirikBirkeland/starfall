@@ -1,14 +1,18 @@
 // The player that plays the game with no browser, shared by tools/simulate.js and
-// the tests. Two of them, in fact, because they answer different questions.
+// the tests. Three of them, in fact, because they answer different questions.
 //
 //   naive   what a distracted human does: point at whatever is closest, shoot at
 //           it, back off when it gets too close, drift back to the middle otherwise.
 //   aware   the same player with its eyes open: it reads what is about to land -
 //           shots in the air, lines that have been drawn but not fired, the circle a
 //           bomber is standing in - and steps off it (see tools/headless/threats.js).
+//   human   the same eyes behind a person's hands: it looks a fifth of a second at a
+//           time, a quarter of its looks are at the wrong thing, and what it commits to
+//           is not quite the direction it saw (see tools/headless/human.js). This is the
+//           one a difficulty curve can be measured *against*.
 //
-// Both of them answer the level-up choice when the run stops for one, with keys, the
-// way a player does (see `chooseCard` below). Neither of them dashes on its own: `--dash`
+// All three answer the level-up choice when the run stops for one, with keys, the
+// way a player does (see `chooseCard` below). None of them dashes on its own: `--dash`
 // adds `dashEscape` below to whichever policy is running, which is what any line that lives
 // on the dash has to be measured with.
 //
@@ -24,6 +28,7 @@
 import { bootGame } from './harness.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { escapeDirection, SKILL } from './threats.js';
+import { resetDodge, setDial, theHuman } from './human.js';
 import { isSynergy } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 import { Rng } from '../../src/core/rng.js';
@@ -99,8 +104,22 @@ function awareFrame(game) {
   drive(game, escape.pressure < SKILL.calm ? driftToMiddle(game) : escape);
 }
 
-/** The two ways to play, and the one the tools use unless told otherwise. */
-export const POLICIES = { naive: naiveFrame, aware: awareFrame };
+/**
+ * Aim at the nearest thing and dodge it the way a person does: on a human clock, with a
+ * quarter of the looks spent on something else. `tools/headless/human.js` is the model and
+ * the dial; this is only the hands that put its answer on the keyboard.
+ *
+ * The `idle` it hands over is the naive bot's whole answer - back off from whatever is close,
+ * drift in towards the middle otherwise - because that is exactly what a person is doing when
+ * they are not reading the field.
+ */
+function humanFrame(game) {
+  const near = aimAtTheNearest(game);
+  drive(game, theHuman.look(game.world, FRAME_MS / 1000, wantedDirection(game, near)));
+}
+
+/** The three ways to play, and the one the tools use unless told otherwise. */
+export const POLICIES = { naive: naiveFrame, aware: awareFrame, human: humanFrame };
 export const DEFAULT_POLICY = 'aware';
 
 /**
@@ -347,7 +366,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, picks, ship, weapon, at }
+ * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, at }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -374,6 +393,14 @@ export function playOneRun(game, options) {
   // careless build, which is the only way a careless batch is a measurement. Done after the
   // launch because that is what puts the seed in the world.
   resetPicks(game.world.seed);
+  // And the same for the third policy's eyes (tools/headless/human.js): a seed is the same
+  // person having the same afternoon. Reset whatever policy is running, because a private
+  // stream spent by a policy that is not running spends nothing anybody can notice.
+  resetDodge(game.world.seed);
+  // A tool that is measuring the *player* and not the game can put a different rung of that dial
+  // on them (tools/skill-ladder.js). Left alone by default, so every number already in NOTES.md was
+  // made by the ordinary pair of eyes and still means what it says.
+  if (opts.dial !== undefined) setDial(opts.dial);
 
   let frames = 0;
   let died = false;
@@ -532,22 +559,54 @@ export function endingItAt(seconds) {
 }
 
 /**
+ * Boot one game and play several *batches* of runs on it, one seed per run.
+ *
+ * One boot, however many batches: the modules hold the world, so a process can only ever boot one
+ * game (tools/headless/harness.js), and a tool that wants to compare four players has to put them
+ * all through that one. `resetToTitle` between runs is what makes that safe - it reseeds, clears the
+ * pools and resets the clock, which is the same fresh-page state a second run in a browser gets.
+ *
+ * `onBatch(summaries, index)` is called as each batch finishes, because a ladder of them is minutes
+ * of work and a silent terminal cannot be told apart from a stuck one.
+ *
+ * A batch is `playRuns`' options object: { seeds: [..], maxSeconds, every, policy, picks, dial,
+ * ship, weapon, at, onRun }.
+ */
+export async function playBatches(batches, onBatch) {
+  const first = batches[0] || {};
+  const firstSeeds = first.seeds || [1];
+  const game = await bootGame(Object.assign({}, first, { seed: firstSeeds[0] }));
+  const results = [];
+  let runs = 0;
+
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
+    const seeds = batch.seeds || [1];
+    const summaries = [];
+    for (let i = 0; i < seeds.length; i++) {
+      // Every run after the very first one, whichever batch it is in, gets a title screen that has
+      // never seen a frame - including the first run of every batch after the first.
+      if (runs > 0) await game.resetToTitle(seeds[i]);
+      const summary = playOneRun(game, batch);
+      summaries.push(summary);
+      runs++;
+      // A batch of long runs is minutes of silence without this, and whoever is watching
+      // it wants to know which seed is taking its time.
+      if (batch.onRun !== undefined) batch.onRun(summary);
+    }
+    results.push(summaries);
+    if (onBatch !== undefined) onBatch(summaries, b);
+  }
+
+  game.stop();
+  return results;
+}
+
+/**
  * Boot one game and play several runs on it, one per seed.
- * Options: { seeds: [..], maxSeconds, every, policy, picks, onRun }
+ * Options: { seeds: [..], maxSeconds, every, policy, picks, dial, ship, weapon, at, onRun }
  */
 export async function playRuns(options) {
-  const opts = options || {};
-  const seeds = opts.seeds || [1];
-  const game = await bootGame(Object.assign({}, opts, { seed: seeds[0] }));
-  const summaries = [];
-  for (let i = 0; i < seeds.length; i++) {
-    if (i > 0) await game.resetToTitle(seeds[i]);
-    const summary = playOneRun(game, opts);
-    summaries.push(summary);
-    // A batch of long runs is minutes of silence without this, and whoever is watching
-    // it wants to know which seed is taking its time.
-    if (opts.onRun !== undefined) opts.onRun(summary);
-  }
-  game.stop();
-  return summaries;
+  const results = await playBatches([options || {}]);
+  return results[0];
 }

@@ -10477,3 +10477,121 @@ git; and the real manifest having its line counts.
 - Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord
   are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
   the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+
+
+## Session 89 — a bot that dodges like a person, and the ladder that measures the slope
+
+Milestone 10's next item: the third player. Nothing in `src/` changed, so there is no release and
+the reference run is byte for byte what it was (`--seed 20261006` is still 10m00s / 75,596 / level 58
+/ kills 4004 / shards 5162 / vacuums 7 (2065 in)). Suite is **1669 tests** (was 1646): 10 in
+`test/human.test.mjs`, 13 in `test/skill-ladder.test.mjs`.
+
+### What was built
+
+**`tools/headless/human.js`** — `--bot human`: the aware bot's threat reading behind a person's
+hands. Three limits, all of them in `HUMAN`, and nothing else changed:
+
+- **it re-decides on a human clock** (a look every 0.20 s, ±30%) and drives what the last look said
+  in between. This is where PLAN's "notices a threat only once it is nearer than `SKILL` lets it
+  see" comes from, and it needed no invented blindness: a shot that appears just after a look is
+  news for a fifth of a second and by then it has landed.
+- **a quarter of its looks are not at the field.** While they are elsewhere the ship is doing the
+  ordinary thing - back off from whatever is close, drift towards the middle otherwise - which is
+  why `look()` takes its `idle` direction from the caller and `bot.js` hands it the naive bot's own
+  answer.
+- **the hand commits a little off what the eye saw**: the held direction is turned by up to 0.22 rad.
+
+It is a dial: `RUNGS` patches `HUMAN` into `flustered` (0.3 s / 0.5 / 0.3) and `sharp` (0.12 / 0.92 /
+0.1), `playOneRun` grew a `dial` option, and **`tools/skill-ladder.js`** plays one careless batch at
+flustered, ordinary, sharp and the aware bot ("program") on the same seeds and prints what each rung
+is worth, plus the step between rungs. `tools/difficulty-arc.js` now defaults to `--bot human` -
+PLAN's sentence is about a person, not a program - and its header says so. `tools/headless/bot.js`
+grew `playBatches(batches, onBatch)` because **a process can only boot one game**: the ladder needs
+four batches through that one boot, and `playRuns` is now a one-batch call to it (proven: the same
+seeds through `simulate.js` give the same deaths as through the ladder).
+
+### The bug the measurement caught, which is the one to remember
+
+The first `RUNGS` were bare objects and left `lookJitter` out. `range(-undefined, undefined)` is NaN,
+`NaN > 0` is false, and so the *flustered* rung re-decided **every frame**: the fastest pair of hands
+on the ladder, and by a wide margin the hardest to kill (it read as 3m36s against the ordinary rung's
+2m32s, and I spent an evening believing careless eyes were an advantage). `checked()` now merges a
+dial over `HUMAN` and refuses a key that is not a non-negative number, and every rung is written as a
+patch. Rule: **a dial with a key missing is not a slightly different player, it is a player with no
+dial at all** - and a monotonic ladder is a test, which is why the ladder's rows are now in the file
+above instead of only in NOTES. After the fix the ladders are monotonic on both seed sets.
+
+### The ladder, on two independent seed sets (24 runs each, careless cards, 15-minute window)
+
+| rung | seeds 1-24 | seeds 200-223 | what it is |
+|---|---|---|---|
+| flustered | 24/24, 1m30s | 24/24, 1m46s | slow hands, half the looks elsewhere |
+| ordinary | 22/24, 2m32s | 23/24, 2m13s | the person: a fifth of a second per look |
+| sharp | 23/24, 2m46s | 22/24, 3m05s | quick and nearly always watching |
+| program | 13/24, 4m23s | 10/24, 3m33s | `aware`: no hands at all |
+
+Monotonic on both, which is the claim the ladder exists to make; the steps are +62/+14/+96 s and
++27/+52/+28 s, so a 24-run rung can resolve a rung but not finely - the same lesson `minDeaths` learned
+in session 88. The level medians say more than the deaths do: 5-6 for the human rungs, 20.5 and 45 for
+the program, i.e. the perfect player is not surviving a little better, it is playing a different game.
+
+### What the three players say about the arc (48 seeds, a die for the cards, a 15-minute window)
+
+| player | died | middle of deaths | in 4:00-9:00 | widest killer |
+|---|---|---|---|---|
+| naive + die | 47/48 | 2m20s | 3 (6%) | drifter 34% |
+| human + die | 43/48 | 2m33s | 7 (15%) | weaver **40%** |
+| aware + die (session 88) | 26/48 | 4m19s | 11 (23%) | drifter 35% |
+
+Both halves of PLAN's sentence still fail, and the band now fails **the other way up**: `the batch
+dies too soon: 36 of them before 4m00s`. The ceiling passes with the weaver sitting on the line and
+not under it (17 of 43 deaths = 40%), and it is worth saying that the same batch of the same game
+hands a different widest killer to each of the three players - a ceiling measured on one player is
+that player's ceiling. What a careless person dies of is the crowd: of 217 hulls, weaver 40%, drifter
+24%, darter 15%, tank 10%, and only 10% to anything that travels (spitter shots 5%, blast 4%, one
+beam 1%). Session 88's other question is answered cleanly for a human hand: **a die-dealt build does
+not outlast the window** - 5 of 48 survived to the cap, against 22 of 48 on aware hands.
+
+### What the dial is worth (16 seeds, same window, middle of deaths)
+
+| dial | 0.5 | 0.75 | 0.95 | 1.0 |          | dial | value |
+|---|---|---|---|---|----------|---|---|
+| attention (0.2 s looks) | 115s | 153s | 150s | 161s | latency  | 0.30 s → 103s | 0.20 s → 153s | 0.12 s → 164s |
+| fumble | 0 → 138s | 0.22 → 153s | 0.44 → 138s | | |
+
+Latency is the whole of the model; attention buys something between 0.5 and 0.75 and then flattens;
+the fumble is inside the noise of a 16-seed batch. Which is a useful thing to know before anybody
+tunes a game balance off this bot: **the reaction clock is the dial, and 4:00-9:00 is not reachable by
+moving it** - the sharpest rung (0.12 s) still dies at under three minutes with a careless build.
+
+### Three findings about the tools that should not be lost
+
+- **`--dash` is a *bad* habit, not a good one, and it is measured as one.** `dashEscape` presses the
+  dash at the screen point of the nearest body; a dash with no movement key held goes the way the
+  cursor points, i.e. **at** it, and the bot stands still often enough for that to matter. Same seeds
+  with the habit on: aware's careless middle death falls from 4m19s to 1m43s and human's from 2m44s
+  to 56s. Every line that lives on the dash (`game/afterimage.js`) was priced with `--dash` on, so
+  fixing the habit means re-pricing that card: filed as an item under *After 1.0*, not silently
+  patched.
+- **An empty batch must not print a time.** With no deaths at all the arc's second reading said "the
+  middle one at 0m00s", which is `clock(NaN)` and a measured-sounding number that was never measured -
+  the same class of thing session 88 flagged about `clock()`. `verdictOf` now leaves the phrase out
+  when there is nothing to average, and `test/difficulty-arc.test.mjs` asserts both ways.
+- **Never launch two batches at the same log file.** Two ladder runs of mine wrote one file and the
+  table disagreed with the progress line above it; I read it as a determinism bug for a while. Fresh
+  file per run, and `cat /proc/*/cmdline` to see what is still alive (there is no `ps` on this box).
+
+### For the next session
+
+- Milestone 10, in order: **what the person-shaped player says about the tuning** (the new item, with
+  the four questions in it - including whether PLAN's `4:00-9:00` means a careless *build* on a human
+  hand, which no amount of dial moves into the band, or a careless build on a perfect one, which
+  nearly is), then the weapon ladder (no gun over 25% above another in `tools/balance-report.js`), the
+  F3 overlay, the 30-minute memory hunt, the daily run, the three-prompt tutorial, the read-every-line
+  pass. Then `1.0.0`.
+- The weaver is at PLAN's ceiling with a human player (40% of deaths, 40% of hulls). That is a balance
+  conversation whether or not the band moves.
+- `tools/agent/session.js` still cannot see `settingsUp`, `settings`, `assists` or the vacuum, still
+  has no `choose_ship`, and now does not know a third bot policy exists either.
+- Worktree: nothing checked out this session; the throwaway probes lived in `/tmp` (`dial2.mjs` passes
+  a dial patch through `playRuns`, which is how to measure the dial without editing the file).

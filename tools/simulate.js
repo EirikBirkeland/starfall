@@ -6,6 +6,7 @@
 //   node tools/simulate.js --runs 20          a batch of runs, and the middle one
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
+//   node tools/simulate.js --bot human         play it at a person's speed (tools/headless/human.js)
 //   node tools/simulate.js --picks random      answer the level-up with a die instead of a
 //                                              build (tools/headless/bot.js PICKS; what
 //                                              tools/difficulty-arc.js measures with)
@@ -37,7 +38,9 @@
 //
 // The bot is tools/headless/bot.js. `aware`, the default, shoots the nearest thing
 // and steps out of whatever is on its way to the ship; `naive` shoots the nearest
-// thing and only backs away from whatever is already close. Neither of them dashes until
+// thing and only backs away from whatever is already close; `human` has the aware bot's
+// eyes behind a person's hands - it looks a fifth of a second at a time and a quarter of
+// its looks are at the wrong thing (tools/headless/human.js). None of them dashes until
 // `--dash` is asked for, which is the only way a line that lives on the dash
 // (game/afterimage.js) can be measured at all. This script must always
 // finish without throwing; the one exit it may choose for itself is `--need`.

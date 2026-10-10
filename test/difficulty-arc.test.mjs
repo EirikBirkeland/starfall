@@ -161,6 +161,8 @@ test('a batch that never dies fails the band, and says which way it missed', () 
   assert.match(verdict.lines.join('\n'), /never died at all/);
   assert.match(verdict.lines.join('\n'), /of the 0 that died at all, 0 \(-\) died in it/,
     'and the second reading, said honestly, which is no share at all');
+  assert.doesNotMatch(verdict.lines.join('\n'), /middle one at/,
+    'a batch with no deaths has no middle of them to print, and 0m00s would be a time that was never measured');
   assert.match(line(verdict, 'the ceiling:'), /only 0 deaths in 4 runs.*none to share out/, 
     'and a batch with no deaths at all has nothing to share out');
 });
@@ -184,6 +186,8 @@ test('one body taking the batch fails the ceiling, whatever the band says', () =
   // The reading under the strict one, because it is the one that says where the arc actually is:
   // every one of these deaths was in the band, and the batch still fails, because it never died.
   assert.match(verdict.lines.join('\n'), /of the 20 that died at all, 20 \(100%\)/);
+  assert.match(verdict.lines.join('\n'), /died in it, the middle one at /,
+    'and with deaths to average there is a middle to print');
 });
 
 test('thirteen deaths are not a share either, and the tool says how many would be', () => {

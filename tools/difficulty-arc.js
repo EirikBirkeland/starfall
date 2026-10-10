@@ -6,7 +6,8 @@
 //   node tools/difficulty-arc.js --runs 96           more runs, for the 40% question in particular
 //   node tools/difficulty-arc.js --seed 200          a different set of seeds
 //   node tools/difficulty-arc.js --seconds 600       a shorter window (it cuts the arc short)
-//   node tools/difficulty-arc.js --bot naive         the player that does not dodge
+//   node tools/difficulty-arc.js --bot aware         the player that never misses a thing
+//   node tools/difficulty-arc.js --bot naive         the player that does not dodge at all
 //   node tools/difficulty-arc.js --picks wise        the careful build, to compare against
 //   node tools/difficulty-arc.js --quiet             the two verdicts and nothing else
 //
@@ -18,11 +19,16 @@
 // Both numbers are PLAN's and neither is touched here. What is mine, and written down because a
 // check has to mean one thing and not whatever it felt like on the day:
 //
-//   **"the bot"**: the aware one, the default everywhere else, because every number in NOTES.md
-//   was measured with it. It is also the *better* player of the two - a careless build on a
-//   careful hand is the run PLAN's sentence is about, and `--bot naive` is measured too, but a
-//   player who does not dodge *and* does not think is not the average of anything. The bot
-//   answers a level-up with a die (`tools/headless/bot.js PICKS.random`), which is the plain
+//   **"the bot"**: the human one (tools/headless/human.js) - PLAN's person, dodging at the speed
+//   of a person. It used to be the aware bot, which is why `--bot aware` is still measured here and
+//   still printed by `tools/skill-ladder.js` as the top rung: a careless build on perfect hands is
+//   the run that sentence was *written* against, and it turned out to be unmeasurable, because the
+//   aware bot re-decides every simulation step and steps off everything it can see, so half a
+//   careless batch of it outlived fifteen minutes (NOTES, session 88). The naive bot is the other
+//   end of the ladder and `--bot naive` still runs it. What the three of them say *together*, on the
+//   same seeds and the same die, is the finding; `tools/skill-ladder.js` is the tool that reads them
+//   as one slope instead of three verdicts.
+//   The bot answers a level-up with a die (`tools/headless/bot.js PICKS.random`), which is the plain
 //   reading of "no upgrades chosen wisely": a person who did not look, rather than one written
 //   to choose badly.
 //   **"usually"**: at least half the runs in the batch. A run that never died is not a run that
@@ -42,10 +48,10 @@
 // it can be run before a release and read as red or green. `tools/balance-report.js` is the one
 // that prints numbers and judges none of them; this one judges two.
 //
-// Today the first half reads red and the second does not, and that is the finding rather than a
-// bug: about half of a careless batch never dies at all. The PLAN item of the same name has the
-// numbers, and says why the two players this can be measured with bracket the band instead of ever
-// sitting in it.
+// Today the band reads red the other way up - a careless batch of people dies at two and a half
+// minutes, and it is the *program* at the top of the ladder that cannot be made to die inside the
+// window at all - and the ceiling reads green with the widest body sitting on the line and not under
+// it. Both are findings rather than bugs, and the PLAN item of the same name has the numbers.
 
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
@@ -65,7 +71,7 @@ export const ARC = {
   minDeaths: 20,
 };
 
-const DEFAULTS = { seed: 1, runs: 48, seconds: 900, policy: 'aware', picks: 'random', quiet: false };
+const DEFAULTS = { seed: 1, runs: 48, seconds: 900, policy: 'human', picks: 'random', quiet: false };
 
 function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS);
@@ -282,9 +288,12 @@ export function verdictOf(arc, summaries) {
   lines.push('the band: ' + arc.inBand + ' of ' + arc.runs + ' runs (' + share(arc.inBand, arc.runs)
     + ') died between ' + clock(arc.band.from) + ' and ' + clock(arc.band.to) + ', against the '
     + Math.round(ARC.usual * 100) + '% "usually" needs - ' + (bandPass ? 'PASS' : 'FAIL'));
+  // No deaths and no middle of them to report: `clock(NaN)` reads 0m00s, and a line about there
+  // being nothing to measure must not print a time that was never measured (NOTES, session 88).
+  const middle = arc.deaths === 0 ? '' : ', the middle one at ' + clock(arc.medianDeath);
   lines.push('  of the ' + arc.deaths + ' that died at all, ' + arc.inBand + ' ('
-    + (arc.deaths === 0 ? '-' : share(arc.inBand, arc.deaths)) + ') died in it, the middle one at '
-    + clock(arc.medianDeath) + '; ' + arc.early + ' came sooner, ' + arc.late + ' later, '
+    + (arc.deaths === 0 ? '-' : share(arc.inBand, arc.deaths)) + ') died in it' + middle + '; '
+    + arc.early + ' came sooner, ' + arc.late + ' later, '
     + arc.alive + ' never died and ' + arc.won + ' won the schedule');
   if (!bandPass) {
     lines.push('  ' + (arc.early > arc.late + arc.alive

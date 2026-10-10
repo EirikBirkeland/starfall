@@ -1161,17 +1161,55 @@ When every item above is ticked, go back to the first unchecked item of mileston
       were still flying at fifteen minutes and one of them reached level 76. A careless build is not
       too weak so much as a coin toss, and the instrument the 4:00-9:00 sentence needs does not exist
       yet.
-- [ ] A bot that dodges like a person, and then whatever it says about the arc. The aware bot is not
-      a person: it reads every shot, telegraph and bomber circle in the world and steps off all of them
-      (`tools/headless/threats.js`), which is why half a careless batch outlives fifteen minutes and
-      why `4:00-9:00` cannot be answered with it. The third policy is that same reading with a human's
-      imperfect reaction - it notices a threat only some of the time, or only once it is nearer than
-      `SKILL` lets it see, and the dial is worth having either way because a bot that can be made less
-      able is a difficulty curve that can be measured at several skills instead of two. Careless cards
-      by default, measured with `tools/difficulty-arc.js`, and then the tuning that batch asks for -
-      starting with whether a die-dealt build should be able to outlast the whole window at all (22 of
-      48 did, and the run that reached level 76 among them was not even a good roll so much as a
-      common one).
+- [x] A bot that dodges like a person (**`tools/headless/human.js`: the aware bot's threat reading
+      behind a person's hands. `--bot human`, and `tools/skill-ladder.js` reads the whole slope**). The
+      aware bot is not a person: it reads every shot, telegraph and bomber circle in the world and steps
+      off all of them (`tools/headless/threats.js`), re-deciding every simulation step, which is why
+      half a careless batch outlives fifteen minutes and why `4:00-9:00` cannot be answered with it.
+      The third policy keeps that reading and adds three human limits, every one of them in `HUMAN` and
+      every one the bot's business and not the game's: it **re-decides on a human clock** - a look every
+      0.20 s, plus or minus 30%, driving what the last look said in between, which is where "only once it
+      is nearer than `SKILL` lets it see" comes from with no blindness invented, because a shot that
+      appears just after a look is news for a fifth of a second and by then it has landed; **a quarter
+      of its looks are not at the field**, and while they are elsewhere it is flying the ordinary line -
+      back off from what is close, drift in towards the middle - rather than standing still; and **the
+      hand commits up to 0.22 rad off what the eye saw**. It is a dial first and a number second:
+      `RUNGS` patches it into *flustered* and *sharp*, and `tools/skill-ladder.js` plays one careless
+      batch at flustered, ordinary, sharp and the aware bot ("program") on the same seeds and prints
+      what each rung is worth and what the step between two of them is - PLAN's curve measured at
+      several skills instead of two. `tools/difficulty-arc.js` measures with the human by default now,
+      because the sentence is about a person and not a program. **Measured (48 seeds, a die for the
+      cards, a 15-minute window), both halves of PLAN's sentence still fail and the band fails the other
+      way up**: 43 of 48 died, the middle one at 2m33s, 7 of them (15%) inside 4:00-9:00 and 36 of them
+      before it - *the batch dies too soon* - while the ceiling passes with the weaver sitting on the
+      line and not under it, at exactly 40% of the deaths. What a careless person dies of is the crowd:
+      of 217 hulls, weaver 40%, drifter 24%, darter 15%, tank 10%, and only 10% went to anything that
+      travels (spitter shots 5%, a blast 4%, one beam 1%). On the same seeds the naive bot middles at
+      2m20s and the aware one at 4m19s with 22 of 48 never dying, so the other question this item
+      carried has a clean answer for a human hand: **a die-dealt build does not outlast the window** -
+      5 of 48 did, against 22 of 48 on perfect hands. And the dial's worth, measured on 16 seeds at the
+      middle of deaths: a look every 0.30 s is 103s, every 0.20 s is 153s, every 0.12 s is 164s, while
+      attention reads 115s at 0.5, 153s at 0.75 and 161s at 1.0 and the fumble is inside the noise of
+      the batch - the reaction clock is the whole of the model, and moving it does not reach the band.
+      Tests: 10 in `test/human.test.mjs` (a look holds, the next one comes when the dial says and not on
+      the dot, a threat that arrives between two looks is answered at the second one, one look in four
+      is elsewhere, the hand is off by the fumble and no further, one seed is one afternoon, and a
+      person is hit more than a program and far less than a statue) and 13 in
+      `test/skill-ladder.test.mjs`.
+- [ ] The tuning the third player asks for, which is a design conversation and not a dial. Three
+      measured players now bracket PLAN's band on the same seeds and only one of them sits in it: a
+      careless build dies at 2m20s with nobody dodging, at 2m33s with a person dodging, and at 4m19s -
+      of its deaths, with 22 of 48 never dying at all - with a perfect one. So either (a) the sentence
+      means a careless *build* on a competent hand, in which case the aware batch is nearly the answer
+      (42% of its deaths were in the band) and PLAN should say so out loud instead of leaving `usually`
+      to be read against whatever player is loaded; or (b) it means a careless build on a person's
+      hands, in which case the early ramp is too steep for the game to be honest about it, and the
+      knobs are the crowd budget in `game/waves.js` and the hull the run starts on - the crowd is what
+      does the killing, since all but 10% of a careless person's hulls went to bodies. Either way the
+      weaver is at the ceiling already with a human player (40% of the deaths and 40% of the hulls of
+      the same batch) and wants its own look. Do not answer any of this by making the bot worse: the
+      rung a number was measured on is a fact about the measurement, and the ladder is how to keep it
+      honest.
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.
@@ -1186,6 +1224,12 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [ ] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
+      the dash at the screen point of the nearest body, and a dash taken with no movement key held goes
+      the way the cursor points - at it. Measured on the same seeds it is a *negative* habit: the aware
+      bot's careless middle death falls from 4m19s to 1m43s with `--dash` on, and the human's from 2m44s
+      to 56s. Every line that lives on the dash was priced with it on (`game/afterimage.js` especially),
+      so fixing which way it dashes means re-pricing those cards - a session, not a patch.
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over
