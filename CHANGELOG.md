@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 0.9.4 — 2026-10-11
+`O` opens the settings, and none of it can change the run.
+- **A fourth panel, on the fourth key**: `O` for options - because `S`, the first letter of the word,
+  is the ship's own down key, and a key that moves the ship never moves anything else. It goes up over
+  the title, over the death's card, or over a run you have paused, and nowhere else: over a run that
+  is flying it would be a pause the run never agreed to.
+- **Seven rows, and the panel owns none of them.** Screen shake, hit flash, score numbers and particles
+  come out of a new `game/settings.js`; the music, the sounds and the mute come out of the mixer
+  itself. The panel asks both owners and prints what they say, so it cannot offer a step the game has
+  not implemented, and a bracket key pressed while it is up moves the slider and its row together.
+- **`↑ ↓` put the cursor on a row, `← →` step it.** No numbers on the rows, because a number means the
+  ship it means everywhere else - so the launch key and the ship numbers simply stand aside while the
+  panel is on the glass, and closing the panel over a paused run puts the pause back up.
+- **Every row ships at the end the game was built at.** The last step of every row is the game as it
+  always was, so a fresh visit cannot be the first time the game looked wrong, and turning a row down
+  makes the game *quieter* rather than making a different game.
+- **And not one of them can move a run.** The shake moves the window and not the camera, sparks are
+  thinned by counting rather than by gambling, the flash is a share of a bloom and the floating numbers
+  are a label - and the new test plays one seed twice, once with every row at the top of its travel and
+  once with every row at the bottom, and asks for the same score, the same kills and the same ship in
+  the same place every half second. The ten-minute reference run is unchanged, byte for byte.
+- **What `flash reduction` took, and what it did not**: the white bloom on a hurt body, which is the
+  loudest strobe in the game. A boss's phase flare and the hull bar's white breath are deliberately
+  still there - both say "nothing can hurt me just now", and a setting that takes news away is not an
+  accessibility setting.
+- **Your choices are kept, by name.** A step this build has never heard of is no setting at all and the
+  row ships; and a first visit on a machine that was told to keep still (`prefers-reduced-motion`) starts
+  with the window held still until it is told otherwise - a default, not an order, so a shake you chose
+  for yourself outvotes it.
+
 ## 0.9.3 — 2026-10-10
 The card a run ends on says what ended it.
 - **A death names what took the last hull**, under the heading it happened to: `TAKEN BY A TANK`,
