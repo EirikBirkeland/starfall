@@ -1,7 +1,7 @@
-// Synthesised sound effects. The simulation never plays anything: it queues a
-// cue (game/cues.js) and this module turns the queue into oscillator voices,
-// every one of them landing on the effects bus (audio/engine.js) so the music
-// can be balanced against the fight without touching it.
+// Synthesised sound effects. The simulation never plays anything: it queues a cue
+// (game/cues.js) and this module turns the queue into voices - oscillators and bursts of
+// noise (audio/noise.js) - every one of them landing on the effects bus (audio/engine.js)
+// so the music can be balanced against the fight without touching it.
 //
 // One frame's worth of cues is one mix, and it is spent the way a mix is spent: the loud
 // things first, and the quiet ones only for as far as the voice budget will stretch
@@ -11,7 +11,8 @@
 
 import { STATE } from '../game/state.js';
 import { drainCues } from '../game/cues.js';
-import { getContext, getSfxBus, isMuted } from './engine.js';
+import { getContext, getSfxBus, isMuted, muffleMusic } from './engine.js';
+import { noiseVoice } from './noise.js';
 import { loudnessOf, takeVoice } from './mix.js';
 
 /** The shortest a voice can be scheduled for, and what a cue that names no length gets. */
@@ -57,6 +58,30 @@ function chord(notes, dur, wave, vol) {
   }
 }
 
+/**
+ * One burst of noise (audio/noise.js): `vol` of it through a low-pass swept from `cutoff`
+ * to `sweep` over `dur` seconds. The same budget, the same bus and the same rules as `beep`
+ * - the mud a crowded sky turns to does not care which sort of voice is filling it.
+ */
+function hiss(dur, vol, cutoff, sweep, q) {
+  const actx = getContext();
+  if (!actx || isMuted()) return;
+  const loud = loudnessOf(vol);
+  const len = dur > 0 ? dur : MIN_DUR;
+  if (!takeVoice(loud, len, actx.currentTime, false)) return;
+  noiseVoice(actx, getSfxBus(), loud, { dur: len, cutoff, sweep, q });
+}
+
+/**
+ * A blanket over the music (audio/engine.js). Not a voice, so not on the budget: one filter
+ * on the music's bus, moved. The cue that asks for the thud asks for this too, so the two
+ * are always heard together.
+ */
+function blanket(to, back) {
+  if (isMuted()) return;
+  muffleMusic(to, back);
+}
+
 /** This frame's cues, in the order they are worth playing them in. */
 const waiting = [];
 
@@ -68,6 +93,7 @@ function byLoudness(a, b) {
 function play(cue) {
   if (cue.kind === 'beep') beep(cue.freq, cue.dur, cue.wave, cue.vol, cue.slideTo);
   else if (cue.kind === 'chord') chord(cue.notes, cue.dur, cue.wave, cue.vol);
+  else if (cue.kind === 'noise') hiss(cue.dur, cue.vol, cue.cutoff, cue.sweep, cue.q);
 }
 
 /**
@@ -81,7 +107,11 @@ function play(cue) {
 export function consumeCues(state) {
   waiting.length = 0;
   drainCues(function (cue) {
-    if (state !== STATE.START) waiting.push(cue);
+    if (state === STATE.START) return;
+    // A blanket is not one of the sounds competing for the frame: it is not spent from the
+    // budget and it is not made to wait behind anything, so it is handled on the way past.
+    if (cue.kind === 'muffle') blanket(cue.to, cue.back);
+    else waiting.push(cue);
   });
   waiting.sort(byLoudness);
   for (let i = 0; i < waiting.length; i++) play(waiting[i]);

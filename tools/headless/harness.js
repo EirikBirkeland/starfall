@@ -180,8 +180,15 @@ function makeContextStub(counters, drawLog) {
  * `now` is the frame clock, in seconds: a voice is scheduled on the audio clock and the
  * audio clock has to move with the frames, or a test that asks "is the sky still full of
  * that voice?" gets the same answer for ever. Everything the synthesiser needs is here;
- * a machine that has no compressor is `audio: 'raw'`, which is how a test can ask what
- * the engine does when the browser is old (audio/engine.js).
+ * a machine that has none of the optional parts - no compressor, no filters, no buffers - is
+ * `audio: 'raw'`, which is how a test can ask what the engine and the noise voice do when
+ * the browser is old (audio/engine.js, audio/noise.js).
+ *
+ * Every AudioParam the game *sweeps* logs what it was asked to do, into `log.ramps` - the
+ * envelopes are left out, because a busy frame writes thousands of them and nobody reads
+ * those. That log is how a test can see a sweep *happen* rather than only that a node was
+ * built, which is the difference between knowing the game made a filter and knowing it moved
+ * one.
  */
 function makeAudioContextStub(log, now) {
   const voice = () => ({
@@ -191,25 +198,67 @@ function makeAudioContextStub(log, now) {
     start() {},
     stop() {},
   });
-  const param = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} });
+  /** An envelope: a knob nobody is asked to keep a book for, because a voice writes three of
+   * them every time it is played and nobody wants to read them. */
+  const envelope = () => ({
+    value: 0,
+    setValueAtTime() {},
+    exponentialRampToValueAtTime() {},
+    setTargetAtTime() {},
+    cancelScheduledValues() {},
+  });
+  /** One knob that *is* logged, and the book of everything it was asked to do. */
+  const knob = (name) => ({
+    value: 0,
+    setValueAtTime(v, at) { log.ramps.push({ name, op: 'set', v, at }); },
+    exponentialRampToValueAtTime(v, at) { log.ramps.push({ name, op: 'exp', v, at }); },
+    setTargetAtTime(v, at, tc) { log.ramps.push({ name, op: 'target', v, at, tc }); },
+    cancelScheduledValues(at) { log.ramps.push({ name, op: 'cancel', at }); },
+  });
   const stub = {
     state: 'running',
+    sampleRate: 48000,
     get currentTime() { return now(); },
     destination: {},
     resume() {},
     createGain() {
       log.voices++;
-      return { gain: param(), connect() {} };
+      return { gain: envelope(), connect() {} };
     },
     createOscillator() { log.voices++; return voice(); },
+    // The noise buffer (audio/noise.js): two seconds of a float each. The game fills it
+    // through `getChannelData`, so the stub hands back a real one and the fill is real too.
+    createBuffer(channels, length, rate) {
+      log.buffers++;
+      const data = new Float32Array(length);
+      log.noiseData = data;
+      return {
+        numberOfChannels: channels, length, sampleRate: rate, duration: length / rate,
+        getChannelData() { return data; },
+      };
+    },
+    createBufferSource() {
+      log.noise++;
+      return {
+        buffer: null, loop: false, playbackRate: envelope(),
+        connect() {}, start() {}, stop() {},
+      };
+    },
   };
+  // The optional parts. `raw` is a machine with none of them, and a browser that old still
+  // has to be able to hear the game.
   if (log.raw !== true) {
     stub.createDynamicsCompressor = () => {
       log.compressors++;
       return {
-        threshold: param(), knee: param(), ratio: param(), attack: param(), release: param(),
+        threshold: knob('threshold'), knee: knob('knee'), ratio: knob('ratio'),
+        attack: knob('attack'), release: knob('release'),
         reduction: 0, connect() {},
       };
+    };
+    stub.createBiquadFilter = () => {
+      log.filters++;
+      return { type: '', frequency: knob('tone'), Q: knob('resonance'), connect() {} };
     };
   }
   return stub;
@@ -271,8 +320,13 @@ export async function bootGame(options) {
   // Everything the glow sprites need is counted apart, so "this frame baked
   // nothing" is a thing a test can say (render/glow.js).
   const bakes = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0, canvases: 0 };
-  // `raw` is the machine with no compressor in it (audio/engine.js has to work on one).
-  const audioLog = { voices: 0, compressors: 0, raw: opts.audio === 'raw' };
+  // `raw` is the machine with none of the optional audio parts in it (audio/engine.js and
+  // audio/noise.js both have to work on one). `ramps` is every sweep the game asked for and
+  // `noiseData` the grain it was given to fill (test/noise.test.mjs).
+  const audioLog = {
+    voices: 0, compressors: 0, buffers: 0, noise: 0, filters: 0, ramps: [],
+    noiseData: null, raw: opts.audio === 'raw',
+  };
   // Everything the last frame asked to be put on the canvas. The renderer paints
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's

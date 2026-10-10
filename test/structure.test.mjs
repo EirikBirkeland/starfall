@@ -90,7 +90,14 @@ test('every tuning number sits in balance.js or a named constant', () => {
 test('only the seed chooser reaches for Math.random', () => {
   // Every other random number comes from a named stream in core/rng.js, which
   // is what makes a run replayable from its seed (PLAN section 2).
-  const allowed = ['src/core/rng.js'];
+  //
+  // `audio/noise.js` is the one exception, and it is one because it is not the simulation:
+  // the grain of an explosion is not a number a run can be won or lost on. If it came off the
+  // seeded stream instead, then simply *hearing* the game would move a run, which is the one
+  // thing the seed may never be used for - a run played with the sound off has to replay byte
+  // for byte against the same run played with it on. The test over the random streams below
+  // is what keeps this module out of the seeded ones as well.
+  const allowed = ['src/core/rng.js', 'src/audio/noise.js'];
   const offenders = [];
   for (const file of allJsIn('src')) {
     if (allowed.includes(file)) continue;

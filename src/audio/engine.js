@@ -1,12 +1,14 @@
 // One Web Audio context, one master bus with a compressor and two buses hanging off it -
-// one for sound effects, one for the music - and the mute switch. Everything else about
-// sound is in sfx.js and music.js, and what the bus will let through at once is in mix.js.
+// one for sound effects, one for the music, the music's with a tone control of its own -
+// and the mute switch. Everything else about sound is in sfx.js, music.js and noise.js, and
+// what the bus will let through at once is in mix.js.
 
 let actx = null;
 let master = null;
 let compressor = null;
 let musicBus = null;
 let effectsBus = null;
+let musicTone = null;
 let muted = false;
 let failures = 0;
 const MASTER_GAIN = 0.22;
@@ -27,6 +29,22 @@ const MASTER_GAIN = 0.22;
 const SFX_BUS_GAIN = 1;
 const MUSIC_BUS_GAIN = 0.5;
 
+// The music's tone control: a low-pass between the music bus and the master, sitting wide
+// open all game and swept shut for a moment by `muffleMusic` when the ship is hurt (PLAN
+// section 5's "player-hit thud with a low-pass sweep over the music"). It lives here rather
+// than in the sequencer because it is a wire and not a note: it muffles whatever is on the
+// bus, including a bar that was already scheduled half a second ago, which is exactly the
+// music that has to go quiet behind the thud. Wide open means 18 kHz, three octaves above
+// the highest note the sequencer writes, so a filter that is sitting open takes nothing off
+// the music anybody can hear.
+const MUSIC_TONE = { open: 18000, q: 0.9 };
+
+// How the muffle moves: it is slammed shut in `down` - faster than the ear can separate it
+// from the thud it lands with, which is what makes the two one event - and then let back up
+// on `setTargetAtTime`, whose time constant is a quarter of `back`, so by `back` seconds the
+// music is 99% of the way home and nobody has heard the filter move.
+const MUFFLE = { down: 0.03, approach: 4 };
+
 // PLAN section 5's "a master compressor so nothing clips". These are the gentle numbers:
 // it only starts working on a mix that is already loud (-18 dBFS is well above one voice),
 // it takes a few milliseconds to react so the crack of a shot is not squashed, and it
@@ -46,9 +64,14 @@ const COMPRESSOR = { threshold: -18, knee: 6, ratio: 4, attack: 0.004, release: 
  * It is exported so a test can hand it both kinds of machine - the fake audio device of
  * `tools/headless/harness.js` is one with a compressor and `audio: 'raw'` is one without.
  *
- * Answers the four nodes, `{ gain, bus, music, sfx }`. The gain matters because `setMuted`
- * has to reach it and nothing else - both buses hang *upstream* of it, so one zero on that
- * one value is the whole game going quiet, music scheduled and all.
+ * Answers the five nodes, `{ gain, bus, music, sfx, tone }`. The gain matters because
+ * `setMuted` has to reach it and nothing else - both buses hang *upstream* of it, so one
+ * zero on that one value is the whole game going quiet, music scheduled and all.
+ *
+ * The music's tone filter hangs between the music bus and the master, which is the one spot
+ * on the graph where it can shut the music up without touching the effects and without being
+ * able to out-shout the mute above it. A machine with no `createBiquadFilter` gets none, on
+ * the same terms as the compressor below: it is an old browser and it still has to play.
  */
 export function buildMaster(actx) {
   const gain = actx.createGain();
@@ -70,13 +93,24 @@ export function buildMaster(actx) {
 
   const music = actx.createGain();
   music.gain.value = MUSIC_BUS_GAIN;
-  music.connect(gain);
+
+  let tone = null;
+  if (typeof actx.createBiquadFilter === 'function') {
+    tone = actx.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = MUSIC_TONE.open;
+    tone.Q.value = MUSIC_TONE.q;
+    music.connect(tone);
+    tone.connect(gain);
+  } else {
+    music.connect(gain);
+  }
 
   const sfx = actx.createGain();
   sfx.gain.value = SFX_BUS_GAIN;
   sfx.connect(gain);
 
-  return { gain, bus, music, sfx };
+  return { gain, bus, music, sfx, tone };
 }
 
 /** Safe to call on every click; it gives up quietly if audio is impossible. */
@@ -94,6 +128,7 @@ export function initAudio() {
     compressor = chain.bus;
     musicBus = chain.music;
     effectsBus = chain.sfx;
+    musicTone = chain.tone;
   } catch (err) {
     failures++;
     actx = null;
@@ -101,6 +136,7 @@ export function initAudio() {
     compressor = null;
     musicBus = null;
     effectsBus = null;
+    musicTone = null;
   }
 }
 
@@ -121,6 +157,34 @@ export function getMusicBus() {
 /** Is the master bus running through a compressor? (False on a machine that has none.) */
 export function isCompressed() {
   return compressor !== null;
+}
+
+/**
+ * Put a blanket over the music for a moment: slam the low-pass on its bus down to `to`
+ * hertz and let it open again over `back` seconds. This is the whole of the "the ship was
+ * hurt" effect on the music, and it is on purpose that it is one call and not a scheduled
+ * note - the sequencer has half a second of music already queued, and a filter on the bus
+ * reaches every note in it including the ones already on their way.
+ *
+ * Answers whether there was a filter to move, so a caller can tell an old machine from a
+ * sound it chose not to make.
+ */
+export function muffleMusic(to, back) {
+  if (!musicTone || !actx) return false;
+  const now = actx.currentTime;
+  const freq = musicTone.frequency;
+  // Anchored on where the filter actually is, because two hits inside the recovery would
+  // otherwise start their ramp from wherever the last one left the value and jump.
+  freq.cancelScheduledValues(now);
+  freq.setValueAtTime(freq.value, now);
+  freq.exponentialRampToValueAtTime(Math.max(30, to), now + MUFFLE.down);
+  freq.setTargetAtTime(MUSIC_TONE.open, now + MUFFLE.down, back / MUFFLE.approach);
+  return true;
+}
+
+/** Does this machine have the music's tone control at all? (A thing the tests ask.) */
+export function hasMusicTone() {
+  return musicTone !== null;
 }
 
 export function setMuted(value) {

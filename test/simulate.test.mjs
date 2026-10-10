@@ -82,6 +82,19 @@ test('tools/simulate.js runs clean and repeats itself exactly', () => {
   assert.notEqual(first, other, 'a different seed must give a different run');
 });
 
+test('the sound cannot move a run', () => {
+  // The promise the noise buffer would break if it drew its grain off the seeded stream
+  // (audio/noise.js, and the rule test/structure.test.mjs watches): a run played where you
+  // can hear it is the same run, trace for trace, as one played in the dark. Two more
+  // processes, for the one thing that cannot be checked from a single boot.
+  const args = ['--trace', '--seconds', '120', '--seed', '41'];
+  const dark = simulate(args);
+  const loud = simulate(args.concat('--audio'));
+
+  assert.match(loud, /mix: [\d,]+ voices asked/, 'the loud one had an audio device and used it');
+  assert.equal(dark, loud.replace(/^mix: .*\n/m, ''), 'hearing the game changed the game');
+});
+
 test('the bot that dodges outlives the bot that does not', async () => {
   const seeds = [1, 2, 3];
   const aware = [];

@@ -12,7 +12,7 @@ import { addText, burst, hitStop, ring, shakeIt, wreck } from './effects.js';
 import { eliteSpoils } from './elite.js';
 import { dropShards } from './pickups.js';
 import { hitPlayer, isInvulnerable } from './player.js';
-import { cueBeep } from './cues.js';
+import { cueBeep, cueNoise } from './cues.js';
 import { noteDeath, noteHit, hurtByBody } from './tally.js';
 import { shieldSoak } from './shields.js';
 import { isRooted } from './kinds.js';
@@ -119,12 +119,17 @@ export function killEnemy(world, enemy, byPlayer) {
     // The number that floats up is worth gold when the body that carried it was.
     addText(world, enemy.x, enemy.y - enemy.r - BALANCE.death.labelOffset, '+' + enemy.score,
       enemy.elite ? PALETTE.elite : stats.color);
-    cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave,
-      // A kind can ask for a quieter death than the crowd's default: twenty swarmlings can
-      // come apart in one frame. audio/mix.js turns the quietest of a frame's voices away
-      // once the bus is full, which is what keeps a swarm going out a sound rather than a
-      // wall - but a kind that knows it arrives in twenties should still price itself down.
-      stats.sound.vol || death.sound.vol, death.sound.slide);
+    // A kind can ask for a quieter death than the crowd's default: twenty swarmlings can
+    // come apart in one frame. audio/mix.js turns the quietest of a frame's voices away once
+    // the bus is full, which is what keeps a swarm going out a sound rather than a wall - but
+    // a kind that knows it arrives in twenties should still price itself down.
+    //
+    // That one number prices both halves of a death: the note that falls and the crump under
+    // it (audio/noise.js), so a kind that priced itself down is quiet twice over and the
+    // crowd never turns into a wall of hiss.
+    const tone = stats.sound.vol || death.sound.vol;
+    cueBeep(stats.sound.freq, stats.sound.dur, death.sound.wave, tone, death.sound.slide);
+    cueNoise(death.sound.noise, tone * death.sound.noise.share);
     // A kill the kind calls big gets the run to hold its breath for a moment.
     if (stats.death.shake) shakeIt(world, stats.death.shake);
     if (stats.death.hitStop) hitStop(world, stats.death.hitStop);

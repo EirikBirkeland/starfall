@@ -20,7 +20,8 @@
 //                                             where PLAN 3.4 puts the first boss, and the only
 //                                             way a bot that dies at a minute ever sees one)
 //   node tools/simulate.js --trace            print a state fingerprint over time
-//   node tools/simulate.js --audio            boot with a fake audio device
+//   node tools/simulate.js --audio            boot with a fake audio device, and print what
+//                                             the mix made of it
 //
 // One run prints what that run was: a wreck, a win (the schedule out and the ship still
 // standing, game/run.js `winRun`), or a run still flying when the window shut. A batch adds a
@@ -41,6 +42,9 @@
 import { pathToFileURL } from 'node:url';
 import { clock, int, dec } from './headless/tables.js';
 import { playRuns, dashEscape, POLICIES } from './headless/bot.js';
+import { MIX, ledgerOf } from '../src/audio/mix.js';
+import { musicLedger } from '../src/audio/music.js';
+import { noiseVoices } from '../src/audio/noise.js';
 
 function readArgs(argv) {
   const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined };
@@ -191,6 +195,22 @@ export function batchStatsLine(batch) {
     + '  |  kills median ' + count(batch.kills.median) + ' mean ' + count(batch.kills.mean);
 }
 
+/**
+ * What the mix did, on a run that had an audio device to do it on (audio/mix.js keeps the
+ * books and audio/music.js keeps its own). This is how a change to the sound is measured
+ * instead of hoped for: a bus that has run out of headroom shows up here as a pile of
+ * turned-away voices long before anybody can hear it.
+ */
+function mixLine() {
+  const ledger = ledgerOf();
+  const music = musicLedger();
+  return 'mix: ' + int(ledger.asked) + ' voices asked, ' + int(ledger.played) + ' played, '
+    + int(ledger.dropped) + ' turned away (loudest of them ' + dec(ledger.loudestDropped, 3)
+    + ') | peak ' + dec(ledger.peakLoad, 2) + ' of ' + MIX.headroom + ' at once, in '
+    + int(ledger.peakVoices) + ' voices | ' + int(noiseVoices()) + ' noise voices | music '
+    + int(music.notes) + ' notes over ' + int(music.steps) + ' steps';
+}
+
 /** Only run when called as a command, so the tests can import the parts above. */
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
@@ -225,6 +245,8 @@ if (isMain) {
       throw new Error('the bot never scored: the game is not playable headless');
     }
   }
+
+  if (opts.audio) console.log(mixLine());
 
   if (summaries.length > 1) {
     const batch = aggregate(summaries, opts.seconds);

@@ -28,7 +28,7 @@ import { dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { burst, hitStop, ring, shakeIt } from './effects.js';
-import { cueBeep } from './cues.js';
+import { cueBeep, cueNoise } from './cues.js';
 import { hurtByBlast } from './tally.js';
 
 /**
@@ -48,6 +48,10 @@ export function blast(world, x, y, spec, byPlayer) {
   shakeIt(world, spec.shake);
   hitStop(world, spec.hitStop);
   cueBeep(spec.sound.freq, spec.sound.dur, spec.sound.wave, spec.sound.vol, spec.sound.slide);
+  // A blast is a blast whatever lit it, so this is the one place its noise is priced - and a
+  // row that does not ask for one is left as the plain crack it already was, which is what a
+  // small and frequent blast wants to stay.
+  if (spec.sound.noise) cueNoise(spec.sound.noise, spec.sound.vol * spec.sound.noise.share);
 
   const reach2 = spec.radius * spec.radius;
   const victims = [];

@@ -100,7 +100,13 @@ export const BALANCE = {
       streak: { count: 2, speed: 150, life: 0.26, spread: 0.4 },
       // The burst and the ring that mark the moment it starts.
       start: { burst: 14, speed: 250, life: 0.32, ring: 7, ringSpeed: 380, ringLife: 0.3 },
-      sound: { freq: 260, dur: 0.16, wave: 'triangle', vol: 0.06, slide: 880 },
+      sound: {
+        freq: 260, dur: 0.16, wave: 'triangle', vol: 0.06, slide: 880,
+        // The whoosh, and the only noise sweep in the game that opens instead of closing: air
+        // going past, brighter as it passes. `share` is what the hiss costs against the tone it
+        // is laid over, so one number prices the pair (see `death.sound.noise` below).
+        noise: { share: 0.9, dur: 0.26, cutoff: 260, sweep: 3200, q: 1.4 },
+      },
     },
   },
 
@@ -800,7 +806,13 @@ export const BALANCE = {
         // crowd; it just does not throw the window with it.
         shake: 0,
         hitStop: 0.05,
-        sound: { freq: 84, dur: 0.4, wave: 'sawtooth', vol: 0.16, slide: 34 },
+        sound: {
+          freq: 84, dur: 0.4, wave: 'sawtooth', vol: 0.16, slide: 34,
+          // The medium explosion of the game - a bomber is a fuel tank, and this is it going.
+          // Half again the tone and a deal longer than it, closing to 60 Hz so the last third
+          // of it is felt rather than heard.
+          noise: { share: 0.5, dur: 0.5, cutoff: 1600, sweep: 60 },
+        },
       },
       death: { particles: 20, speed: 280, debris: 6, debrisSpeed: 190 },
       sound: { freq: 150, dur: 0.2 },
@@ -1003,7 +1015,19 @@ export const BALANCE = {
     ringSpeed: 260,
     ringScale: 0.6,
     labelOffset: 4,      // the score text floats this far above the wreck
-    sound: { wave: 'sawtooth', vol: 0.11, slide: 60 },
+    sound: {
+      wave: 'sawtooth', vol: 0.11, slide: 60,
+      // Every body that comes apart gets this crump under its note, and this is the one place
+      // it is priced. `share` is the hiss as a fraction of the tone it is laid over, which is
+      // what lets a kind that priced its own death down price the noise down with it - a
+      // swarmling's 0.045 note gets a 0.022 crump, and twenty of them in one frame are still
+      // a sound and not a wall (audio/mix.js).
+      //
+      // The sweep closes (`cutoff` above `sweep`): a crack that settles into a rumble, which
+      // is the shape of a thing coming apart and the shape an oscillator could not make
+      // however it slid (audio/noise.js).
+      noise: { share: 0.5, dur: 0.16, cutoff: 1500, sweep: 160 },
+    },
   },
 
   enemies: {
@@ -1223,7 +1247,13 @@ export const BALANCE = {
     // can happen to a run.
     sound: {
       arrive: { notes: [98, 147, 196, 294], dur: 1.2, wave: 'triangle', vol: 0.15 },
-      down: { notes: [523, 659, 784, 1046], dur: 1.6, wave: 'triangle', vol: 0.16 },
+      down: {
+        notes: [523, 659, 784, 1046], dur: 1.6, wave: 'triangle', vol: 0.16,
+        // The large explosion: a whole framework coming down under the chord above it, and
+        // the longest noise voice in the game - thirteen tenths of it, closing to the bottom
+        // of the band as it goes (audio/noise.js).
+        noise: { share: 0.6, dur: 1.3, cutoff: 900, sweep: 40 },
+      },
     },
 
     // How long the arena stays quiet after a boss goes down, before the wave director is
@@ -3122,7 +3152,20 @@ export const BALANCE = {
     sparks: { count: 34, speed: 340, life: 0.8 },
     flashSparks: { count: 12, speed: 200, life: 0.5 },
     ring: { radius: 8, speed: 420, life: 0.5 },
-    sound: { freq: 150, dur: 0.3, wave: 'sawtooth', vol: 0.2, slide: 60 },
+    sound: {
+      freq: 150, dur: 0.3, wave: 'sawtooth', vol: 0.16, slide: 60,
+      // The thud under the thud, and the reason the row is 0.16 where it used to be 0.2: the
+      // tone and the hiss together are allowed to be about what the tone alone was, because
+      // this is the loudest thing in the game that happens to a ship more than once in a run,
+      // and the voice budget is a sum (audio/mix.js).
+      noise: { share: 0.5, dur: 0.34, cutoff: 1100, sweep: 45 },
+    },
+    // The blanket over the music: the low-pass on its bus is pulled down to 320 Hz, which is
+    // under the arpeggio and the top of the pad, so what disappears is the tune and what is
+    // left is the bass - being hurt should take the melody away and leave the drive, which is
+    // the difference between a flinch and a wall of mud. It is let back up over most of a
+    // second, a little under half the time the ship spends blinking (audio/engine.js).
+    duck: { to: 320, back: 0.7 },
     // The one thing outside a boss and the end of a run that is allowed to move the
     // window, and it is allowed because it is never routine noise: the ship itself being
     // hurt is the event a player has to feel, and it is the only one of the ordinary ones
@@ -3147,7 +3190,10 @@ export const BALANCE = {
     // The end of a run, which is the loudest thing that happens to you and is now held to
     // the ceiling rather than being allowed past it (`screen`, above).
     shake: 18,
-    sound: { notes: [520, 392, 262], dur: 0.32, wave: 'sawtooth', vol: 0.16 },
+    sound: { notes: [520, 392, 262], dur: 0.32, wave: 'sawtooth', vol: 0.16,
+      // The ship itself coming apart gets a large rumble of its own, the same size of one a
+      // boss's framework gets: this is the other ending of a run and it weighs as much.
+      noise: { share: 0.6, dur: 1.1, cutoff: 1300, sweep: 40 } },
   },
 
   // The end of the schedule (PLAN 3.4: "after the Eclipse, the run is won"), and the moment it

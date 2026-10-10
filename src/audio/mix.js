@@ -30,15 +30,23 @@
 
 export const MIX = {
   // How much voice volume may be sounding at once, in the same unit a cue's `vol` is
-  // written in. What one voice costs is a small spread: the loudest sound in the game is
-  // the ship's own death at 0.16, a shot of the pulse is 0.07, a shard ping 0.05 and a
-  // hit tick between 0.014 and 0.03 - so this ceiling is about seven shots, or a hundred
-  // ticks, and a normal fight sits far under it. It is there for the frame that is not
-  // normal: three minutes into a bot's run the loudest frame asks for twenty sounds at
-  // once, which is a hiss and not a gunfight. With `MASTER_GAIN` at 0.22 this puts the
-  // worst case the bus can reach at about a tenth of full scale - a mix with room in it
-  // rather than a wall - and the compressor in audio/engine.js catches the transient that
-  // lands on top of it.
+  // written in. What one voice costs is a small spread: the loudest single voice in the game
+  // is a note of the ship's own death or of a boss going down at 0.16, being hurt yourself is
+  // a 0.16 thud with a 0.08 crump under it, a shot of the pulse is 0.07, a shard ping 0.05
+  // and a hit tick between 0.014 and 0.03 - so this ceiling is about seven shots, or a
+  // hundred ticks, and a normal fight sits far under it. It is there for the frame that is
+  // not normal: three minutes into a bot's run the loudest frame asks for twenty sounds at
+  // once, which is a hiss and not a gunfight. With `MASTER_GAIN` at 0.22 this puts the worst
+  // case the bus can reach at about a tenth of full scale - a mix with room in it rather than
+  // a wall - and the compressor in audio/engine.js catches the transient that lands on top.
+  //
+  // A burst of noise (audio/noise.js) is priced here like anything else, and that is what
+  // keeps the game's new body from turning a crowd into mud: it is always quieter than the
+  // tone it is laid over (game/balance.js `share`) and the frame is spent loudest first, so
+  // in a busy frame the note survives and the crump is what gets turned away. Measured, four
+  // three-minute runs against the same four without it: the noise asks for a sixth more
+  // voices than the game used to ask for, and three fifths of what it asks is what it loses;
+  // what the bus actually gains is 5% more sound, on a peak that did not move at all.
   headroom: 0.5,
   // s of tail the synthesiser adds to every voice after its own length (audio/sfx.js
   // stops the oscillator that much after the envelope has closed), so a voice is held

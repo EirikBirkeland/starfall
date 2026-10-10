@@ -171,6 +171,7 @@ test('the master bus works on a machine with no compressor', () => {
 
   const chain = buildMaster(raw);
   assert.equal(chain.bus, null, 'there was no compressor to build');
+  assert.equal(chain.tone, null, 'and no tone control either');
   assert.equal(wire.length, 3, 'three wires: each bus into the master, the master to the speakers');
   assert.equal(wire[0], out, 'and exactly one of them is the master to the speakers');
   assert.equal(wire[1], chain.gain, 'the music bus hangs on the master');
@@ -178,4 +179,32 @@ test('the master bus works on a machine with no compressor', () => {
   assert.ok(chain.gain.gain.value > 0, 'and it is a bus you can hear through');
   assert.ok(chain.music.gain.value > 0, 'and both buses are open');
   assert.ok(chain.sfx.gain.value > 0);
+});
+
+test('the whole graph, wire by wire, on a machine that has everything', () => {
+  // The order of these wires is three decisions worth pinning: both buses hang *upstream* of
+  // the master gain (so the mute is one value), the music's tone control is on the music's
+  // bus and not the effects' (so a hit can duck the tune without ducking the fight), and the
+  // compressor is the last thing before the speakers (so nothing escapes it).
+  const wire = [];
+  const knob = () => ({ value: 0 });
+  const node = () => ({
+    gain: knob(), frequency: knob(), Q: knob(),
+    threshold: knob(), knee: knob(), ratio: knob(), attack: knob(), release: knob(),
+    connect(to) { wire.push(to); },
+  });
+  const out = node();
+  const chain = buildMaster({
+    destination: out,
+    createGain: node,
+    createBiquadFilter: node,
+    createDynamicsCompressor: node,
+  });
+
+  assert.equal(wire.length, 5, 'five wires, and no node left hanging');
+  assert.equal(wire[0], chain.bus, 'the master gain goes into the compressor');
+  assert.equal(wire[1], out, 'and the compressor is the last thing before the speakers');
+  assert.equal(wire[2], chain.tone, 'the music bus hangs on its own tone control');
+  assert.equal(wire[3], chain.gain, 'and the tone, not the music, hangs on the master');
+  assert.equal(wire[4], chain.gain, 'while the effects bus hangs on the master directly');
 });

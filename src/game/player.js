@@ -12,7 +12,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { clamp } from '../core/math.js';
 import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
-import { cueBeep, cueChord } from './cues.js';
+import { cueBeep, cueChord, cueMuffle, cueNoise } from './cues.js';
 import { endRun } from './run.js';
 import { holdInField } from './field.js';
 import { noteHullLoss } from './tally.js';
@@ -142,6 +142,9 @@ function beginDash(world, input) {
 
   const sound = spec.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+  // The whoosh goes the other way up to the report: the tone rises and so does the hiss's
+  // filter, which is the ship going past the place you were standing (audio/noise.js).
+  cueNoise(sound.noise, sound.vol * sound.noise.share);
   return true;
 }
 
@@ -299,6 +302,10 @@ export function hitPlayer(world, cause) {
   if (cause.enemy) cause.enemy.flash = BALANCE.enemies.hitFlashShove;
   const sound = hit.sound;
   cueBeep(sound.freq, sound.dur, sound.wave, sound.vol, sound.slide);
+  cueNoise(sound.noise, sound.vol * sound.noise.share);
+  // And the music goes behind it, which is the part of a hit that an oscillator cannot do:
+  // for three quarters of a second the tune is heard through a wall (audio/engine.js).
+  cueMuffle(hit.duck.to, hit.duck.back);
 
   if (ship.hull <= 0) {
     ship.hull = 0;

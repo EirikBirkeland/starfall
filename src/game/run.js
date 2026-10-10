@@ -7,7 +7,7 @@ import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { saveBest } from '../core/save.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
-import { cueChord, clearCues } from './cues.js';
+import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
 import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
@@ -199,6 +199,8 @@ export function endRun(world) {
   ring(world, world.player.x, world.player.y, PALETTE.white, spec.ring.radius, spec.ring.speed, spec.ring.life);
   shakeIt(world, spec.shake);
   cueChord(spec.sound.notes, spec.sound.dur, spec.sound.wave, spec.sound.vol);
+  // The chord is the run ending; the rumble under it is the ship.
+  cueNoise(spec.sound.noise, spec.sound.vol * spec.sound.noise.share);
 }
 
 /**

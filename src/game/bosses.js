@@ -108,7 +108,7 @@ import { enemyShotAt } from './enemyshots.js';
 import { looseArm } from './arms.js';
 import { newPack } from './flock.js';
 import { addText, burst, hitStop, ring, shakeIt, spray } from './effects.js';
-import { cueBeep, cueChord } from './cues.js';
+import { cueBeep, cueChord, cueNoise } from './cues.js';
 import { closeField, holdInField, openField } from './field.js';
 import { dragShip, healPlayer } from './player.js';
 
@@ -1552,6 +1552,9 @@ function bossDown(world, boss) {
   if (boss.row.reward.hull > 0) healPlayer(world, boss.row.reward.hull);
   addText(world, where.x, where.y - enemy.r, boss.row.name + ' IS DOWN', PALETTE.elite);
   cueChord(spec.sound.down.notes, spec.sound.down.dur, spec.sound.down.wave, spec.sound.down.vol);
+  // Under the chord, the framework: the longest noise voice in the game, because a fight
+  // this size is worth more than a win note and a wreck (audio/noise.js).
+  cueNoise(spec.sound.down.noise, spec.sound.down.vol * spec.sound.down.noise.share);
   world.spawnTimer = Math.max(world.spawnTimer, spec.resume);
 
   // And if this was the last fight the schedule had, that is the run over - won. The schedule is
