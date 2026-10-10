@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>STARFALL — neon arena survival</title>
+<style>
+  :root {
+    --cyan:   #5ef7ff;
+    --pink:   #ff5ec4;
+    --violet: #8b6cff;
+    --amber:  #ffb340;
+    --mint:   #58ffa1;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #03060f;
+    color: #dff6ff;
+    font-family: "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  canvas { position: fixed; inset: 0; display: block; cursor: crosshair; }
+
+  .screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(8,18,44,0.30) 0%, rgba(2,4,12,0.82) 100%);
+    transition: opacity .28s ease;
+    padding: 24px;
+  }
+  .screen.hidden { opacity: 0; visibility: hidden; }
+
+  .title {
+    margin: 0;
+    font-size: clamp(42px, 11vw, 108px);
+    font-weight: 800;
+    letter-spacing: .24em;
+    text-indent: .24em;
+    color: #eafcff;
+    text-shadow: 0 0 10px rgba(94,247,255,.95), 0 0 38px rgba(94,247,255,.55), 0 0 92px rgba(139,108,255,.45);
+  }
+  .subtitle {
+    margin: 10px 0 0;
+    font-size: clamp(10px, 1.8vw, 14px);
+    letter-spacing: .52em;
+    text-indent: .52em;
+    color: #7fd2ff;
+    text-shadow: 0 0 14px rgba(94,247,255,.5);
+  }
+  .controls { margin-top: 34px; display: grid; gap: 12px; }
+  .row { display: flex; align-items: center; gap: 14px; font-size: 13px; letter-spacing: .16em; color: #a9cff0; }
+  .key {
+    min-width: 108px; padding: 7px 12px;
+    border: 1px solid rgba(94,247,255,.45);
+    border-radius: 7px;
+    background: rgba(94,247,255,.07);
+    box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
+    color: #d8fbff; font-weight: 600;
+  }
+  .ship-list { display: grid; gap: 9px; }
+  .ship {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+    font-size: 12px; letter-spacing: .14em;
+    color: #6f9dc0; transition: color .15s ease;
+  }
+  .ship .key { min-width: 42px; padding: 6px 0; text-align: center; }
+  /* The numbers are the second line of the row, lined up under the words rather than under the
+     key, because the row is a sentence about a ship and then the four numbers that sentence is
+     priced on. They are the part two rows are compared with, so they are set in tabular figures. */
+  .ship .numbers {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #5f89ab;
+    font-variant-numeric: tabular-nums;
+  }
+  .ship.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
+  .ship.picked .numbers { color: #9fd8ff; }
+  .ship.picked .key {
+    border-color: rgba(94,247,255,.9);
+    background: rgba(94,247,255,.16);
+    box-shadow: 0 0 18px rgba(94,247,255,.35) inset, 0 0 16px rgba(94,247,255,.3);
+  }
+  /* A ship the purse has not bought yet. Every word of the row stays readable - a shop that hides
+     what it sells is not a shop, and the numbers are the reason anybody wants it - but the row is
+     dimmer than the ones that are yours, and its key is dimmest of all because that key does not
+     answer it yet. */
+  .ship.locked { color: #527a9d; }
+  .ship.locked .key { opacity: .5; }
+  .ship.locked .numbers { color: #48688a; }
+  /* What a locked row costs, in the purse's own gold, on a line under its numbers. Empty for a ship
+     that is already yours, so a bought rack reads exactly as it did before there was anything to
+     buy. */
+  .ship .price {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.35);
+  }
+  .ship .price:empty { display: none; }
+  /* The perks, on their own rack under the ships' (game/perks.js). A perk row is built like a ship
+     row and means nearly the same thing - the key, the row, its numbers, its price - with one
+     difference that has to be visible: a ship is bought once and a perk is bought five times, so a
+     perk row says which rank the purse is on as plainly as it says what the next one costs. */
+  .perk-list { display: grid; gap: 9px; }
+  .perk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+    font-size: 12px; letter-spacing: .14em; color: #6f9dc0; }
+  .perk .key { min-width: 42px; padding: 6px 0; text-align: center; }
+  .perk .numbers {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #5f89ab;
+    font-variant-numeric: tabular-nums;
+  }
+  .perk.maxed { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
+  .perk.maxed .numbers { color: #9fd8ff; }
+  .perk .price {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.35);
+  }
+  .perk .price:empty { display: none; }
+  /* Which rack a block of rows is, so two lists under one heading cannot be read as one list of
+     nine. Small and dim on purpose: it is a label on the rows, not another thing to read. */
+  .rack-title {
+    margin: 22px 0 0; font-size: 10px; letter-spacing: .5em; text-indent: .5em;
+    color: #5f89ab;
+  }
+  /* What the visit has to show for itself, on the title: the number to beat and the number being
+     saved up. Two numbers, one line, because they are the same kind of thing. */
+  .standing { margin-top: 30px; display: grid; gap: 12px; }
+  .standing-line {
+    font-size: 12px; letter-spacing: .26em; text-indent: .26em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  .flying {
+    font-size: 13px; letter-spacing: .22em; text-indent: .22em; color: #d8fbff;
+    text-shadow: 0 0 14px rgba(94,247,255,.55);
+  }
+  /* The hangar: the rack, and the purse it is spent from. It is an overlay over the title or over
+     the death's card, so it dims harder than either - the screen underneath is not the thing being
+     read any more. */
+  .hangar { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
+  .hangar-title,
+  .codex-title {
+    margin: 0; font-size: clamp(26px, 6vw, 54px); font-weight: 800;
+    letter-spacing: .28em; text-indent: .28em; color: #eafcff;
+    text-shadow: 0 0 10px rgba(94,247,255,.9), 0 0 38px rgba(94,247,255,.5);
+  }
+  .purse {
+    margin-top: 18px; font-size: 14px; letter-spacing: .26em; text-indent: .26em;
+    color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.5);
+  }
+  /* Everything the hangar says, in one block, so the whole panel can be measured and fitted to the
+     window as one thing (ui/screens.js `fitHangar`). */
+  .hangar-body { display: flex; flex-direction: column; align-items: center; }
+  /* The two racks side by side when there is room for them side by side, and one under the other
+     when there is not: nine rows in one column is a taller column than a short window has, and a
+     centred column that does not fit is cut at both ends at once. */
+  .racks { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+    gap: 0 clamp(26px, 5vw, 70px); }
+  .rack { display: flex; flex-direction: column; }
+  .hangar .ship-list { margin-top: 14px; }
+  .hangar .perk-list { margin-top: 14px; }
+  /* The codex (game/codex.js): what the runs of this save have met, and which rows are still empty.
+     It opens the way the hangar does and dims the glass as hard, for the same reason - the panel is
+     the thing being read now. */
+  .codex { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
+  .codex-body { display: flex; flex-direction: column; align-items: center; }
+  /* How much of the codex is filled in, in the place the hangar prints its purse: each panel opens
+     with the one number this visit is trying to finish. Cool blue and not gold, because nothing here
+     can be spent. */
+  .codex-tally {
+    margin-top: 18px; font-size: 14px; letter-spacing: .26em; text-indent: .26em;
+    color: #9fd8ff; text-shadow: 0 0 14px rgba(94,247,255,.4);
+  }
+  /* The three panels stand in the hangar's `.racks` row, and each of them is capped: the card flavours
+     are the longest sentences in the game, and a column that grows to fit them is a column that pushes
+     the other two off the window. They wrap inside their own column instead. */
+  .codex .rack { max-width: 34ch; }
+  .codex .entry-list { margin-top: 14px; }
+  .entry-list { display: grid; gap: 7px; }
+  /* One row of the codex: a name, and one line about it - no key and no price, which is the whole
+     difference between this panel and the hangar's. Nobody can buy anything here. */
+  .entry {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px;
+    font-size: 12px; letter-spacing: .12em;
+  }
+  .entry .name { color: #d8fbff; font-weight: 600; text-shadow: 0 0 12px rgba(94,247,255,.45); }
+  .entry .says { color: #6f9dc0; }
+  /* A row for a thing this save has not met. It keeps its place in the list - how many are missing,
+     and where they sit, is the whole of what an undiscovered thing may say about itself - and it gives
+     up its glow, so the lit rows are the ones that were earned. */
+  .entry.unknown .name { color: #43637f; text-shadow: none; }
+  .entry.unknown .says { color: #38566f; }
+  .hint {
+    margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
+    color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
+  }
+  /* The keys that cost something, said once and steadily under the pulsing line above it: these are
+     the two the player has to read before pressing them, so they do not blink. */
+  .keys {
+    margin-top: 10px; font-size: 11px; letter-spacing: .22em; text-indent: .22em; color: #7fa8c8;
+  }
+  /* A short window. The title, three rows of controls, what the visit has banked and the launch
+     line are a tall column, and a centred column that does not fit is cut at both ends at once -
+     which is the worst way to lose any of it. */
+  @media (max-height: 620px) {
+    .controls { margin-top: 16px; gap: 7px; }
+    .standing { margin-top: 16px; gap: 8px; }
+    .hangar .ship-list { margin-top: 10px; }
+    .hangar .perk-list { margin-top: 10px; }
+    .codex .entry-list { margin-top: 10px; }
+    .entry-list { gap: 5px; }
+    .codex-tally { margin-top: 8px; }
+    .codex-title { font-size: 26px; }
+    .rack-title { margin-top: 12px; }
+    .hangar-title { font-size: 26px; }
+    .purse { margin-top: 8px; }
+    .ship-list { gap: 6px; }
+    .perk-list { gap: 6px; }
+    .hint { margin-top: 16px; }
+    .keys { margin-top: 8px; }
+  }
+  @keyframes pulse { 0%,100% { opacity: .30; } 50% { opacity: 1; } }
+
+  .over-title {
+    margin: 0; font-size: clamp(30px, 7vw, 64px); font-weight: 800;
+    letter-spacing: .2em; text-indent: .2em; color: #ffe9fb;
+    text-shadow: 0 0 12px rgba(255,94,196,.9), 0 0 46px rgba(255,94,196,.45);
+  }
+  .score-big {
+    margin-top: 18px; font-size: clamp(38px, 9vw, 78px); font-weight: 800;
+    color: #eafcff; letter-spacing: .06em;
+    text-shadow: 0 0 14px rgba(94,247,255,.85), 0 0 48px rgba(94,247,255,.4);
+    font-variant-numeric: tabular-nums;
+  }
+  .score-label { margin-top: 2px; font-size: 11px; letter-spacing: .42em; text-indent: .42em; color: #74b6dd; }
+  .best-line { margin-top: 22px; font-size: 14px; letter-spacing: .22em; color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.5); }
+  .newbest {
+    margin-top: 12px; font-size: 12px; letter-spacing: .34em; text-indent: .34em; color: #58ffa1;
+    text-shadow: 0 0 16px rgba(88,255,161,.8); animation: pulse 1.1s ease-in-out infinite;
+  }
+  .newbest.hidden { opacity: 0; visibility: hidden; }
+  .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
+  .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }
+  /* What a run paid that it can spend, and what the purse holds now: gold like the best above it,
+     because it is the other number that carries on past the run. */
+  .dust-line {
+    margin-top: 14px; font-size: 13px; letter-spacing: .22em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.45);
+  }
+  /* And the ship the next run will be flown in, which is what a number pressed over a wreck
+     changes. Kept apart from the build line above it on purpose: that one is about the run that
+     ended, this one is about the next. */
+  .next-line {
+    margin-top: 12px; font-size: 12px; letter-spacing: .2em; color: #7fd2ff;
+    text-shadow: 0 0 14px rgba(94,247,255,.4);
+  }
+  /* The win. Mint and not pink: the arena's whole colour language says warm is the thing trying to
+     kill you and mint is the thing that paid you (the shards, the level ring, NEW BEST), and a win
+     written in the death's own hue would be read backwards for a second every time. */
+  .win-title {
+    margin: 0; font-size: clamp(30px, 7vw, 64px); font-weight: 800;
+    letter-spacing: .2em; text-indent: .2em; color: #eafff4;
+    text-shadow: 0 0 12px rgba(88,255,161,.9), 0 0 46px rgba(88,255,161,.45);
+  }
+  .win-sub {
+    margin: 10px 0 0; font-size: clamp(10px, 1.8vw, 14px);
+    letter-spacing: .52em; text-indent: .52em; color: #7ff0b6;
+    text-shadow: 0 0 14px rgba(88,255,161,.5);
+  }
+  /* The fights the run went through to get here, built out of the schedule itself (game/bosses.js)
+     so the card can never name a fight the game did not schedule. */
+  .cleared {
+    margin-top: 22px; font-size: 12px; letter-spacing: .22em; text-indent: .22em;
+    color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  /* An ended run's card is a tall column on a short window - the win's is taller still than the
+     death's - and every one of these lines is one the player came here to read. */
+  @media (max-height: 620px) {
+    .win-sub { margin-top: 8px; }
+    .score-big { margin-top: 8px; }
+    .best-line { margin-top: 10px; }
+    .cleared { margin-top: 10px; }
+    .stats { margin-top: 10px; }
+    .dust-line { margin-top: 8px; }
+    .next-line { margin-top: 8px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="startScreen" class="screen">
+  <h1 class="title">STARFALL</h1>
+  <p class="subtitle">NEON ARENA SURVIVAL</p>
+  <div class="controls">
+    <div class="row"><span class="key">W A S D / &#8593;&#8592;&#8595;&#8594;</span><span>FLY</span></div>
+    <div class="row"><span class="key">MOUSE</span><span>AIM</span></div>
+    <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
+    <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
+    <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
+    <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
+    <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET</span></div>
+    <div class="row"><span class="key">M</span><span>MUTE</span></div>
+    <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
+  </div>
+  <div class="standing">
+    <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
+    <div class="flying" id="titleShip">FLYING</div>
+  </div>
+  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
+</div>
+
+<!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.
+     An overlay, not a state - it sits over the title or over the death's card and takes nothing
+     away from either, so the way out of it is the same key that opened it and the way forward is
+     still just SPACE. -->
+<div id="hangarScreen" class="screen hangar hidden">
+ <div class="hangar-body" id="hangarBody">
+  <h2 class="hangar-title">HANGAR</h2>
+  <div class="purse">STARDUST <span id="hangarDust">0</span></div>
+  <div class="racks">
+   <div class="rack">
+    <p class="rack-title">SHIPS</p>
+    <div class="ship-list" id="shipRow"></div>
+   </div>
+   <div class="rack">
+    <p class="rack-title">PERKS</p>
+    <div class="perk-list" id="perkRow"></div>
+   </div>
+  </div>
+  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
+  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK</div>
+ </div>
+</div>
+
+<!-- The codex (PLAN 3.7): what the runs of this save have met, and which rows are still empty. Read
+     and not bought, which is why it is a panel of its own on a key of its own with no numbers on its
+     rows at all (game/codex.js). Like the hangar it is an overlay and not a state. -->
+<div id="codexScreen" class="screen codex hidden">
+ <div class="codex-body" id="codexBody">
+  <h2 class="codex-title">CODEX</h2>
+  <div class="codex-tally" id="codexTally">MET 0 OF 0</div>
+  <div class="racks">
+   <div class="rack">
+    <p class="rack-title">HOSTS</p>
+    <div class="entry-list" id="hostRow"></div>
+   </div>
+   <div class="rack">
+    <p class="rack-title">CARD LINES</p>
+    <div class="entry-list" id="lineRow"></div>
+   </div>
+   <div class="rack">
+    <p class="rack-title">SYNERGIES</p>
+    <div class="entry-list" id="synRow"></div>
+   </div>
+  </div>
+  <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK</div>
+ </div>
+</div>
+
+<div id="overScreen" class="screen hidden">
+  <h2 class="over-title">GAME OVER</h2>
+  <div class="score-label">FINAL SCORE</div>
+  <div class="score-big" id="finalScore">0</div>
+  <div class="best-line">BEST <span id="finalBest">0</span></div>
+  <div class="newbest hidden" id="newBest">&#9733; NEW BEST &#9733;</div>
+  <div class="dust-line" id="finalDust"></div>
+  <div class="stats" id="finalStats"></div>
+  <div class="build" id="finalBuild"></div>
+  <div class="next-line" id="nextShip"></div>
+  <div class="hint">PRESS SPACE OR CLICK TO RESTART</div>
+</div>
+
+<div id="winScreen" class="screen hidden">
+  <h2 class="win-title">ARENA CLEARED</h2>
+  <p class="win-sub">THE RUN IS WON</p>
+  <div class="score-label">SCORE</div>
+  <div class="score-big" id="winScore">0</div>
+  <div class="best-line">BEST <span id="winBest">0</span></div>
+  <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
+  <div class="dust-line" id="winDust"></div>
+  <div class="cleared" id="winCleared"></div>
+  <div class="stats" id="winStats"></div>
+  <div class="build" id="winBuild"></div>
+  <!-- The invitation arrives when it becomes true. The card goes up on the hush and spends the
+       rest of the guard unreadable-but-visible (game/run.js `victoryCardIsAnswerable`), and a line
+       saying "press" while the game is refusing every press would be the one thing the guard was
+       asked to stop. -->
+  <div class="hint hidden" id="winHint">PRESS SPACE TO KEEP FLYING &#183; R FOR A NEW RUN</div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
