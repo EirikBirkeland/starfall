@@ -8336,3 +8336,100 @@ Three named things are genuinely still missing and none of them is the noise:
   `choose_weapon` and no `choose_ship`.
 - Worktree hygiene: `/tmp/s69-base` was the baseline worktree for the measurements above and is
   gone again.
+
+## Session 70 (2026-10-10) — The interface answers you. Released **0.7.2**
+
+Milestone 7's effects item is closed. Session 69's audit found three things missing behind the
+effects that already existed, and all three were pitch stories rather than missing sounds: the
+interface had no voice at all, the pickup ping was random inside a band instead of rising with a
+streak, and a hit was not pitched by the body it landed on. All three are in, and the item is
+ticked in PLAN with the evidence next to it.
+
+### What landed
+- **`BALANCE.ui`, six ticks for the interface** (`audio/sfx.js` `uiTick`): a ship picked, a run
+  launched (or a won one handed back), a card taken, the table dealt again, a line cut out of the
+  run for good, and a run's card landing - plus one for the mute switch *coming back*, because
+  going quiet is already its own answer. `main.js` and `ui/screens.js` call `uiTick` directly:
+  a screen goes up on a frame and not on a step, `game/` may not know audio exists, and
+  `victory.sound`'s own comment had already said the simulation has no business knowing when a
+  card lands. The vocabulary is two rules: a tick only answers a press that was **taken** (a
+  refused reroll, a spent banish, a number with no ship behind it are silent - a tick that lies is
+  worse than none), and rising means yes-or-beginning while falling means something going away.
+  They are `must` voices - one per press, so there is never a sky of them - and every one is a
+  fifth or less of the loudest thing in a fight.
+- **A hit is the body's own note** (`BALANCE.bullets.impactSound`, `bodyNote` in `game/bullets.js`):
+  `hz * at / radius`, clamped to a band, with the drop below the note a *ratio* (`bend`) instead of
+  a target hz so a big body falls as far as a small one. 617 Hz for a swarmling, 288 a drifter, 166
+  a tank, the clamp for a boss's frame - where the whole crowd used to share one 300-360 Hz click.
+  It reads `enemy.r`, the body the shot actually met, not the kind's table radius, which is the
+  only reading that works for fights made of several bodies at several sizes.
+- **A shard pickup rises with the streak** (`BALANCE.shards.sound.streak`, `world.shardStreak`):
+  a shard landed inside 0.15 s of the last lifts the note one semitone, twelve steps to an octave,
+  and the row goes cold when nothing is collected for longer than the window. The streak is *timed*
+  and lives on the world, reset with the run: a counter would sit at the top of its range by the
+  second minute and stop saying anything.
+- The fake audio device logs a voice's **pitch** into `log.ramps` (`name: 'pitch'`), which is how a
+  test can ask "was that the body's own note" instead of "was a node built". A pitch is not an
+  envelope - a voice writes two of them against thousands of gain moves nobody reads - so the log's
+  contract still holds. `toggleMuted()` now answers the way it landed, and `STARFALL.stats()`
+  reports `shardStreak` / `shardStreakIn`.
+
+### Measured
+- **The window is a measurement.** Six bot runs, the gaps between pickups: a run that lives past
+  its first minute takes half of its loot inside **0.08 s** of the last piece (p25 0.033, p75 0.22),
+  so a window of a second would be a permanent state and not a streak. At 0.15 s, about 30% of
+  pickups land on the plain note and 12-15% reach the top of the climb; the runs that died inside
+  their first minute never got past four steps, which is the right answer - they were never in a
+  pile. The throwaway that says all this is `/tmp/streak-gaps.mjs` (one seed per process, because
+  of the one-world rule below).
+- **The old jitter was the bug.** `shards.sound.jitter` was 270 Hz on a 1050 Hz note. A semitone at
+  that note is 62 Hz, so any streak at all would have been buried in it; it is 12 Hz now, a fifth of
+  the first step, which is enough that a pile is not one held tone and little enough that the climb
+  is what is heard. `impactSound`'s jitter is 28 Hz, and there it is only variety, not a ceiling.
+- **Nothing moved.** `--seed 20261006 --trace` is byte for byte the same trace as the same command
+  at the previous commit (measured with a worktree at `be9429d`), because each of the three keeps
+  exactly the one `logic.range` draw it used to: same count of draws, different numbers out of
+  them. 1314 tests twice, and `--audio` over three minutes voices the mix with a peak that did not
+  move (0.56 of 0.5 in 21 voices).
+
+### Decisions, so nobody relitigates them
+- **A `uiTick` never starts the audio context.** `initAudio` is called by the *handlers* that answer
+  a keypress (`onPickCard`, `onReroll`, the launch, the canvas), because a context may only be born
+  inside a user gesture and a screen being painted is not one. So the first thing a visitor does -
+  even a number key on the title - can be heard, and nothing schedules a voice before that.
+- **`bend` and `slide` are different words on purpose.** `slide` (nearly every row) is a target in
+  hertz; `bend` (the shard's and the hit's) is a ratio of the note it starts on. The rows say so
+  where they live, because a ratio and a target two rows apart in one table is exactly the kind of
+  thing a later session gets wrong.
+- **`world.shardStreak` is written into and never replaced**, like `world.field`, and `resetRun`
+  zeroes its two fields rather than swapping the object.
+- **UI ticks are `must` voices.** Same argument as a level-up's chime: the interface confirming a
+  press is the run talking and not another tick in the mud, and a confirmation the budget ate looks
+  like a key that did nothing.
+- The level-up card *arriving* got no tick of its own: the level-up chime already says it, and two
+  sounds for one event is how an interface starts nagging.
+
+### Two things that bit
+- **Three bodies at one point are one target.** The first version of `test/pitch.test.mjs` parked a
+  swarmling, a drifter and a tank at (900, 900) and shot each of them in turn - and the drifter's
+  shot hit the swarmling first, so the test read the wrong note and complained that a drifter rang
+  *above* a swarmling. Every body in that file now stands in its own lane down the arena. Same shape
+  as the old lesson about measuring one thing at a time.
+- **`bootGame` is still one per process**, and a throwaway that boots four games in a row gets one
+  game and three dead shells (no error, just a run that never starts). Multi-seed throwaways have to
+  `resetToTitle(seed)` or run one process per seed, which is what `/tmp/streak-gaps.mjs` does.
+
+### For the next session
+- **Milestone 7's remaining items**: *intensity layers, boss music, low-hull variation* - drums
+  after 2:00 (a drum is a noise voice with a short decay, so session 69's buffer is where they
+  live), a harsher pattern at `world.boss`, a stripped one at `world.player.hull === 1`, and all of
+  it through `layersFor(state)`, which will want the world passed to `updateMusic` rather than the
+  state alone. Then *volume settings and mute*: two sliders are the two buses, which is why they
+  were built a session before the music, and `M` now has a voice of its own on the way back.
+- Smaller and still open, unchanged from before: the shake's painter (session 66's note, still the
+  cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship`.
+- If anyone wants hover or click sounds on the title's ship rows: they cannot have them yet, because
+  the rows are painted from `ui/screens.js` and answered only by number keys. The click handlers
+  come first, and the tick is one line after that.
