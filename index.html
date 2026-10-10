@@ -294,11 +294,13 @@
     text-shadow: 0 0 16px rgba(88,255,161,.8); animation: pulse 1.1s ease-in-out infinite;
   }
   .newbest.hidden { opacity: 0; visibility: hidden; }
-  /* One line on a screen that is up and not ready to be answered yet. `.screen.hidden` covers a whole
-     screen and `.newbest.hidden` its own line; this is the third case, and without it the win's
-     "press" line sits on the glass through the whole guard that line exists to wait out - while
-     taking up its space either way, so the card does not jump when the invitation finally arrives.
-     */
+  /* One line on a screen that is up and not ready to be answered yet: the win's invitation waits for
+     the guard to be spent (game/run.js `victoryCardIsAnswerable`), and `hidden` has to actually hide
+     it. `.screen.hidden` covers a whole screen and `.newbest.hidden` its own line; this line had
+     neither, so it sat on the glass through the whole wait it was put there to wait out - and it is
+     hidden with `visibility` and not `opacity` because the pulse owns this line's opacity and an
+     animation always beats a declaration. The space is kept either way, so the card does not jump
+     when the invitation finally arrives. */
   .hint.hidden { visibility: hidden; }
   .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
   .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }

@@ -332,3 +332,29 @@ The run can be won. Bring down the last fight on the schedule with the ship stil
   one does not, that a wreck outranks a win, that the hush cannot be pressed through, that the card says what the run was,
   and that a won run can be won again. The whole suite is 1224 tests, and every fingerprint of the reference run is
   unchanged.
+
+## 0.9.1 — 2026-10-10
+The title writes its own name, and then keeps moving.
+- **STARFALL is drawn, not typed.** `render/logo.js` builds the word out of an alphabet of six angular
+  letters - each one a few straight lengths, stroked three times over: a wide cyan halo, a violet
+  body, a white-hot core - so the logo is cut from the same straight edges as the ships and looks the
+  same on a machine that has never heard of the typeface it is not using.
+- **The title arrives by being written.** A pen lights one letter every tenth of a second, each letter
+  drawing itself tube by tube with a spark at the pen tip; then the rule under the word shoots out from
+  the middle, and the tagline, the controls and the standing lines rise in after it - a quarter of a
+  second each, which is the fastest change in the game that still reads as a move and not a jump.
+- **And it never quite sits still.** The word breathes, a shine travels along it, the attract crowd and
+  the starfield drift behind it as they always did, and every seven seconds a star falls past - tilted
+  the way the sky's own drift falls - lighting the letters it passes over.
+- **It asks the page where it belongs.** The canvas cannot know what the layout did, so the mark is
+  measured against an empty heading in the title's own column at boot and on every resize: the box says
+  where, and bounds how big. A page that measured nothing gets a mark in about the right place rather
+  than a windowful of letters.
+- **`prefers-reduced-motion` is honoured in both halves.** The CSS stops its pulses and its arrivals,
+  and the canvas puts the mark up already lit - all eight letters equally - and holds it there: no
+  arrival, no breathing, no falling star.
+- **A fix.** The win card's line of keys - "press space to keep flying" - was hidden by a class with no
+  rule behind it, so it sat on the glass through the whole half-second the card is up but refuses every
+  key, which is the exact thing that guard was put there to wait out. It waits now.
+- The arena is unchanged by all of it: the mark is frame paint and nothing else, and the reference run
+  traces byte for byte the same game.
