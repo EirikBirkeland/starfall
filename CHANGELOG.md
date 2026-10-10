@@ -1,5 +1,26 @@
 # Starfall — changelog
 
+## 0.7.1 — 2026-10-10
+The game has a body. Every explosion is noise as well as a note now, and being hurt puts a blanket over the music.
+- **A noise buffer, which the game never had.** The plan asked for "oscillators, noise buffers, and envelopes" and until
+  now there were only oscillators — every explosion a sawtooth sliding down, which is a passable thing falling over and
+  no imitation at all of air. There is one shared two-second buffer of grain now, and a voice that plays a slice of it
+  through a low-pass swept while it fades: closing, a crack settles into a rumble; the other way up, it is air going past.
+- **Small, medium and large.** Every body that comes apart gets a crump under its note, priced off the same number as the
+  note itself, so a kind that arrives in twenties is quiet twice over and a crowd stays a sound instead of a wall. A
+  bomber's blast gets the medium one; a boss's framework coming down and your own ship coming apart get the long ones —
+  thirteen tenths of a second closing to the bottom of the band. The **dash whooshes** now, the only sweep that opens.
+- **Being hurt pulls the music behind a wall.** The low-pass on the music's bus is slammed down to 320 Hz and let back up
+  over three quarters of a second: the arpeggio and the top of the pad disappear and the bass is left holding the drive,
+  which is a flinch rather than a mud. It is one filter on the bus and not a note, so it reaches the half-second of music
+  that was already scheduled on its way — the plan's "low-pass sweep over the music", at last.
+- **Measured, not hoped for.** A hiss is priced on the voice budget like any other voice and is always quieter than the tone
+  it lies under, so in a crowded frame the note survives and the crump is what gets turned away: four three-minute runs ask
+  for a sixth more voices than they used to, lose three fifths of the difference, and gain 5% more sound on a peak that did
+  not move at all. The grain is drawn from outside the seeded stream — the same seed traced with the sound on is byte for
+  byte the same trace with it off, and a test owns that now — and `tools/simulate.js --audio` prints what the mix made of a
+  run. 1292 tests.
+
 ## 0.7.0 — 2026-10-10
 The game has music. Milestone 7 opens, and the arena is no longer silent between the sound effects.
 - **A generated score, not a song.** A step sequencer runs on a sixteenth-note grid at 110 BPM in A natural minor —
