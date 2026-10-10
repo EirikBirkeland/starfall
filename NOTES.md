@@ -9786,3 +9786,103 @@ rebinding, music and effect volumes - which finally gives the four keys that cur
 canvas (`M`, `T`, `,`/`.`) a place to be read, and the pause's "SETTINGS" line a meaning. Then key
 rebinding (item 5), which the settings screen has to show anyway. Note that `STARFALL.paused` is a
 question the settings screen will need answered too, if only to keep itself off a flying run.
+
+---
+
+## Session 83 — the ending says what ended it (milestone 9, item 3: full game over summary)
+
+Released **0.9.3**. The suite is **1571 tests** (18 new since session 82's 1553, all eighteen in
+`test/death-cause.test.mjs`). `node tools/simulate.js --seed 20261006 --trace` is **byte-identical**
+against a clean `HEAD` worktree taken before a line was changed, which it had better be: none of this
+is in the step.
+
+**What arrived as somebody else's half.** The tree opened with an uncommitted, untested attempt at
+this item in it (index.html, `tally.js`, `codex.js`, `main.js`, `screens.js`, `harness.js` and a new
+`test/death-cause.test.mjs`). Session 9 is the precedent for what to do with that: read it end to end,
+verify it, finish what was missing, commit it. It was good work and almost all of it stayed - the words
+(`causeWords`, `endingWords`), the codex-sourced names, the rack, the harness's eyes for it. What it
+did not have was a single test run, one asymmetry that turned out to be a bug (below), the PLAN tick,
+a changelog, or a release.
+
+**What shipped.** A death now says, under its own heading, what took the last hull: `TAKEN BY A TANK`,
+`TAKEN BY A SPITTER'S SHOT`, `TAKEN BY THE ECLIPSE'S BLADE`, `RUN GIVEN UP`. Below it, a rack costs
+every hull the run spent, costliest first - `A TANK` / `TOOK TWO HULLS`. The tally has written
+`body:tank`, `shot:spitter`, `beam:sniper`, `arm:eclipse` and `blast` onto the sheet since the tally
+was built; the labels stopped at `tools/balance-report.js` and the card was the one place asked the
+question and answered nothing (PLAN section 4's "and what killed the player"). The words live in
+`game/tally.js` next to the labels they decode, because splitting them into the interface would leave
+a second file guessing what `beam:sniper` meant. Bodies and fights are named out of the codex's table
+(`hostName`, new): one list in the game names every body, so the card and the codex cannot disagree.
+An unknown label is named by its own text (`A GROTTO`) rather than breaking the card, the same bargain
+`logShip` strikes with an unknown ship.
+
+**The bug I found by reading: the two cards are not the same card.** The predecessor's rule was
+"a run that lost one hull says nothing on the rack, because the headline already named it", and it
+applied that to *both* endings. It is true of a wreck and false of a win. A win has no cause line -
+nothing took it down - so a run that came through with 2 of 3 hulls and cleared the Warden got a card
+that said nothing whatsoever about the hull it lost, which reads as a flawless run. Same hole for a
+give-up: its headline says `RUN GIVEN UP`, not who took a hull, so a one-hull give-up went silent too.
+Fixed with one argument, `hullLedger(hurtBy, lastHullIsSaid)`: the wreck passes `summary.cause !== ''`
+and the win passes `false`, and either way an empty rack takes its space with it (`.hull-list:empty`).
+The tests are `one hull is not a story, unless nobody has said it yet`, the give-up test (now loses a
+hull before pressing `G` and says what it went to), and a *second win* in the same booted process that
+costs exactly one hull - which also happens to be the first test in the file that proves the win rack
+gets **emptied** and refilled, not just grown, between runs.
+
+**`G` got its own row on the title's control list**, which the unfinished work had also done and had
+not thought about: eleven rows now, and `@media (max-height: 620px)` - previously the ended card's
+block only - tightens `.controls`, `.standing` and `.hint` as well. Rough arithmetic (no layout engine
+here, so it stays arithmetic): eleven `.key` chips at ~30px + ten 7px gaps + the logo at 56 + subtitle +
+standing + hint is ~603px against the 672 a 720 window leaves after the screen's padding, and the
+620px block buys back ~40px for a short window. `test/death-cause.test.mjs` pins that the tightening
+rules exist and that the two new card lines are in that block, because "the class is on the element"
+has been the bug before (session 81's `winHint`, session 75's toast).
+
+**"The best of each", and how I read it.** PLAN section 4 asks for "the best of each". The card has
+carried the best score on its own line, the purse after the run and the award count for a while now,
+and that is what I took it to mean and ticked: those are the three numbers the save actually keeps a
+best of. A per-stat best (longest clock, most kills, highest level) is *not* stored anywhere - the run
+log keeps seed/ship/seconds/score/won for twenty runs and that is not a best - so the honest version
+of that reading needs a save field, a schema line and validation, and it is its own session's work if
+anyone wants it. Decision recorded here so it is not relitigated; the phrase is quoted in the PLAN tick.
+
+**Tests, 18.** `test/death-cause.test.mjs`: six about the words (every codex body and fight named,
+every `KINDS` kind named, a fight named as a fight and not a body, an unknown name, no label ever
+leaking a `:` onto the card), three about the rack's arithmetic and order, two about the stylesheet,
+and seven in a booted game (a death named, a three-hull death costed row by row, a give-up, the whole
+of PLAN's list on one card, and both wins). `test/victory-card.test.mjs` gained one line: a wreck
+seven minutes past the win now says
+`TAKEN BY A WEAVER`. Two harness additions (`finalCause`, `finalHulls`, `winHulls` in `ELEMENT_IDS`,
+`screen.finalCause` / `.hulls` / `.winHulls` read through the existing `plainRow`), no new muscles.
+
+**Surprises.**
+- The `named()` / `owning()` grammar is the first place the game composes a *sentence* out of a name,
+  and it works only because every boss name already carries its own article (`THE WARDEN`, `THE HIVE`)
+  and no body name begins with a vowel. `test/death-cause.test.mjs` walks the whole `HOSTS` table and
+  the whole `KINDS` table asserting both, so a body added later cannot arrive without words - and if
+  one is ever named `AN ACID`-something, the article test is where it will be caught.
+- The hull rack is deliberately **a telling and not a chronology**: `hurtBy` is a count keyed by cause
+  and the tally's standing rule is that it does not remember *when* each hull went, so the rows are
+  sorted by cost with a stable sort over the map's own key order. Nobody should read the top row as
+  "the first thing that hurt you".
+- `causeWords('')` answers `THE CROWD` and nothing calls it that way in the game (`endingWords('')`
+  intercepts with `RUN GIVEN UP`). It is a safety net for a label this build never saw, not a claim
+  that the crowd did it; the test says so.
+- `stats().killedBy` / `.hurtBy` already existed for `tools/balance-report.js`, so the agent bridge and
+  `tools/simulate.js`'s "killed by body:tank" line kept working untouched. The card reads the tally
+  through `describeRun`'s new `cause` / `hulls` fields, and the raw labels stay in the tools.
+
+### For the next session
+- Milestone 9 item 4 is the **settings screen** - shake, flash, damage numbers, particles, colour-blind,
+  key rebinding, and the music and effect volumes - which finally gives `M`, `T`, `,`/`.` a place to be
+  read and gives the pause's SETTINGS line a meaning. Session 82's note stands: `STARFALL.stats().paused`
+  is the question the settings screen has to ask, because it must not open over a flying run the way the
+  hangar and codex cannot.
+- Milestone 9's remaining items after that: key rebinding, gamepad, touch, colour-blind palette, release.
+- Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord
+  are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
+  the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies;
+  `tools/agent/session.js` exposes `choose_weapon` and no `choose_ship` and cannot see locks, the codex,
+  the log, the awards or a pause.
+- Worktree hygiene: `/tmp/s83-base` was removed with `git worktree remove` after the trace comparison.
+  Traces in /tmp can be ignored.
