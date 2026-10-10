@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.9.2",
+    "date": "2026-10-10",
+    "summary": "Esc or P holds the run and shows its stats and its build; G gives the run up"
+  },
+  {
     "version": "0.9.1",
     "date": "2026-10-10",
     "summary": "The title writes its own name, and then keeps moving"
