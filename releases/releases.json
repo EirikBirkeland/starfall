@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.9.3",
+    "date": "2026-10-10",
+    "summary": "The card a run ends on says what ended it: what took the last hull, and what every hull before it went to"
+  },
+  {
     "version": "0.9.2",
     "date": "2026-10-10",
     "summary": "Esc or P holds the run and shows its stats and its build; G gives the run up"
