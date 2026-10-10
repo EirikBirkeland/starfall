@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.8.6",
+    "date": "2026-10-10",
+    "summary": "The codex keeps a rack of the last twenty runs: seed, ship, clock, score, and whether they cleared"
+  },
+  {
     "version": "0.8.5",
     "date": "2026-10-10",
     "summary": "Awards: thirty-one on the back of the hangar, won in the run, said on the glass the moment they turn true"
