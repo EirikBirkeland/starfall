@@ -9122,3 +9122,128 @@ Perks are all `rankOf`-zero for a tool that bought nothing, and nothing here is 
 - After the codex, milestone 8 has achievements (which pay stardust, so they want a purse door -
   `payForRun` and `spendDust` are the two that exist) and the run history.
 - Worktree hygiene: `/tmp/s76-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 77 (2026-10-10) — The codex arrives. Released **0.8.4** — milestone 8 item 4
+
+Milestone 8's fourth item was "the codex" - PLAN 3.7's third bullet: fills in as enemies are met,
+upgrades taken and synergies found, silhouettes for the undiscovered. Session 76 left one question
+before any of it could be written: *where does it live*, because the number keys are used up. This
+session answered that and built it.
+
+### What landed
+- **`src/game/codex.js`** is the whole feature's brain: the roster (`HOSTS` = every kind in
+  game/kinds.js in its own order, then every fight off `BALANCE.bosses.schedule`, so the codex cannot
+  advertise a fight the game does not field; `CARDS` and `SYNERGIES` split out of `LINES` and said in
+  the card's own words), and the ledger (`foundFromSave`, `foundLedger`, `wasMet`, `metShare`,
+  `recordRun`). Enemy one-liners were written from the walk comments in game/kinds.js, so each row is
+  a true sentence about what that body does; boss rows borrow the name and the line the fight's own
+  warning shows.
+- **`C` puts it up**, over the title and over the death's card and nowhere else - the same two screens
+  the hangar may sit on, for the same reasons (over a run it would be a pause nobody agreed to; over
+  the win that Space key means "keep flying this one"). It is a panel of its own and not a third rack
+  because **a row nobody can buy has no business among rows that can be**, and 1-9 is already five
+  ships and four perks.
+- **One panel at a time.** `ui/screens.js` now holds `panelUp` (`'' | 'hangar' | 'codex'`) and one
+  `raisePanel`, which takes the other one down on its way up; `closeHangar` became `closePanels` and
+  `panelIsUp()` is what the launch asks (a click on either panel is not a launch). The keys stay
+  ignorant of each other: `rackMayOpen` only asks which *screen* the world is on, each key toggles its
+  own panel, and `layPanelDown` clears the fitted transform on the way down so a panel's transform
+  always means "what I am doing now" and never a stale scale from when it was last up.
+- **What counts as met** - four rules, all read from a run that has *stopped*, which is what keeps this
+  file out of the step entirely: the tally says a body of that kind arrived (game/tally.js
+  `noteArrival`, so the attract crowd and a test's planted body are not meetings, same gate as the
+  balance tables); a fight is met if its schedule entry has been spent (`world.bossIndex`, which
+  game/bosses.js moves only in `bossDown`) **or** it was the fight standing when the run ended, so a
+  run that walked into the Warden and lost to it has met the Warden; a card is met if the run held a
+  rank of it; a synergy if it was taken. `recordRun` is called from `bankRun` beside `payForRun`,
+  writes the save only when something was actually new, and returns the count, which is what the
+  ending's card prints: `· 15 NEW IN THE CODEX`.
+- **The save grew a `codex` section** (`core/save.js`): `hosts` and `lines`, two `names` sets, plus a
+  `MAX_CODEX = 96` ceiling because the codex is the one list that is a few dozen long on purpose (a
+  test pins that forty entries is a codex and not a rack, and two hundred is neither). Card ids are
+  camel case and the store's names are not, so rows carry a `key`: `slugOf('fireRate')` is
+  `fire-rate`, and `test/codex.test.mjs` holds every key to the store's pattern and says so if two
+  rows ever share one.
+- **The panel** (index.html + `showCodex`): three titled columns in the hangar's `.racks` row, one row
+  per thing, `NAME - one line about it`, no key and no price anywhere. An unmet row keeps its place and
+  prints `UNKNOWN` + `NOT MET YET` / `NOT TAKEN YET` / `NOT FOUND YET` (the panel's own verb, because
+  those are three different things a player has not done). The header line where the hangar prints its
+  purse says `MET n OF 30` in cool blue, since nothing here can be spent. `fitCodex` shares `fitPanel`
+  with the hangar, because this is three columns of the longest sentences in the game.
+- `world.found` and `world.codexNew` (game/world.js, visit state and run state respectively), read at
+  boot beside the purse and the ships; `STARFALL.stats()` reports `codex` and `codexNew`; the ending's
+  summary carries `codexNew` and `codexFound` so the panel and the card cannot disagree; the title's
+  control list gained its `C` row.
+
+### Tests: 1,458, all passing (was 1,437)
+- **`test/codex.test.mjs`** (8): the roster's shape against the kind table, the schedule and the deal
+  table (every body and card exactly once, save-legal keys, boss rows named like the win card names
+  them); a first visit with all thirty rows empty; `C` in and out; the two panels taking each other
+  down; a click on the codex is not a launch; a naive-bot run filling the codex and saying so on the
+  card, in the save and on the panel; the *same run played again* teaching nothing, writing nothing
+  and saying nothing; launching with the panel up taking it down.
+- **`test/codex-rules.test.mjs`** (7) drives the scripted world: a planted body is no meeting, arrived
+  bodies are and only those; re-meeting teaches nothing; both boss rules; ranks taken and the synergy;
+  the ledger sorted and deduped; `metShare` counting only rows this build knows.
+- **`test/codex-found.test.mjs`** (3): a visit that *arrived* with a partly filled codex - the panel
+  prints it before anything is played, a synergy row can be lit out of a save, and the empty rows keep
+  their places. `test/hangar-fit.test.mjs` +2 (the codex is fitted the same way, including the floor,
+  and the two panels never both ask for the window); `test/save.test.mjs` +1 and its two
+  whole-document assertions now know the `codex` section.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte the run recorded in session 64,
+checked against a worktree at this session's starting commit. Nothing here is in the step: the codex
+reads a run that has already stopped.
+
+### Things worth writing down
+- **The silhouette is a kept row and the word `UNKNOWN`, not a drawn shape.** PLAN asks for silhouettes;
+  the honest version of that in a DOM screen (session 75's decision: the racks are DOM, only the cards
+  are painted) is a row that keeps its place in the list and gives up its words and its glow - which is
+  the information a silhouette carries. Drawing the actual polygon per row would mean painting the codex
+  on the canvas like render/cards.js, and that is a session of its own, not a side quest. Say so before
+  anybody "fixes" this by pasting clip-path polygons into the rows.
+- Nothing reads the codex back into a run, so the reference run cannot tell it exists - the tally's
+  promise, kept. A future *achievement* system that pays stardust should copy `bankRun`'s position for
+  the same reason.
+- `Number keys over the codex still pick ships`, and the answer (the FLYING line, the lit rack) is
+  under the panel. Deliberate: one key, one meaning, everywhere - the pick makes a sound at the moment
+  and both lines are there the moment C closes the panel. A number for a *locked* ship still puts the
+  hangar up, which takes the codex down, so even that refusal is visible.
+
+### Three bugs, all of them found by the checks and not by reading
+1. **`LINES.filter(isSynergy)` threw at boot.** `Array.prototype.filter` hands its callback
+   `(element, index, array)`, and `needsOf(index)` reached for `BALANCE.upgrades[undefined]`. A
+   one-argument predicate must still be wrapped in a lambda when it goes straight into a map or filter.
+   Fixed with `(line) => isSynergy(line.id)`; it died on the first boot the tests did, which is the
+   only reason it never reached the glass.
+2. **One test file cannot boot the game twice.** My first draft booted three visits in one file and got
+   "the game booted but did not expose window.STARFALL" - `main.js` is a cached module and its `boot()`
+   runs once per process (session 3's note says this; I re-learned it). Hence three files, one boot
+   each, and the layout case moved into the file that already had a booted window.
+3. **"The same seed replays the same run" needs a reset clock on *both* runs.** The repeat-run test
+   failed with one card learned twice: run 1 of a boot starts partway into the step cycle and run 2,
+   after `resetToTitle`, does not, so they were different runs (1m54s vs 1m48s alive) - the same phase
+   effect session 7 wrote up, arriving as a wrong assertion instead of as a flaky sim. The test now
+   resets before the first run too, and says why in a comment.
+And one lesson about one-boot files: a wrong expectation about a panel leaves the panel open, and the
+bot launches with a *click*, which a panel swallows - so three later tests failed for a cause that
+looked nothing like it. Panel state is shared state; close what you opened.
+
+### For the next session
+- **Milestone 8's next item is achievements, with a toast** (PLAN 3.7 asks for ~30, each paying a
+  little stardust). Two doors already exist for the payment half: `payForRun` and `spendDust`
+  (game/stardust.js) - but achievements are earned *during* a run and paid at its end, so say where the
+  line is drawn before writing (my guess: `world.earned` as a per-run mirror like `world.found`, written
+  in `bankRun`, so one write and one card line). The toast has one precedent worth copying:
+  `render/volume.js` is a small canvas thing that appears when a key is pressed and fades on the frame
+  clock, not the step's. Run history (the item after it) wants something `core/save.js` does not have:
+  a kind for a *list of small records*, not a set or a tally - decide that one before writing runs to
+  storage.
+- Still open, unchanged: `tools/agent/session.js` exposes `choose_weapon` and no `choose_ship` and
+  cannot see locks or the codex; the shake's painter (session 66); the Hive's owed spiral (session 60);
+  the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+- The hangar and the codex are both keyboard-only and now there are two of them; milestone 9's settings
+  screen inherits session 75's decision and this one's, and should answer the click question once for
+  all three rather than bolting listeners onto whichever panel is being built that week.
+- Worktree hygiene: `/tmp/s77-base` was the baseline worktree for the trace comparison and is gone.
