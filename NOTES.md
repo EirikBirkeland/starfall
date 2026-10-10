@@ -10190,3 +10190,145 @@ reason written down.
 - The owner's second request is still open in `OVERLORDS_REQUESTS`: **every 10,000 points, every
   point on the screen streams to the ship for ten seconds, with an excited fanfare**. It is milestone
   10's next item, with the four decisions it needs written down in PLAN.md.
+
+---
+
+## Session 87 — VACUUM: every 10,000 points the arena empties itself into the ship
+
+Released **0.10.0** (the ATTRACTOR release that had never been published - see the note above it) and
+**0.10.1** (**VACUUM**, milestone 10's second item and the owner's other request). Suite is **1618
+tests** (was 1596): 15 in `test/vacuum.test.mjs`, 6 in `test/vacuum-art.test.mjs`, 1 in
+`test/music.test.mjs`.
+
+### First, the housekeeping
+
+The tree opened with `PLAN.md` modified (the owner's rewording of the `OVERLORDS_REQUESTS` line) and
+with session 86's work committed but **never released and never noted**. Committed the plan line, ran
+`tools/release.sh 0.10.0`, and wrote session 86's entry from the commit, the PLAN tick and
+`balance.js`'s table. Lesson for whoever inherits this: a changelog entry is not a release, and
+`releases/releases.json` is the only place the owner can see the game.
+
+### What was built
+
+**`game/vacuum.js`**, `BALANCE.vacuum`, and the fanfare in `audio/music.js`. The owner's two numbers
+are the game's two numbers: every 10,000 points, for ten seconds. The well is **a state of the arena
+and not a thing in it** - `world.vacuum` is `{ left, next, events, swallowed }`, no pool, nothing to
+collide with - which is why a shard that drops at second nine, a body that bursts on the far side of
+the world, and a rank taken between two frames all need no bookkeeping at all.
+
+The four decisions PLAN asked for, and where they live: **in the arena, not on the screen** (the window
+is a tenth of the world); **a window and not a photograph** (what drops during the ten seconds is
+caught too); **a shard's own clock keeps running** (nothing is rescued from its expiry, because the
+farthest corner of a 3000 x 3000 arena is a 3.7 s walk at `speed: 1150`); and **priced like a card**,
+below. Plus two that were not on the list: **one crossing is one opening** (the next threshold steps
+*past the score*, so a large shard's six points cannot buy two fanfares) and **the ten seconds are
+spent in step time**, which is what makes a level-up card hold the reward instead of eating it -
+tested, because it is the sort of thing that silently stops being true.
+
+The pull is one exponential (`turn: 0.002` of the gap left after a second) steering each shard's
+velocity to `speed` along the line to the ship, written by `drawIn` in `vacuum.js` and asked for by
+`game/pickups.js` in place of the magnet and the drag. `updateVacuum` runs in `stepRun` immediately
+**before** `updateShards`, so the step that crosses the threshold is the step the well opens on.
+
+**The fanfare is a layer swap.** `fanfareOver(pattern)` copies the run's own pattern and spends the
+arpeggio's slot on `FANFARE` - so the tempo, the drums, the pad and the chord all keep playing and the
+reward is heard *over* the fight it happened in, which is what PLAN asked for and what a "new pattern"
+would not have done. It is a whole pattern rather than a flag for one reason: `patternPeak` measures
+whole patterns, so the four `-fanfare` entries went into `PATTERNS` and the existing
+`for (const name of Object.keys(PATTERNS))` test meters them for free. Their peaks came out
+`run 0.362 → 0.355`, `driving 0.453 → 0.447`, `boss 0.497 → 0.492`, `last 0.333 → 0.366` - the fanfare
+takes a bar slot the arpeggio used to fill, so it is no louder than the line it replaced, and **its
+ceiling is set by the loudest pattern in the game (the boss's, at 0.492 of a 0.5 bus) and not by the
+one it varies**. Its figure is 16 chord-relative steps (indices into `chordTones(chord, 24)`), which
+is what lets it come in on any bar of the Am-F-C-G loop without a wrong note.
+
+**The HUD says `VACUUM` and counts down** (gold, under the GUN line), through a `vacuumLayout(left)`
+that is pure numbers - the `bossBarLayout` bargain - so `test/vacuum-art.test.mjs` can assert "half the
+time left is half the bar" without pixels. The opening itself is a ring born at 460 px and collapsing
+in (`speed: -640`: the honest light for a pull, and `game/magnetar.js` argued the same case), a flare
+at the ship, the word, and a C-major chord cue on the effect bus because the sequencer is scheduled up
+to half a second ahead and the moment needs a voice *now*.
+
+### The one that bit: a freeze is not a pause
+
+The first version asked for a 50 ms `hitStop` when the well opened - "one beat of everything standing
+still", the language a big kill already speaks. It broke **three tests in `test/pause.test.mjs`**, and
+not for a silly reason: `stepWorld` spends a freeze and answers *false*, and `main.js` only hands a
+pending dash request over on a frame that actually stepped. So a well opening on the first step after
+a held run kept the Space press that *resumed* the run alive across the freeze, and the ship dashed
+three frames later - `dashCd` 2.49 where the test expected 0. `test/pause.test.mjs` also sets
+`world.score = 18,300` to paint the pause panel's headline, so every test in that file now trips two
+thresholds the moment the run is let go, which is how a feature nobody was testing against walked into
+a pause test.
+
+The hit-stop is gone and the reason is written into `BALANCE.vacuum.start`: a freeze is the language of
+a thing that just got hit, this is a thing that is starting, and a stutter at the front of a ten-second
+flow is a worse feel than no beat at all. **Rule for the future: any new `hitStop` is a request that
+can survive a pause.** Anything that wants a beat before it happens has to ask for it on a frame that
+stepped.
+
+### Measured (this is the item's balance argument, all of it in `BALANCE.vacuum`)
+
+Ten runs of the aware bot, ten minutes, seeds 1-10, same seeds either side (`git worktree` at
+`v0.10.0` for "before"):
+
+| | before | after | |
+|---|---|---|---|
+| score median | 59,612 | 67,872 | +13.9% |
+| level median | 45.5 | 53 | +16.5% |
+| kills median | 3,246 | 3,589 | +10.5% |
+| shards median | 2,748 | 4,107 | +49.5% |
+| worst run | 9m51s | 10m00s | the bot stopped dying |
+
+So: **the whole event is worth about half of a card the run paid a level for** (DAMAGE reads +31.2% of
+score for five free ranks), which is what makes it a rhythm and not a second build. Timing, from six
+runs instrumented through `onFrame`: the median strong run crosses 10,000 points **2m25s** in (the
+weakest, 7m32s), and after that one opening every 60-130 s; six or seven in a full ten minutes; each
+one carried in 175-340 shards, about three times what the same ten seconds collect any other time.
+
+**The "off" proof for an always-on feature** is not the reference run being unchanged - it cannot be. It
+is where the reference run *starts* to change: `--seed 20261006 --trace` is byte-identical to the
+0.10.0 trace through frame 8160 and differs at frame 8280, which is the frame `vacuum 1 opened at
+10537`. New reference numbers, rebaselined on purpose: **10m00s, score 75,596, level 58, kills 4004,
+shards 5162, vacuums 7 (2065 in)**. Old numbers (70,071 / 46 / 3934 / 2788) are above in the session-86
+note's neighbourhood.
+
+`tools/simulate.js` grew with it: a run line ends `vacuums 7 (2065 in)` when any opened, and the trace
+prints `8280:vacuum 1 opened at 10537` between the fingerprints. `STARFALL.stats()` answers
+`vacuumLeft / vacuumNext / vacuumEvents / vacuumSwallowed`.
+
+### Things worth knowing
+
+- **`tools/headless/scripted.js` has a `shardAt(x, y, worth)` now** and `test/attractor.test.mjs` uses
+  it instead of its own copy. Two things I got wrong on the way and should not again: there is no
+  `python3` on this box (use `node -e`), and a bulk regex over a test file deleted two *other* helpers
+  out of `attractor.test.mjs` - caught only because the full suite went red, and undone with
+  `git checkout --`. Prefer the edit tool for refactors inside a file.
+- **`test/pause.test.mjs` writes a big score.** Any future always-on feature keyed to score, kills or
+  shards will fire inside it. Not a problem, but it is where a "nothing else changed" claim goes to die.
+- **Re-anchoring the sequencer to make a figure start on a bar's head would play two bars at once** -
+  the scheduler keeps `lookahead` (0.5 s) of music already queued. So nothing re-anchors; a chord
+  relative figure entering a bar halfway through it is the same bargain the boss pattern has always
+  made, and the `audition` note and the chord cue cover the moment the sequencer cannot.
+- **`patternPeak` is the cheapest honest instrument in the repo.** Adding four patterns to `PATTERNS`
+  made the existing ceiling test cover the fanfare without writing a line of test code.
+- **The aware bot now never dies inside ten minutes** (10/10 at the cap; 9/10 before the vacuum). That
+  is the vacuum nudging a condition that was already true, not the vacuum being dangerous - but PLAN's
+  next milestone-10 item ("the bot should usually die between 4:00 and 9:00") cannot be measured with
+  the aware bot at all. Use `--bot naive`, or `--at`, or accept that the modern aware bot outlasts the
+  schedule and say so in the item.
+
+### For the next session
+- Milestone 10, in order: **the difficulty-arc check** (see the note above about which bot can be used
+  for it), then the weapon ladder (PLAN wants no gun more than 25% above another in
+  `tools/balance-report.js`), the F3 debug overlay (everything it needs is already in `stats()`,
+  including the four vacuum numbers and `pool.stats()`), the 30-minute memory hunt, the daily run, the
+  three-prompt tutorial, and the read-every-line pass. Then `1.0.0`.
+- Milestone 9 still owes: key rebinding, gamepad, touch, the colour-blind palette. `O` is the panel that
+  would show rebinding and the assist rows are the shape a row with no numbers takes.
+- `tools/agent/session.js` still cannot see `settingsUp`, `settings`, `assists` - or the vacuum - and
+  still has no `choose_ship`. `stats().vacuumLeft` is now the door for "am I in a reward window".
+- Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord
+  are drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60);
+  the mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+- Worktree hygiene: `/tmp/base10` was removed with `git worktree remove` after the before/after batch.
