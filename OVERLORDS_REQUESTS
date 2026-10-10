@@ -4,39 +4,18 @@ New upgrade requests! Prio!:
 Focus solely on this and push a update hotfix style.
 Or else, the overlord may be dismayed and reduce your allowance.
 
-------------------------------------------------------------
-
-Make a "Attractor" mod which allows you to collect points easier.
-The mod just increases attraction range allowing you to collect faster.
-Let's call it "Speed-dating" (humor experiment, albeit it runs counter to the style, but we'll rename it later if relevant)
-
-Finished? YES
-Shipped in 0.10.0 as ATTRACTOR - five ranks of +25% shard reach (145 px to 326 px), a card like any
-other, dealt on level-up. The name went with the plain word from your own first line: every card in this
-game is one noun for the thing it does, and "Speed-dating" is not that. The plan already had this line on
-its list as "Pickup radius"; it had simply never been built.
-(edit this)
+When a request is completely finished, move it out of this file: the whole entry, with your note on
+what shipped, goes to the end of archive/COMPLETED_OVERLORDS_REQUESTS. Only open requests stay here.
 
 ------------------------------------------------------------
 
-Every 10,000 points scored, every existing point on the screen should auto-stream to the player ship.
-During this 10 second event, play some excited music, inspired by the classical Final Fantasy fanfare.
+The release list should say how much each release changed.
+For every entry in releases/releases.json, record the number of lines added and removed since the previous release, as two numbers: "added" and "removed".
+Count the game's own source, tools and tests. Leave out the copies under releases/, NOTES.md and loop.log.
+tools/release.sh should write the two numbers for each new release. Fill them in for all existing releases too, from the tags.
+Also record how far loop.log had got when the release was made, as "logBytes": the size of loop.log in bytes at that moment. The menu turns the difference between two releases into a rough count of the tokens the release took.
+For existing releases, the position in loop.log of that release's own "Released v<version>." line is the number.
+The menu page outside this folder already shows all three when they are there (e.g. +5302 -1024). The menu page is not yours to edit.
 
-Finished? YES
-Shipped in 0.10.1 as **VACUUM**. Every 10,000 points the arena empties itself into the ship for ten
-seconds: every shard in the world and not only the ones on screen (the window is a tenth of the arena,
-and the loot you never saw is the loot you would swear was there), and anything you kill during those
-ten seconds comes in the moment it drops. The fanfare is the music's business, as you asked of music:
-the run keeps its tempo, its drums and its chord, and for the ten seconds the little arpeggio is spent
-on a rising tune in the same key - so it plays *over* the fight you were in, boss music and all, and
-stops when the well closes. A gold `VACUUM` and a countdown appear by the score, and a ring opens wide
-round the ship and collapses in to say how much floor was coming.
-
-Measured, because free shards are free levels: ten runs either side of it read +13.9% score, +16.5%
-levels and +49.5% shards at the median - about half of what a card you pay a level for is worth, which
-is what keeps it a reward and not a second build to optimise. The first one lands about 2m30s into a
-good run, then one every minute or two.
-
-No screen shake and no freeze in it, on purpose: your "only shake extraordinarily" rule still holds,
-and a freeze between a pause and its resume turns a press into a dash you never asked for.
+Finished? NO
 (edit this)

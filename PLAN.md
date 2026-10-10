@@ -7,7 +7,7 @@ A first playable version already exists as a single `index.html`. This plan grow
 beautiful, finished game. It is many days of work. Go through the milestones in order.
 Tick items as `[x]` when done. Each item is sized to fit one session; split it if it turns out bigger.
 
-The file "OVERLORDS_REQUESTS" contains outstanding urgent hotfixes. Prioritize maximally. Indicate completion within the file itself to save thinking each time you see the requests.
+The file "OVERLORDS_REQUESTS" contains outstanding urgent hotfixes. Prioritize maximally. When a request is completely finished, move the whole entry, with your note on what shipped, to the end of "archive/COMPLETED_OVERLORDS_REQUESTS", so only open requests are left to read.
 
 ---
 
@@ -1107,8 +1107,55 @@ When every item above is ticked, go back to the first unchecked item of mileston
       only reason "loud enough to be the reward" is a number and not a hope. The reference run
       (`--seed 20261006 --trace`) is byte-identical to the 0.10.0 one until the frame the first well
       opens on, which is the proof the whole feature is inert until it is earned.
-- [ ] Use the simulation to check the difficulty arc: the bot should usually die between 4:00 and 9:00
-      with no upgrades chosen wisely, and no enemy type should be responsible for over 40% of deaths.
+- [x] Use the simulation to check the difficulty arc (**built, run, and the answer is that one half
+      of PLAN's sentence holds and the other cannot be measured with the players there are** - what
+      that asks for is the item under this one). PLAN's two numbers are its own and neither was
+      moved: a careless build should usually die between 4:00 and 9:00, and no enemy type should take
+      over 40% of the deaths. What had to be built first was a run that does *not* choose wisely:
+      every number in NOTES.md is measured with the aware bot and its even spread across the gun
+      lines, which is the careful build, so `tools/headless/bot.js` now answers a level-up a second
+      way (`PICKS.random`) - one roll of a die over whatever is face up, on a stream of its own
+      seeded from the run so a seed is always the same careless build, reached with `--picks
+      wise|random` on `tools/simulate.js`. A die and not a hand-written bad picker, because "did not
+      look" is what the sentence is about and a die has an average, while a picker written to choose
+      badly would be an invention about bad play (the worst card on a table is almost never what a
+      person takes). The careful default is untouched and proven so: the reference run
+      (`--seed 20261006 --trace`) is byte for byte the run it was. Then the check itself,
+      `tools/difficulty-arc.js` - a check and not a report, it exits non-zero so a release could be
+      gated on it - which plays a batch and prints a histogram of when each run ended with the band
+      marked, what took every last hull, and what every *hull* of the batch went to (game/tally.js
+      again, and the wider sample is what tells a finisher from a chipper). "Usually" is at least half
+      the batch, with a run that never died in the denominator and not the numerator, which is the
+      strict reading; the looser one - of the runs that did die, when did they - is printed under it
+      because it says where the arc actually is and not only that it missed. The ceiling needs 20
+      deaths to be a share at all: two batches of 24 runs put the same body at 46% of one batch's 13
+      deaths and 31% of the other's, so a smaller batch is told it has not measured anything.
+      **Measured, aware bot with a die, seeds 1-48, a 15 minute window: 26 of 48 died, the middle one
+      at 4m19s, and 11 of the 48 (23%) inside the band - FAIL.** 42% of the deaths themselves were in
+      it; the whole of the miss is that 22 runs never died at all. **The ceiling holds: the widest is
+      the drifter at 35% of the deaths, then the weaver at 27% and the tank at 15% - PASS** - and on
+      the 244 hulls that batch lost the crowd is flatter again (drifter 30%, weaver 27%, tank 14%, the
+      untitled blast 11%). **The naive bot with a die, seeds 1-24: 23 of 24 died, the middle one at
+      2m47s and exactly one of them in the band - FAIL the other way, too soon** - ceiling PASS
+      (drifter 35%), with the spitter's shots taking 49% of 196 hulls while landing 17% of the
+      deaths, which is what a chipper looks like and is why both tables are printed. **Read together
+      the two players bracket the band and neither sits in it**, and that is the item's real answer:
+      what kills a careless person is positioning, which the naive bot has no notion of and the aware
+      bot has far too much of - it steps off everything it can see coming, so 22 of 48 careless runs
+      were still flying at fifteen minutes and one of them reached level 76. A careless build is not
+      too weak so much as a coin toss, and the instrument the 4:00-9:00 sentence needs does not exist
+      yet.
+- [ ] A bot that dodges like a person, and then whatever it says about the arc. The aware bot is not
+      a person: it reads every shot, telegraph and bomber circle in the world and steps off all of them
+      (`tools/headless/threats.js`), which is why half a careless batch outlives fifteen minutes and
+      why `4:00-9:00` cannot be answered with it. The third policy is that same reading with a human's
+      imperfect reaction - it notices a threat only some of the time, or only once it is nearer than
+      `SKILL` lets it see, and the dial is worth having either way because a bot that can be made less
+      able is a difficulty curve that can be measured at several skills instead of two. Careless cards
+      by default, measured with `tools/difficulty-arc.js`, and then the tuning that batch asks for -
+      starting with whether a die-dealt build should be able to outlast the whole window at all (22 of
+      48 did, and the run that reached level 76 among them was not even a good roll so much as a
+      common one).
 - [ ] Tune every weapon so that none is over 25% better than the others in the balance report.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.

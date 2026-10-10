@@ -6,6 +6,9 @@
 //   node tools/simulate.js --runs 20          a batch of runs, and the middle one
 //   node tools/simulate.js --seconds 120      stop after this many game seconds
 //   node tools/simulate.js --bot naive         play it the plain way (see below)
+//   node tools/simulate.js --picks random      answer the level-up with a die instead of a
+//                                              build (tools/headless/bot.js PICKS; what
+//                                              tools/difficulty-arc.js measures with)
 //   node tools/simulate.js --dash              let the bot dash when a body gets close
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc, lance, swarm)
@@ -41,13 +44,13 @@
 
 import { pathToFileURL } from 'node:url';
 import { clock, int, dec } from './headless/tables.js';
-import { playRuns, dashEscape, POLICIES } from './headless/bot.js';
+import { playRuns, dashEscape, POLICIES, PICKS } from './headless/bot.js';
 import { MIX, ledgerOf } from '../src/audio/mix.js';
 import { musicLedger } from '../src/audio/music.js';
 import { noiseVoices } from '../src/audio/noise.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, picks: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -58,6 +61,7 @@ function readArgs(argv) {
     else if (arg === '--runs') opts.runs = parseInt(next(), 10);
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
+    else if (arg === '--picks') opts.picks = next();
     else if (arg === '--weapon') opts.weapon = next();
     else if (arg === '--ship') opts.ship = next();
     else if (arg === '--need') opts.need = parseFloat(next());
@@ -76,6 +80,10 @@ function readArgs(argv) {
   }
   if (opts.policy !== undefined && !POLICIES[opts.policy]) {
     console.error('--bot wants one of: ' + Object.keys(POLICIES).join(', '));
+    process.exit(2);
+  }
+  if (opts.picks !== undefined && !PICKS[opts.picks]) {
+    console.error('--picks wants one of: ' + Object.keys(PICKS).join(', '));
     process.exit(2);
   }
   if (opts.runs < 1) {
@@ -98,6 +106,7 @@ export function reportLine(summary) {
   const s = summary.stats;
   return 'seed ' + summary.seed
     + '  ' + summary.policy
+    + (summary.picks !== undefined && summary.picks !== 'wise' ? ' picks ' + summary.picks : '')
     + '  ship ' + summary.stats.ship
     + '  gun ' + summary.stats.weapon
     + '  ' + (summary.won ? 'WON' : summary.died ? 'died' : 'alive at the cap')
@@ -162,6 +171,7 @@ export function aggregate(summaries, cap) {
   return {
     runs: summaries.length,
     policy: summaries[0].policy,
+    picks: summaries[0].picks === undefined ? 'wise' : summaries[0].picks,
     ship: summaries[0].stats.ship,
     weapon: summaries[0].stats.weapon,
     cap: cap,
@@ -183,7 +193,9 @@ function count(value) {
 
 /** The set as one line: the middle run, the mean beside it, and how many never died. */
 export function batchLine(batch) {
-  return 'batch of ' + batch.runs + ' runs, ' + batch.policy + ' bot, ship ' + batch.ship
+  return 'batch of ' + batch.runs + ' runs, ' + batch.policy + ' bot'
+    + (batch.picks === 'wise' ? '' : ' answering the level-up with a die')
+    + ', ship ' + batch.ship
     + ', gun ' + batch.weapon
     + ': median ' + clock(batch.seconds.median)
     + ', mean ' + clock(batch.seconds.mean)
@@ -239,6 +251,7 @@ if (isMain) {
     audio: opts.audio,
     every: opts.trace ? opts.every : 0,
     policy: opts.policy,
+    picks: opts.picks,
     ship: opts.ship,
     weapon: opts.weapon,
     at: opts.at,

@@ -12,6 +12,11 @@
 // adds `dashEscape` below to whichever policy is running, which is what any line that lives
 // on the dash has to be measured with.
 //
+// How the level-up is answered is a second, separate choice (`PICKS` below), because
+// `tools/difficulty-arc.js` has to ask what the game does to a player who does not think
+// about the build. Moving and building are two different skills and a measure that can only
+// move one of them cannot say which one it is blaming.
+//
 // The naive one is kept because it is the baseline every older note in NOTES.md was
 // measured with, and because a game that is hard for a bot that tries is a different
 // claim from one that is hard for a bot that barely tries. `--bot naive` runs it.
@@ -21,6 +26,7 @@ import { BALANCE } from '../../src/game/balance.js';
 import { escapeDirection, SKILL } from './threats.js';
 import { isSynergy } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
+import { Rng } from '../../src/core/rng.js';
 
 /** One 60 Hz frame. The harness drives fixed steps so runs replay exactly. */
 export const FRAME_MS = 16.7;
@@ -100,8 +106,8 @@ export const DEFAULT_POLICY = 'aware';
 /**
  * The level-up choice, taken the way a player takes one: a number key.
  *
- * The policy is written down rather than clever, because a bot that picks at random
- * measures nothing and a bot that picks perfectly overstates a human. So: take the line
+ * The `wise` policy is written down rather than clever, because a bot that picks perfectly
+ * overstates a human and every number in NOTES.md was measured with this one. So: take the line
  * with the fewest ranks already in it, and break a tie in the order below - the share
  * lines all multiply the same damage per second, so spreading them is the strongest thing
  * to do while they are all short, and damage is the one that matters most when the crowd
@@ -192,10 +198,55 @@ function appetiteOf(id) {
   return place === -1 ? APPETITE.length : place;
 }
 
-function chooseCard(game) {
+// The dice the careless picker rolls, on a stream of its own.
+//
+// A stream and not `Math.random` for the same reason everything else in the game is: a seed has
+// to replay the same run, and a difficulty number that changes when it is re-run is not a number.
+// It is *not* the game's own `logic` stream, because a bot's choices are not the game's business
+// and a roll spent on a card would move every spawn after it into a stream nobody asked to move.
+const dice = new Rng(0x51ee7b0f);
+
+/** Start the dice over for a new run, so a seed is always the same careless build. */
+export function resetPicks(seed) {
+  dice.reset(seed >>> 0);
+}
+
+/** The careful build: the policy argued for above, whole. */
+function wiseCard(game, offer) {
+  return preferredCard(game, offer);
+}
+
+/**
+ * The careless build: one roll of a die over whatever is face up.
+ *
+ * A die and not a hand-picked "bad" picker, deliberately. A picker written to choose badly would
+ * be an invention about bad play - the worst card on a table is almost never what a person takes -
+ * while "did not look" is exactly PLAN 10's *no upgrades chosen wisely*, and a die has an average:
+ * nobody can argue with the same build twice, and a batch of seeds has a middle. It is not the
+ * weakest build that exists and it does not claim to be; it is the unconsidered one.
+ *
+ * It rolls once per card the run is offered, on `dice` above, from the run's own seed.
+ */
+function carelessCard(game, offer) {
+  return dice.pick(offer);
+}
+
+/** The two ways to answer a level-up, and the one the tools use unless told otherwise. */
+export const PICKS = { wise: wiseCard, random: carelessCard };
+export const DEFAULT_PICKS = 'wise';
+
+/** The picker for a name, with `undefined` meaning the careful one every older number means. */
+function pickerOf(name) {
+  if (name === undefined) return PICKS[DEFAULT_PICKS];
+  const picker = PICKS[name];
+  if (!picker) throw new Error('no card picker is called ' + name);
+  return picker;
+}
+
+function chooseCard(game, picks) {
   const offer = game.world.offer;
   if (offer.length === 0) return;
-  const number = offer.indexOf(preferredCard(game, offer)) + 1;
+  const number = offer.indexOf(pickerOf(picks)(game, offer)) + 1;
   game.key('Digit' + number, true);
   game.key('Digit' + number, false);
 }
@@ -227,12 +278,17 @@ export function dashEscape(game) {
   game.pressMouse(on.x, on.y, 2);
 }
 
-/** Play one frame as `policy`. */
-export function botFrame(game, policy) {
+/**
+ * Play one frame as `policy`, answering a level-up with `picks`.
+ *
+ * Both arguments are optional, and both default to what every number in NOTES.md was measured
+ * with, so a caller that never heard of the second one is not asking for a different bot.
+ */
+export function botFrame(game, policy, picks) {
   // A paused run has one business and it is not flying: the cards are answered first,
   // and the run is back before the next frame is drawn.
   if (game.world.state === game.STATE.LEVEL) {
-    chooseCard(game);
+    chooseCard(game, picks);
     return;
   }
   const play = policy === undefined ? POLICIES[DEFAULT_POLICY] : POLICIES[policy];
@@ -291,12 +347,16 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, ship, weapon, at }
+ * Options: { maxSeconds, every, onFrame, policy, picks, ship, weapon, at }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
   const maxSeconds = opts.maxSeconds === undefined ? 600 : opts.maxSeconds;
   const frameLimit = Math.ceil(maxSeconds * 1000 / FRAME_MS);
+  const picks = opts.picks;
+  // Checked before a single frame, because a batch of twenty long runs is the wrong place to
+  // find out the picker's name was spelled wrong.
+  pickerOf(picks);
   const drawsBefore = game.drawCalls();
 
   // Which ship to fly, and with it which primary, pressed through the game's own door
@@ -310,6 +370,10 @@ export function playOneRun(game, options) {
   if (opts.weapon !== undefined) game.chooseWeapon(opts.weapon);
 
   startBotRun(game);
+  // The dice for this run's cards, cut from the run's own seed: the same seed is the same
+  // careless build, which is the only way a careless batch is a measurement. Done after the
+  // launch because that is what puts the seed in the world.
+  resetPicks(game.world.seed);
 
   let frames = 0;
   let died = false;
@@ -326,7 +390,7 @@ export function playOneRun(game, options) {
   // change was the well emptying the arena.
   let vacuums = 0;
   while (frames < frameLimit) {
-    botFrame(game, opts.policy);
+    botFrame(game, opts.policy, picks);
     game.step(FRAME_MS);
     frames++;
     // "Start the run already five minutes in", asked honestly: the launch zeroes the clock and
@@ -416,6 +480,7 @@ export function playOneRun(game, options) {
     died: died,
     won: won,
     policy: opts.policy === undefined ? DEFAULT_POLICY : opts.policy,
+    picks: picks === undefined ? DEFAULT_PICKS : picks,
     seed: game.world.seed,
     // What the run was made of, counted as it went (game/tally.js). The run keeps
     // its own sheet, so this stays readable after the next run starts.
@@ -468,7 +533,7 @@ export function endingItAt(seconds) {
 
 /**
  * Boot one game and play several runs on it, one per seed.
- * Options: { seeds: [..], maxSeconds, every, policy, onRun }
+ * Options: { seeds: [..], maxSeconds, every, policy, picks, onRun }
  */
 export async function playRuns(options) {
   const opts = options || {};
