@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.8.0",
+    "date": "2026-10-10",
+    "summary": "One versioned save document, and the settings that live in it"
+  },
+  {
     "version": "0.7.4",
     "date": "2026-10-10",
     "summary": "Two volume sliders and a mute that outranks them, with a readout that says what a key did"
