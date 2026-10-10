@@ -37,7 +37,11 @@ export function boughtShips() {
 
 /** What the hangar asks for a ship, in stardust (BALANCE.ships). 0 is free, and free is yours. */
 export function priceOf(id) {
-  return shipRow(id).cost;
+  const cost = shipRow(id).cost;
+  // A row without a price on it would be locked forever and then bought for `NaN`, which is the one
+  // thing a purse must never be, so a missing or fractional price is said out loud (game/ships.js).
+  if (!Number.isInteger(cost) || cost < 0) throw new Error('the ship ' + id + ' has no price');
+  return cost;
 }
 
 /**
@@ -81,6 +85,9 @@ export function buyShipByIndex(world, index) {
   if (id === null) return 'none';
   if (ownsShip(world, id)) return 'owned';
   if (!spendDust(world, priceOf(id))) return 'short';
+  // The order this list is in is the order the ships were bought in, and nothing reads it: the store
+  // sorts its own copy on the way out (core/save.js, the `names` kind), so the next visit's list
+  // comes out ordered. Nothing may compare the two lists directly.
   world.ownedShips.push(id);
   remember('hangar', { ships: world.ownedShips });
   return 'bought';

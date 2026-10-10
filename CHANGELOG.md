@@ -1,5 +1,26 @@
 # Starfall — changelog
 
+## 0.8.2 — 2026-10-10
+The hangar has something to spend stardust on: four of the five ships now cost it.
+- **Ships are bought, not just chosen.** The Wisp is free and always yours; the Bulwark costs 250
+  stardust, the Volt 700, the Needle 1,300 and the Brood 2,200 - from about one run that went
+  alright up to one run that beat the arena. What you buy is remembered, so the ships you paid for
+  are waiting for you in the next visit too.
+- **The rack says what it sells.** A ship you have not bought is dimmed and priced: `700 STARDUST
+  · SHIFT + 3 BUYS IT`. Its hull, speed and dash stay printed, because those numbers are the reason
+  anybody wants it.
+- **SHIFT with the number buys it**, and only in the hangar, where the price is on the glass. A
+  purse that is short is refused in silence and charged nothing; a ship you own is not for sale
+  twice, and the free one never is.
+- **A number for a ship you have not bought puts the hangar up** instead of doing nothing: the key
+  that wants the ship is what takes you to the price of it. It works that way over your wreck as
+  well; over the win it does nothing at all, because a number there means "fly this one, now" and
+  that run is already flown.
+- **One change worth saying out loud:** last release you could fly all five ships for nothing. Three
+  of them are behind a price now. That is the plan's design arriving (PLAN 3.7), and it means the
+  purse a run pays at last has something it is for - the next thing that will cost it is the
+  permanent perks.
+
 ## 0.8.1 — 2026-10-10
 A run pays stardust now, and there is a hangar to look at ships in.
 - **Every run leaves something behind.** Stardust: 1 for each 100 of score, 100 for every fight

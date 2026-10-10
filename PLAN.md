@@ -908,7 +908,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
       death's card, opened with H: the rack with each ship's hull, speed, dash and gun, the purse,
       and the number keys that pick. Ship unlocks and the perks that spend the purse are the next
       item; they land in this screen.)
-- [ ] Ship unlocks and permanent perks.
+- [ ] Ship unlocks and permanent perks. (**Ships: done.** Four of the five are behind a price now -
+      250 / 700 / 1,300 / 2,200 of stardust, the Wisp free - and what the purse has bought is
+      remembered in the save document, so the next visit starts owning them. The rack dims a ship you
+      have not bought, prints its price and the key that pays it (`SHIFT` with its number), and a
+      number for a locked ship puts the hangar up instead of doing nothing. **Perks: not started.**
+      PLAN 3.7 lists six (starting hull, starting shield, stardust gain, one reroll per run, one card
+      banish per run, start at level 3), 5 ranks each with rising cost; `world.rerollsLeft` and
+      `world.banishesLeft` (game/upgrades.js) and `firstLevelXp` (game/progress.js) are doors three
+      of them can walk straight through, and game/hangar.js is where the money side of it now lives.)
 - [ ] The codex.
 - [ ] Achievements, with a small toast when earned.
 - [ ] Run history: the last 20 runs with their seed, ship, time, and score.
