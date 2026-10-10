@@ -28,10 +28,11 @@ import { chargedPullOf, spendCharge } from './overcharge.js';
 import { gainOf, countOf, pierceOf, bounceOf } from './upgrades.js';
 
 /**
- * The primaries on offer, in the order the title screen prints them and the order the
- * number keys pick them. `blurb` is a line for the player and nothing else; the name, and
- * every number a pull needs, live on the weapon's row in `BALANCE.weapons`, which is the
- * only place either of them is written.
+ * The primaries on offer, in the order the hangar's rack prints the ships that carry them - the
+ * ships are in this order, so a number key has meant the same gun since before there were ships.
+ * `blurb` is a line for the player and nothing else; the name, and every number a pull needs,
+ * live on the weapon's row in `BALANCE.weapons`, which is the only place either of them is
+ * written.
  */
 export const WEAPONS = [
   { id: 'pulse', blurb: 'straight fast shots, the reliable default' },
@@ -73,24 +74,17 @@ function isOffered(id) {
 }
 
 /**
- * Choose the primary for the runs this world plays. It is a title-screen choice -
- * there is no hangar yet - but it is honest mid-run too: nothing caches a gun into the
- * ship, so the next pull of the trigger is already the new one. An id that is not one of
- * the primaries offered is a bug and says so; `BALANCE.weapons` holds a couple of meta
- * keys beside the weapons, so being in that table is not the test.
+ * Choose the primary for the runs this world plays. The hangar hands one out with every ship
+ * (game/ships.js), so this is the door a headless tool uses to price one gun against another on a
+ * body of its choosing - and it is honest mid-run too: nothing caches a gun into the ship, so the
+ * next pull of the trigger is already the new one. An id that is not one of the primaries offered
+ * is a bug and says so; `BALANCE.weapons` holds a couple of meta keys beside the weapons, so being
+ * in that table is not the test.
  */
 export function setWeapon(world, id) {
   if (!isOffered(id)) throw new Error('no weapon is offered called ' + id);
   world.weapon = id;
   return id;
-}
-
-/** The pick by position on the title screen: 0 is the first one offered. */
-export function setWeaponByIndex(world, index) {
-  const wanted = WEAPONS[index];
-  if (wanted === undefined) return false;
-  setWeapon(world, wanted.id);
-  return true;
 }
 
 /**

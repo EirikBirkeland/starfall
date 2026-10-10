@@ -47,6 +47,10 @@ function createWorld() {
   const world = {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
+    // Has this run finished the schedule (game/run.js `winRun`)? A run that was won and then handed
+    // back to be flown on keeps the fact after it is flying again, which is what makes the win part
+    // of its stardust one payment rather than two (game/stardust.js).
+    won: false,
     // Has this run already outlasted the whole schedule and been handed its arena back to fly on
     // with? Written once, by game/run.js `continueRun`, and read by the interface (render/hud.js):
     // the schedule is spent either way, so nothing in the simulation needs to be told twice.
@@ -55,12 +59,12 @@ function createWorld() {
     // measured against (game/endless.js). 0 until a run is handed back, and 0 again with the next.
     endlessAt: 0,
     // Which ship the runs of this world fly, and with it which primary (game/ships.js).
-    // Picked on the title screen until the hangar exists, and deliberately not cleared by a
+    // Chosen between runs, in the hangar or with its number key, and deliberately not cleared by a
     // new run: what you picked is what you fly on, like the seed and the gun.
     ship: defaultShip(),
-    // Which primary the runs of this world are flying (game/weapons.js). Picked on the
-    // title screen until the hangar exists, and deliberately not cleared by a new run:
-    // what you picked is what you fly on, the same way the seed is what you get.
+    // Which primary the runs of this world are flying (game/weapons.js). It came with the ship
+    // above, and is deliberately not cleared by a new run: what you picked is what you fly on,
+    // the same way the seed is what you get.
     weapon: defaultWeapon(),
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
@@ -76,6 +80,13 @@ function createWorld() {
     freeze: 0,
 
     best: 0,
+    // What the purse between runs stands at, and what this run has already been paid out of it
+    // (game/stardust.js). The purse is read out of the save document when the visit opens and is
+    // deliberately not cleared by a new run, same as the best above; `dustPaid` is this run's own
+    // bookkeeping, so a run that is won, handed back and then finally goes down is not paid twice
+    // for one score.
+    dust: 0,
+    dustPaid: 0,
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),

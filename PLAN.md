@@ -902,7 +902,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
       sliders with the mute. A document from a newer build is read and never overwritten, and the
       older releases' plain `starfall.best` key is read on load and mirrored on write for as long
       as the menu offers those versions.)
-- [ ] Stardust rewards and the hangar screen.
+- [x] Stardust rewards and the hangar screen. (Done: a run pays stardust when it ends - 1 per 100
+      score, 100 per fight the schedule sent that came down, 500 for walking the schedule out - and
+      the purse lives in the save document. The hangar is an overlay over the title and over the
+      death's card, opened with H: the rack with each ship's hull, speed, dash and gun, the purse,
+      and the number keys that pick. Ship unlocks and the perks that spend the purse are the next
+      item; they land in this screen.)
 - [ ] Ship unlocks and permanent perks.
 - [ ] The codex.
 - [ ] Achievements, with a small toast when earned.

@@ -8,16 +8,17 @@ const SWALLOWED = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
 const CONFIRM = ['Space', 'Enter', 'NumpadEnter'];
 const DASH_KEYS = ['Space'];
 
-// The upgrade cards are picked with a number (PLAN section 4), and the title screen uses the same
-// numbers to pick the primary (game/weapons.js `setWeaponByIndex`). So the number is read out of the
-// key rather than looked up in a table of three: three cards are dealt, four primaries are on the
-// rack and a fifth is coming, and a table that stops at three is how a weapon ends up unpickable.
+// The upgrade cards are picked with a number (PLAN section 4), and the screens that are not a run
+// use the same numbers to pick the ship to fly (game/ships.js `setShipByIndex`, and the hangar's
+// rack is built in that order). So the number is read out of the key rather than looked up in a
+// table of three: three cards are dealt, five ships are on the rack and more are coming, and a
+// table that stops at three is how a ship ends up unpickable.
 // Shift turns the same number into the other thing a card can be answered with - cutting that line
 // out of the run (game/upgrades.js `banishOffer`). Anything past a digit is refused here and by
 // whatever is being answered, which between them cover every index the game can be asked for.
 const PICK_DIGIT = /^(?:Digit|Numpad)([1-9])$/;
 
-/** Which card or primary this key asks for, or 0 when it asks for neither. */
+/** Which card or ship this key asks for, or 0 when it asks for neither. */
 function pickOf(code) {
   const digits = PICK_DIGIT.exec(code);
   return digits === null ? 0 : parseInt(digits[1], 10);
@@ -39,6 +40,11 @@ const VOLUME_KEYS = {
   Equal: ['effects', 1],
 };
 
+// The hangar (PLAN 3.7) - the screen a run is chosen from. H is not a movement key, the launch,
+// the dash, a card number, the reroll, the mute or a slider, which is the whole of how a key gets
+// picked in this game.
+const HANGAR_KEYS = ['KeyH'];
+
 // One-shot requests: a key that means "do that thing" rather than "this is held".
 // input/index.js folds them into the descriptor and clears them once the
 // simulation has had its turn at them.
@@ -49,6 +55,7 @@ export const keyTaps = { dash: false };
  * handlers.onPickCard  - the number of an upgrade card that was just asked for, and
  *                        whether it was asked for with Shift (banish, not take)
  * handlers.onReroll    - the deal was asked for again
+ * handlers.onHangar    - the hangar was asked for, or asked to go away
  * handlers.onToggleMute
  * handlers.onVolume    - one step of one slider: which bus, and which way (-1 or 1)
  */
@@ -69,6 +76,7 @@ export function initKeyboard(handlers) {
       if (REROLL_KEYS.indexOf(code) >= 0 && handlers.onReroll) handlers.onReroll();
       const slider = VOLUME_KEYS[code];
       if (slider && handlers.onVolume) handlers.onVolume(slider[0], slider[1]);
+      if (HANGAR_KEYS.indexOf(code) >= 0 && handlers.onHangar) handlers.onHangar();
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
   });

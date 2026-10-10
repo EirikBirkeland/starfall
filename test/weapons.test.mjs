@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { resetRun } from '../src/game/run.js';
 import {
-  WEAPONS, defaultWeapon, fire, shotsPerPull, shotsPerSecond, setWeapon, setWeaponByIndex,
+  WEAPONS, defaultWeapon, fire, shotsPerPull, shotsPerSecond, setWeapon,
   weaponName, weaponOf,
 } from '../src/game/weapons.js';
 import { makeBullet } from '../src/game/bullets.js';
@@ -129,20 +129,13 @@ test('the plain gun is the unit every enemy hull is counted in', () => {
   assert.equal(PULSE.damage, UNIT);
 });
 
-test('a primary is chosen by id, and by its place on the title screen', () => {
+test('a primary is chosen by id, and refuses a name that is not one', () => {
   const field = scriptedRun(300);
   assert.equal(field.weapon, defaultWeapon(), 'a fresh world flies the default');
 
   setWeapon(field, 'scatter');
   assert.equal(field.weapon, 'scatter');
   assert.equal(weaponName(field), BALANCE.weapons.scatter.name);
-
-  // The number keys, in the order the title prints them.
-  assert.equal(setWeaponByIndex(field, 0), true);
-  assert.equal(field.weapon, WEAPONS[0].id);
-  assert.equal(setWeaponByIndex(field, WEAPONS.length - 1), true);
-  assert.equal(field.weapon, WEAPONS[WEAPONS.length - 1].id);
-  assert.equal(setWeaponByIndex(field, WEAPONS.length), false, 'there is no key past the list');
 
   // And an id that is not a primary is a bug that says so out loud. `BALANCE.weapons` holds a
   // couple of meta keys beside the weapons, so being in that table is not enough - and PLAN 3.2's

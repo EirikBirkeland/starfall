@@ -271,10 +271,12 @@ function makeAudioContextStub(log, now) {
 
 const ELEMENT_IDS = [
   'game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats',
-  'finalBuild', 'shipRow',
+  'finalBuild', 'shipRow', 'finalDust', 'nextShip',
+  // What the visit has banked, and what the hangar spends it on (index.html).
+  'titleBest', 'titleDust', 'titleShip', 'hangarScreen', 'hangarDust',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
-  'winHint',
+  'winHint', 'winDust',
 ];
 
 /**
@@ -348,8 +350,10 @@ export async function bootGame(options) {
   for (const id of ELEMENT_IDS) {
     // Which screens start out hidden is in the markup, and the stub says the same thing the
     // browser does: the title is up and both of the cards a run ends on are not - and so is the
-    // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`).
-    const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint';
+    // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`),
+    // and so is the hangar, which is put up by a key.
+    const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
+      || id === 'hangarScreen';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -566,9 +570,20 @@ export async function bootGame(options) {
         winNewBestShown: !elements.winNewBest.classList.contains('hidden'),
         // And the line of keys on it, which is hidden until the guard is spent.
         winHintShown: !elements.winHint.classList.contains('hidden'),
-        // The title's ships, as the player reads them: one line each, naming the ship and
-        // the gun it brings, and which one is lit up (game/ships.js is what they are built
-        // from).
+        // What the visit has banked, and the line that says what the next run flies.
+        titleBest: elements.titleBest.textContent,
+        titleDust: elements.titleDust.textContent,
+        titleShip: elements.titleShip.textContent,
+        nextShip: elements.nextShip.textContent,
+        // What a finished run paid, on each of the two cards.
+        finalDust: elements.finalDust.textContent,
+        winDust: elements.winDust.textContent,
+        // The hangar: whether it is up, and what its purse says.
+        hangarHidden: elements.hangarScreen.classList.contains('hidden'),
+        hangarDust: elements.hangarDust.textContent,
+        // The rack, as the player reads it: one line per ship, naming the ship and the gun it
+        // brings and the numbers it is priced on, and which one is lit up (game/ships.js is what
+        // they are built from).
         ships: elements.shipRow.children.map((row) => ({
           label: row.children.map((part) => part.textContent).join(' '),
           picked: row.classList.contains('picked'),
@@ -580,14 +595,17 @@ export async function bootGame(options) {
 
     /** Put the game back on its title screen, ready for another run. */
     async resetToTitle(nextSeed) {
-      const [{ world }, { resetRun }, { resetAmbient }, { STATE }] = await Promise.all([
+      const [{ world }, { resetRun }, { resetAmbient }, { STATE }, { closeHangar }] = await Promise.all([
         import(moduleUrl('game/world.js')),
         import(moduleUrl('game/run.js')),
         import(moduleUrl('game/ambient.js')),
         import(moduleUrl('game/state.js')),
+        import(moduleUrl('ui/screens.js')),
       ]);
       controller.fire('blur', {});   // the game forgets every held key
       held = Object.create(null);
+      // And a panel the last session left open is not this one's to be looking through.
+      closeHangar();
       // A second run is played on a page that already ran thousands of frames,
       // which a real player never does: the simulation's step clock would start
       // mid-cycle and the same seed would land a step or two out. Reload the clock.

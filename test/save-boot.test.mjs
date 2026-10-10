@@ -93,7 +93,11 @@ test('a run that does not beat the best does not touch it', () => {
   assert.equal(game.stats().state, game.STATE.OVER);
   assert.equal(game.screen.finalBest, '5,234', 'the card shows the remembered best, not the run');
   assert.equal(game.screen.newBestShown, false);
-  assert.equal(stored().score.best, 5234, 'and storage was left alone');
+  assert.equal(stored().score.best, 5234, 'and storage was left alone on that number');
+  // ...though the run was not nothing: 1,200 of score paid 12 of stardust, and that is a write of
+  // its own (game/stardust.js). A run that loses can still buy something.
+  assert.equal(stored().meta.dust, 12, 'the purse took what the run earned');
+  assert.equal(game.screen.finalDust, 'STARDUST  +12   \u00b7   12 BANKED');
 });
 
 test('a better run is banked in both places the number lives', () => {
@@ -109,4 +113,8 @@ test('a better run is banked in both places the number lives', () => {
   assert.equal(stored().score.best, 9001, 'the document has it');
   assert.equal(game.storage['starfall.best'], '9001',
     'and so does the plain key the releases before the document still read');
+  // The purse is the same story in its own section: 9,001 of score is 90 of dust, on top of the
+  // 12 the first run of this visit paid.
+  assert.equal(stored().meta.dust, 102, 'both runs were paid, and neither was paid twice');
+  assert.equal(game.stats().dust, 102, 'and the visit is carrying the same total');
 });

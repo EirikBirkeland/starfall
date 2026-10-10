@@ -20,6 +20,7 @@ import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
 import { section, saveIsWritable, saveProblem } from './core/save.js';
+import { storedDust, dustForRun } from './game/stardust.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -32,7 +33,7 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showStanding, openHangar, closeHangar, hangarIsOpen } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -114,6 +115,11 @@ function pressAction() {
 
 function onCanvasPressed() {
   initAudio();
+  // Over the hangar a click is not a launch. The title's click-to-go is worth having and the
+  // death's card's is worth having, but a panel you are meant to be able to look round is not a
+  // screen that throws you into a run because you aimed at a ship and missed - and next milestone
+  // there will be things in here to click on that are not ships at all.
+  if (hangarIsOpen()) return;
   // While the cards are up the click is an answer, not a shot and not a restart - and it
   // can be one of three answers: take this card, banish it out of the run, or deal the
   // table again (render/cards.js is what says which one the point landed on).
@@ -157,11 +163,14 @@ function onPickCard(number, banishing) {
     }
     return;
   }
-  // The same keys, on the two screens that are not a run: the title picks the ship to fly,
-  // and with it the primary that ship brings (game/ships.js), because there is no hangar
-  // yet (PLAN 3.2, milestone 5). The death's card takes it too - which is what "press 2, press
-  // Space, fly the scatter" means. Mid-run the keys are nobody's: a run does not get to swap its
-  // body or its gun between two frames.
+  // The same keys, on the screens that are not a run: they pick the ship the next run flies, and
+  // with it the primary that ship brings (game/ships.js). They do it in three places and mean the
+  // same thing in all three - in the hangar, where the rack is, on the title, where the line that
+  // says what you are flying answers, and over a wreck, which is what "press 2, press Space, fly
+  // the scatter" has always meant. The rack is only *lit* in the hangar and the line that names the
+  // pick is only on the screen you are looking at, so no key means one thing here and another
+  // there. Mid-run the keys are nobody's: a run does not get to swap its body or its gun between
+  // two frames.
   if (world.state === STATE.PLAY) return;
   // A won run is still a run, so it does not swap its body either - and its launch key is spent on
   // keeping the run, so a number there is the whole of the other answer instead of half of it: take
@@ -226,6 +235,27 @@ function onVolume(which, delta) {
   else uiTick(delta > 0 ? 'up' : 'down');
 }
 
+/**
+ * H: the hangar, and the way back out of it (PLAN 3.7).
+ *
+ * It opens over the two screens that are about the *next* run - the title and the death's card -
+ * and nowhere else. Over a run it would be a pause the run never agreed to, and over the win it
+ * would be a panel whose launch key means "keep flying this one", which is the one place in the
+ * game where a key already means something else; the win's card is about the run you won and its
+ * own two keys say everything it has to say. A refused press says nothing, like every other.
+ */
+function onHangar() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  if (world.state !== STATE.START && world.state !== STATE.OVER) return;
+  if (hangarIsOpen()) {
+    closeHangar();
+    uiTick('close');
+    return;
+  }
+  openHangar();
+  uiTick('open');
+}
+
 function onResize() {
   resizeCanvas();
   buildStars();
@@ -251,8 +281,14 @@ function describeRun() {
     // (game/endless.js). The death card says so when there is something to say.
     endlessPast: endlessTime(world),
     ship: shipName(world),
+    // The ship's id as well as its name, so a card can light the rack for the body it describes
+    // instead of hoping the interface already knew (ui/screens.js `showShip`).
+    shipId: world.ship,
     weapon: weaponName(world),
     build: describeRanks(world),
+    // What the run is worth between runs, and what the purse holds after it (game/stardust.js).
+    dust: dustForRun(world),
+    dustBank: world.dust,
   };
 }
 
@@ -322,7 +358,6 @@ function frame(now) {
 
 function boot() {
   initScreens();
-  showShip(world.ship);
   initCanvas(document.getElementById('game'));
   onResize();
   // The mixer first, before anything can make a sound or paint a level: the two sliders and the
@@ -341,6 +376,12 @@ function boot() {
   seedIsPinned = fromAddress !== null || fromTools;
   world.seed = getSeed();
   world.best = section('score', SAVED_SCORE).best;
+  // ...and the purse the hangar spends from, read the same once for the same reason
+  // (game/stardust.js).
+  world.dust = storedDust();
+  // Now the screens can be told what the visit has to show for itself, and which body it flies.
+  showStanding(world.best, world.dust);
+  showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
   resetRun(world);
@@ -353,6 +394,7 @@ function boot() {
     onPress: onCanvasPressed,
     onPickCard: onPickCard,
     onReroll: onReroll,
+    onHangar: onHangar,
     onToggleMute: onMuteSwitch,
     onVolume: onVolume,
   });
@@ -412,6 +454,11 @@ window.STARFALL = {
       state: world.state,
       seed: world.seed,
       score: world.score,
+      // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot
+      // read a card, and the costs milestone 8 puts on ships and perks have to be priced against
+      // numbers a tool can see.
+      dust: world.dust,
+      dustEarned: dustForRun(world),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

@@ -48,6 +48,11 @@ test('the game folders import nothing from render, audio, ui, or input', () => {
 test('simulation modules do not touch the browser objects directly', () => {
   // core/save.js is the one deliberate bridge to localStorage; nothing in
   // src/game may reach the browser at all.
+  //
+  // The check is textual, comments and all, so a sentence in a comment that happens to write
+  // `document.` is reported the same as a line of code that calls it. That is deliberate - the
+  // patterns are cheap and the false positive costs one reworded sentence - but it is the kind of
+  // failure that reads like the code is wrong, so: reword the prose, do not weaken the check.
   const forbiddenWords = [
     { pattern: /\bdocument\./, what: 'document' },
     { pattern: /\bwindow\.(addEventListener|localStorage|AudioContext|requestAnimationFrame)/, what: 'window' },

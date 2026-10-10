@@ -1,8 +1,9 @@
-// Choosing a ship (PLAN 3.7's ships, handed out on the title screen with a number key while
-// there is no hangar), through the real game: the DOM list it is built from, the number keys
-// that answer it, the run that flies the result, and the two screens that have to say which
-// ship was flown. A ship is its body and its gun together, so this file is the heir to both
-// the old primary pick and the hull-and-speed numbers game/ships.js hands out.
+// Choosing a ship (PLAN 3.7's ships, handed out from the hangar with a number key - and from the
+// title and the wreck with the same keys, which mean the same thing in all three), through the real
+// game: the rack it is chosen from, the number keys that answer it, the run that flies the result,
+// and the two screens that have to say which ship was flown. A ship is its body and its gun
+// together, so this file is the heir to both the old primary pick and the hull-and-speed numbers
+// game/ships.js hands out.
 //
 // One world per process, as ever, so this file is one session: sit on the title, pick the
 // second ship, launch it, and finish the run with it.
@@ -51,7 +52,7 @@ function press(code) {
   game.step(FRAME_MS);
 }
 
-test('the title offers every ship, in key order, and lights the default', () => {
+test('the rack offers every ship, in key order, and lights the default', () => {
   const rows = game.screen.ships;
   assert.equal(rows.length, SHIPS.length, 'one line per ship on offer');
   for (let i = 0; i < rows.length; i++) {
@@ -97,9 +98,11 @@ test('the number a gun has on the rack is the number it always had', () => {
   }
 });
 
-test('a number key on the title chooses the ship', () => {
+test('a number key on the title chooses the ship, and the title says so', () => {
   press('Digit' + 2);
   assert.equal(game.stats().ship, SECOND.id, 'the second key is the second ship');
+  assert.ok(game.screen.titleShip.includes(SECOND_ROW.name),
+    'and the line that names what the next run flies moved: ' + game.screen.titleShip);
 
   const rows = game.screen.ships;
   assert.equal(rows[0].picked, false, 'the old pick went out');
@@ -111,8 +114,7 @@ test('a number key on the title chooses the ship', () => {
   assert.equal(game.stats().ship, SECOND.id, 'the pick stands');
 });
 
-test('the run a title pick launches is flown in that ship, with that gun', () => {
-  startBotRun(game);
+test('the run a title pick launches is flown in that ship, with that gun', () => {  startBotRun(game);
   ship.invuln = Infinity;          // this file is about the ship, not about dying
   world.spawnTimer = Infinity;
 

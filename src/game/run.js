@@ -6,6 +6,7 @@ import { PALETTE } from '../core/palette.js';
 import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { remember } from '../core/save.js';
+import { payForRun } from './stardust.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -154,6 +155,10 @@ export function resetRun(world) {
   world.shardStreak.count = 0;
   world.shardStreak.left = 0;
   world.newBest = false;
+  // ...and the run has not been won or paid for yet (game/stardust.js). The purse above is left
+  // alone: what the last run earned is spent or it is not, and either way it is not this run's.
+  world.won = false;
+  world.dustPaid = 0;
   // A fresh sheet for the new run (game/tally.js). A new object rather than emptying
   // the old one, so anything holding on to a finished run's tally keeps reading the
   // run it belongs to - which is exactly what tools/balance-report.js does.
@@ -175,22 +180,26 @@ export function startRun(world) {
 }
 
 /**
- * Bank the score. Both endings go through here: a run that stopped and a run that finished are
- * two ways of being over, and the best score does not care which one it was.
+ * Bank what the run is worth between runs. Both endings go through here: a run that stopped and a
+ * run that finished are two ways of being over, and neither the best score nor the purse cares
+ * which one it was. The stardust is paid here rather than beside the best because a run is paid
+ * once, whichever way it ended - and a won run that is handed back and goes down later is the case
+ * that would otherwise be paid twice (game/stardust.js).
  */
-function bankBest(world) {
+function bankRun(world) {
   world.newBest = world.score > world.best;
   if (world.newBest) {
     world.best = world.score;
     remember('score', { best: world.best });
   }
+  payForRun(world);
 }
 
 /** The ship is gone. Bank the score and let the screen show it. */
 export function endRun(world) {
   world.state = STATE.OVER;
   world.overTimer = 0;
-  bankBest(world);
+  bankRun(world);
 
   const spec = BALANCE.runOver;
   burst(world, world.player.x, world.player.y, PALETTE.player,
@@ -224,7 +233,9 @@ export function winRun(world) {
 
   world.state = STATE.WON;
   world.overTimer = 0;
-  bankBest(world);
+  // The fact first, then the payment: the win is part of what the run is worth (game/stardust.js).
+  world.won = true;
+  bankRun(world);
   noteVictory(world);
 
   const spec = BALANCE.victory;

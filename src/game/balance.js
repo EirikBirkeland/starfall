@@ -111,8 +111,8 @@ export const BALANCE = {
   },
 
   // The ships (PLAN 3.7): the body you fly and the gun it brings. `game/ships.js` is the
-  // code that reads these rows, and the title screen hands them out with a number key
-  // until the hangar exists (milestone 8) - `default` is what a run that never picked flies.
+  // code that reads these rows, and the hangar's rack hands them out with a number key
+  // (ui/screens.js) - `default` is what a run that never picked flies.
   //
   // Each row owns: how much of it there is (`hull`, and `maxHull` for what the pips can
   // hold), how fast it goes (`maxSpeed`), how long its dash takes to come back
@@ -222,9 +222,25 @@ export const BALANCE = {
     },
   },
 
-  // The primaries (PLAN 3.2). One is flown at a time. The pick is made on the title
-  // screen with a number key until the hangar exists (milestone 5), and `default` is
-  // what a run that has not picked anything flies.
+  // Stardust: what a run leaves behind that the next one can spend (PLAN 3.7). The purse
+  // itself is remembered in the save document and `game/stardust.js` is the code that fills it;
+  // this is the rule.
+  //
+  // PLAN's sentence is "1 per 100 score, plus bonuses for bosses" and these are that sentence
+  // priced against what a run actually scores. Held alive to the end of the schedule a run comes
+  // down at 55,000-113,000 (three seeds measured in session 74 with the hull topped up every
+  // frame, so it is the crowd's income and not a bot's skill), which is 550-1,130 dust, and a
+  // first-timer who goes down inside the first minute leaves about 10. So one rank of a perk is
+  // a couple of runs and a whole ship a good evening, which is the shape milestone 8's costs
+  // have to fit.
+  stardust: {
+    perScore: 100,      // dust per this much score, and the only part that grows all run
+    perBoss: 100,       // ...and per fight the schedule sent that came down
+    won: 500,           // ...and for walking the whole schedule out at all
+  },
+
+  // The primaries (PLAN 3.2). One is flown at a time, and it comes with the ship that was picked
+  // (game/ships.js); `default` is what a run that has not picked anything flies.
   //
   // A weapon owns everything about one pull of the trigger: how often it cycles, how
   // many projectiles it throws and where they point, what each one costs a body, how
@@ -3392,6 +3408,13 @@ export const BALANCE = {
     // would be tuning the very thing it is supposed to be telling you about.
     up: { freq: 620, dur: 0.055, wave: 'sine', vol: 0.035, slide: 830 },
     down: { freq: 470, dur: 0.055, wave: 'sine', vol: 0.035, slide: 350 },
+    // A screen's door coming open, and going shut (the hangar, from the title and from the death's
+    // card). A pair on purpose: a panel that arrives and leaves with the same note cannot be told
+    // apart with your eyes shut, and this is a screen you use without looking at the key you press.
+    // Between the pick and the confirm in weight, because opening a panel is a step towards a run
+    // rather than either of the two decisions themselves.
+    open: { freq: 380, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 620 },
+    close: { freq: 560, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 300 },
   },
 
   effects: {

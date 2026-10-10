@@ -74,6 +74,9 @@ const KINDS = {
 const SCHEMA = {
   // game/run.js banks the best score here at the end of a run.
   score: { best: KINDS.whole(MAX_WHOLE) },
+  // The purse between runs (game/stardust.js, PLAN 3.7). The first of the numbers milestone 8
+  // is going to keep - ship unlocks, perks and the rest join it here or beside it.
+  meta: { dust: KINDS.whole(MAX_WHOLE) },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again
   // to its own travel when it applies them.

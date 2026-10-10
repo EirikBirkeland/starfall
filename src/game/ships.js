@@ -22,7 +22,7 @@ import { BALANCE } from './balance.js';
 import { lineOf } from './upgrades.js';
 
 /**
- * The ships on offer, in the order the title screen prints them and the number keys pick
+ * The ships on offer, in the order the hangar's rack prints them and the number keys pick
  * them. `blurb` is a line for the player and nothing else; the name, and every number the
  * body needs, live on the ship's row in `BALANCE.ships`, which is the only place either is
  * written.
@@ -74,11 +74,11 @@ function isOffered(id) {
  * the body and the gun together, which is the only way five of each stay five combinations
  * worth balancing instead of twenty-five.
  *
- * Like the weapon it is a title-screen choice - there is no hangar yet - and it is honest
- * mid-run too: nothing is cached into the ship between one frame and the next, so what
- * changes is the *next* run's body (see `applyShip`) and the gun from the next pull. An id
- * that is not one of the ships offered is a bug and says so; `BALANCE.ships` holds a meta
- * key beside the ships, so being in that table is not the test.
+ * Like the gun it is a choice made between runs - in the hangar, or with the same number key on
+ * the title or over a wreck - and it is honest mid-run too: nothing is cached into the ship
+ * between one frame and the next, so what changes is the *next* run's body (see `applyShip`) and
+ * the gun from the next pull. An id that is not one of the ships offered is a bug and says so;
+ * `BALANCE.ships` holds a meta key beside the ships, so being in that table is not the test.
  */
 export function setShip(world, id) {
   if (!isOffered(id)) throw new Error('no ship is offered called ' + id);
@@ -87,7 +87,7 @@ export function setShip(world, id) {
   return id;
 }
 
-/** The pick by position on the title screen: 0 is the first one offered. */
+/** The pick by position on the hangar's rack: 0 is the first one offered. */
 export function setShipByIndex(world, index) {
   const wanted = SHIPS[index];
   if (wanted === undefined) return false;

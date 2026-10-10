@@ -60,12 +60,19 @@ test('the first thing worth remembering replaces the wreck', () => {
   assert.equal(game.stats().state, game.STATE.OVER);
   assert.equal(game.screen.newBestShown, false, '4,500 is not a best against 90,210');
 
+  // The run itself is the first thing worth remembering: a finished run pays stardust, and paying
+  // it is a write (game/stardust.js). The wreck is overwritten on the way, and comes back as a
+  // real document carrying the best that was rescued from it.
+  const written = JSON.parse(game.storage['starfall.save']);
+  assert.equal(written.version, 1, 'storage holds a real document now');
+  assert.equal(written.score.best, 90210, 'and it is carrying the rescued best with it');
+  assert.equal(written.meta.dust, 45, 'and the 4,500 the run made paid 45 of stardust');
+  assert.equal(game.storage['starfall.best'], OLD_BEST, 'and the plain key is left at what it had');
+
   game.key('BracketLeft', true);
   game.key('BracketLeft', false);
   game.step(FRAME);
-  const written = JSON.parse(game.storage['starfall.save']);
-  assert.equal(written.version, 1, 'storage holds a real document now');
-  assert.equal(written.audio.music, 9, 'with the change that was made to it');
-  assert.equal(written.score.best, 90210, 'and carrying the rescued best with it');
-  assert.equal(game.storage['starfall.best'], OLD_BEST, 'and the plain key is left at what it had');
+  const turned = JSON.parse(game.storage['starfall.save']);
+  assert.equal(turned.audio.music, 9, 'a slider still lands on top of all of it');
+  assert.equal(turned.meta.dust, 45, 'and does not lose what the run paid');
 });

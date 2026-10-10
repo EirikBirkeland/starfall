@@ -8775,3 +8775,128 @@ mixing the fields `bot.js` picks.
 - If milestone 9's settings page wants the sliders, the numbers are still
   `musicLevel()`/`effectsLevel()`/`isMuted()` and the setters, and the setters now write the
   document themselves - a settings page only has to move them.
+
+## Session 74 (2026-10-10) — A run now pays, and there is a hangar to spend it in. Released **0.8.1** — milestone 8 item 2
+
+Milestone 8's second item: "stardust rewards and the hangar screen". Both halves, and the
+decision session 73's notes flagged as the trap (what the number keys mean once a hangar exists)
+came out in favour of the keys.
+
+### What landed
+- **`src/game/stardust.js`** is the whole rule. `dustForRun(world)` = floor(score /
+  BALANCE.stardust.perScore) + bossesDown x perBoss + (won ? won : 0); `payForRun(world)` banks
+  the difference between that and `world.dustPaid` and writes it. Priced from a measurement, not
+  a feeling: three seeds run with the hull topped up every frame came down at 55k / 113k / (one
+  stuck) score, so a run that walks the whole schedule out is worth **1,050-1,930 dust** and a
+  first-timer who dies in the first minute leaves about 10. `perScore: 100, perBoss: 100,
+  won: 500`. Those numbers are the ceiling the next item's costs are priced against, which is why
+  they are in `BALANCE.stardust` with the measurement written next to them.
+- **A run is paid once, whichever way it ended.** `bankBest` became `bankRun` and both endings go
+  through it; `world.dustPaid` is the run's own bookkeeping, so a run that is won (paid, including
+  the win bonus), handed back and flown on for five more minutes and *then* goes down is paid for
+  those five minutes and not for the win twice. That needed `world.won` - a first-class fact set
+  by `winRun` and kept while the run is flown on, rather than a read of `world.tally.won`, which
+  would have broken game/tally.js's "a mirror, never a cause" promise.
+- **`meta.dust` joined the save document**, which is the first tenant `core/save.js` gained since
+  it shipped: one line in SCHEMA, no migration, and a version bump for nobody. Purse ceiling is
+  the store's own MAX_WHOLE. `stats()` reports `dust` and `dustEarned` so a tool can price a
+  perk against what runs actually pay.
+- **The hangar (H).** An **overlay, not a sixth STATE** - it sits over the title or over the
+  death's card, the attract crowd keeps flying behind it, `canStartRun` and friends were not
+  touched, and the way out is the same key that opened it. It holds the purse and the rack: one
+  row per ship, with its gun, its blurb and its numbers - hull, speed, dash wait, and "BEGINS
+  WITH ORBITALS" for the Brood - all of it read off `BALANCE.ships` so the rack cannot advertise
+  a body the run does not arrive in. px/s and seconds rather than FAST/VERY FAST: the rack exists
+  because two ships could not be compared before, and words cannot be compared either.
+- **The title's ship list moved into it.** That is the answer to the trap: **a number key means
+  "the next run flies this ship" in the hangar, on the title and over a wreck, and the answer it
+  gets is the same line wherever you are** - `FLYING WISP - PULSE` on the title, `NEXT WISP -
+  PULSE - H FOR THE HANGAR` on the death's card, the lit row in the hangar. A new
+  `nextShip` line on the death card is what makes "press 2, press Space, fly the scatter" an
+  answered key instead of a silent one. The title now shows what the visit has banked (BEST and
+  STARDUST, one line) and what it flies.
+- **Two screens the hangar refuses to be on.** Over a run in play (a panel the run never agreed
+  to, and it is not a pause), and over the win: the win's Space means "keep flying *this* one",
+  which is the one place in the game where the hangar's launch key already means something else.
+  Both refusals are silent, like every refused press. A **click over the hangar is not a launch**
+  either - the title's and the card's click-to-go stay, but a panel you are meant to be able to
+  look round must not throw you into a run because you aimed at a ship and missed.
+- **Both cards say what the run paid**: `STARDUST +20 - 520 BANKED`, earned-and-purse on one line.
+  The number is the run's whole worth, so a won-then-lost endless run reads the bigger number
+  twice, which is the truth about the run rather than the win counted twice.
+- `BALANCE.ui.open` / `close` - a pair, because a panel that arrives and leaves with the same note
+  cannot be told apart with your eyes shut, and this is a screen you use without looking.
+
+### Two cleanups the item dragged in
+- `game/weapons.js`'s `setWeaponByIndex` is **gone**. The number keys have meant ships (and their
+  guns) since milestone 5, so a by-index primary picker with no caller was a function waiting to be
+  wired up wrongly. `setWeapon` by id stays - it is what `STARFALL.chooseWeapon` and
+  `tools/power-ladder.js` use to price one gun on a body of their choosing.
+- Every comment that said "on the title screen until the hangar exists" now says where the pick
+  actually happens (ships.js, weapons.js, world.js, balance.js, keyboard.js, and the five headers
+  that were a milestone behind). That is most of the diff in files I did not otherwise change.
+
+### Things worth writing down
+- **The structural test `simulation modules do not touch the browser objects directly` matches text,
+  comments included**, and `document.` in a prose sentence trips it. I reworded the comment rather
+  than weaken the check and said so in the test, because the next session will hit it too - the
+  save is called a document in about six places.
+- **A browser that will not store still gets a purse for the visit.** `payForRun` does not care
+  whether `remember` got there (blocked storage, full quota, a newer build's document in the way):
+  `world.dust` moves so the cards are honest about the run, and the write is simply not made. Same
+  bargain the best score has always struck. There is a test for it.
+- `world.won`, `world.dust`, `world.dustPaid` are all written **outside the step** - at an ending,
+  from numbers that only grow - which is why the reference run did not move a byte.
+- `describeRun()` now carries `shipId` as well as the ship's name, so a card lights the rack for
+  the body it describes instead of hoping the interface already knew. `showShip` and
+  `showStanding` are the only two places the glass learns about the purse, and both cards call
+  them, so nothing keeps a second copy of either number.
+
+### Tests: 1,392, all passing (was 1,368)
+- `test/stardust.test.mjs` (10) is a pure unit file (no browser, a fake window per test, the same
+  bargain save.test.mjs makes): the rule in the sheet's own units and never rounding up, each of
+  the three parts on its own, what a cleared schedule is worth, paid-once, paid-for-the-flying-and-
+  not-for-the-win-twice, a nothing run writes nothing, the purse coming back from storage and
+  nonsense being a fresh purse (negative, truncated, over the ceiling), a blocked storage, and a
+  purse write not disturbing the best or the mixer beside it.
+- `test/hangar.test.mjs` (14) boots one game with a best and 500 dust already in storage and walks
+  the screens as a player meets them: the title says what it banked, H opens and shuts, the rack
+  says all five ships' numbers, a number picks and lights exactly one row, the same key answers the
+  title, SPACE launches from the hangar in the ship picked (checked as hull and gun, not as a
+  string), H refused over a run, the wreck's dust line checked **as the exact sentence the card
+  prints**, the pick over a wreck, H over a wreck, a click that is not a launch, SPACE from the
+  hangar over a wreck, the win paying and its card saying so, H refused over a win, and a number
+  over a win meaning "this ship, and a new run, in one press".
+- `test/save-boot.test.mjs`, `test/save-corrupt.test.mjs` and `test/save.test.mjs` gained the
+  `meta` section: a finished run is now the first thing worth remembering, so the corrupt-save
+  test reads the rescued best and the run's 45 dust out of the document that replaced the wreck.
+- `test/ship-pick.test.mjs` needed no assertion change at all (the rack is the same rows the title
+  used to hold, and the harness reads either) - which is the strongest evidence in this diff that
+  the keys did not change meaning.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is **byte for byte** the run recorded in session
+64, checked against a worktree at the previous commit, and a three-minute `--audio` run is the
+same shape as session 73's (6,424 voices asked, 332 turned away, peak 0.53, `run 2m02s, driving
+0m59s`). And the batch over seeds 1-4 still mediates 10m00s, so nothing here is a balance change.
+
+### For the next session
+- **Milestone 8 item 3: ship unlocks and permanent perks.** The hangar is built and waiting: the
+  purse is `world.dust`, spending it is one `remember('meta', { dust })` and a `showStanding`
+  call, and a locked ship wants `setShip`/`setShipByIndex` to answer "no" - which is the one place
+  this session's design has a seam, because every ship is offered today. If four of the five are
+  behind a price, the rack has to say so and the title's `FLYING` line has to be an *unlocked*
+  ship at boot (a save that has unlocked nothing flies the Wisp, which is free by PLAN). Perks:
+  PLAN 3.7 lists six (starting hull, starting shield, stardust gain, a reroll, a banish, start at
+  level 3); the last two are already run state (`world.rerollsLeft`, `world.banishesLeft`,
+  game/upgrades.js) and the level start is `firstLevelXp` in game/progress.js, so five of the six
+  have a door already. Prices should be read off `BALANCE.stardust` and the measurement above:
+  a first rank for a couple of runs, a whole ship for a good evening.
+- The rack is **keyboard only**, like the title's list was. When the hangar gets things to *buy*,
+  rows want to be buttons and `tools/headless/harness.js`'s element stub wants `addEventListener`;
+  a click on a row must also stop the window's launch handler from firing (main.js already refuses
+  a click while the hangar is up, so the plumbing is half there).
+- Still open from older sessions, unchanged: the shake's painter (session 66's note, still the
+  cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, the four unbuilt synergies, and `tools/agent/session.js` still having
+  `choose_weapon` and no `choose_ship`.

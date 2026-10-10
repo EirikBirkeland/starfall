@@ -62,38 +62,64 @@
     box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
     color: #d8fbff; font-weight: 600;
   }
-  .ships {
-    margin-top: 30px;
-    display: grid;
-    gap: 9px;
-  }
-  .ships-title {
-    font-size: 10px; letter-spacing: .42em; text-indent: .42em; color: #74b6dd;
-  }
   .ship-list { display: grid; gap: 9px; }
   .ship {
-    display: flex; align-items: center; gap: 14px; font-size: 12px; letter-spacing: .14em;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+    font-size: 12px; letter-spacing: .14em;
     color: #6f9dc0; transition: color .15s ease;
   }
   .ship .key { min-width: 42px; padding: 6px 0; text-align: center; }
+  /* The numbers are the second line of the row, lined up under the words rather than under the
+     key, because the row is a sentence about a ship and then the four numbers that sentence is
+     priced on. They are the part two rows are compared with, so they are set in tabular figures. */
+  .ship .numbers {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #5f89ab;
+    font-variant-numeric: tabular-nums;
+  }
   .ship.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
+  .ship.picked .numbers { color: #9fd8ff; }
   .ship.picked .key {
     border-color: rgba(94,247,255,.9);
     background: rgba(94,247,255,.16);
     box-shadow: 0 0 18px rgba(94,247,255,.35) inset, 0 0 16px rgba(94,247,255,.3);
   }
+  /* What the visit has to show for itself, on the title: the number to beat and the number being
+     saved up. Two numbers, one line, because they are the same kind of thing. */
+  .standing { margin-top: 30px; display: grid; gap: 12px; }
+  .standing-line {
+    font-size: 12px; letter-spacing: .26em; text-indent: .26em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  .flying {
+    font-size: 13px; letter-spacing: .22em; text-indent: .22em; color: #d8fbff;
+    text-shadow: 0 0 14px rgba(94,247,255,.55);
+  }
+  /* The hangar: the rack, and the purse it is spent from. It is an overlay over the title or over
+     the death's card, so it dims harder than either - the screen underneath is not the thing being
+     read any more. */
+  .hangar { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
+  .hangar-title {
+    margin: 0; font-size: clamp(26px, 6vw, 54px); font-weight: 800;
+    letter-spacing: .28em; text-indent: .28em; color: #eafcff;
+    text-shadow: 0 0 10px rgba(94,247,255,.9), 0 0 38px rgba(94,247,255,.5);
+  }
+  .purse {
+    margin-top: 18px; font-size: 14px; letter-spacing: .26em; text-indent: .26em;
+    color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.5);
+  }
+  .hangar .ship-list { margin-top: 26px; }
   .hint {
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
-  /* A short window. The title, three rows of controls, one row per ship on the rack and the
-     launch line are a tall column, and a centred column that does not fit is cut at both ends
-     at once - which is the worst way to lose any of it, and the ships are the one part a
-     player cannot do without: a ship is its gun, its hull and its dash in one line. So
-     everything above and below them gives way first. */
+  /* A short window. The title, three rows of controls, what the visit has banked and the launch
+     line are a tall column, and a centred column that does not fit is cut at both ends at once -
+     which is the worst way to lose any of it. */
   @media (max-height: 620px) {
     .controls { margin-top: 16px; gap: 7px; }
-    .ships { margin-top: 16px; }
+    .standing { margin-top: 16px; gap: 8px; }
+    .hangar .ship-list { margin-top: 14px; }
     .ship-list { gap: 6px; }
     .hint { margin-top: 16px; }
   }
@@ -119,6 +145,19 @@
   .newbest.hidden { opacity: 0; visibility: hidden; }
   .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
   .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }
+  /* What a run paid that it can spend, and what the purse holds now: gold like the best above it,
+     because it is the other number that carries on past the run. */
+  .dust-line {
+    margin-top: 14px; font-size: 13px; letter-spacing: .22em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.45);
+  }
+  /* And the ship the next run will be flown in, which is what a number pressed over a wreck
+     changes. Kept apart from the build line above it on purpose: that one is about the run that
+     ended, this one is about the next. */
+  .next-line {
+    margin-top: 12px; font-size: 12px; letter-spacing: .2em; color: #7fd2ff;
+    text-shadow: 0 0 14px rgba(94,247,255,.4);
+  }
   /* The win. Mint and not pink: the arena's whole colour language says warm is the thing trying to
      kill you and mint is the thing that paid you (the shards, the level ring, NEW BEST), and a win
      written in the death's own hue would be read backwards for a second every time. */
@@ -146,6 +185,8 @@
     .best-line { margin-top: 10px; }
     .cleared { margin-top: 10px; }
     .stats { margin-top: 10px; }
+    .dust-line { margin-top: 8px; }
+    .next-line { margin-top: 8px; }
   }
 </style>
 </head>
@@ -161,14 +202,26 @@
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
+    <div class="row"><span class="key">H</span><span>HANGAR &#183; SHIPS AND STARDUST</span></div>
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
     <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
   </div>
-  <div class="ships">
-    <div class="ships-title">SHIP &#8212; PICK WITH A NUMBER</div>
-    <div class="ship-list" id="shipRow"></div>
+  <div class="standing">
+    <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
+    <div class="flying" id="titleShip">FLYING</div>
   </div>
   <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
+</div>
+
+<!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.
+     An overlay, not a state - it sits over the title or over the death's card and takes nothing
+     away from either, so the way out of it is the same key that opened it and the way forward is
+     still just SPACE. -->
+<div id="hangarScreen" class="screen hangar hidden">
+  <h2 class="hangar-title">HANGAR</h2>
+  <div class="purse">STARDUST <span id="hangarDust">0</span></div>
+  <div class="ship-list" id="shipRow"></div>
+  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
 </div>
 
 <div id="overScreen" class="screen hidden">
@@ -177,8 +230,10 @@
   <div class="score-big" id="finalScore">0</div>
   <div class="best-line">BEST <span id="finalBest">0</span></div>
   <div class="newbest hidden" id="newBest">&#9733; NEW BEST &#9733;</div>
+  <div class="dust-line" id="finalDust"></div>
   <div class="stats" id="finalStats"></div>
   <div class="build" id="finalBuild"></div>
+  <div class="next-line" id="nextShip"></div>
   <div class="hint">PRESS SPACE OR CLICK TO RESTART</div>
 </div>
 
@@ -189,6 +244,7 @@
   <div class="score-big" id="winScore">0</div>
   <div class="best-line">BEST <span id="winBest">0</span></div>
   <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
+  <div class="dust-line" id="winDust"></div>
   <div class="cleared" id="winCleared"></div>
   <div class="stats" id="winStats"></div>
   <div class="build" id="winBuild"></div>
