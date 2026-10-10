@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.9.1",
+    "date": "2026-10-10",
+    "summary": "The title writes its own name, and then keeps moving"
+  },
+  {
     "version": "0.8.7",
     "date": "2026-10-10",
     "summary": "The hangar keeps a third rack: all thirty awards, lit when they are yours and priced when they are not"
