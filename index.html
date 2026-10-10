@@ -163,6 +163,7 @@
   .rack { display: flex; flex-direction: column; }
   .hangar .ship-list { margin-top: 14px; }
   .hangar .perk-list { margin-top: 14px; }
+  .hangar .award-list { margin-top: 14px; }
   /* The codex (game/codex.js): what the runs of this save have met, and which rows are still empty.
      It opens the way the hangar does and dims the glass as hard, for the same reason - the panel is
      the thing being read now. */
@@ -196,6 +197,28 @@
      up its glow, so the lit rows are the ones that were earned. */
   .entry.unknown .name { color: #43637f; text-shadow: none; }
   .entry.unknown .says { color: #38566f; }
+  /* The awards, on the hangar's third rack (game/awards.js): what this save has been credited with,
+     and what is still out there for it. Gold, and only here - every one of these rows is stardust,
+     and this is the one place in the hangar that says where the purse comes from and not only what
+     it buys. A row that is won keeps its glow and no number: it is paid. A row that is not keeps its
+     number and gives up its glow, which is the same bargain the codex strikes with a thing it has not
+     met - the dim rows are the ones still to do. */
+  .award-list { display: grid; gap: 4px; }
+  .award {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 10px;
+    font-size: 10px; letter-spacing: .1em;
+  }
+  .award .name { color: #ffd8a8; font-weight: 600; text-shadow: 0 0 12px rgba(255,179,64,.4); }
+  /* One line per award, and nothing inside the rule breaking onto a second one: thirty rows is a
+     rack only while it is thirty lines tall, and the hangar has two other racks to fit beside it. A
+     rule this build outgrew would still wrap whole, onto its own line under its own name - the row
+     grows, the sentence does not fall in half. */
+  .award .says { color: #9b7f5e; white-space: nowrap; }
+  .award .pays { color: #ffe6bd; text-shadow: 0 0 12px rgba(255,179,64,.5); }
+  .award .pays:empty { display: none; }
+  .award.unwon .name { color: #5c7f9c; text-shadow: none; }
+  .award.unwon .says { color: #40607a; }
+  .award.unwon .pays { color: #c7a272; text-shadow: none; }
   .hint {
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
@@ -213,6 +236,8 @@
     .standing { margin-top: 16px; gap: 8px; }
     .hangar .ship-list { margin-top: 10px; }
     .hangar .perk-list { margin-top: 10px; }
+    .hangar .award-list { margin-top: 10px; }
+    .award-list { gap: 3px; }
     .codex .entry-list { margin-top: 10px; }
     .entry-list { gap: 5px; }
     .codex-tally { margin-top: 8px; }
@@ -343,6 +368,15 @@
    <div class="rack">
     <p class="rack-title">PERKS</p>
     <div class="perk-list" id="perkRow"></div>
+   </div>
+   <!-- The third rack sells nothing (game/awards.js). It is here and not on the codex because an
+        award is stardust and this is the panel stardust is spent from - the purse above and the
+        ways it was earned on one panel, so nobody has to die for it to find out what they are saving
+        up for. The count is painted with the rows (ui/screens.js `showAwards`), which is also the
+        number the title says. -->
+   <div class="rack">
+    <p class="rack-title" id="awardTitle">AWARDS</p>
+    <div class="award-list" id="awardRow"></div>
    </div>
   </div>
   <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>

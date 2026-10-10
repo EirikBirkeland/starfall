@@ -7,6 +7,11 @@
 // below, the price sheet is `BALANCE.awards`, and the ids are what the save stores
 // (`awards.won`, core/save.js) beside the purse, the ships and the codex.
 //
+// The whole table is read on the back of the hangar (ui/screens.js `showAwards`), which is the panel
+// stardust is spent from: the purse above, and the thirty ways it was earned under it, on one panel,
+// so nobody has to die for it to find out what they are saving up for. Not the codex, whose racks
+// are what a save has *met* and whose tally would otherwise have started meaning two things.
+//
 // **Two moments, because an award is earned at one and paid at the other.**
 //
 //   The **live pass** (`updateAwards`) runs once a step while the run is flying and asks each row
@@ -199,11 +204,22 @@ function earnedThisRun(world, id) {
   return world.runAwards.indexOf(id) >= 0;
 }
 
-/** How many of the whole table this save has won, as `{ won, of }` for whatever says so. */
+/**
+ * How much of the whole table a list of won ids covers, as `{ won, of }` for whatever says so.
+ *
+ * An id the list holds that this table does not know is not counted, because there is no row of
+ * this build's to light up for it - the same bargain `ui/screens.js` strikes with a ship name it
+ * has never met. The `of` is always this build's table, which is the only one the panel can print.
+ */
+export function shareOf(won) {
+  let count = 0;
+  for (const award of AWARDS) if (won.indexOf(award.id) >= 0) count++;
+  return { won: count, of: AWARDS.length };
+}
+
+/** How many of the whole table this save has won. */
 export function wonShare(world) {
-  let won = 0;
-  for (const award of AWARDS) if (wasWon(world, award.id)) won++;
-  return { won: won, of: AWARDS.length };
+  return shareOf(world.awards);
 }
 
 // --- The counters the rules read ------------------------------------------------------

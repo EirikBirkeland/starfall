@@ -929,16 +929,22 @@ When every item above is ticked, go back to the first unchecked item of mileston
       spent or that fight was standing when the run stopped, and a card was taken - all of it read
       from a run that has stopped, so none of it is in the step (game/codex.js). Remembered in the
       save document (`codex.hosts`, `codex.lines`) like the purse and the ships.)
-- [x] Achievements, with a small toast when earned. (Done: thirty-one of them, in four rows - RUNS
-      AND SCORE, FIGHTS, BUILDS AND SHIPS, DASHES, TIME AND PATIENCE - on the back of the hangar, in
-      the one place stardust is already said. A third row was the plan's shape and it does not fit:
-      there is no room under the purse, and a list you have to walk to is a list you do not read.
-      Each pays stardust once, the first time this save's tally passes its rule, and the purse's total
-      now says what the awards paid beside what the runs did. Earned ones are remembered in the save
-      (`awards.won`); the live ones are announced on the glass by a plate that falls in, holds and
-      fades (render/toast.js), with the sound the codex opening uses. A rule is read off the run's
-      tally and the schedule at the end of a step, never in the middle of one (game/awards.js), so a
-      player who has already seen an award is not told twice and an old save starts clean.)
+- [x] Achievements, with a small toast when earned. (Done: thirty of them, each one sentence about a
+      single run and each paying stardust once, the first time this save's tally passes its rule - and
+      the purse's total says what the awards paid beside what the runs did. The whole table is
+      **readable on the back of the hangar**, a third rack beside the ships and the
+      perks, in the one place stardust is already said: the purse above and the thirty ways it was
+      earned under it, a won row lit and needing no number, an unwon one dim and saying what it still
+      pays. Its heading says `AWARDS 7 OF 30`, the same number the title says, painted from the same
+      ids (ui/screens.js `showAwards`). Not a fifth codex rack: an award is stardust and not a thing a
+      save met, the codex's `MET n OF 30` would otherwise have started meaning two things, and four
+      racks is as tall a panel as a short window has. The rows quote the table - name, sentence, price
+      - so the rack, the plate and the card cannot disagree (game/awards.js). Earned ones are
+      remembered in the save (`awards.won`); the live ones are announced on the glass by a plate that
+      falls in, holds and fades (render/toast.js), with the sound the codex opening uses. A rule is
+      read off the run's tally and the schedule at the end of a step, never in the middle of one
+      (game/awards.js), so a player who has already seen an award is not told twice and an old save
+      starts clean.)
 - [x] Run history: the last 20 runs with their seed, ship, time, and score. (Done: the codex's fourth
       rack, `PAST RUNS`, read with `C` and painted at boot and at every ending like the three panels
       beside it. It is not a fifth screen on a fifth key and not a row in the hangar: a run is a thing

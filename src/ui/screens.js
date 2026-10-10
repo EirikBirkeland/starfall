@@ -15,6 +15,7 @@ import { SHIPS } from '../game/ships.js';
 import { priceOf, shipIsBought, perkPriceOf } from '../game/hangar.js';
 import { maxRankOf, PERKS, rankWords } from '../game/perks.js';
 import { CARDS, HOSTS, metShare, SYNERGIES } from '../game/codex.js';
+import { AWARDS, dustOf, shareOf } from '../game/awards.js';
 import { BALANCE } from '../game/balance.js';
 import { lineOf } from '../game/upgrades.js';
 import { uiTick } from '../audio/sfx.js';
@@ -51,6 +52,12 @@ let synRows = [];
 // one row per run flown, so it is built as it is painted (`showLog`) and not at init with the tables
 // that never change size.
 let logRows = [];
+
+// The hangar's third rack: what this save has been credited with and what it has not (game/awards.js).
+// Thirty rows, and every word on them is static but the last column, because an award's rule is the
+// table's own sentence and never changes - which is the opposite of a codex row and the same as a
+// perk's (`showPerks`).
+let awardRows = [];
 
 /**
  * The run's clock the way a card reads it: `47s` inside a minute and `15m02s` past one. The win
@@ -183,24 +190,46 @@ function buildPerkRow(perk, index) {
 }
 
 /**
+ * One row of a list of text: a line made of the named spans, in the order they are painted. The rows
+ * are all this shape on both panels, so what tells them apart is which spans a row has and what class
+ * it wears - and the words are written by whoever owns the list, because what a row means depends on
+ * what the panel is asking (`showCodex`, `showLog`, `showAwards`).
+ */
+function buildRow(list, cls, parts) {
+  const row = document.createElement('div');
+  row.classList.add(cls);
+
+  const out = { row: row };
+  for (const part of parts) {
+    const span = document.createElement('span');
+    span.classList.add(part);
+    row.appendChild(span);
+    out[part] = span;
+  }
+  list.appendChild(row);
+  return out;
+}
+
+/**
  * One row of the codex: a name and one line about it, and nothing else - no key and no price, which
  * is the whole difference between a thing a save has met and a thing the hangar is selling. The
  * words are written by whoever owns the list (`showCodex`, `showLog`), because neither is known when
  * the row is built.
  */
 function buildEntryRow(list) {
-  const row = document.createElement('div');
-  row.classList.add('entry');
+  return buildRow(list, 'entry', ['name', 'says']);
+}
 
-  const name = document.createElement('span');
-  name.classList.add('name');
-  const says = document.createElement('span');
-  says.classList.add('says');
-
-  row.appendChild(name);
-  row.appendChild(says);
-  list.appendChild(row);
-  return { row: row, name: name, says: says };
+/**
+ * One row of the hangar's awards rack: the award's own name, the run that earns it in the award's
+ * own words (game/awards.js), and a third column the codex's rows do not have - what it still pays,
+ * which is empty once it has been paid (`showAwards`).
+ */
+function buildAwardRow(award) {
+  const out = buildRow(el.awardRow, 'award', ['name', 'says', 'pays']);
+  out.name.textContent = award.name;
+  out.says.textContent = award.says;
+  return out;
 }
 
 export function initScreens() {
@@ -232,6 +261,8 @@ export function initScreens() {
     lineRow: document.getElementById('lineRow'),
     synRow: document.getElementById('synRow'),
     logRow: document.getElementById('logRow'),
+    awardRow: document.getElementById('awardRow'),
+    awardTitle: document.getElementById('awardTitle'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleShip: document.getElementById('titleShip'),
@@ -250,6 +281,7 @@ export function initScreens() {
   hostRows = HOSTS.map(() => buildEntryRow(el.hostRow));
   cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
+  awardRows = AWARDS.map(buildAwardRow);
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
@@ -531,7 +563,34 @@ export function showLog(runs) {
 }
 
 /**
- * What the visit has to show for itself, in both places it is read: the best score, the purse, and
+ * Paint what this save has been credited with (game/awards.js), on the hangar's third rack.
+ *
+ * A row that is won keeps its name and its sentence and loses its number: an award is paid once, and
+ * a column of gold numbers under an award the purse already collected would be the shop advertising
+ * money that is not there any more. A row that is not won is dim and says what it still pays, which
+ * is the whole reason the rack stands beside the purse - this is where the purse comes from, and
+ * nobody has to die for it to find out.
+ *
+ * The name and the sentence are not touched here: they are the table's own words, painted once at
+ * init, so the rack cannot paraphrase an award and cannot disagree with the plate that announced it
+ * mid-run (render/toast.js) or the card that named it (see `showAwardLine`).
+ *
+ * `won` is the save's own list of ids (game/awards.js `wonFromSave`), and it may name awards this
+ * build has never heard of; those are counted out of the total rather than invented a row. Called
+ * once when the visit opens and again at every ending, beside `showCodex` and `showLog`, so the rack
+ * can never be one award behind the card that just said what the run won.
+ */
+export function showAwards(won) {
+  for (let i = 0; i < awardRows.length; i++) {
+    const earned = won.indexOf(AWARDS[i].id) >= 0;
+    awardRows[i].row.classList.toggle('unwon', !earned);
+    awardRows[i].pays.textContent = earned ? '' : 'PAYS ' + dustOf(AWARDS[i].id);
+  }
+  const share = shareOf(won);
+  el.awardTitle.textContent = 'AWARDS ' + share.won + ' OF ' + share.of;
+}
+
+/** What the visit has to show for itself, in both places it is read: the best score, the purse, and
  * how much of the awards table this save has cleared. The three are written together because they
  * are the same kind of thing - the number you are trying to beat, the number you are saving up,
  * and the number you are working towards - and because a reward nobody can see being earned is a
@@ -581,7 +640,7 @@ function showDust(where, earned, banked) {
  * save had not won already, and an empty line takes its space with it (index.html `.award-line`), so
  * a card with no awards reads exactly as it did before there were awards.
  */
-function showAwards(where, names, dust) {
+function showAwardLine(where, names, dust) {
   where.textContent = awardWords(names, dust);
 }
 
@@ -605,12 +664,13 @@ function codexWords(count) {
 /**
  * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, shipId,
  * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust, awardsWon,
- * pastRuns }
+ * awardsOwned, pastRuns }
  * - `endlessPast` being how much of the run was flown after it had already been won, 0 for every run
  * that never got that far, `dust` / `dustBank` being what the run earned between runs and what the
  * purse holds after it (game/stardust.js), `codexNew` / `codexFound` being what the run added to the
  * codex and what it holds afterwards (game/codex.js), `awards` / `awardDust` / `awardsWon` being
- * what this run won, what it paid, and where the whole table stands now (game/awards.js), and
+ * what this run won, what it paid, and where the whole table stands now, `awardsOwned` being those
+ * ids themselves - what the save has, which the hangar's rack is painted from (game/awards.js) - and
  * `pastRuns` being the log, with this run written into it (game/history.js).
  */
 export function showGameOver(summary) {
@@ -633,7 +693,7 @@ export function showGameOver(summary) {
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
   showDust(el.finalDust, summary.dust, summary.dustBank);
-  showAwards(el.finalAwards, summary.awards, summary.awardDust);
+  showAwardLine(el.finalAwards, summary.awards, summary.awardDust);
   el.build.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   // The purse and the best moved with this run, so both are written again where they are also
@@ -645,6 +705,7 @@ export function showGameOver(summary) {
   // over this card has to be the one that knows what the card is saying.
   showCodex(summary.codexFound);
   showLog(summary.pastRuns);     // ...and the same promise about the log (game/history.js)
+  showAwards(summary.awardsOwned);  // ...and the awards the hangar keeps (game/awards.js)
   el.over.classList.remove('hidden');
   // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
   // was written, so this is a screen's own event and the simulation has no idea it happened.
@@ -672,13 +733,14 @@ export function showVictory(summary) {
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
   showDust(el.winDust, summary.dust, summary.dustBank);
-  showAwards(el.winAwards, summary.awards, summary.awardDust);
+  showAwardLine(el.winAwards, summary.awards, summary.awardDust);
   el.winBuild.textContent = summary.ship + ' \u00b7 ' + summary.weapon
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   showStanding(summary.best, summary.dustBank, summary.awardsWon);
   showShip(summary.shipId);
   showCodex(summary.codexFound);    // the same promise the death's card makes (see above)
   showLog(summary.pastRuns);        // ...and the log's
+  showAwards(summary.awardsOwned);  // ...and the awards' rack
   // The invitation waits. The card goes up on the hush and the game answers to nothing until the
   // guard is spent, and a line saying "press" that nothing may be pressed with is the exact thing
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).

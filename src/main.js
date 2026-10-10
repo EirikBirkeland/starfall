@@ -39,7 +39,7 @@ import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -404,6 +404,9 @@ function describeRun() {
     awards: namesOf(world.awardNews),
     awardDust: dustTotal(world.awardNews),
     awardsWon: wonShare(world),
+    // ...and the ids themselves, so the hangar's rack is painted from the same list the card was
+    // (ui/screens.js `showAwards`) and cannot say the save has three of a table the card says four.
+    awardsOwned: world.awards.slice(),
     // And the log the codex prints, which this run has just been written into (game/history.js) - the
     // same reason the codex ledger travels with the card: the panel that goes up over this card has
     // to agree with the card.
@@ -528,6 +531,7 @@ function boot() {
   showPerks(perkLedger(world));
   showCodex(world.found);
   showLog(world.pastRuns);
+  showAwards(world.awards);
   showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();

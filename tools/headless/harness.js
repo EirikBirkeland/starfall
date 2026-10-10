@@ -313,6 +313,8 @@ const ELEMENT_IDS = [
   'finalBuild', 'shipRow', 'finalDust', 'finalAwards', 'nextShip',
   // The hangar's second rack: the perks the purse buys ranks of (index.html, game/perks.js).
   'perkRow',
+  // ...and its third, what the save has been credited with (index.html, game/awards.js).
+  'awardRow', 'awardTitle',
   // What the visit has banked, and what the hangar spends it on (index.html).
   'titleBest', 'titleDust', 'titleAwards', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
@@ -385,6 +387,19 @@ function codexRow(row) {
  */
 function logRow(row) {
   return { name: row.children[0].textContent, says: row.children[1].textContent };
+}
+
+/**
+ * One row of the awards rack (game/awards.js): the two parts of the line, the number it still pays
+ * ('' once it has been paid), and whether this save has it yet (`unwon` is the row's own class).
+ */
+function awardRow(row) {
+  return {
+    name: row.children[0].textContent,
+    says: row.children[1].textContent,
+    pays: row.children[2].textContent,
+    unwon: row.classList.contains('unwon'),
+  };
 }
 
 /**
@@ -719,6 +734,10 @@ export async function bootGame(options) {
         // ...and the fourth rack: the last runs this save has flown, newest first, or the one line
         // that says there have been none (game/history.js).
         pastRuns: elements.logRow.children.map(logRow),
+        // The hangar's third rack: every award there is, and which of them this save has (its title
+        // carries the count) - game/awards.js, ui/screens.js `showAwards`.
+        awardTitle: elements.awardTitle.textContent,
+        awards: elements.awardRow.children.map(awardRow),
       };
     },
     get audio() { return audioLog; },
