@@ -3457,7 +3457,8 @@ export const BALANCE = {
     // rather than either of the two decisions themselves.
     open: { freq: 380, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 620 },
     close: { freq: 560, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 300 },
-    // The purse spent on a ship (game/hangar.js `buyShip`). Brighter and longer than a pick and
+    // The purse spent on a row of the hangar - a ship or one rank of a perk (game/hangar.js
+    // `buyRackByIndex`). Brighter and longer than a pick and
     // rising further, because this is the one interface press that costs something: a pick is a
     // decision and this is a payment, and a payment that is not heard is a payment you think the
     // game ate. Nothing at all is played for a buy the purse could not cover.

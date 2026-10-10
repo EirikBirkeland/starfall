@@ -164,7 +164,7 @@ test('a rank the purse cannot cover is refused in silence', () => {
   // none of it, and a refused press is the one thing a tick must not answer.
   const at = tap('Digit' + (SHIPS.length + 1), { shiftKey: true });
   assert.equal(notesSince(at).length, 0, 'a purchase that did not happen made a sound');
-  assert.equal(game.stats().dust, 0, 'and it took what it did not have');
+  assert.equal(game.stats().dust, 0, 'and it did not take what it did not have');
   assert.equal(game.stats().perks.hull, 0, 'and no rank arrived with it');
   tap('KeyH');                               // back out to the title for the tests below
 });
