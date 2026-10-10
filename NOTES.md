@@ -8666,3 +8666,112 @@ says what a key did.
   the readout and `panelLayout` is already the geometry. `M` and the four slider keys would want
   rebinding along with everything else there.
 - Worktree hygiene: `/tmp/s72-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 73 (2026-10-10) — The game remembers: one versioned save document. Released **0.8.0** — milestone 8 begins
+
+Milestone 8's first item: "the save module: versioned, validated on load, falls back to a fresh
+save if corrupt. With tests." `core/save.js` was a best-score slot; it is now one JSON document
+with a schema, and the two volume sliders and the mute from milestone 7 - which used to last a
+visit - are its first tenants after the best score.
+
+### What landed
+- **One document, one key.** `starfall.save` holds `{ version, score: { best }, audio: { music,
+  effects, muted } }`. `SCHEMA` in `core/save.js` is the definition: the sections, and for each key
+  a *kind* (`whole(max)` or `flag`). Anything milestone 8 remembers next is a line in that table.
+  `section(name, defaults)` hands a feature its slice with every missing or bad field filled from
+  the defaults **the feature** passes in, and `remember(name, values)` writes one back.
+- **The store knows the shape, the feature knows the meaning.** That split is the one design
+  decision worth keeping: `core/` may not import `audio/` (structure test), so `save.js` cannot
+  know that the top of a slider is 10 - and it does not need to. `audio/engine.js` passes
+  `{ music: VOLUME.start, effects: VOLUME.start, muted: false }` as its defaults and clamps the
+  stored number to its own travel on top of the store's ceiling. A ceiling of 1000 for a slider is
+  the store being coarse on purpose ("no slider has a thousand positions"); the mixer is precise.
+- **Versioned in both directions.** `SAVE_VERSION` is 1. An *older* document needs no migration
+  step while fields are only ever added - whatever it lacks is filled from the defaults - so there
+  is no migration table (that would have been a placeholder); a build that ever *renames* a field
+  adds a step in `interpret` and says so. A **newer** document is the case that matters here: the
+  release menu serves every past version from one origin, so someone who plays next year's build
+  and then picks this one off the shelf is holding a document from the future. This visit reads
+  the fields it knows and **writes nothing** (`remember` answers false, storage is untouched byte
+  for byte). Test: `test/save-newer.test.mjs`.
+- **Validated on the way in, and a read never destroys.** Not JSON / not an object / no usable
+  version ⇒ a fresh document plus a `problem` string saying which. A field of the wrong kind is
+  dropped and its neighbours are kept; a remembered `0` and a remembered `false` are answers, not
+  absences (that one needed its own test - `undefined` vs `false` is exactly where this class of
+  module goes wrong). Nothing writes unless a caller asked for a new value, so a page load that
+  finds a wreck leaves it there until the game has something of its own to remember.
+- **The legacy `starfall.best` key is both a migration and a spare.** Picked up when the document
+  was missing or unusable (so a corrupt save loses the settings and keeps the score), mirrored on
+  every write that has a best in it (so the older releases still on the menu keep reading the
+  truth). Both go away when the menu stops offering those versions - said in the code and in PLAN's
+  ticked item so a later session knows it is temporary.
+- **The mixer restores itself** (`restoreAudio()` at the top of `boot()`), and `setLevel`/`setMuted`
+  remember on every change - so nothing new was wired into `main.js` for the sliders beyond the
+  restore call. Restore writes nothing (it moves `levels`/`muted` directly rather than going
+  through the setters, because a read of the document must not be a write of it).
+- **A game that comes back muted says so.** `boot()` puts the mixer panel up when the restored
+  state is muted: `MUTED - PRESS M TO HEAR IT AGAIN`, same readout that answers the key, on the
+  title screen, fading like any other press. That is the first consequence of remembering the mute
+  and I judged it a requirement rather than a extra: a remembered state nobody can see is a bug
+  report about broken audio.
+- **`stats()` grew `saveNote` and `saveWritable`**, snapshotted at boot ("why is nothing being
+  remembered" is a question about the moment the page opened, not a per-frame one - and `section()`
+  deliberately re-reads storage, so nobody should call it in a frame).
+- One new structure test: **only `src/core/save.js` may say `localStorage`** in `src/`. Milestone 8
+  is going to want to remember a dozen things and every one of them belongs in the document, not in
+  a `setItem` next to the feature that wanted a number.
+
+### Two things worth writing down
+- **The store is stateless on purpose.** Every call reads storage again: a visit reads it once at
+  boot, a keypress writes it, a finished run writes it. No cache means no stale copy, no
+  "reload the save" API, and no `writable` flag that has to be kept in sync - `read()` answers the
+  whole state (`{ doc, problem, writable }`) each time. Do not call `section()` in the frame loop.
+- **`remember` throws rather than dropping a bad value** (a `NaN` best, a negative level). It is
+  always a caller bug and this module exists precisely so a remembered number is what the caller
+  thought it was - the same bargain `core/pool.js` makes about a bad index. `test/save.test.mjs`
+  pins all six throw cases.
+
+### Tests: 1,368, all passing (was 1,343)
+- `test/save.test.mjs` (15) is a pure unit file against a fake `window` swapped in per test:
+  nothing stored, no window at all (a Node tool), a throwing `localStorage`, a quota that refuses
+  `setItem`, the eleven ways storage text can be nonsense (each one also asserted *unchanged*
+  afterwards), wrong kinds per field, absurd numbers, unknown sections and keys dropped and staying
+  dropped, the newer document, and the caller-error cases.
+- Three more files, one boot each, because the modules hold the world and one process boots one
+  game: `test/save-boot.test.mjs` (4 - a document that says best 5,234 / music 7 / effects 3 /
+  muted, read before the first frame; a keypress written; a worse run touching nothing; a better
+  run banked in both keys), `test/save-corrupt.test.mjs` (3 - truncated JSON beside a legacy best
+  of 90,210: the best is rescued, the game plays, the wreck is untouched until the first write
+  replaces it), `test/save-newer.test.mjs` (2 - version 40 read for what this build knows, and no
+  write at all, not even a mirror).
+- `test/session.test.mjs`, `test/simulate.test.mjs` and `test/victory-card.test.mjs` read
+  `storage['starfall.best']` and needed no change at all: that is the mirror working.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is **byte for byte** the run recorded in session
+64, checked against a worktree at the previous commit, and a three-minute `--audio` run is the same
+shape as session 72's (6,424 voices asked, 332 turned away, peak 0.53, `run 2m02s, driving
+0m59s`). The save module is not in the step and never draws a random number, and the bot presses
+no volume keys, so nothing could have moved - which is also the point of the fingerprint only
+mixing the fields `bot.js` picks.
+
+### Released **v0.8.0** (menu-listed, tagged).
+
+### For the next session
+- **Milestone 8 item 2: stardust rewards and the hangar screen** (PLAN 3.7). What the save module
+  already gives you: a `stardust` line in `SCHEMA.score` (or its own section) is enough to store
+  it, and `remember` is the only write API. What you have to decide: the earn rule (1 per 100 score
+  plus boss bonuses - `describeRun()` in `main.js` already collects everything a reward would be
+  computed from, and `game/tally.js` knows who killed the run), where it is shown (both end cards
+  have room in their stats line, and `src/ui/screens.js` owns those), and whether the hangar is a
+  new `STATE` or a screen over the title - note that ship choice currently lives on the title
+  screen as number keys (`onPickCard`, `setShipByIndex`), and a hangar that the keys 1..5 keep
+  meaning two different things is the trap in that item.
+- `tools/agent/session.js` still exposes `choose_weapon` and no `choose_ship`, which the agent
+  bridge needs before it can play the ships against each other.
+- Still open from older sessions, unchanged: the shake's painter (session 66's note, still the
+  cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
+  `tools/simulate.js`, the four unbuilt synergies.
+- If milestone 9's settings page wants the sliders, the numbers are still
+  `musicLevel()`/`effectsLevel()`/`isMuted()` and the setters, and the setters now write the
+  document themselves - a settings page only has to move them.
