@@ -9025,3 +9025,100 @@ The release's stillness gate passed at 99.9%.
   cheapest feel win), the Hive's owed spiral (session 60), the mid-build measurement gap in
   `tools/simulate.js`, and the four unbuilt synergies.
 - Worktree hygiene: `/tmp/s75-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 76 (2026-10-10) — The perks arrive, and the hangar is fitted to the window. Released **0.8.3** — milestone 8 item 3, second half
+
+Session 75's plan for this one was "the perks". It arrived as two jobs, because the tree was not
+whole when this session started: `src/game/perks.js` and the whole of its wiring were sitting
+uncommitted with **16 failing tests** in `test/ship-pick.test.mjs` and `test/ui-sound.test.mjs`.
+Both files pressed `Digit6`/`Digit9` as "a key past the list" and the perk rack had just taken those
+keys. So: first make the tree honest, then finish the item, then the layout the item created.
+
+### What landed (finishing what was in the tree)
+- **The perks, as the previous session wrote them** (their own header and `BALANCE.perks` say the
+  details): `PLATING` +1 hull per rank, `GLEANER` +10% of what a run pays, `REROLL` and `BANISH`
+  one more ask each, five ranks apiece on rising ladders (80-2,400 a rung), keys 6-9, `SHIFT` buys,
+  the ledger in `hangar.perks`. `core/save.js` grew the `counts` kind for it - a tally of short names
+  to whole numbers, entry by entry the same bargains as `names`. **I changed none of that**: it was
+  finished and it is good. What was missing was everything below.
+- **The two files that were broken, and what they now say instead.** There is no number key past both
+  racks any more: `PICK_DIGIT` reads 1-9 and the hangar now owns all nine (5 ships + 4 perks), which
+  is worth being a test rather than a footnote (`test/perks.test.mjs` asserts
+  `SHIPS.length + PERKS.length <= 9`). So `ship-pick` presses the first perk key to prove a
+  non-ship key cannot move the pick, and `ui-sound` presses the last one to prove the answer is the
+  *door's* note (`UI.open`) and not the *purse's* (`UI.buy`) - and gained "a rank the purse cannot
+  cover is refused in silence". Both had to put the rack back down again: the tests below launch with
+  a click, and a click on the rack is not a launch (that is how the cascade was hiding).
+- **`test/perks.test.mjs` (21 tests).** One visit that came in with something bought: every ladder
+  walked out, then three rows pulled back down (`everyPerkBought()` from the harness, so the ladder's
+  length is not written out by hand), and a Gleaner stored as 9 on a 5-rung ladder so the clamp is a
+  fact. It walks the table's shape, `perkPriceOf` throwing on a rung that has no price, the rack's
+  words, a plain perk key taking nothing, a purchase needing the rack up, two ranks bought and the
+  next rung asking the next price, a short purse refused, a walked ladder refusing to sell, and then
+  the run that flies with them: `hull`/`maxHull` both plated, `rerollsLeft`/`banishesLeft` at
+  grant + ranks, a 100-dust run paying 150, and *the run after that* still plated - the ranks belong
+  to the visit and `resetRun` re-reads the ledger.
+- **`test/save.test.mjs` +2 for `counts`** (junk entries dropped and neighbours kept, a whole-map too
+  big dropped whole, an empty map is a real answer, nonsense defaults and nonsense writes throw). It
+  also **lost 2 duplicated tests**: session 75 had added a second pair of `names` tests alongside the
+  pair already in the file, so the older pair is gone and its one unique assertion moved into the
+  one that stayed. `test/stardust.test.mjs` +2 for the Gleaner (the multiplier on all three parts of
+  the line, rounded, clamped, and paid into the purse and nowhere else).
+
+### The layout, which was a real bug and is now a decision
+Nine rows of three lines is a ~800px column and the perks created it: the ships' rack alone was
+~540px. Every screen here is `pointer-events: none`, so nothing scrolls - a panel taller than the
+window is a panel whose bottom rows are simply not in the game, and the prices live on those rows.
+Two answers, both in:
+- **The two racks stand side by side** (`.racks` is a wrapping flex row, each `.rack` its own titled
+  column), which roughly halves the height on any ordinary window and needs ~1,050px of width to do
+  it. Under that width they stack, which is where the height comes back.
+- **`scaleToFit` / `fitHangar`** (`ui/screens.js`): the panel is measured as one block
+  (`#hangarBody`) and, when it does not fit, the whole of it gets `transform: scale(k)` - not one
+  part of it, so the type keeps its proportions and the panel stays centred. Called from
+  `openHangar`, from `buyFromRack` (a row that runs out of prices is a shorter row), and from
+  `onResize`. There is a **floor of 0.6**, and it is not caution: below that the words stop being
+  words, and a clipped panel is more readable than a microscopic one. A measure of 0 - a page that
+  has not been laid out, or a stub - answers 1, because `0/0` in a transform is how a screen of text
+  vanishes.
+- **The harness grew `layout`** (`bootGame({ layout: { hangarBody: { offsetHeight: 900 } } })`) so a
+  test can say what the browser measured, plus `clientWidth/Height` on every stub element and
+  `game.screen.hangarScale`. `test/hangar-fit.test.mjs` (4) walks a 1,200×900 panel through a window
+  that shrinks around it: scaled, unscaled when the room comes back, re-fitted on resize, floored when
+  nothing can be done. It is the only honest way to test a layout with no layout engine, and it is
+  arithmetic instead of a screenshot.
+
+### Tests: 1,437, all passing (was 1,414 as claimed last session; the tree actually had 1,398 passing and 16 failing)
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte the run recorded in session 64,
+against a worktree at this session's starting commit. The release's stillness gate passed at 99.9%.
+Perks are all `rankOf`-zero for a tool that bought nothing, and nothing here is in the step.
+
+### Things worth writing down
+- **`buyShipByIndex` is now `buyRackByIndex`** and reads the two racks as the one numbered list the
+  keys are printed on: `index < SHIPS.length` is a ship row, after it a perk row. It answers
+  `'bought' | 'short' | 'none'` on either side and `'owned'`/`'maxed'` on one side each.
+- **A plain perk key opens the hangar** (session 75's decision, and it survived contact with the
+  tests). Note what that means over a win: `openRack` refuses any state but the title and the wreck,
+  so a perk key over the win does nothing at all - the same answer a locked ship gives there.
+- **`GLEANER`'s row prints "STARDUST" in its rank words**, so "this row is not for sale" is tested as
+  *there is no `BUYS` on it* and not as *the word STARDUST is absent*. Small thing; it is exactly the
+  kind of assertion that quietly lies later.
+- The perk blurbs are the widest text on their panel (`PLATING - one more pip before the crowd takes
+  one`). If a future session wants the two racks side by side on a narrower window, shorten those
+  four lines first - they are the whole width difference.
+- `everyPerkBought()` had no caller when this session found it. It has one now. A knob with no caller
+  is how a harness turns into a wish list.
+
+### For the next session
+- **Milestone 8's next item is the codex** (`PLAN` 3.7: fills in as enemies are met, upgrades taken
+  and synergies found; silhouettes for the undiscovered). It is a third rack or a third screen - the
+  number keys are used up (1-9, nine rows), so decide where it lives before writing any of it. It is
+  also the first hangar thing that is *read* rather than bought, and the hangar is still keyboard
+  only by decision (session 75's note), not by accident.
+- Still open, unchanged: `tools/agent/session.js` exposes `choose_weapon` and no `choose_ship` and
+  cannot see locks; the shake's painter (session 66); the Hive's owed spiral (session 60); the
+  mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+- After the codex, milestone 8 has achievements (which pay stardust, so they want a purse door -
+  `payForRun` and `spendDust` are the two that exist) and the run history.
+- Worktree hygiene: `/tmp/s76-base` was the baseline worktree for the trace comparison and is gone.
