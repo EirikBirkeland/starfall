@@ -5,7 +5,7 @@ import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
-import { saveBest } from '../core/save.js';
+import { remember } from '../core/save.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -182,7 +182,7 @@ function bankBest(world) {
   world.newBest = world.score > world.best;
   if (world.newBest) {
     world.best = world.score;
-    saveBest(world.best);
+    remember('score', { best: world.best });
   }
 }
 

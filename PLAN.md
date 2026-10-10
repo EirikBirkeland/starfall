@@ -897,10 +897,11 @@ When every item above is ticked, go back to the first unchecked item of mileston
       intensity ladder of its own, and now a player with a say in how loud each half of it is.)
 
 ### Milestone 8: between runs
-- [ ] The save module: versioned, validated on load, falls back to a fresh save if corrupt. With
-      tests. (It has a family to inherit: the two volume sliders and the mute from milestone 7 are
-      remembered for a visit and forgotten when the page reloads, because until now there was no
-      versioned document to put them in - `core/save.js` holds the best score and nothing else.)
+- [x] The save module: versioned, validated on load, falls back to a fresh save if corrupt. With
+      tests. (Done: one document under `starfall.save`, holding the best score and the two volume
+      sliders with the mute. A document from a newer build is read and never overwritten, and the
+      older releases' plain `starfall.best` key is read on load and mirrored on write for as long
+      as the menu offers those versions.)
 - [ ] Stardust rewards and the hangar screen.
 - [ ] Ship unlocks and permanent perks.
 - [ ] The codex.

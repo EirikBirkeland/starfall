@@ -19,7 +19,7 @@ import { STATE } from './game/state.js';
 import { BALANCE } from './game/balance.js';
 import { createClock } from './core/clock.js';
 import { getSeed, setSeed, randomSeed } from './core/rng.js';
-import { loadBest } from './core/save.js';
+import { section, saveIsWritable, saveProblem } from './core/save.js';
 import { initCanvas, resizeCanvas, view } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -28,7 +28,7 @@ import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse } from './input/index.js';
-import { initAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted } from './audio/engine.js';
+import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
@@ -66,6 +66,18 @@ let victoryCardShown = false;
 // Has the won run's card been told what its keys do yet? Same bargain as the one above: it happens
 // once, and it is forgotten the moment the world is on another screen.
 let winHintRevealed = false;
+
+// The score the save document has a section for (core/save.js). A visit with nothing stored
+// starts from no best at all, which is what makes the first run of a new browser a new best.
+const SAVED_SCORE = { best: 0 };
+
+// How the save document answered when this visit opened: '' when it held a document this build
+// could use and otherwise what was wrong with it, and whether this visit may write at all (not
+// over a document from a newer build). Taken once at boot, because that is the moment they are
+// about - "why is nothing being remembered" is not a per-frame question, and storage is not
+// something the frame loop should be reading.
+let saveNote = '';
+let saveWritable = true;
 
 /** Begin a new run, if the screen accepts one right now. */
 function beginRun() {
@@ -313,6 +325,12 @@ function boot() {
   showShip(world.ship);
   initCanvas(document.getElementById('game'));
   onResize();
+  // The mixer first, before anything can make a sound or paint a level: the two sliders and the
+  // mute come back from wherever the last visit left them (core/save.js).
+  const mixer = restoreAudio();
+  // ...and a player who left the game muted and came back has no sound and nothing on the screen
+  // to say why, so the readout that answers the mute key answers the reload too.
+  if (mixer.muted) showVolumePanel('mute');
   // Whoever arrives first picks this visit's seed: the address bar, then the
   // headless tools (which fix one before importing this file), and failing both
   // of them the luck of the moment.
@@ -322,7 +340,9 @@ function boot() {
   else if (!fromTools) setSeed(randomSeed());
   seedIsPinned = fromAddress !== null || fromTools;
   world.seed = getSeed();
-  world.best = loadBest();
+  world.best = section('score', SAVED_SCORE).best;
+  saveNote = saveProblem();
+  saveWritable = saveIsWritable();
   resetRun(world);
   resetAmbient(world);
   mouse.x = view.W / 2;
@@ -421,6 +441,11 @@ window.STARFALL = {
       musicLevel: musicLevel(),
       effectsLevel: effectsLevel(),
       muted: isMuted(),
+      // How the save document answered when this visit opened (core/save.js), and whether this
+      // visit is allowed to write to it. A headless run has no other way to see that storage was
+      // nonsense, or that a newer build's document is sitting in front of it.
+      saveNote: saveNote,
+      saveWritable: saveWritable,
       fireRate: shotsPerSecond(world),
       weapon: world.weapon,
       ship: world.ship,

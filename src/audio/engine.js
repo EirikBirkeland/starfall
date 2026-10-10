@@ -4,6 +4,8 @@
 // about sound is in sfx.js, music.js and noise.js, and what the bus will let through at
 // once is in mix.js.
 
+import { remember, section } from '../core/save.js';
+
 let actx = null;
 let master = null;
 let compressor = null;
@@ -67,6 +69,11 @@ const BUS_GLIDE = 0.015;
 
 /** Where the two sliders are. Kept here whether or not there is an audio device to apply them to. */
 const levels = { music: VOLUME.start, effects: VOLUME.start };
+
+// The three numbers this mixer owns in the save document (core/save.js). They are defaults here
+// rather than there because this is the module that knows what it ships at: both sliders at the
+// top of their travel, the master open.
+const SAVED = { music: VOLUME.start, effects: VOLUME.start, muted: false };
 
 /**
  * What one slider position is worth as a gain: 1 at the top, 0 at the bottom, and the same
@@ -201,6 +208,11 @@ function applyLevels() {
   glideTo(effectsBus, gains.effects);
 }
 
+/** A requested position as a position: a step, inside the travel, no matter who asked. */
+function clampLevel(level) {
+  return Math.max(0, Math.min(VOLUME.steps, Math.round(level)));
+}
+
 /** Where one of the two sliders is. */
 export function musicLevel() {
   return levels.music;
@@ -218,16 +230,40 @@ export function effectsLevel() {
  */
 export function setLevel(which, level) {
   if (levels[which] === undefined) throw new Error('no volume bus is called ' + which);
-  const next = Math.max(0, Math.min(VOLUME.steps, Math.round(level)));
+  const next = clampLevel(level);
   if (next === levels[which]) return null;
   levels[which] = next;
   applyLevels();
+  rememberAudio();
   return next;
 }
 
 /** One slider, one step, one direction. */
 export function nudgeLevel(which, delta) {
   return setLevel(which, levels[which] + delta);
+}
+
+/** Send the three numbers this mixer owns to the save document, so the next visit starts here. */
+function rememberAudio() {
+  remember('audio', { music: levels.music, effects: levels.effects, muted: muted });
+}
+
+/**
+ * Put the sliders and the mute where the last visit left them (core/save.js). Boot calls this
+ * once, before anything has made a sound, and answers what it landed on so the interface can say
+ * something about a game that comes back silent.
+ *
+ * It moves the state and the graph directly rather than going through `setLevel`/`setMuted`,
+ * because those remember and a read of the document must not be a write of it.
+ */
+export function restoreAudio() {
+  const saved = section('audio', SAVED);
+  levels.music = clampLevel(saved.music);
+  levels.effects = clampLevel(saved.effects);
+  muted = saved.muted;
+  applyLevels();
+  applyMute();
+  return { music: levels.music, effects: levels.effects, muted: muted };
 }
 
 /** Safe to call on every click; it gives up quietly if audio is impossible. */
@@ -310,9 +346,14 @@ export function hasMusicTone() {
  * lookahead, a slider at its top, all of it. The sliders are balances between two things
  * that are playing; this is whether anything is.
  */
+function applyMute() {
+  if (master) master.gain.value = muted ? 0 : MASTER_GAIN;
+}
+
 export function setMuted(value) {
   muted = !!value;
-  if (master) master.gain.value = muted ? 0 : MASTER_GAIN;
+  applyMute();
+  rememberAudio();
 }
 
 export function toggleMuted() {

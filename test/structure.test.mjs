@@ -66,6 +66,20 @@ test('simulation modules do not touch the browser objects directly', () => {
   assert.deepEqual(offenders, []);
 });
 
+test('only the save module touches storage', () => {
+  // Milestone 8 is about to want to remember a great many things (PLAN section 3.7), and every one
+  // of them belongs in the one versioned document rather than in a `setItem` call next to whatever
+  // feature needed a number. A value stored outside that document is a value no version, no
+  // validation, and no migration will ever reach.
+  const offenders = [];
+  for (const file of allJsIn('src')) {
+    if (file === 'src/core/save.js') continue;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/\blocalStorage\b/.test(source)) offenders.push(file + ' touches localStorage');
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test('every tuning number sits in balance.js or a named constant', () => {
   // game/ modules may not hard-code a speed, a rate, or a damage value inline.
   // Allowed: 0, 1, 2 (counting and halving), and numbers on a line that names
