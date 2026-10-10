@@ -769,9 +769,10 @@ When every item above is ticked, go back to the first unchecked item of mileston
       are uncapped on purpose - hull and crowd are what end an endless run - and two have walls:
       speed stops where the fastest kind has outrun what a ship can be asked to dodge, and the body
       count stops where the frame budget says to stop. `tools/endless-gauge.js` prints the curve and
-      then plays a fully-built run into it and waits: at these numbers the strongest build the game
-      can describe is buried 14 to 29 minutes past the win, every time, with the crowd standing at
-      the wall. The glass says where the run is: `ENDLESS +7m` beside the clock, and `ENDLESS FOR
+      then plays a fully-built run into it and waits: at these numbers every run it has buried went
+      down, twenty maxed builds between 14 and 33 minutes past the win (median 22m), nearly each of
+      them with the crowd standing at the wall, and a build that never went deeper than two ranks a
+      line goes under in 6 to 16. The glass says where the run is: `ENDLESS +7m` beside the clock, and `ENDLESS FOR
       7m12s` on the card that finally says where it ended. `test/endless-growth.test.mjs`,
       `test/endless.test.mjs` and `test/victory-card.test.mjs` own all of it.)
 - [ ] Release.

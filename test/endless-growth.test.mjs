@@ -25,7 +25,7 @@ import {
 import { crowdBudget, bodyCeiling } from '../src/game/waves.js';
 import { makeEnemy, KINDS } from '../src/game/kinds.js';
 import { shipBody, defaultShip } from '../src/game/ships.js';
-import { growthCurve } from '../tools/endless-gauge.js';
+import { growthCurve, burialSummary, burialLine, burialVerdict } from '../tools/endless-gauge.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const G = BALANCE.endless.growth;
@@ -206,8 +206,14 @@ test('the director really does field more bodies than the schedule was allowed t
 });
 
 // ---------------------------------------------------------------------------
-// The instrument that prints this curve
+// The instrument that says whether the curve ever ends a run
 // ---------------------------------------------------------------------------
+//
+// `growthCurve` is the first half of the gauge: the curve, printed out of the game's own functions.
+// The three below are the second half: what a batch of played runs says about whether the run ever
+// stops. The claim the second half holds is the one that is easiest to fake - a run the cap stopped is
+// not a run that ended, and counting the two together is how a curve that never buries a run gets to
+// report a tidy median.
 
 test('the gauge prints the curve the code plays', () => {
   const rows = growthCurve({ minutes: 6 });
@@ -225,4 +231,86 @@ test('the gauge prints the curve the code plays', () => {
     lastHull = row.hullMul;
     lastBodies = row.bodies;
   }
+});
+
+// ---------------------------------------------------------------------------
+// The second half of the gauge: what a batch of played runs says
+// ---------------------------------------------------------------------------
+
+/**
+ * One played run, as the gauge reports it. `past` is minutes; `capped` means the run was still
+ * flying when the gauge stopped watching it, and `won: false` that it never got that far at all.
+ */
+function played(past, options) {
+  return Object.assign({
+    past: past * MINUTE,
+    won: true,
+    capped: false,
+    capMinutes: 30,
+  }, options);
+}
+
+test('the runs that went down are reported as how long they lasted', () => {
+  const summary = burialSummary([played(10), played(30), played(20), played(40, { capMinutes: 45 })]);
+  assert.equal(summary.runs, 4);
+  assert.equal(summary.reached, 4);
+  assert.equal(summary.missed, 0, 'nothing was missed');
+  assert.equal(summary.cappedCount, 0, 'and nothing was cut off');
+  assert.deepEqual(summary.buried, [10, 20, 30, 40], 'sorted, in minutes');
+  assert.equal(summary.median, 25, 'the middle of the four');
+  assert.equal(summary.shortest, 10);
+  assert.equal(summary.longest, 40);
+  assert.equal(summary.majorityBuried, true);
+
+  const line = burialLine(summary);
+  assert.match(line, /4 of 4 runs buried/, 'the line says which of the two kinds it saw: ' + line);
+  assert.doesNotMatch(line, /still flying/, 'and there was nothing still flying');
+});
+
+test('a run the cap stopped is not counted as a run that ended', () => {
+  // Three runs still flying at the 30m cap and one buried at 12m. Averaged over all four that is a
+  // median of 30 - a number that looks like an ending and describes none.
+  const batch = [played(12), played(30, { capped: true }), played(30, { capped: true }),
+    played(30, { capped: true })];
+  const summary = burialSummary(batch);
+
+  assert.equal(summary.cappedCount, 3, 'the cut-off runs are counted apart');
+  assert.deepEqual(summary.buried, [12], 'and are not in the pile of things that ended');
+  assert.equal(summary.median, 12, 'the median is the middle of what ended, not of what was watched');
+  assert.equal(summary.majorityBuried, false, 'and most of the batch never ended at all');
+
+  const verdict = burialVerdict(summary, 30);
+  assert.equal(verdict.pass, false, 'a batch most of which is still flying cannot pass a burial check');
+  assert.match(verdict.why, /only 1 of 4/, 'and it says so: ' + verdict.why);
+  assert.match(burialLine(summary), /3 still flying at the 30m cap/, 'the line says where they were cut off');
+});
+
+test('a batch where nothing ended says that out loud', () => {
+  const summary = burialSummary([played(45, { capped: true, capMinutes: 45 }),
+    played(45, { capped: true, capMinutes: 45 })]);
+  assert.equal(summary.median, null, 'there is no middle of nothing');
+  assert.equal(summary.shortest, null);
+  assert.equal(summary.majorityBuried, false);
+  assert.match(burialLine(summary), /not one run was buried in 45 minutes/, burialLine(summary));
+  assert.equal(burialVerdict(summary, 60).pass, false, 'and no allowance saves a batch with no endings');
+});
+
+test('a run that never got as far as the endless stretch is a failure of its own', () => {
+  const summary = burialSummary([played(20), played(0, { won: false })]);
+  assert.equal(summary.missed, 1);
+  assert.equal(summary.reached, 1);
+  assert.equal(summary.median, 20, 'the one that got there is still measured');
+
+  const verdict = burialVerdict(summary, 30);
+  assert.equal(verdict.pass, false, 'the batch is not a description of an endless run');
+  assert.match(verdict.why, /never reached the endless stretch/, verdict.why);
+  assert.match(burialLine(summary), /1 of the 2 runs never reached/, burialLine(summary));
+});
+
+test('the verdict is the median against what the run is allowed to last', () => {
+  const summary = burialSummary([played(18), played(22), played(26)]);
+  assert.equal(summary.median, 22);
+  assert.equal(burialVerdict(summary, 22).pass, true, 'exactly on the line is inside it');
+  assert.equal(burialVerdict(summary, 21).pass, false, 'and a minute over is outside it');
+  assert.equal(burialVerdict(burialSummary([]), 30).pass, false, 'nothing played is not a pass');
 });

@@ -7,12 +7,16 @@
 //   node tools/endless-gauge.js --seed 7           a different run
 //   node tools/endless-gauge.js --runs 4           four runs instead of one, seeds in a row
 //   node tools/endless-gauge.js --no-play          the curve on its own - it costs a second
-//   node tools/endless-gauge.js --cap 30           stop a run this many minutes past the win
+//   node tools/endless-gauge.js --cap 45           stop a run this many minutes past the win;
+//                                                  the default, because four maxed builds were
+//                                                  still flying at half an hour and a cap that bites
+//                                                  measures nothing (see burialSummary)
 //   node tools/endless-gauge.js --ranks 2          a shorter reach: no line deeper than this many
 //                                                  ranks, which is closer to what a real run has
 //                                                  earned by the last fight
-//   node tools/endless-gauge.js --need-buried 20   exit non-zero unless the median run was buried
-//                                                  inside this much of an endless stretch
+//   node tools/endless-gauge.js --need-buried 20   exit non-zero unless most of the runs were
+//                                                  buried, and their median was inside this much
+//                                                  of an endless stretch
 //
 // Why this exists. PLAN 3.4 says an endless run "continues with all values scaling for as long as
 // the player lasts", which is two claims and neither one is free:
@@ -34,7 +38,20 @@
 // since milestone 3) - so read the number as the *most* endless a run can get: a player is weaker than
 // every card in the game and better than a bot that only ever runs away, and the truth is below the
 // number this prints. The number this file exists to keep an eye on is the median of `past the win`,
-// and `--need-buried` is that number as an exit code.
+// and `--need-buried` is that number as an exit code. Two things to read off it honestly: the spread
+// is wide (sixteen maxed runs came out between 14 and 33 minutes, so one seed proves nothing and the
+// median of a batch is the number), and a run's exact length is a sample rather than a fingerprint -
+// the same seed measured alone and measured second in a batch came out different, because one step of
+// difference in the bot's aim is a different run, which is the same reason a seed only replays a run
+// when the frame phase is fixed (NOTES, session 7). The cap and the RNG state in front of a batch are
+// part of how it was measured, and a quoted number should say which they were.
+//
+// One trap in measuring a thing that might not end: a run stopped by `--cap` is not a run that ended.
+// It is a run this instrument stopped watching, and its real length is longer than the cap and unknown
+// to the tool. Counting those as if they had died at the cap makes a batch where nothing ever ended
+// report the same median as one where everything did, which is the exact lie this file is here to
+// avoid, so `burialSummary` counts the buried and the cut-off apart and the verdict says which of the
+// two it was told.
 //
 // What the runs measured are not: a measure of the schedule (tools/simulate.js plays that), nor of
 // how much the crowd is worth (tools/balance-report.js), nor of anything about a run that never won
@@ -211,6 +228,9 @@ function oneEndlessRun(game, opts) {
     seed: world.seed,
     ranks: ranks,
     won: handedBackAt !== null,
+    // What this run was cut off at, in minutes, so a batch can say where a `capped` run was stopped
+    // rather than pretend it died there (burialSummary).
+    capMinutes: opts.cap / SECONDS_PER_MINUTE,
     // How long the run flew once the arena had been handed back, and whether that ended or was cut
     // off by the cap. An endless run that is "still flying" is a run this instrument failed to bury.
     past: past,
@@ -270,8 +290,97 @@ function median(values) {
   return sorted.length % 2 === 1 ? sorted[half] : (sorted[half - 1] + sorted[half]) / 2;
 }
 
+/**
+ * What a batch of played runs says about the second claim: that an endless run ends.
+ *
+ * Every duration here is in **minutes past the hand-back**, and the two kinds of run that did not
+ * stop by themselves are counted apart from the ones that did:
+ *
+ *   `buried` - runs that went down, so their length is a fact;
+ *   `cappedCount` - runs still flying when this instrument stopped watching, whose real length is
+ *                    longer than `capMinutes` and is not known here.
+ *
+ * The median is taken over the buried only, which is the whole point of the split: a batch where
+ * nothing ended has no median to report, and saying `null` is worth more than saying the cap. And
+ * `majorityBuried` says whether the median is a description of the batch at all.
+ *
+ * `missed` counts the runs that never got as far as the endless stretch; they are neither of the two
+ * and the verdict treats them as the failure they are.
+ */
+export function burialSummary(results) {
+  const reached = results.filter((r) => r.won);
+  const buried = reached
+    .filter((r) => !r.capped)
+    .map((r) => r.past / SECONDS_PER_MINUTE)
+    .sort((a, b) => a - b);
+  const capMinutes = results.length === 0 ? 0 : results[0].capMinutes;
+  return {
+    runs: results.length,
+    reached: reached.length,
+    missed: results.length - reached.length,
+    buried: buried,
+    cappedCount: reached.length - buried.length,
+    median: buried.length === 0 ? null : median(buried),
+    shortest: buried.length === 0 ? null : buried[0],
+    longest: buried.length === 0 ? null : buried[buried.length - 1],
+    majorityBuried: buried.length * 2 > reached.length,
+    capMinutes: capMinutes,
+  };
+}
+
+/** The batch as one line, saying which of the two kinds of run it saw. */
+export function burialLine(summary) {
+  const parts = [];
+  if (summary.missed > 0) {
+    parts.push(summary.missed + ' of the ' + summary.runs + ' runs never reached the endless stretch');
+  }
+  if (summary.buried.length === 0) {
+    parts.push('not one run was buried in '
+      + dec(summary.capMinutes, 0) + ' minutes of endless - the curve is not ending the run');
+  } else {
+    parts.push(summary.buried.length + ' of ' + summary.reached
+      + ' runs buried, ' + dec(summary.shortest, 1) + 'm to ' + dec(summary.longest, 1)
+      + 'm past the win, median ' + dec(summary.median, 1) + 'm');
+  }
+  if (summary.cappedCount > 0) {
+    parts.push(summary.cappedCount + ' still flying at the ' + dec(summary.capMinutes, 0)
+      + 'm cap, so those lasted at least that long');
+  }
+  return '  ' + parts.join('; ');
+}
+
+/**
+ * `--need-buried` as a yes or a no, with the reason beside it.
+ *
+ * Three things have to be true, in this order: every run got as far as the endless stretch (a batch
+ * that never got there says nothing about it); most of them actually ended, or there is no median
+ * that describes the batch; and the median of the ones that ended is inside what is allowed.
+ */
+export function burialVerdict(summary, needBuried) {
+  if (summary.runs === 0) return { pass: false, why: 'nothing was played' };
+  if (summary.missed > 0) {
+    return {
+      pass: false,
+      why: summary.missed + ' of ' + summary.runs
+        + ' runs never reached the endless stretch, so this batch cannot say how long one lasts',
+    };
+  }
+  if (!summary.majorityBuried) {
+    return {
+      pass: false,
+      why: 'only ' + summary.buried.length + ' of ' + summary.runs + ' were buried before the '
+        + dec(summary.capMinutes, 0) + 'm cap, so how long the run really lasts is not measured here',
+    };
+  }
+  return {
+    pass: summary.median <= needBuried,
+    why: 'the median run lasted ' + dec(summary.median, 1)
+      + ' minutes of endless against the ' + dec(needBuried, 1) + ' it is allowed',
+  };
+}
+
 function readArgs(argv) {
-  const opts = { minutes: 20, seed: 1, runs: 1, play: true, cap: 30, needBuried: undefined };
+  const opts = { minutes: 20, seed: 1, runs: 1, play: true, cap: 45, needBuried: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -326,18 +435,12 @@ if (isMain) {
       cap: opts.cap,
       ranks: opts.ranks,
     });
-    const won = results.filter((r) => r.won);
+    const summary = burialSummary(results);
+    console.log(burialLine(summary));
     if (opts.needBuried !== undefined) {
-      if (won.length < results.length) {
-        console.error('every run has to reach endless for --need-buried to mean anything');
-        process.exit(1);
-      }
-      const mid = median(won.map((r) => r.past / 60));
-      const reached = mid <= opts.needBuried;
-      console.log('burial check: the median run lasted ' + dec(mid, 1)
-        + ' minutes of endless against the ' + opts.needBuried + ' it is allowed - '
-        + (reached ? 'pass' : 'FAIL'));
-      process.exitCode = reached ? 0 : 1;
+      const verdict = burialVerdict(summary, opts.needBuried);
+      console.log('burial check: ' + verdict.why + ' - ' + (verdict.pass ? 'pass' : 'FAIL'));
+      process.exitCode = verdict.pass ? 0 : 1;
     }
   }
 }

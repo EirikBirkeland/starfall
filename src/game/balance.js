@@ -3241,12 +3241,18 @@ export const BALANCE = {
     // eight and a half 12 a minute takes to lift the count. Neither wall is decoration and neither
     // arrives before the other.
     //
-    // The hull rate is the one that ends the run, and it was set by measurement and not by taste:
-    // tools/endless-gauge.js plays a build with every line maxed - what a real run has by the time
-    // the last fight walks in - on into endless. At 4 a minute the strongest player the game can
-    // describe was buried at +14m, +17m, +23m and +29m on four seeds, every one of them with the
-    // crowd standing at the body wall, and every minute before that had been winnable. Below about
-    // 2 it did not end at all inside half an hour, which is the failure this row exists to prevent.
+    // The hull rate is the one that ends the run, and it was set by measurement and not by taste.
+    // tools/endless-gauge.js plays a build on into endless and waits, and at 4 a minute it has never
+    // yet failed to bury one: **twenty runs** of the strongest build the game can describe (every
+    // line maxed, 86 ranks) went down between 14 and 33 minutes past the win, median 22m, and nearly
+    // every one of them with the crowd standing at the body wall - which is the shape of the ending
+    // this row is for, the bodies outlasting the gun. The same tool on a build that never went deeper
+    // than two ranks a line (35 ranks, nearer what a real run has earned by the last fight) goes
+    // under in 6 to 16 minutes. At 1.5 a minute two maxed runs were still flying half an hour past
+    // the win, which is the failure this row exists to prevent - and half an hour is the other thing
+    // to know about this number: a 30-minute cap stopped four runs that were still flying, so a
+    // burial check has to be given a cap above it or it is measuring its own cap. That is why `--cap`
+    // defaults to 45 and why the gauge refuses to count a capped run as a burial.
     growth: {
       hullPerMinute: 4,
       speedPerMinute: 0.06,
