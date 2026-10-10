@@ -9,13 +9,15 @@ const CONFIRM = ['Space', 'Enter', 'NumpadEnter'];
 const DASH_KEYS = ['Space'];
 
 // The upgrade cards are picked with a number (PLAN section 4), and the screens that are not a run
-// use the same numbers to pick the ship to fly (game/ships.js `setShipByIndex`, and the hangar's
-// rack is built in that order). So the number is read out of the key rather than looked up in a
+// use the same numbers to pick the ship to fly (game/hangar.js `pickShipByIndex`, and the rack is
+// built in game/ships.js's order). So the number is read out of the key rather than looked up in a
 // table of three: three cards are dealt, five ships are on the rack and more are coming, and a
 // table that stops at three is how a ship ends up unpickable.
-// Shift turns the same number into the other thing a card can be answered with - cutting that line
-// out of the run (game/upgrades.js `banishOffer`). Anything past a digit is refused here and by
-// whatever is being answered, which between them cover every index the game can be asked for.
+// Shift turns the same number into the *other* thing that key can be answered with, which is one
+// idiom for two screens: during a run it cuts that card's line out of the run for good
+// (game/upgrades.js `banishOffer`), and between runs it pays for that ship (game/hangar.js
+// `buyShipByIndex`). Anything past a digit is refused here and by whatever is being answered, which
+// between them cover every index the game can be asked for.
 const PICK_DIGIT = /^(?:Digit|Numpad)([1-9])$/;
 
 /** Which card or ship this key asks for, or 0 when it asks for neither. */
@@ -52,8 +54,8 @@ export const keyTaps = { dash: false };
 
 /**
  * handlers.onConfirm   - "start / restart", whatever the screen means by it
- * handlers.onPickCard  - the number of an upgrade card that was just asked for, and
- *                        whether it was asked for with Shift (banish, not take)
+ * handlers.onPickCard  - the number of an upgrade card, or of a ship on the rack, and whether it
+ *                        was asked for with Shift (banish the card, or buy the ship)
  * handlers.onReroll    - the deal was asked for again
  * handlers.onHangar    - the hangar was asked for, or asked to go away
  * handlers.onToggleMute

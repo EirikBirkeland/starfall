@@ -1,11 +1,17 @@
 // The ships: what the body you are flying actually is (PLAN 3.7).
 //
-// A ship is data (BALANCE.ships) and the two things a run does with it. `setShip` is the
-// title-screen choice, and it hands over the primary that ship was designed around -
-// which is why picking a ship is one key and not two, and why the two lists can never
-// disagree about what you are flying. `applyShip` is the run's side of it: at the start of
-// a run the ship's numbers are written onto the player, where the simulation reads them as
-// it reads anything else, so nothing has to be kept in step with a pick afterwards.
+// A ship is data (BALANCE.ships) and the two things a run does with it. `setShip` is the choice,
+// and it hands over the primary that ship was designed around - which is why picking a ship is one
+// key and not two, and why the two lists can never disagree about what you are flying. `applyShip`
+// is the run's side of it: at the start of a run the ship's numbers are written onto the player,
+// where the simulation reads them as it reads anything else, so nothing has to be kept in step with
+// a pick afterwards.
+//
+// What this file deliberately does not ask is whether anybody *owns* the ship being picked. That
+// is game/hangar.js's question, and the hangar is the player's only door to a pick: it refuses a
+// body the purse has not bought. `setShip` is the door underneath that one - the one the headless
+// tools walk through to measure any body they like without grinding for it - which is why it stays
+// where it is instead of growing a price check of its own.
 //
 // The split between the two is deliberate and it is the same one game/weapons.js makes
 // about the gun: a ship's *body* is run state, because a heal spent in the last run must
@@ -23,9 +29,9 @@ import { lineOf } from './upgrades.js';
 
 /**
  * The ships on offer, in the order the hangar's rack prints them and the number keys pick
- * them. `blurb` is a line for the player and nothing else; the name, and every number the
- * body needs, live on the ship's row in `BALANCE.ships`, which is the only place either is
- * written.
+ * them. `blurb` is a line for the player and nothing else; the name, every number the body
+ * needs, and what the purse has to pay for it live on the ship's row in `BALANCE.ships`, which
+ * is the only place any of them is written.
  *
  * The order is the primaries' order - the pulse's ship, the scatter's, the arc's, the
  * lance's, the swarm's - so the number a player presses still means the gun it has always
@@ -50,7 +56,7 @@ export function shipOf(world) {
 }
 
 /** The row for a ship id, and a loud answer if there is not one. */
-function shipRow(id) {
+export function shipRow(id) {
   const row = BALANCE.ships[id];
   if (row === undefined) throw new Error('no ship is called ' + id);
   return row;
@@ -79,6 +85,9 @@ function isOffered(id) {
  * between one frame and the next, so what changes is the *next* run's body (see `applyShip`) and
  * the gun from the next pull. An id that is not one of the ships offered is a bug and says so;
  * `BALANCE.ships` holds a meta key beside the ships, so being in that table is not the test.
+ *
+ * Whether anybody *owns* the ship is not asked here, on purpose: game/hangar.js `pickShip` is the
+ * door that asks it, and everything the player presses goes through that.
  */
 export function setShip(world, id) {
   if (!isOffered(id)) throw new Error('no ship is offered called ' + id);
@@ -87,12 +96,10 @@ export function setShip(world, id) {
   return id;
 }
 
-/** The pick by position on the hangar's rack: 0 is the first one offered. */
-export function setShipByIndex(world, index) {
-  const wanted = SHIPS[index];
-  if (wanted === undefined) return false;
-  setShip(world, wanted.id);
-  return true;
+/** The pick by position on the hangar's rack: 0 is the first one offered, or null past the list. */
+export function shipAt(index) {
+  const row = SHIPS[index];
+  return row === undefined ? null : row.id;
 }
 
 /**

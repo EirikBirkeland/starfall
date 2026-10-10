@@ -17,7 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { bootGame } from '../tools/headless/harness.js';
+import { bootGame, everyShipBought } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { SHIPS } from '../src/game/ships.js';
 import { dropShards } from '../src/game/pickups.js';
@@ -28,7 +28,22 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const UI = BALANCE.ui;
 const FRAME = 16.7;
 
-const game = await bootGame({ root: ROOT, seed: 21, audio: true });
+// Everything on the rack bought but the last row, and the purse exactly big enough for that one:
+// this file is about what the interface sounds like, and spending stardust on a ship is one of the
+// sounds it has to have (game/hangar.js).
+const LAST_ROW = SHIPS[SHIPS.length - 1].id;
+const game = await bootGame({
+  root: ROOT,
+  seed: 21,
+  audio: true,
+  storage: {
+    'starfall.save': JSON.stringify({
+      version: 1,
+      meta: { dust: BALANCE.ships[LAST_ROW].cost },
+      hangar: { ships: everyShipBought().slice(0, -1) },
+    }),
+  },
+});
 const world = game.world;
 const ship = world.player;
 
@@ -114,6 +129,28 @@ test('a number with no ship behind it says nothing', () => {
   // always refused it (main.js `onPickCard`).
   const at = tap('Digit9');
   assert.equal(notesSince(at).length, 0, 'a refused key made ' + notesSince(at).join(', '));
+});
+
+test('buying a ship answers with a note of its own', () => {
+  // The one interface press that costs the player something, so it is the one that has to be heard
+  // (BALANCE.ui.buy). It takes the hangar up first because that is where the price is printed,
+  // and a purchase made off a screen that does not show what it costs is not a purchase.
+  tap('KeyH');
+  assert.equal(game.screen.hangarHidden, false, 'the rack is up');
+  const row = SHIPS.length;                 // the one row this visit has not bought
+  const at = tap('Digit' + row, { shiftKey: true });
+  assert.ok(heard(at, UI.buy.freq), 'the purchase was silent');
+  assert.ok(sweptTo(at, UI.buy.slide), 'and it rose, further than a pick, because it cost something');
+  assert.equal(game.stats().dust, 0, 'and the purse paid for it');
+  assert.ok(!game.screen.ships[row - 1].locked, 'and the row is not locked any more');
+});
+
+test('a ship that is already bought is not for sale twice', () => {
+  // Nothing to buy, so nothing to say: the purse stays where it is and no voice is spent on it.
+  const at = tap('Digit' + SHIPS.length, { shiftKey: true });
+  assert.equal(notesSince(at).length, 0, 'a ship already owned made a sound');
+  assert.equal(game.stats().dust, 0, 'and it did not charge for it either');
+  tap('KeyH');                               // back out to the title for the tests below
 });
 
 test('the mute switch is silent going quiet and answers coming back', () => {

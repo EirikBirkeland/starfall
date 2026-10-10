@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { bootGame } from '../tools/headless/harness.js';
+import { bootGame, everyShipBought } from '../tools/headless/harness.js';
 import { endingItAt, startBotRun, FRAME_MS } from '../tools/headless/bot.js';
 import { BALANCE } from '../src/game/balance.js';
 import { SHIPS } from '../src/game/ships.js';
@@ -19,7 +19,13 @@ import { WEAPONS } from '../src/game/weapons.js';
 import { dropShards } from '../src/game/pickups.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const game = await bootGame({ root: ROOT, seed: 71 });
+// Every ship bought, because this file is about which key means which ship and not about what the
+// hangar charges for it (game/hangar.js, test/unlocks.test.mjs).
+const game = await bootGame({
+  root: ROOT,
+  seed: 71,
+  storage: { 'starfall.save': JSON.stringify({ version: 1, hangar: { ships: everyShipBought() } }) },
+});
 const world = game.world;
 const ship = world.player;
 const SECOND = SHIPS[1];

@@ -53,6 +53,15 @@ const LEGACY_BEST_KEY = 'starfall.best';
 // it is a corrupt number, and a corrupt best that cannot be beaten is worse than no best.
 const MAX_WHOLE = 1e9;
 
+// What one entry of a remembered *set* looks like: a ship id, a perk id, an achievement id. Lower
+// case, a letter to start, and short - which is the shape every id in the game is written in
+// (game/ships.js, game/upgrades.js), so a name that does not match it did not come from the game.
+const NAME = /^[a-z][a-z0-9_-]{0,31}$/;
+
+// No set the game remembers is anywhere near this big: five ships, a handful of perks. Past it what
+// is stored is not the game's own list, and a field nobody can account for is dropped whole.
+const MAX_NAMES = 32;
+
 /**
  * What a remembered thing is allowed to be. A kind answers with the value it was given, or
  * null for "that is not one of these". A whole number is a non-negative integer: every number
@@ -65,6 +74,32 @@ const KINDS = {
   whole: (max) => (value) =>
     (Number.isInteger(value) && value >= 0 && value <= max ? value : null),
   flag: (value) => (typeof value === 'boolean' ? value : null),
+  /**
+   * A set of short names, kept as a list: which ships the purse has bought, later which perks.
+   * The store knows it is a list of names and nothing about what the names mean - the feature
+   * that owns them does (game/hangar.js), which is the same split the whole document is built on.
+   *
+   * An entry that is not a name is dropped rather than condemning the list: one wrecked entry in
+   * a half-written page should not cost the player every ship they own. Duplicates are dropped,
+   * and what is left comes out sorted, so the same set always writes the same text. A value that
+   * is not a list at all, or that holds more names than the game could have, is not this field,
+   * and the whole of it is dropped.
+   */
+  names: (max) => (value) => {
+    if (!Array.isArray(value)) return null;
+    const kept = [];
+    for (const entry of value) {
+      if (typeof entry !== 'string' || !NAME.test(entry)) continue;
+      if (kept.indexOf(entry) < 0) kept.push(entry);
+    }
+    // A list that had something in it and gave up nothing this build can read is not the game's list
+    // at all. That is the field being the wrong kind, not an empty set, so it is treated as not
+    // stored and the feature falls back to its own default - the same bargain every other field of
+    // the wrong kind gets. An empty list *is* an answer, and is kept as one: nothing bought yet.
+    if (value.length > 0 && kept.length === 0) return null;
+    if (kept.length > max) return null;
+    return kept.sort();
+  },
 };
 
 // The document's definition: the sections, and the kind of every key in them. A section that is
@@ -74,9 +109,11 @@ const KINDS = {
 const SCHEMA = {
   // game/run.js banks the best score here at the end of a run.
   score: { best: KINDS.whole(MAX_WHOLE) },
-  // The purse between runs (game/stardust.js, PLAN 3.7). The first of the numbers milestone 8
-  // is going to keep - ship unlocks, perks and the rest join it here or beside it.
+  // The purse between runs (game/stardust.js, PLAN 3.7).
   meta: { dust: KINDS.whole(MAX_WHOLE) },
+  // What the purse has bought (game/hangar.js, PLAN 3.7): the ships whose price has been paid.
+  // A set of ship ids, and the ship table is what decides what each one is worth. Perks join it.
+  hangar: { ships: KINDS.names(MAX_NAMES) },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again
   // to its own travel when it applies them.

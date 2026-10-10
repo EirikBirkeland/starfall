@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { SHIPS, applyShip, defaultShip, setShip, setShipByIndex, shipBody, shipName, shipOf } from '../src/game/ships.js';
+import { SHIPS, applyShip, defaultShip, setShip, shipAt, shipBody, shipName, shipOf } from '../src/game/ships.js';
 import { WEAPONS, setWeapon } from '../src/game/weapons.js';
 import { lineOf } from '../src/game/upgrades.js';
 import { scriptedRun } from '../tools/headless/scripted.js';
@@ -28,7 +28,8 @@ test('every ship on offer has a row, and the row holds every number a body needs
   for (const ship of SHIPS) {
     const row = BALANCE.ships[ship.id];
     assert.ok(row, ship.id + ' is offered but has no row');
-    for (const key of ['name', 'shape', 'hull', 'maxHull', 'maxSpeed', 'dashCooldown', 'weapon', 'ranks']) {
+    for (const key of ['name', 'shape', 'hull', 'maxHull', 'maxSpeed', 'dashCooldown', 'weapon',
+      'ranks', 'cost']) {
       assert.ok(row[key] !== undefined, ship.id + ' has no ' + key);
     }
     assert.ok(ship.blurb.length > 0, ship.id + ' is offered without a line about itself');
@@ -133,9 +134,11 @@ test('choosing a ship chooses the primary it brings, in one move', () => {
     assert.equal(shipName(field), BALANCE.ships[ship.id].name, 'and it is called by the row\'s own name');
   }
 
-  assert.equal(setShipByIndex(field, 0), true);
-  assert.equal(field.ship, SHIPS[0].id);
-  assert.equal(setShipByIndex(field, SHIPS.length), false, 'there is no key past the list');
+  // The keys are one line long, and a key past the rack is no ship at all (game/hangar.js turns
+  // this into a pick or a purchase, and refuses what it answers null for).
+  assert.equal(shipAt(0), SHIPS[0].id);
+  assert.equal(shipAt(SHIPS.length - 1), SHIPS[SHIPS.length - 1].id);
+  assert.equal(shipAt(SHIPS.length), null, 'there is no key past the list');
   assert.throws(() => setShip(field, 'hangar'), /no ship is offered/);
   // `default` is a key in the table beside the ships, so being in the table is not the test.
   assert.throws(() => setShip(field, 'default'), /no ship is offered/);

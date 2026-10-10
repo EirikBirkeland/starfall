@@ -15,14 +15,22 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { bootGame } from '../tools/headless/harness.js';
+import { bootGame, everyShipBought } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { SHIPS } from '../src/game/ships.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { makeEnemy } from '../src/game/kinds.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const game = await bootGame({ root: ROOT, seed: 4, audio: true });
+// Every ship bought before this visit started: the file is about what the interface sounds like,
+// and it presses ship keys to make the interface answer (game/hangar.js is the money, and
+// test/unlocks.test.mjs is that file).
+const game = await bootGame({
+  root: ROOT,
+  seed: 4,
+  audio: true,
+  storage: { 'starfall.save': JSON.stringify({ version: 1, hangar: { ships: everyShipBought() } }) },
+});
 
 const HUSH = BALANCE.victory.hush;
 const GUARD = BALANCE.victory.guard;

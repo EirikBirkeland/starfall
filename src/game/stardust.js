@@ -3,13 +3,15 @@
 // A score belongs to the run that made it and then goes on the shelf as a best; stardust is the
 // same achievement made into money, and it is the first of the between-run numbers. It is stored
 // in the save document (`meta.dust`), read once when the visit opens, and it is what the hangar
-// will spend on ships and perks.
+// buys its ships and perks with (game/hangar.js).
 //
 // Two promises, which are the whole reason this is a file and not a line in game/run.js:
 //
 //   **One rule, in one place.** What a run is worth is `dustForRun` and `BALANCE.stardust`, and
 //   nothing else is allowed to do stardust arithmetic. A reward that is worked out twice is a
-//   reward that pays two different numbers depending on who is asking.
+//   reward that pays two different numbers depending on who is asking. And the purse has one
+//   door each way: `payForRun` fills it and `spendDust` empties it, which is the only reason
+//   `game/hangar.js` can buy a ship without knowing how the purse is kept.
 //
 //   **A run is paid once for what it earned.** A won run can be handed back and flown on
 //   (game/run.js `continueRun`), and the score keeps climbing after the win, so paying "whatever
@@ -64,4 +66,21 @@ export function payForRun(world) {
   world.dust += owed;
   remember('meta', { dust: world.dust });
   return owed;
+}
+
+/**
+ * Pay money *out* of the purse, which is the other half of what a purse is (PLAN 3.7: the dust a
+ * run pays is the dust the hangar spends). Answers whether the purse could cover it, and takes
+ * nothing when it cannot: a purchase the player cannot afford is not a partial purchase, and it is
+ * certainly not a discount.
+ *
+ * Like the pay, this does not care whether the write got there (core/save.js answers false for a
+ * browser that will not store, and for a document from a newer build): the purse for the visit
+ * moves either way, so the glass stays honest about what the player has.
+ */
+export function spendDust(world, amount) {
+  if (amount > world.dust) return false;
+  world.dust -= amount;
+  remember('meta', { dust: world.dust });
+  return true;
 }

@@ -8,6 +8,7 @@
 // world is doing, to buy a screen that only ever sits on top of two of them.
 
 import { SHIPS } from '../game/ships.js';
+import { priceOf, shipIsBought } from '../game/hangar.js';
 import { BALANCE } from '../game/balance.js';
 import { lineOf } from '../game/upgrades.js';
 import { uiTick } from '../audio/sfx.js';
@@ -16,6 +17,10 @@ let el = null;
 
 /** The hangar's rack, in the order it was built, so one row can be lit up. */
 let shipRows = [];
+
+// The price line of each row, kept beside the row for the same reason: so painting a purchase is
+// `shipPrices[i].textContent = ...` and not `children[3]` (buildShipRow).
+let shipPrices = [];
 
 // Whether the hangar is up right now. `hideScreens` clears it with the screens themselves, so
 // there is no path where a run is flying and this still says open.
@@ -89,9 +94,17 @@ function buildShipRow(ship, index) {
   numbers.classList.add('numbers');
   numbers.textContent = shipNumbers(spec);
 
+  // What the purse has to pay for this one, on a line of its own under the numbers. Empty for a
+  // ship that is yours, so a bought rack reads exactly like the rack did before there was anything
+  // to buy (game/hangar.js).
+  const price = document.createElement('span');
+  price.classList.add('price');
+  shipPrices.push(price);
+
   row.appendChild(key);
   row.appendChild(what);
   row.appendChild(numbers);
+  row.appendChild(price);
   el.shipRow.appendChild(row);
   return row;
 }
@@ -129,6 +142,7 @@ export function initScreens() {
     finalDust: document.getElementById('finalDust'),
     winDust: document.getElementById('winDust'),
   };
+  shipPrices = [];
   shipRows = SHIPS.map(buildShipRow);
 }
 
@@ -172,6 +186,27 @@ export function showShip(id) {
   }
   el.titleShip.textContent = 'FLYING  ' + shipWords(id);
   el.nextShip.textContent = 'NEXT  ' + shipWords(id) + '   \u00b7   H FOR THE HANGAR';
+}
+
+/**
+ * Paint which rows the purse has bought and which it has not (game/hangar.js). Called once when
+ * the visit opens and again after every purchase - a row that stayed dim after being paid for
+ * would be the shop taking the money and not handing over the ship.
+ *
+ * A locked row keeps every word it had: the numbers are the whole reason a player would want the
+ * ship, and a shop that hides what it sells until it has been sold is not a shop. It is dimmed,
+ * and it says what it costs and which key buys it, on a line of its own.
+ */
+export function showRack(owned) {
+  for (let i = 0; i < shipRows.length; i++) {
+    const id = SHIPS[i].id;
+    const cost = priceOf(id);
+    const bought = shipIsBought(owned, id);
+    shipRows[i].classList.toggle('locked', !bought);
+    shipPrices[i].textContent = bought
+      ? ''
+      : cost.toLocaleString('en-US') + ' STARDUST   \u00b7   SHIFT + ' + (i + 1) + ' BUYS IT';
+  }
 }
 
 /**

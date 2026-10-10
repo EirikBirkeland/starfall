@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { bootGame } from '../tools/headless/harness.js';
+import { bootGame, everyShipBought } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import { SHIPS } from '../src/game/ships.js';
 import { damageEnemy } from '../src/game/enemies.js';
@@ -36,6 +36,9 @@ const game = await bootGame({
       version: 1,
       score: { best: 1234 },
       meta: { dust: STARTED_WITH },
+      // The whole rack bought, because this file is about the panel and the purse, not about what
+      // stands between a player and a ship (game/hangar.js). test/unlocks.test.mjs is that file.
+      hangar: { ships: everyShipBought() },
     }),
   },
 });

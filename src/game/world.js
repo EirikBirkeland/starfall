@@ -87,6 +87,11 @@ function createWorld() {
     // for one score.
     dust: 0,
     dustPaid: 0,
+    // Which ships the purse has bought (game/hangar.js). Read out of the save document when the
+    // visit opens, like the purse beside it, and like the purse it is not a run's to lose: a new
+    // run spends what is in here, it does not empty it. The free ship is not in the list - it is
+    // free to anybody - so an empty array means "nothing bought yet", which is a first visit.
+    ownedShips: [],
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),

@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dustForRun, payForRun, storedDust } from '../src/game/stardust.js';
+import { dustForRun, payForRun, spendDust, storedDust } from '../src/game/stardust.js';
 import { BALANCE } from '../src/game/balance.js';
 import { section, SAVE_KEY } from '../src/core/save.js';
 
@@ -136,6 +136,58 @@ test('a browser that will not store still gets a purse for the visit', () => {
   assert.equal(payForRun(run), 6, 'the purse moved for this visit');
   assert.equal(storedDust(), 0, 'and nothing arrived to be read back');
   assert.equal(payForRun(run), 0, 'and the same run is not paid again for trying twice');
+});
+
+test('the purse has one door each way, and a purchase it cannot cover takes nothing', () => {
+  // PLAN 3.7's money is spent as well as earned, and `spendDust` is the only door out (game/hangar.js
+  // buys through it). Short is not a discount and not a partial payment.
+  const store = browser({});
+  const purse = finished({ score: PER_SCORE * 10 });
+  payForRun(purse);
+  assert.equal(purse.dust, 10);
+
+  assert.equal(spendDust(purse, 4), true, 'a purse that covers it pays');
+  assert.equal(purse.dust, 6);
+  assert.equal(dustStored(store), 6, 'and the write went in');
+
+  assert.equal(spendDust(purse, 7), false, 'a purse that does not cover it is refused');
+  assert.equal(purse.dust, 6, 'and nothing left it');
+  assert.equal(dustStored(store), 6, 'and the document was not touched');
+
+  assert.equal(spendDust(purse, 6), true, 'spending to exactly nothing is still spending');
+  assert.equal(purse.dust, 0);
+  assert.equal(dustStored(store), 0, 'and a zero purse is written as one');
+});
+
+test('a purchase leaves the rest of the visit alone', () => {
+  // Spending shares the save with the best score, the sliders, and what the purse has already bought
+  // (core/save.js), so it has to be as careful as earning: one section lands, the rest stays.
+  const store = browser({
+    [SAVE_KEY]: JSON.stringify({
+      version: 1, score: { best: 77 }, meta: { dust: 30 },
+      hangar: { ships: ['bulwark'] }, audio: { music: 4, effects: 2, muted: true },
+    }),
+  });
+  const purse = finished({ dust: storedDust() });
+  assert.equal(spendDust(purse, 12), true);
+  assert.equal(dustStored(store), 18);
+  assert.equal(section('score', { best: 0 }).best, 77, 'the best is where it was');
+  assert.deepEqual(section('hangar', { ships: [] }).ships, ['bulwark'],
+    'and so is the ship the last visit paid for');
+  assert.deepEqual(section('audio', { music: 10, effects: 10, muted: false }),
+    { music: 4, effects: 2, muted: true }, 'and so is the mixer');
+});
+
+test('a browser that will not store still spends the purse it has', () => {
+  // The same bargain the pay strikes: the purse on the glass is the purse the visit has, and a write
+  // that cannot land is not a reason to lie about it.
+  globalThis.window = {
+    localStorage: { getItem: () => null, setItem: () => { throw new Error('quota'); } },
+  };
+  const purse = finished({ dust: 9 });
+  assert.equal(spendDust(purse, 4), true, 'the purse moved for this visit');
+  assert.equal(purse.dust, 5);
+  assert.equal(storedDust(), 0, 'and nothing arrived to be read back');
 });
 
 test('paying a run leaves the rest of the visit alone', () => {

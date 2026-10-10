@@ -146,12 +146,31 @@ export const BALANCE = {
   //
   // The rows are in the order of the primaries they carry, which is what lets the number a
   // player presses keep meaning the gun it has always meant on this screen (game/ships.js).
+  //
+  // Every row carries a `cost` in stardust - what game/hangar.js asks for the body - and the ladder
+  // is priced against what a run actually pays (see `stardust` below; five bot runs measured in
+  // session 75, on top of session 74's):
+  //
+  //   a run that goes down inside the first minute    ~10
+  //   a bot's ten minutes, five seeds                164 - 781
+  //   the whole schedule walked out                  1,050 - 1,930
+  //
+  // So the first ship a player buys is one run that went alright and the last is one run that beat
+  // the arena. They rise in the order the rack prints them, which is also the order of how much of
+  // the arena each one asks you to give up: the Bulwark's fourth pip is the cheapest thing here
+  // because it is the one that forgives a mistake, and the Brood is the dearest because a rank of
+  // Orbitals spent before the first level is the only body in the game that starts with a card
+  // already taken off the table.
   ships: {
     default: 'wisp',
     // The ship the game has always flown, and the one every measurement in NOTES was taken
     // on. Nothing about it is a trade: three hull, the speed the acceleration table was
     // written for, the pulse. That is its identity - the plain answer, and the row the
     // other four are priced against.
+    //
+    // Free, and the only row that is: it is the body a visit that has bought nothing arrives in,
+    // so a price on this one would be a hangar that charges you to play at all (game/hangar.js
+    // treats a cost of 0 as "always yours" and test/unlocks.test.mjs holds the line).
     wisp: {
       name: 'WISP',
       shape: 'dart',
@@ -161,6 +180,7 @@ export const BALANCE = {
       dashCooldown: 2.5,      // s, from the start of one dash to the next
       weapon: 'pulse',
       ranks: {},
+      cost: 0,
     },
     // Four hull and a fifth less of the arena out of reach of, with the scatter's whole
     // weight standing 370 px away instead of the pulse's 700. It is the ship that walks
@@ -175,6 +195,7 @@ export const BALANCE = {
       dashCooldown: 2.5,
       weapon: 'scatter',
       ranks: {},
+      cost: 250,
     },
     // The dash is the Volt. One dash every 1.5 s rather than every 2.5 is nearly half again
     // as many escapes in a crowded second, and the arc it carries - the one primary that
@@ -190,6 +211,7 @@ export const BALANCE = {
       dashCooldown: 1.5,
       weapon: 'arc',
       ranks: {},
+      cost: 700,
     },
     // The other side of the Bulwark's trade: one hull gone, a fifth more speed, and the
     // lance, which is the primary that wants a lane it can see down the end of. Two pips
@@ -204,6 +226,7 @@ export const BALANCE = {
       dashCooldown: 2.5,
       weapon: 'lance',
       ranks: {},
+      cost: 1300,
     },
     // The Brood arrives with a rank of Orbitals already spent - two drones on the ring from
     // the first second of the run, which is a card off the table before the first level.
@@ -219,12 +242,13 @@ export const BALANCE = {
       dashCooldown: 2.5,
       weapon: 'swarm',
       ranks: { orbitals: 1 },
+      cost: 2200,
     },
   },
 
   // Stardust: what a run leaves behind that the next one can spend (PLAN 3.7). The purse
-  // itself is remembered in the save document and `game/stardust.js` is the code that fills it;
-  // this is the rule.
+  // itself is remembered in the save document and `game/stardust.js` is the code that fills it and
+  // empties it; this is the rule for both halves.
   //
   // PLAN's sentence is "1 per 100 score, plus bonuses for bosses" and these are that sentence
   // priced against what a run actually scores. Held alive to the end of the schedule a run comes
@@ -232,7 +256,7 @@ export const BALANCE = {
   // frame, so it is the crowd's income and not a bot's skill), which is 550-1,130 dust, and a
   // first-timer who goes down inside the first minute leaves about 10. So one rank of a perk is
   // a couple of runs and a whole ship a good evening, which is the shape milestone 8's costs
-  // have to fit.
+  // have to fit - and the ships' side of that is written next to `ships` above.
   stardust: {
     perScore: 100,      // dust per this much score, and the only part that grows all run
     perBoss: 100,       // ...and per fight the schedule sent that came down
@@ -3415,6 +3439,11 @@ export const BALANCE = {
     // rather than either of the two decisions themselves.
     open: { freq: 380, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 620 },
     close: { freq: 560, dur: 0.09, wave: 'triangle', vol: 0.045, slide: 300 },
+    // The purse spent on a ship (game/hangar.js `buyShip`). Brighter and longer than a pick and
+    // rising further, because this is the one interface press that costs something: a pick is a
+    // decision and this is a payment, and a payment that is not heard is a payment you think the
+    // game ate. Nothing at all is played for a buy the purse could not cover.
+    buy: { freq: 520, dur: 0.13, wave: 'triangle', vol: 0.06, slide: 1170 },
   },
 
   effects: {

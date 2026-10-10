@@ -14,6 +14,23 @@
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
+import { SHIPS } from '../../src/game/ships.js';
+import { priceOf } from '../../src/game/hangar.js';
+
+/**
+ * The ids of every ship the hangar sells (game/hangar.js), for a test that wants the whole rack
+ * without earning it: a file about which key picks which ship is not a file about money, and does
+ * not have to buy its way through five ships to press a number key. Pass it as the `hangar.ships`
+ * of a `bootGame({ storage })` document.
+ */
+export function everyShipBought() {
+  const bought = [];
+  for (const ship of SHIPS) {
+    if (priceOf(ship.id) > 0) bought.push(ship.id);
+  }
+  return bought;
+}
+
 function makeGradient() {
   return { addColorStop() {} };
 }
@@ -582,11 +599,12 @@ export async function bootGame(options) {
         hangarHidden: elements.hangarScreen.classList.contains('hidden'),
         hangarDust: elements.hangarDust.textContent,
         // The rack, as the player reads it: one line per ship, naming the ship and the gun it
-        // brings and the numbers it is priced on, and which one is lit up (game/ships.js is what
-        // they are built from).
+        // brings and the numbers it is priced on, which one is lit up, and which ones the purse has
+        // not bought yet (game/ships.js is what they are built from, game/hangar.js what it costs).
         ships: elements.shipRow.children.map((row) => ({
           label: row.children.map((part) => part.textContent).join(' '),
           picked: row.classList.contains('picked'),
+          locked: row.classList.contains('locked'),
         })),
       };
     },

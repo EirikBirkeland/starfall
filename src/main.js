@@ -6,7 +6,8 @@ import { startRun, resetRun, canStartRun, continueRun, victoryCardIsAnswerable, 
 import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
-import { setShip, setShipByIndex, shipName } from './game/ships.js';
+import { setShip, shipName } from './game/ships.js';
+import { boughtShips, buyShipByIndex, pickShipByIndex } from './game/hangar.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -33,7 +34,7 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showStanding, openHangar, closeHangar, hangarIsOpen } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showStanding, openHangar, closeHangar, hangarIsOpen } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -146,8 +147,14 @@ function answerChoice(x, y) {
   }
 }
 
-/** A number key: over one of the cards on the table, or over the ship list. */
-function onPickCard(number, banishing) {
+/**
+ * A number key: over one of the cards on the table, or over the ship rack.
+ *
+ * Shift turns the same number into the other thing that screen can be answered with, which is the
+ * idiom the cards already taught (Shift + a number banishes one): over a run it cuts a line out of
+ * the run for good, and between runs it pays for a ship.
+ */
+function onPickCard(number, withShift) {
   // A keypress is a user gesture and this one can arrive before anything else has been pressed,
   // so this is the earliest the audio may be started at all (audio/engine.js). A machine with no
   // audio is not disturbed by the ask, and `uiTick` on its own never starts a context: only a
@@ -156,7 +163,7 @@ function onPickCard(number, banishing) {
   if (world.state === STATE.LEVEL) {
     // Shift turns the same number into the other thing a card can be answered with: it
     // cuts that line out of the run instead of taking it.
-    if (banishing) {
+    if (withShift) {
       if (banishOffer(world, number - 1)) uiTick('banish');
     } else if (takeOffer(world, number - 1)) {
       uiTick('take');
@@ -172,21 +179,48 @@ function onPickCard(number, banishing) {
   // there. Mid-run the keys are nobody's: a run does not get to swap its body or its gun between
   // two frames.
   if (world.state === STATE.PLAY) return;
-  // A won run is still a run, so it does not swap its body either - and its launch key is spent on
-  // keeping the run, so a number there is the whole of the other answer instead of half of it: take
-  // this ship and begin again, one press. Until the card can be answered there is no answer to give
-  // yet, and a number is refused rather than quietly changing what the run about to be handed back
-  // is flying.
-  if (world.state === STATE.WON) {
-    if (victoryCardIsAnswerable(world) && setShipByIndex(world, number - 1)) beginRun();
+  // And over a win, not before the card can be answered at all: until the guard is spent there is
+  // no answer to give, and a number is refused rather than quietly changing what the run about to
+  // be handed back is flying (game/run.js `victoryCardIsAnswerable`).
+  if (world.state === STATE.WON && !victoryCardIsAnswerable(world)) return;
+
+  const index = number - 1;
+  if (withShift) {
+    buyFromRack(index);
     return;
   }
-  // And a number with nothing behind it says nothing: the flash is the answer to a pick that was
-  // taken, not to a key that was pressed.
-  if (setShipByIndex(world, number - 1)) {
+  const answer = pickShipByIndex(world, index);
+  if (answer === 'picked') {
     showShip(world.ship);
     uiTick('pick');
+    // A won run is still a run, so it does not swap its body - and its launch key is spent on
+    // keeping the run, so a number there is the whole of the other answer instead of half of it:
+    // take this ship and begin again, one press.
+    if (world.state === STATE.WON) beginRun();
+    return;
   }
+  // A ship nobody has bought yet is refused, like every key the screen cannot answer - but it is
+  // answered too, by putting up the one panel that says what it costs.
+  if (answer === 'locked') openRack();
+}
+
+/**
+ * Shift and a number, between runs: the purse buys the ship that number names (game/hangar.js).
+ *
+ * Only while the rack is on the glass, because the price has to be somewhere the player can see it
+ * before the money goes: buying from the title, where a row is not printed, would be spending
+ * somebody's stardust on a key they pressed without looking at what it costs. A purse that is short
+ * is refused in silence, like every other refused press, and the row it could not buy is sitting
+ * right there with the number it is short by.
+ */
+function buyFromRack(index) {
+  if (!hangarIsOpen()) return;
+  if (buyShipByIndex(world, index) !== 'bought') return;
+  // The purse, and the row that is no longer locked, and nothing else: buying is not picking
+  // (game/hangar.js), so the ship about to be flown does not move.
+  showRack(world.ownedShips);
+  showStanding(world.best, world.dust);
+  uiTick('buy');
 }
 
 /**
@@ -246,14 +280,25 @@ function onVolume(which, delta) {
  */
 function onHangar() {
   initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
-  if (world.state !== STATE.START && world.state !== STATE.OVER) return;
   if (hangarIsOpen()) {
     closeHangar();
     uiTick('close');
     return;
   }
+  openRack();
+}
+
+/**
+ * Put the rack up, on the two screens that may carry it, and answer whether it went up. `onPickCard`
+ * asks for the same thing when a number names a ship nobody has bought: the key that wants that ship
+ * is what sends the player to the price of it.
+ */
+function openRack() {
+  if (world.state !== STATE.START && world.state !== STATE.OVER) return false;
+  if (hangarIsOpen()) return false;
   openHangar();
   uiTick('open');
+  return true;
 }
 
 function onResize() {
@@ -376,11 +421,13 @@ function boot() {
   seedIsPinned = fromAddress !== null || fromTools;
   world.seed = getSeed();
   world.best = section('score', SAVED_SCORE).best;
-  // ...and the purse the hangar spends from, read the same once for the same reason
-  // (game/stardust.js).
+  // ...and the purse the hangar spends from, and what it has already bought, read the same once for
+  // the same reason (game/stardust.js, game/hangar.js).
   world.dust = storedDust();
+  world.ownedShips = boughtShips();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust);
+  showRack(world.ownedShips);
   showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
@@ -459,6 +506,10 @@ window.STARFALL = {
       // numbers a tool can see.
       dust: world.dust,
       dustEarned: dustForRun(world),
+      // Which ships the purse has bought (game/hangar.js). A locked ship is the one thing about a
+      // visit a headless tool cannot otherwise tell, and the prices have to be priced against what
+      // runs pay - which means a tool has to see both sides of the purse.
+      owned: world.ownedShips.slice(),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

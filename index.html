@@ -84,6 +84,22 @@
     background: rgba(94,247,255,.16);
     box-shadow: 0 0 18px rgba(94,247,255,.35) inset, 0 0 16px rgba(94,247,255,.3);
   }
+  /* A ship the purse has not bought yet. Every word of the row stays readable - a shop that hides
+     what it sells is not a shop, and the numbers are the reason anybody wants it - but the row is
+     dimmer than the ones that are yours, and its key is dimmest of all because that key does not
+     answer it yet. */
+  .ship.locked { color: #527a9d; }
+  .ship.locked .key { opacity: .5; }
+  .ship.locked .numbers { color: #48688a; }
+  /* What a locked row costs, in the purse's own gold, on a line under its numbers. Empty for a ship
+     that is already yours, so a bought rack reads exactly as it did before there was anything to
+     buy. */
+  .ship .price {
+    flex: 1 0 100%; margin-left: calc(42px + 14px);
+    font-size: 10px; letter-spacing: .18em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.35);
+  }
+  .ship .price:empty { display: none; }
   /* What the visit has to show for itself, on the title: the number to beat and the number being
      saved up. Two numbers, one line, because they are the same kind of thing. */
   .standing { margin-top: 30px; display: grid; gap: 12px; }
@@ -202,7 +218,7 @@
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
-    <div class="row"><span class="key">H</span><span>HANGAR &#183; SHIPS AND STARDUST</span></div>
+    <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY AND FLY SHIPS</span></div>
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
     <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
   </div>
@@ -221,7 +237,7 @@
   <h2 class="hangar-title">HANGAR</h2>
   <div class="purse">STARDUST <span id="hangarDust">0</span></div>
   <div class="ship-list" id="shipRow"></div>
-  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
+  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SHIFT + 1 &#8211; 5 BUYS IT &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
 </div>
 
 <div id="overScreen" class="screen hidden">
