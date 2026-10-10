@@ -99,6 +99,27 @@ const BREATHE_DEEP = 0.12;
 const WAVE_RATE = 0.8;
 const WAVE_STEP = 0.55;
 
+/**
+ * The brightness recipe, all in shares of a cap height or of full brightness.
+ *
+ * A settled letter sits at `LIT_FLOOR` and rides up by `LIT_WAVE` as the shine passes; a letter that
+ * has just been lit adds `STRIKE_LIFT` on its way down; a letter the star is above picks up
+ * `STAR_LIFT` times however near the star is, `STAR_REACH` being how far "near" reaches.
+ */
+const LIT_FLOOR = 0.82;
+const LIT_WAVE = 0.26;
+const STRIKE_LIFT = 0.55;
+const STAR_LIFT = 0.85;
+const STAR_REACH = 1.6;
+const CROSS_AT = 0.3;       // where the star's dive crosses the word, below its top
+
+/** The gap between the word and the rule under it, and the rule's own thickness, in cap heights. */
+const RULE_GAP = 0.19;
+const RULE_THICK = 0.05;
+
+/** Everything drawn, as a share of the box's height: the word, its tube, the gap, the rule. */
+const CONTENT = 1 + TUBE + RULE_GAP + RULE_THICK;
+
 /** The falling star: how often, how fast, and how steeply it dives. */
 const FALL_FIRST = 2.3;     // s after the title arrives before the first one
 const FALL_EVERY = 7.2;
@@ -117,9 +138,6 @@ const HEAD_WIDE = 0.4;      // the head's pool of light, in cap heights
 /** How far along the dive's axis one unit of travel moves x and y. */
 const FALL_X = 1 / Math.hypot(1, FALL_SLOPE);
 const FALL_Y = FALL_SLOPE / Math.hypot(1, FALL_SLOPE);
-
-/** Everything drawn, as a share of the box's height: the word, the gap, the rule. */
-const CONTENT = 1 + TUBE + 0.19 + 0.05;
 
 /**
  * One tube of one letter, with its lengths already measured in the space it will be drawn in - so
@@ -263,7 +281,7 @@ function fallingStar(layout) {
   // bottom)" - a star that spends its first third outside the window is a star that does not exist
   // for its first third, and the cycle would read as a flicker instead of a fall.
   const cap = layout.cap;
-  const cross = { x: layout.cx, y: layout.wordY + cap * 0.3 };
+  const cross = { x: layout.cx, y: layout.wordY + cap * CROSS_AT };
   const back = Math.min(
     (view.W + cap - cross.x) / FALL_X,
     (cross.y + cap) / FALL_Y,
@@ -314,13 +332,13 @@ export function logoLayout() {
     // The shine travels along the lit word, left to right, so a settled mark is never quite
     // still - a neon sign is, and so is this one.
     const wave = calm ? 0.5 : 0.5 + 0.5 * Math.sin(age * WAVE_RATE - i * WAVE_STEP);
-    let bright = breathe * (0.82 + 0.26 * wave * wave) + strike.strike * 0.55;
+    let bright = breathe * (LIT_FLOOR + LIT_WAVE * wave * wave) + strike.strike * STRIKE_LIFT;
     if (star !== null) {
       // What the falling star lights is the letter it is above, however far above it it happens
       // to be: this is a title, not a lighting plan, and the eye reads a light sweeping along
       // the word just as well as one crossing it.
-      const near = 1 - Math.abs(star.x - (x + glyph.w * cap / 2)) / (cap * 1.6);
-      if (near > 0) bright += star.strength * near * 0.85;
+      const near = 1 - Math.abs(star.x - (x + glyph.w * cap / 2)) / (cap * STAR_REACH);
+      if (near > 0) bright += star.strength * near * STAR_LIFT;
     }
     letters.push({
       ch: glyph.ch,
@@ -346,11 +364,11 @@ export function logoLayout() {
     letters: letters,
     rule: {
       cx: at.x + at.w / 2,
-      y: wordY + cap + cap * 0.19,
+      y: wordY + cap + cap * RULE_GAP,
       half: width * RULE_HALF,
       open: open,
       bright: open,
-      thick: cap * 0.05,
+      thick: cap * RULE_THICK,
       stud: cap * 0.085,
     },
     star: star,
