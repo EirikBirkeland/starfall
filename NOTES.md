@@ -8134,3 +8134,82 @@ frame-by-frame rather than every 600 frames.
 - Worktree hygiene: `/tmp/s67-base` was named for the session and removed at the end of it. Note it
   was *left over* from the predecessor's session under the same name - if a `/tmp/sNN-base` exists
   already, check what commit it is on before trusting it.
+
+## Session 68 (2026-10-10) — The game has music. Released **0.7.0**
+
+Milestone 7 opened, and it opened with the two items that were entangled: the engine's music
+and effects buses ("they go in with the music that needs them") and the step sequencer with
+its base pattern. Both are now done; the milestone's remaining items are effects polish, the
+intensity layers, and volume settings.
+
+### What landed here
+- **Two buses** (`audio/engine.js`). `buildMaster` now answers `{ gain, bus, music, sfx }`:
+  the buses hang *upstream* of the master gain, so mute stays exactly one value that goes
+  quiet whatever is scheduled - including music already queued half a second into the future.
+  The effects bus sits at gain 1 deliberately: every `vol` in the game is already priced
+  against the whole master (mix.js's headroom arithmetic), and any other number there would
+  silently reprice the whole game. The music bus is 0.5, which puts the sequencer's heaviest
+  bar (sums to ~0.4 by itself) at two-fifths of what a full sky of effects may spend.
+  `getMaster()` is gone - sfx takes `getSfxBus()`, music takes `getMusicBus()`, and a test
+  (`test/mix.test.mjs`'s raw machine) now owns the four-wire graph.
+- **The sequencer** (`audio/music.js`, new). 16th-note grid, 110 BPM, A natural minor,
+  Am - F - C G one chord per bar four bars to a loop. Three layers: a pad (detuned sawtooth
+  triad, one chord per bar, 0.6 s attack, tail over the bar line - the title's whole music),
+  a sawtooth bass (six steps to a bar, walks to the fifth and up an octave at the bar line),
+  and a square arpeggio two octaves up (climbs the chord and back down, the quietest layer).
+  `updateMusic(world.state)` rides the frame loop in main.js next to `consumeCues` - the
+  cue-queue seam session 67's note pointed at; `game/` still knows nothing about audio.
+- **The schedule belongs to the audio clock.** Notes are queued up to `MUSIC.lookahead`
+  (0.5 s - chosen against the worst browser hitch, not against the frame rate) ahead of
+  `AudioContext.currentTime`. If the clock runs *past* the schedule - backgrounded tab, a
+  card left up, the hush, the death - the sequencer re-anchors and restarts from the top of
+  the progression. Chasing is the wrong answer and the test says so: a 30 s jump schedules at
+  most a bar, never two hundred seconds of the past at once.
+- **Layer gating by state**: START is the pad; PLAY and LEVEL (a run holding its breath over
+  its cards keeps its music) are all three; WON and OVER drop the schedule cleanly - silence
+  means nothing sits half-scheduled to resume when the screen changes.
+- **`musicLedger()`** - steps, notes, anchors, position - the debug/F3 hook and the whole
+  instrument of `test/music.test.mjs` (5 tests): the grid keeps time with the audio clock
+  whatever the frames do, a run is >2× the title's note density, the endings are silent to
+  the step, a jumped clock re-anchors from position 0, and mute takes the music too. Plus
+  one bus-exists test in `test/audio.test.mjs`. 1276 → 1282.
+
+### Verified, not assumed
+- Full suite 1282 green twice; a full 10-minute headless game with `--audio` plays clean.
+- The CHANGELOG's "trace byte for byte" claim was actually checked: worktree at d06cc01,
+  `--seed 20261006 --seconds 120 --trace`, `cmp` identical. The music only *reads* state, so
+  it could not have moved the sim - but the claim got measured anyway before it was written.
+
+### Decisions, so nobody relitigates them
+- **The music is not on the voice budget in mix.js.** The budget exists because a crowded sky
+  asks a frame for thirty sounds and can't know what it's full of; a sequencer knows exactly
+  what it will play, and a voice turned away from a pattern is a hole in the bar, not a spare
+  tick. Its loudness is bounded by arithmetic instead (above), and both buses share the one
+  compressor. This is argued in the file header so it doesn't read as an oversight.
+- **Buses upstream of the master gain**, not downstream: mute had to stay one value. The raw-
+  machine test pins the wire order now, so a future edit can't quietly move them.
+- **A2 as the tonic root** (110 Hz at 110 BPM) and `SFX_BUS_GAIN = 1` are load-bearing tidies,
+  documented where they live.
+- **Drums were left out on purpose** - PLAN has them enter *after 2:00*, which is an intensity
+  fact, so they belong to the next item rather than to the base pattern. The sequencer is
+  ready: a drum is a fourth layer table and one more voice line.
+- Music restarts from the top of the progression after any silence (death → new run, hush →
+  endless). Heard as a feature: a new run starts its tune. If it ever reads as a glitch, the
+  re-anchor is one branch.
+
+### For the next session
+- **Milestone 7's remaining items**: "Effects for shots, hits, explosions, pickups, level-up,
+  dash, player hit, UI" is unchecked but much of it already exists (sfx.js + BALANCE sound
+  rows) - walk each named effect against the code and either tick it with evidence or name
+  what's actually missing (a noise buffer for explosions is the likely gap: everything today
+  is oscillators, and PLAN §5 asks for noise buffers and a low-pass sweep over the music on
+  the player-hit thud - the first biquad in the game, which the harness stub does not have
+  yet, so it grows one).
+- **Then the intensity item**: drums after 2:00, a harsher boss pattern at `world.boss`, a
+  stripped one-hull version at `world.player.hull === 1`, all of it still through
+  `layersFor(state)` - which will want the world rather than just the state passed to
+  `updateMusic`. The layers objects and the gate are built to take it.
+- Still open from older sessions and unchanged: the shake's painter (session 66's note), the
+  Hive's owed spiral (session 60), the mid-build measurement gap in `tools/simulate.js`, the
+  four unbuilt synergies, and `tools/agent/session.js` still having `choose_weapon` and no
+  `choose_ship`.
