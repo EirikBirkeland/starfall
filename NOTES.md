@@ -9367,3 +9367,112 @@ a line of it.
   place a new fact has to be plumbed. A `won` award's `need` may be a string (`first-blood`) - anything
   that walks the sheet assuming a number has to ask first, as `test/awards-art.test.mjs` has to.
 - Worktree hygiene: `/tmp/s78-base` was the baseline worktree for the trace comparison and is gone.
+
+## Session 79 (2026-10-10) — The run log arrives. Released **0.8.6** — milestone 8 item 6
+
+Milestone 8's second-to-last item: "Run history: the last 20 runs with their seed, ship, time, and
+score". Two things had to be decided before a line of it could be written - where a save holds *records*
+rather than names and counts, and where a player reads them - and both were settled in favour of the
+machinery that already exists.
+
+### What landed
+- **`src/game/history.js`** is the whole feature's brain: `loggedFromSave`, `runLedger`, `logKeeps`,
+  `emptyLog`, `logRun(world)` (called from `bankRun` and nowhere else). One run, one row; a second
+  ending of the same run *replaces* the row it already wrote instead of adding one, which is what
+  `world.runLogged` (this run's own flag, cleared by `resetRun`) is for. Nothing dedupes, newest
+  first, trimmed to `BALANCE.history.keep` (20) on write and on read.
+- **The save grew a third kind of collection** (`core/save.js`): `KINDS.records(maxEntries, fields)`,
+  the section `runs.log`. It differs from `names` and `counts` in exactly two ways, both of them
+  load-bearing and both tested: **the order is kept** (a log that came back sorted would say the wrong
+  thing about which run was last) and **an entry is judged whole** - every field is required, and one
+  field of the wrong kind condemns the row rather than just itself, because a row that lost its score
+  cannot be printed. Its neighbours on the list survive, as always. Also new: `KINDS.name`, one name
+  as a field (and `names` now reads through it instead of testing the pattern twice).
+- **It is read on the codex**, as a fourth rack, `PAST RUNS`, on the same `C` key. No fifth screen and
+  no fifth key: a run is a thing this save has *done*, which is the codex's subject, and session 77's
+  own argument - a row nobody can buy has no business among rows that can be - rules the hangar out.
+  A row is the codex's own shape (`.entry` - a name and a line, no key, no price): `SEED 41832` then
+  `WISP · 12m04s · 18,300 · CLEARED`. The seed leads because it is the one number on the row a player
+  can *do something with* (`?seed=` in the address bar, which main.js already honours).
+- **`ui/screens.js`** gained `showLog(runs)` (painted at boot and at every ending, beside `showCodex`,
+  so the panel is never one run behind its own card), `logLine`/`logShip`/`emptyLogLine`, and a
+  `LOG_CLEARED` word borrowed from the win card. `buildEntryRow` lost its unused `entry` argument and
+  now builds the log's rows too, so there is one row shape on that panel and not two that must match.
+  A first visit gets one row - `NO RUNS YET · THE LAST 20 ARE KEPT HERE` - because an empty column
+  under a heading reads as a panel that broke.
+- `world.pastRuns` (the visit's, never cleared by a run) and `world.runLogged` (the run's);
+  `describeRun()` carries `pastRuns`; `STARFALL.stats()` reports `runs` and `runLog`; the harness can
+  read the rack (`game.screen.pastRuns`) and its DOM stub grew `removeChild` (strict: it throws on a
+  child that is not in there, like the real thing).
+
+### Decisions
+- **A `won` flag rides along**, which PLAN's sentence did not ask for. A cleared run and a wreck that
+  both scored 18,300 are not the same memory and the row has room for the word; it is `world.won`, so a
+  run that cleared, was handed back and died an hour later is still a cleared run. No level, no build,
+  no dust: four facts and a marker is a line, and the card is where a run's whole story lives.
+- **The visit reads at most what this build keeps** (`loggedFromSave` slices to `logKeeps()`), so the
+  invariant is one sentence: *the log never holds more than `BALANCE.history.keep` rows*. A log left by
+  a build that kept more is read as this one's log rather than overflowing the rack.
+- **A ship id this build does not know is named by its own text** (`logShip` upper-cases it) rather than
+  throwing the panel away. The store keeps any well-formed name and it is not wrong to; a save written
+  by a newer page can name a ship that has not been invented here yet, and this build has met weirder.
+  The same bargain `showPerks` already strikes with a rank past this build's ladder.
+- **Rows are painted, not rebuilt wholesale**: `showLog` grows and shrinks the row list to match, and
+  the shrink path is defensive - a log only ever grows today. Two lines, and the alternative (a paint
+  that could only ever add) would print a stale row the moment anything ever let the list shrink.
+
+### Tests: +17 (1489 to 1506, all passing)
+- **`test/history-rules.test.mjs`** (7, scripted world, through the real doors): a row is the run
+  field for field; the row names the ship *that* run flew; **the won-flown-on-and-buried case is one row
+  saying 90,000 and not two**; the cap of twenty with the right five falling off; the same seed twice is
+  two rows; `runLedger` hands out a copy and not the log; and a fake browser's storage proves the write
+  lands in `runs.log` and that the second ending rewrites rather than appends.
+- **`test/history.test.mjs`** (4, booted visit): the empty rack and `C`; a naive bot run painting its
+  row (and the card's own seed matching it); a second run joining at the top on a different seed; the
+  launch taking the panel down and the log surviving whole.
+- **`test/history-saved.test.mjs`** (3): a visit that arrives with *more* rows than it keeps - the read
+  trims, the rack says twenty and not twenty-nine, a ship it has never heard of is printed as
+  `SANDPIPER`, and every row that came in rode back out through the next write.
+- **`test/save.test.mjs`** +3 (order kept, one wrecked row dropped among healthy ones, nonsense/over-long
+  lists refused and `[]` accepted as an answer), and its two whole-document assertions now know `runs`.
+
+### Proof the simulation did not move
+`node tools/simulate.js --seed 20261006 --trace` is byte for byte the run recorded in session 64,
+checked against a worktree at this session's starting commit. Nothing here is in the step: a row is
+made from a run that has stopped, which is the tally's and the codex's promise kept a third time.
+
+### Things worth writing down
+- **Session 78's note describes an awards list that is not in the game.** It says the awards went "on the
+  back of the hangar" in a `#awardRow` painted by `showAwards(ledger, purse)`, with the purse line
+  saying `+710 FROM AWARDS`. None of that is in `index.html` or `src/ui/screens.js` - what shipped is the
+  title's `AWARDS n OF 31`, the ending card naming what that run won, and the toast. PLAN's tick says
+  "on the back of the hangar" too. So: **there is no way to read the award table**, which is 31 rows of
+  content and the only part of milestone 8 nobody can look at. It is small now - the rack machinery built
+  this session (`showLog`, `logLine`, `buildEntryRow(list)`, the harness's row reader) is exactly what a
+  fifth codex rack needs, and `game/awards.js` already has every fact a row would print. Fix that before
+  ticking milestone 8's last item, or say plainly why not.
+- The harness's DOM stub now has `removeChild`, which is a small new thing a screens test can lean on.
+- `showLog`'s rows are built lazily and torn down; nothing else on that panel does, which is the one
+  asymmetry a reader of `ui/screens.js` will notice. The comment above `logRows` says why.
+- The codex is four racks wide now. `.codex .rack { max-width: 34ch }` and `.racks`' wrapping hold it
+  (and `fitCodex` shrinks the whole panel), so no CSS was added for the fourth rack; the log's rows are
+  numbers and short words and wrap under themselves if they run long. If a fifth rack goes in, that is
+  the number to re-check.
+- `MAX_SEED`/`MAX_RUN_SECONDS`/`MAX_RUNS` are in the store and `BALANCE.history.keep` is the game's
+  number; a test pins `logKeeps() === BALANCE.history.keep`, and the store's ceiling (64) is what makes
+  "seventy runs is not a log" a check rather than a shrug.
+
+### Next
+- Milestone 8 has only "Release." left, and 0.8.6 was that release for everything except the awards gap
+  above. Suggested order for the next session: **put the awards on the glass** (a fifth codex rack, the
+  `AWARDS n OF 31` line on the title then being the same list rather than a mystery), correct the PLAN
+  tick and this note to what actually shipped, then close milestone 8 and go on to milestone 9 (pause
+  screen with stats, settings, key rebinding - and note that milestone 9's pause is where the volume
+  nudge that no run can reach has been waiting).
+- Still open from earlier sessions, all bigger than a session: nothing in the UI says `H` or `C` exists
+  beyond the title's two control rows; neither panel answers a click (milestone 9's settings screen
+  should answer the click question once for all of them); the streak's arc and the tether's cord are
+  drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60); the
+  mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies; `tools/agent/session.js`
+  exposes `choose_weapon` and no `choose_ship` and cannot see locks, the codex or the log.
+- Worktree hygiene: `/tmp/s79-base` was the baseline worktree for the trace comparison and is gone.
