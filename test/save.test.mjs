@@ -80,7 +80,7 @@ test('a write is a versioned document, and the same values always write the same
   assert.equal(remember('score', { best: 500 }), true);
   const written = text(store);
   assert.deepEqual(JSON.parse(written), {
-    version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, audio: {},
+    version: SAVE_VERSION, score: { best: 500 }, meta: {}, hangar: {}, codex: {}, audio: {},
   });
 
   assert.equal(remember('audio', { music: 3, effects: 3, muted: false }), true);
@@ -92,7 +92,7 @@ test('a write is a versioned document, and the same values always write the same
   assert.equal(text(store), both, 'the same values again is the same text, byte for byte');
 
   const keys = Object.keys(parsed(store));
-  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'audio'],
+  assert.deepEqual(keys, ['version', 'score', 'meta', 'hangar', 'codex', 'audio'],
     'the document is written in schema order');
 });
 
@@ -188,6 +188,30 @@ test('a remembered set of names is a set: read back deduped, sorted, and with it
   assert.deepEqual(section('hangar', BOUGHT).ships, ['bulwark', 'needle']);
   assert.deepEqual(section('hangar', { ships: ['wisp'] }).ships, ['bulwark', 'needle'],
     'a default for a key that is there is not applied');
+});
+
+test('the codex\'s lists are sets too, and allowed to be longer than a rack is', () => {
+  // The same kind as a hangar purchase, with a different ceiling (core/save.js): a rack is five ships
+  // and four perks, and a codex is a row per enemy, per fight and per card (game/codex.js), so forty
+  // entries is nonsense in one field and the honest shape of the other. Both still have a ceiling - a
+  // list past every row the game can name is not the game's list either.
+  const MET = { hosts: [], lines: [] };
+  const forty = [];
+  for (let i = 0; i < 40; i++) forty.push('kind' + i);
+  browser(stored({ codex: { hosts: forty, lines: ['burn'] } }));
+  assert.deepEqual(section('codex', MET).hosts, forty.slice().sort(),
+    'forty bodies is a codex, where forty ships is not a rack');
+  assert.deepEqual(section('codex', MET).lines, ['burn'], 'and its neighbour on the same row survives');
+
+  const absurd = [];
+  for (let i = 0; i < 200; i++) absurd.push('kind' + i);
+  browser(stored({ codex: { hosts: absurd, lines: ['burn'] } }));
+  assert.deepEqual(section('codex', MET).hosts, [], 'two hundred rows is not a codex either');
+
+  const store = browser({});
+  assert.equal(remember('codex', { hosts: ['tank'], lines: ['fire-rate'] }), true);
+  assert.deepEqual(parsed(store).codex, { hosts: ['tank'], lines: ['fire-rate'] },
+    'and it is written back as it was given');
 });
 
 test('a set that is not a set is not stored, and an empty one is an answer', () => {

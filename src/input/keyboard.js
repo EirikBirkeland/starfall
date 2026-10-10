@@ -47,6 +47,11 @@ const VOLUME_KEYS = {
 // picked in this game.
 const HANGAR_KEYS = ['KeyH'];
 
+// The codex (PLAN 3.7) - what the runs of this save have met. Same rule as the hangar's key, and the
+// same reason for a key of its own instead of another row on that rack: the numbers are all spoken
+// for, and a row nobody can buy has no business among rows that can be.
+const CODEX_KEYS = ['KeyC'];
+
 // One-shot requests: a key that means "do that thing" rather than "this is held".
 // input/index.js folds them into the descriptor and clears them once the
 // simulation has had its turn at them.
@@ -58,6 +63,7 @@ export const keyTaps = { dash: false };
  *                        was asked for with Shift (banish the card, or buy the ship)
  * handlers.onReroll    - the deal was asked for again
  * handlers.onHangar    - the hangar was asked for, or asked to go away
+ * handlers.onCodex     - the codex was asked for, or asked to go away
  * handlers.onToggleMute
  * handlers.onVolume    - one step of one slider: which bus, and which way (-1 or 1)
  */
@@ -79,6 +85,7 @@ export function initKeyboard(handlers) {
       const slider = VOLUME_KEYS[code];
       if (slider && handlers.onVolume) handlers.onVolume(slider[0], slider[1]);
       if (HANGAR_KEYS.indexOf(code) >= 0 && handlers.onHangar) handlers.onHangar();
+      if (CODEX_KEYS.indexOf(code) >= 0 && handlers.onCodex) handlers.onCodex();
     }
     if (code === 'KeyM' && !event.repeat && handlers.onToggleMute) handlers.onToggleMute();
   });

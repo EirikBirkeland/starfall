@@ -7,6 +7,7 @@ import { setSeed } from '../core/rng.js';
 import { STATE } from './state.js';
 import { remember } from '../core/save.js';
 import { payForRun } from './stardust.js';
+import { recordRun } from './codex.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -169,6 +170,9 @@ export function resetRun(world) {
   world.shardStreak.count = 0;
   world.shardStreak.left = 0;
   world.newBest = false;
+  // ...and this run has taught the codex nothing yet (game/codex.js). What the codex *knows* is
+  // above, in `world.found`, and is none of this run's to forget.
+  world.codexNew = 0;
   // ...and the run has not been won or paid for yet (game/stardust.js). The purse above is left
   // alone: what the last run earned is spent or it is not, and either way it is not this run's.
   world.won = false;
@@ -199,6 +203,11 @@ export function startRun(world) {
  * which one it was. The stardust is paid here rather than beside the best because a run is paid
  * once, whichever way it ended - and a won run that is handed back and goes down later is the case
  * that would otherwise be paid twice (game/stardust.js).
+ *
+ * The codex is filled in here for the same reason (game/codex.js): it is what the run met and what
+ * it took, which is only a finished sentence once the run has stopped, and a run that is won, handed
+ * back and goes down later is one run and not two meetings. `recordRun` writes only what the save
+ * did not already know, so the second ending of a won run adds nothing and says nothing.
  */
 function bankRun(world) {
   world.newBest = world.score > world.best;
@@ -207,6 +216,7 @@ function bankRun(world) {
     remember('score', { best: world.best });
   }
   payForRun(world);
+  recordRun(world);
 }
 
 /** The ship is gone. Bank the score and let the screen show it. */

@@ -315,6 +315,8 @@ const ELEMENT_IDS = [
   'perkRow',
   // What the visit has banked, and what the hangar spends it on (index.html).
   'titleBest', 'titleDust', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
+  // The codex: what the runs of this save have met (index.html, game/codex.js).
+  'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust',
@@ -348,6 +350,18 @@ function makeElement(tag, classes) {
     appendChild(child) { this.children.push(child); return child; },
   };
   return el;
+}
+
+/**
+ * One row of the codex as the stub DOM is holding it: the two parts of the line, and whether the
+ * thing it names has been met (`unknown` is the row's own class, and the stub keeps classes).
+ */
+function codexRow(row) {
+  return {
+    name: row.children[0].textContent,
+    says: row.children[1].textContent,
+    unknown: row.classList.contains('unknown'),
+  };
 }
 
 /**
@@ -396,7 +410,7 @@ export async function bootGame(options) {
     // win card's line of keys, which arrives with the guard (src/ui/screens.js `revealWinHint`),
     // and so is the hangar, which is put up by a key.
     const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
-      || id === 'hangarScreen';
+      || id === 'hangarScreen' || id === 'codexScreen';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -664,6 +678,17 @@ export async function bootGame(options) {
           label: row.children.map((part) => part.textContent).join(' '),
           maxed: row.classList.contains('maxed'),
         })),
+        // The codex: whether it is up, how much of it is filled in, how it was fitted to the window
+        // ('' is "it fit", see ui/screens.js `fitCodex`), and its three panels as the player reads
+        // them - one line per row, and which rows are still empty (game/codex.js).
+        codexHidden: elements.codexScreen.classList.contains('hidden'),
+        codexTally: elements.codexTally.textContent,
+        codexScale: elements.codexBody.style.transform || '',
+        codexPanels: {
+          hosts: elements.hostRow.children.map(codexRow),
+          lines: elements.lineRow.children.map(codexRow),
+          synergies: elements.synRow.children.map(codexRow),
+        },
       };
     },
     get audio() { return audioLog; },
@@ -671,7 +696,7 @@ export async function bootGame(options) {
 
     /** Put the game back on its title screen, ready for another run. */
     async resetToTitle(nextSeed) {
-      const [{ world }, { resetRun }, { resetAmbient }, { STATE }, { closeHangar }] = await Promise.all([
+      const [{ world }, { resetRun }, { resetAmbient }, { STATE }, { closePanels }] = await Promise.all([
         import(moduleUrl('game/world.js')),
         import(moduleUrl('game/run.js')),
         import(moduleUrl('game/ambient.js')),
@@ -681,7 +706,7 @@ export async function bootGame(options) {
       controller.fire('blur', {});   // the game forgets every held key
       held = Object.create(null);
       // And a panel the last session left open is not this one's to be looking through.
-      closeHangar();
+      closePanels();
       // A second run is played on a page that already ran thousands of frames,
       // which a real player never does: the simulation's step clock would start
       // mid-cycle and the same seed would land a step or two out. Reload the clock.

@@ -62,6 +62,11 @@ const NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 // is stored is not the game's own list, and a field nobody can account for is dropped whole.
 const MAX_NAMES = 32;
 
+// ...except the codex, which is a row per enemy, per fight and per card (game/codex.js) and so is
+// the one list that is a few dozen long on purpose. It still has a ceiling: a codex that has outgrown
+// every row the game can name is not the game's codex either.
+const MAX_CODEX = 96;
+
 // ...and no tally of theirs reaches this high either. A perk has five ranks and an achievement is
 // worth one, so a count of a thousand is not a count the game made.
 const MAX_COUNT = 1000;
@@ -148,6 +153,13 @@ const SCHEMA = {
   hangar: {
     ships: KINDS.names(MAX_NAMES),
     perks: KINDS.counts(MAX_NAMES, MAX_COUNT),
+  },
+  // What the codex has met (game/codex.js, PLAN 3.7): which bodies and fights the runs of this save
+  // have seen and which cards they have taken. Two sets and not one tally, because nothing about a
+  // codex row is a count - a thing is met or it is not - and the panels are two questions, not one.
+  codex: {
+    hosts: KINDS.names(MAX_CODEX),
+    lines: KINDS.names(MAX_CODEX),
   },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again

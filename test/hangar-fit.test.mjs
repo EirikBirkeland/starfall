@@ -30,7 +30,7 @@ const game = await bootGame({
   seed: 5,
   width: 1280,
   height: 720,
-  layout: { hangarBody: NEED },
+  layout: { hangarBody: NEED, codexBody: NEED },
   storage: {
     'starfall.save': JSON.stringify({ version: 1, hangar: { ships: everyShipBought() } }),
   },
@@ -92,3 +92,40 @@ test('a panel that needs more than the floor will not be shrunk past it', () => 
   assert.equal(scale(), 'scale(0.600)');
   game.setViewport(W, H);
 });
+
+test('the codex is fitted the same way, because it needs it more', () => {
+  // Three columns of the longest sentences in the game (game/codex.js), so this is the panel most
+  // likely to run out of window - and it is fitted by the same arithmetic on the same three moments
+  // (ui/screens.js `fitPanel`).
+  const codex = () => game.screen.codexScale;
+  assert.equal(codex(), '', 'the title is not the panel, and nothing has been measured yet');
+  press('KeyC');
+  assert.equal(game.screen.codexHidden, false, 'the codex is up');
+  assert.equal(codex(), 'scale(' + (H / NEED.offsetHeight).toFixed(3) + ')',
+    'and it came down to the height the window had');
+
+  game.setViewport(1600, 1200);
+  assert.equal(codex(), '', 'a window with room needs no transform');
+  game.setViewport(640, 360);
+  assert.equal(codex(), 'scale(0.600)', 'and the same floor holds it up here');
+  game.setViewport(W, H);
+
+  press('KeyC');
+  assert.equal(game.screen.codexHidden, true, 'and it does not matter which panel is up, only that one is');
+});
+
+test('the two panels never both ask for the window', () => {
+  // Only one of them is ever up (ui/screens.js `raisePanel`), so only one of them is ever being
+  // fitted: two panels of rows over one title is a screen that has stopped being either of them.
+  press('KeyC');
+  assert.equal(game.screen.codexHidden, false);
+  assert.equal(game.screen.hangarHidden, true);
+  press('KeyH');
+  assert.equal(game.screen.hangarHidden, false, 'the hangar came up');
+  assert.equal(game.screen.codexHidden, true, 'and the codex went down to let it');
+  assert.notEqual(scale(), '', 'and the hangar was fitted on the way');
+  assert.equal(codexScale(), '', 'the codex keeps no transform of its own while it is away');
+  press('KeyH');
+});
+
+function codexScale() { return game.screen.codexScale; }

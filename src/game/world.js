@@ -39,6 +39,7 @@ import { newRanks } from './upgrades.js';
 import { defaultWeapon } from './weapons.js';
 import { defaultShip, shipBody } from './ships.js';
 import { newPerkRanks } from './perks.js';
+import { emptyFound } from './codex.js';
 
 function createWorld() {
   const spec = BALANCE.player;
@@ -98,6 +99,15 @@ function createWorld() {
     // opens and a run's to spend, not to lose. `resetRun` never touches it - the ranks a run
     // flies *with* are the ledger's, and the ledger only grows between runs.
     perkRanks: newPerkRanks(),
+    // What the codex has met so far (game/codex.js): two lists of row keys, which bodies and fights
+    // the runs of this save have seen and which cards they have taken. Read out of the save when the
+    // visit opens like everything else above that a run may spend but not lose, and added to - never
+    // replaced - when a run ends. An empty pair is a first visit, which is the honest answer and the
+    // one the panel is built to print.
+    found: emptyFound(),
+    // How many rows *this* run added to it, which is the one number about the codex the ending's card
+    // prints (game/run.js `bankRun`). A run's own, so `resetRun` clears it with the rest.
+    codexNew: 0,
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),

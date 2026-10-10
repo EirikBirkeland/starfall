@@ -142,7 +142,8 @@
      the death's card, so it dims harder than either - the screen underneath is not the thing being
      read any more. */
   .hangar { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
-  .hangar-title {
+  .hangar-title,
+  .codex-title {
     margin: 0; font-size: clamp(26px, 6vw, 54px); font-weight: 800;
     letter-spacing: .28em; text-indent: .28em; color: #eafcff;
     text-shadow: 0 0 10px rgba(94,247,255,.9), 0 0 38px rgba(94,247,255,.5);
@@ -162,6 +163,37 @@
   .rack { display: flex; flex-direction: column; }
   .hangar .ship-list { margin-top: 14px; }
   .hangar .perk-list { margin-top: 14px; }
+  /* The codex (game/codex.js): what the runs of this save have met, and which rows are still empty.
+     It opens the way the hangar does and dims the glass as hard, for the same reason - the panel is
+     the thing being read now. */
+  .codex { background: radial-gradient(ellipse at center, rgba(8,18,44,.55) 0%, rgba(2,4,12,.94) 100%); }
+  .codex-body { display: flex; flex-direction: column; align-items: center; }
+  /* How much of the codex is filled in, in the place the hangar prints its purse: each panel opens
+     with the one number this visit is trying to finish. Cool blue and not gold, because nothing here
+     can be spent. */
+  .codex-tally {
+    margin-top: 18px; font-size: 14px; letter-spacing: .26em; text-indent: .26em;
+    color: #9fd8ff; text-shadow: 0 0 14px rgba(94,247,255,.4);
+  }
+  /* The three panels stand in the hangar's `.racks` row, and each of them is capped: the card flavours
+     are the longest sentences in the game, and a column that grows to fit them is a column that pushes
+     the other two off the window. They wrap inside their own column instead. */
+  .codex .rack { max-width: 34ch; }
+  .codex .entry-list { margin-top: 14px; }
+  .entry-list { display: grid; gap: 7px; }
+  /* One row of the codex: a name, and one line about it - no key and no price, which is the whole
+     difference between this panel and the hangar's. Nobody can buy anything here. */
+  .entry {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px;
+    font-size: 12px; letter-spacing: .12em;
+  }
+  .entry .name { color: #d8fbff; font-weight: 600; text-shadow: 0 0 12px rgba(94,247,255,.45); }
+  .entry .says { color: #6f9dc0; }
+  /* A row for a thing this save has not met. It keeps its place in the list - how many are missing,
+     and where they sit, is the whole of what an undiscovered thing may say about itself - and it gives
+     up its glow, so the lit rows are the ones that were earned. */
+  .entry.unknown .name { color: #43637f; text-shadow: none; }
+  .entry.unknown .says { color: #38566f; }
   .hint {
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
@@ -179,6 +211,10 @@
     .standing { margin-top: 16px; gap: 8px; }
     .hangar .ship-list { margin-top: 10px; }
     .hangar .perk-list { margin-top: 10px; }
+    .codex .entry-list { margin-top: 10px; }
+    .entry-list { gap: 5px; }
+    .codex-tally { margin-top: 8px; }
+    .codex-title { font-size: 26px; }
     .rack-title { margin-top: 12px; }
     .hangar-title { font-size: 26px; }
     .purse { margin-top: 8px; }
@@ -267,6 +303,7 @@
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
     <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
+    <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET</span></div>
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
     <div class="row"><span class="key">[ ] &#183; - =</span><span>MUSIC AND SOUND VOLUME</span></div>
   </div>
@@ -297,6 +334,31 @@
   </div>
   <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
   <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK</div>
+ </div>
+</div>
+
+<!-- The codex (PLAN 3.7): what the runs of this save have met, and which rows are still empty. Read
+     and not bought, which is why it is a panel of its own on a key of its own with no numbers on its
+     rows at all (game/codex.js). Like the hangar it is an overlay and not a state. -->
+<div id="codexScreen" class="screen codex hidden">
+ <div class="codex-body" id="codexBody">
+  <h2 class="codex-title">CODEX</h2>
+  <div class="codex-tally" id="codexTally">MET 0 OF 0</div>
+  <div class="racks">
+   <div class="rack">
+    <p class="rack-title">HOSTS</p>
+    <div class="entry-list" id="hostRow"></div>
+   </div>
+   <div class="rack">
+    <p class="rack-title">CARD LINES</p>
+    <div class="entry-list" id="lineRow"></div>
+   </div>
+   <div class="rack">
+    <p class="rack-title">SYNERGIES</p>
+    <div class="entry-list" id="synRow"></div>
+   </div>
+  </div>
+  <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK</div>
  </div>
 </div>
 

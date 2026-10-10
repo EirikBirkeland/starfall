@@ -1,15 +1,19 @@
-// The DOM screens: the title, the hangar a run is chosen in, the game-over card and the win card.
-// The level-up choice is not here - it is painted on the canvas (render/cards.js), because its
-// cards are drawn, not typed. Everything the run shows while it is being played is on the canvas too.
+// The DOM screens: the title, the hangar a run is chosen in, the codex of what has been met, the
+// game-over card and the win card. The level-up choice is not here - it is painted on the canvas
+// (render/cards.js), because its cards are drawn, not typed. Everything the run shows while it is
+// being played is on the canvas too.
 //
-// The hangar is an overlay and not a state of the world: it is put up over the title and over the
-// death's card, the attract crowd keeps flying behind it, and the run it launches is launched the
-// same way from either. A sixth STATE would have to be answered by everything that asks what the
-// world is doing, to buy a screen that only ever sits on top of two of them.
+// The hangar and the codex are overlays and not states of the world: either is put up over the title
+// and over the death's card, the attract crowd keeps flying behind it, and the run it launches is
+// launched the same way from either. A sixth STATE would have to be answered by everything that asks
+// what the world is doing, to buy a screen that only ever sits on top of two of them. And there is
+// only ever one of them up: two panels of rows over one title is a screen that has stopped being
+// either of them, so the key that names a panel takes the other one down on its way up.
 
 import { SHIPS } from '../game/ships.js';
 import { priceOf, shipIsBought, perkPriceOf } from '../game/hangar.js';
 import { maxRankOf, PERKS, rankWords } from '../game/perks.js';
+import { CARDS, HOSTS, metShare, SYNERGIES } from '../game/codex.js';
 import { BALANCE } from '../game/balance.js';
 import { lineOf } from '../game/upgrades.js';
 import { uiTick } from '../audio/sfx.js';
@@ -29,9 +33,17 @@ let perkRows = [];
 let perkNumbers = [];
 let perkPrices = [];
 
-// Whether the hangar is up right now. `hideScreens` clears it with the screens themselves, so
-// there is no path where a run is flying and this still says open.
-let hangarUp = false;
+// Whether a panel is up right now, and which one: '' for neither, and the two keys that open them
+// are the only things that can write anything else. `hideScreens` clears it with the screens
+// themselves, so there is no path where a run is flying and this still says open.
+let panelUp = '';
+
+// The codex's three panels, in the same shape the racks are kept in: the rows, and the two parts of
+// each row that say what the thing is (`showCodex` owns both of them, because both depend on whether
+// it has been met and neither is known when the panel is built).
+let hostRows = [];
+let cardRows = [];
+let synRows = [];
 
 /**
  * The run's clock the way a card reads it: `47s` inside a minute and `15m02s` past one. The win
@@ -163,6 +175,25 @@ function buildPerkRow(perk, index) {
   return row;
 }
 
+/**
+ * One row of the codex: a name and one line about it, and nothing else - no key and no price, which
+ * is the whole difference between a thing a save has met and a thing the hangar is selling.
+ */
+function buildEntryRow(entry, list) {
+  const row = document.createElement('div');
+  row.classList.add('entry');
+
+  const name = document.createElement('span');
+  name.classList.add('name');
+  const says = document.createElement('span');
+  says.classList.add('says');
+
+  row.appendChild(name);
+  row.appendChild(says);
+  list.appendChild(row);
+  return { row: row, name: name, says: says };
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -185,6 +216,12 @@ export function initScreens() {
     hangar: document.getElementById('hangarScreen'),
     hangarBody: document.getElementById('hangarBody'),
     hangarDust: document.getElementById('hangarDust'),
+    codex: document.getElementById('codexScreen'),
+    codexBody: document.getElementById('codexBody'),
+    codexTally: document.getElementById('codexTally'),
+    hostRow: document.getElementById('hostRow'),
+    lineRow: document.getElementById('lineRow'),
+    synRow: document.getElementById('synRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleShip: document.getElementById('titleShip'),
@@ -197,29 +234,76 @@ export function initScreens() {
   perkNumbers = [];
   perkPrices = [];
   perkRows = PERKS.map(buildPerkRow);
+  hostRows = HOSTS.map((entry) => buildEntryRow(entry, el.hostRow));
+  cardRows = CARDS.map((entry) => buildEntryRow(entry, el.lineRow));
+  synRows = SYNERGIES.map((entry) => buildEntryRow(entry, el.synRow));
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
 export function hangarIsOpen() {
-  return hangarUp;
+  return panelUp === 'hangar';
+}
+
+/** Is the codex up? It answers the same questions main.js asks the hangar about: a click on a panel
+    is not a launch, and a panel is a place a key can be answered in. */
+export function codexIsOpen() {
+  return panelUp === 'codex';
+}
+
+/** Is either of them up? This is the question the launch actually cares about. */
+export function panelIsUp() {
+  return panelUp !== '';
 }
 
 /**
- * Every screen the game can put up, taken down for a run to be seen. The hangar goes with them:
- * it is a screen like the rest, and a run that is flying has no business being half over a panel.
+ * Every screen the game can put up, taken down for a run to be seen. The panels go with them: they
+ * are screens like the rest, and a run that is flying has no business being half over a panel.
  */
 export function hideScreens() {
   el.start.classList.add('hidden');
   el.over.classList.add('hidden');
   el.win.classList.add('hidden');
-  closeHangar();
+  closePanels();
+}
+
+/**
+ * Put one panel up over whatever screen is already there, taking the other one down first, and fit
+ * it to the window on the way.
+ *
+ * Only one of them is ever up. Both are columns of rows over the same title, and two of them at once
+ * is not two screens you can read but one screen you cannot - and neither key has anything to say
+ * about the other, so the rule has to be the panel's and not the key's.
+ */
+function raisePanel(which, screen, body) {
+  layPanelDown(el.hangar, el.hangarBody);
+  layPanelDown(el.codex, el.codexBody);
+  screen.classList.remove('hidden');
+  panelUp = which;
+  fitPanel(body, screen);
+}
+
+/**
+ * Take one panel down: off the glass, and with the transform it was fitted with forgotten.
+ *
+ * The transform is part of what the panel *is doing*, not a mark of what it once needed: a hidden
+ * panel keeping a stale scale is a panel that comes back for a frame at the wrong size if anything
+ * ever repaints it before it is measured again - and a screen a test can read is a screen whose
+ * numbers all mean the same thing whether it is up or not.
+ */
+function layPanelDown(screen, body) {
+  screen.classList.add('hidden');
+  if (body !== null) body.style.transform = '';
 }
 
 /** Put the hangar up over whatever screen is already there, and fit it to the window on the way. */
 export function openHangar() {
-  el.hangar.classList.remove('hidden');
-  hangarUp = true;
-  fitHangar();
+  raisePanel('hangar', el.hangar, el.hangarBody);
+}
+
+/** ...and the codex, which is a panel of its own for its own reason (game/codex.js: rows nobody
+    sells). A plain number key still means the ship it means everywhere else, panel up or not. */
+export function openCodex() {
+  raisePanel('codex', el.codex, el.codexBody);
 }
 
 /**
@@ -243,7 +327,7 @@ export function scaleToFit(need, have) {
 }
 
 /**
- * Fit the racks to the window, by shrinking the whole panel and not one part of it.
+ * Fit the hangar's racks to the window (see `fitPanel`).
  *
  * Five ships and four perks are nine rows of three lines each, which is a taller column than a
  * short window has - and every screen here is click-through and none of it scrolls, so a rack that
@@ -251,25 +335,39 @@ export function scaleToFit(need, have) {
  * side by side when there is room and one over the other when there is not (index.html `.racks`);
  * this is what is left over after that, and it scales the lot as one picture, so the type keeps its
  * size *relative to itself* and the panel stays centred in the glass it is painted on.
+ */
+export function fitHangar() {
+  fitPanel(el.hangarBody, el.hangar);
+}
+
+/** The same, for the codex: it is a taller panel than the hangar is - three columns, and the
+    longest text in the game - so it needs the fitting more, not less. */
+export function fitCodex() {
+  fitPanel(el.codexBody, el.codex);
+}
+
+/**
+ * Fit one panel to the window, by shrinking the whole of it and not one part of it.
  *
  * Called when the panel goes up, when the rows are repainted, and when the window changes size:
  * `offsetHeight` is a layout question, and those three are the moments the answer can change.
  */
-export function fitHangar() {
-  const body = el.hangarBody;
-  if (body === null) return;
+function fitPanel(body, screen) {
+  if (body === null || screen === null) return;
   const scale = scaleToFit(
     { w: body.offsetWidth, h: body.offsetHeight },
-    { w: el.hangar.clientWidth, h: el.hangar.clientHeight });
+    { w: screen.clientWidth, h: screen.clientHeight });
   // No transform at all when it fits, so the common case costs nothing and leaves nothing to undo.
   body.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(3) + ')';
 }
 
-/** Take it away again, leaving the screen underneath exactly as it was. */
-export function closeHangar() {
-  el.hangar.classList.add('hidden');
-  hangarUp = false;
+/** Take both panels away again, leaving the screen underneath exactly as it was. */
+export function closePanels() {
+  layPanelDown(el.hangar, el.hangarBody);
+  layPanelDown(el.codex, el.codexBody);
+  panelUp = '';
 }
+
 /**
  * Light the rack, and say on both screens that let you choose which ship the next run flies.
  * The title says FLYING, because the pick is about the run about to be launched; the death's card
@@ -335,6 +433,34 @@ export function showPerks(ranks) {
 }
 
 /**
+ * Paint what the save has met (game/codex.js). Called once when the visit opens and again whenever a
+ * run has ended and added to it - a panel that still says UNKNOWN about a thing the run just met
+ * would be the codex not having read its own notes.
+ *
+ * A row that has not been met keeps its place in the list and loses both of its words: how many are
+ * missing, and where the missing ones sit, is the whole of what an undiscovered thing may be allowed
+ * to say about itself. The refused line names the panel's own verb, because "not taken yet" about a
+ * card and "not met yet" about a body are two different things a player has not done.
+ */
+export function showCodex(found) {
+  paintEntries(hostRows, HOSTS, found.hosts, 'NOT MET YET');
+  paintEntries(cardRows, CARDS, found.lines, 'NOT TAKEN YET');
+  paintEntries(synRows, SYNERGIES, found.lines, 'NOT FOUND YET');
+  const share = metShare(found);
+  el.codexTally.textContent = 'MET ' + share.met + ' OF ' + share.of;
+}
+
+function paintEntries(rows, entries, met, refused) {
+  for (let i = 0; i < rows.length; i++) {
+    const entry = entries[i];
+    const known = met.indexOf(entry.key) >= 0;
+    rows[i].row.classList.toggle('unknown', !known);
+    rows[i].name.textContent = known ? entry.name : 'UNKNOWN';
+    rows[i].says.textContent = known ? entry.says : refused;
+  }
+}
+
+/**
  * What the visit has to show for itself, in both places it is read: the best score and the purse.
  * The purse is written beside the score rather than under it because the two are the same kind of
  * thing - the number you are trying to beat, and the number you are saving up.
@@ -365,11 +491,21 @@ function bossWords(count) {
 }
 
 /**
+ * What a run taught the codex, in the words both cards use (game/codex.js). A run that taught it
+ * nothing says nothing at all: the panel is where the codex is read, and a line about it on every
+ * card would be noise about a thing that did not happen.
+ */
+function codexWords(count) {
+  return count > 0 ? '   \u00b7   ' + count + ' NEW IN THE CODEX' : '';
+}
+
+/**
  * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, shipId,
- * weapon, build, endlessPast, dust, dustBank } - `endlessPast` being how much of the run was
- * flown after it had already been won, 0 for every run that never got that far, and `dust` /
- * `dustBank` being what the run earned between runs and what the purse holds after it
- * (game/stardust.js).
+ * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound } - `endlessPast` being how much
+ * of the run was flown after it had already been won, 0 for every run that never got that far,
+ * `dust` / `dustBank` being what the run earned between runs and what the purse holds after it
+ * (game/stardust.js), and `codexNew` / `codexFound` being what the run added to the codex and what
+ * it holds afterwards (game/codex.js).
  */
 export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
@@ -386,6 +522,7 @@ export function showGameOver(summary) {
     // past the win the player stayed out there for (game/endless.js).
     + (summary.endlessPast > 0
       ? '   \u00b7   ' + BALANCE.endless.word + ' FOR ' + clockWords(summary.endlessPast) : '')
+    + codexWords(summary.codexNew)
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
@@ -397,6 +534,9 @@ export function showGameOver(summary) {
   // flies unless a number says otherwise.
   showStanding(summary.best, summary.dustBank);
   showShip(summary.shipId);
+  // ...and the codex, which this run has just been added to (game/codex.js): the panel that goes up
+  // over this card has to be the one that knows what the card is saying.
+  showCodex(summary.codexFound);
   el.over.classList.remove('hidden');
   // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
   // was written, so this is a screen's own event and the simulation has no idea it happened.
@@ -419,6 +559,7 @@ export function showVictory(summary) {
     + '   \u00b7   ' + summary.kills + ' KILLS'
     + '   \u00b7   ' + summary.shards + ' SHARDS'
     + '   \u00b7   ' + bossWords(summary.bosses)
+    + codexWords(summary.codexNew)
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
@@ -427,6 +568,7 @@ export function showVictory(summary) {
     + '   \u00b7   BUILT FROM   \u00b7   ' + summary.build;
   showStanding(summary.best, summary.dustBank);
   showShip(summary.shipId);
+  showCodex(summary.codexFound);    // the same promise the death's card makes (see above)
   // The invitation waits. The card goes up on the hush and the game answers to nothing until the
   // guard is spent, and a line saying "press" that nothing may be pressed with is the exact thing
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).

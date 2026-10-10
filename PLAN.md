@@ -919,7 +919,16 @@ When every item above is ticked, go back to the first unchecked item of mileston
       in the save. The two left out are a starting shield (a pip that cannot be spent, against hull
       that can) and a level of head start (a build somebody else played); the reasons are in
       game/perks.js's header and NOTES, and the ladder can gain rows later.)
-- [ ] The codex.
+- [x] The codex. (Done: `C` puts it up - the same kind of overlay the hangar is, over the title and
+      over the death's card, and never both at once. Three panels of rows: HOSTS (every kind in
+      game/kinds.js, then every fight on the schedule, each named and said in one line), CARD LINES
+      and SYNERGIES, all of them said in the card's own words, so nothing is described twice. What has
+      been met is lit and what has not keeps its row and says `UNKNOWN`; the panel opens with `MET n
+      OF 30`, and an ending whose run discovered something says how much on its card.
+      **Met** means: the run's tally saw a body of that kind arrive, a fight's schedule entry was
+      spent or that fight was standing when the run stopped, and a card was taken - all of it read
+      from a run that has stopped, so none of it is in the step (game/codex.js). Remembered in the
+      save document (`codex.hosts`, `codex.lines`) like the purse and the ships.)
 - [ ] Achievements, with a small toast when earned.
 - [ ] Run history: the last 20 runs with their seed, ship, time, and score.
 - [ ] Release.

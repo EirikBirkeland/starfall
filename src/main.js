@@ -9,6 +9,7 @@ import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { SHIPS, setShip, shipName } from './game/ships.js';
 import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex } from './game/hangar.js';
 import { perkAt, perkLedger } from './game/perks.js';
+import { foundFromSave, foundLedger } from './game/codex.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -35,7 +36,7 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showStanding, openHangar, closeHangar, hangarIsOpen, fitHangar } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showStanding, openHangar, openCodex, closePanels, hangarIsOpen, codexIsOpen, panelIsUp, fitHangar, fitCodex } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 // The readouts the debug hook reports: how fast the frames are arriving, and
@@ -117,11 +118,11 @@ function pressAction() {
 
 function onCanvasPressed() {
   initAudio();
-  // Over the hangar a click is not a launch. The title's click-to-go is worth having and the
+  // Over a panel a click is not a launch. The title's click-to-go is worth having and the
   // death's card's is worth having, but a panel you are meant to be able to look round is not a
-  // screen that throws you into a run because you aimed at a ship and missed - and next milestone
-  // there will be things in here to click on that are not ships at all.
-  if (hangarIsOpen()) return;
+  // screen that throws you into a run because you aimed at a ship and missed - and there are two of
+  // them now, one of which is full of things to look at and neither of which is a launch button.
+  if (panelIsUp()) return;
   // While the cards are up the click is an answer, not a shot and not a restart - and it
   // can be one of three answers: take this card, banish it out of the run, or deal the
   // table again (render/cards.js is what says which one the point landed on).
@@ -293,7 +294,7 @@ function onVolume(which, delta) {
 function onHangar() {
   initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
   if (hangarIsOpen()) {
-    closeHangar();
+    closePanels();
     uiTick('close');
     return;
   }
@@ -301,13 +302,49 @@ function onHangar() {
 }
 
 /**
- * Put the rack up, on the two screens that may carry it, and answer whether it went up. `onPickCard`
+ * C: the codex, and the way back out of it (PLAN 3.7).
+ *
+ * The same two screens carry it as carry the hangar, because it is the same kind of thing to know
+ * about: the title, which is where a visit starts, and the death's card, which is where a run found
+ * out what it met. Over a run it would be a pause the run never agreed to and a panel full of words
+ * over a crowd that wants looking at; over the win, the same refusal the hangar gets, for the same
+ * reason - that card's Space key means "keep flying this one" (game/run.js).
+ *
+ * If the hangar is up it comes down: one panel at a time, and this key does not have to know that
+ * (ui/screens.js `raisePanel` is where the rule lives).
+ */
+function onCodex() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  if (codexIsOpen()) {
+    closePanels();
+    uiTick('close');
+    return;
+  }
+  if (!rackMayOpen()) return;
+  openCodex();
+  uiTick('open');
+}
+
+/**
+ * May a panel be put up at all right now? The two screens that are about the *next* run, and no
+ * others: over a run it would be a pause the run never agreed to, and over the win it would be a
+ * panel whose launch key means "keep flying this one" (game/run.js).
+ *
+ * Whether one is already up is deliberately not this question - each key toggles its own panel and
+ * the other one comes down on its way up (ui/screens.js `raisePanel`), so both keys get to ask the
+ * same thing and neither has to know about the other.
+ */
+function rackMayOpen() {
+  return world.state === STATE.START || world.state === STATE.OVER;
+}
+
+/**
+ * Put the hangar up, on the two screens that may carry it, and answer whether it went up. `onPickCard`
  * asks for the same thing when a number names a ship nobody has bought: the key that wants that ship
  * is what sends the player to the price of it.
  */
 function openRack() {
-  if (world.state !== STATE.START && world.state !== STATE.OVER) return false;
-  if (hangarIsOpen()) return false;
+  if (!rackMayOpen()) return false;
   openHangar();
   uiTick('open');
   return true;
@@ -321,8 +358,10 @@ function onResize() {
   // the screen: it is how spawning knows what is off the edge of it.
   world.view.w = view.W;
   world.view.h = view.H;
-  // ...and the one panel tall enough to run out of window asks whether it still fits.
+  // ...and the one panel tall enough to run out of window asks whether it still fits - whichever of
+  // the two it is (ui/screens.js `fitPanel`).
   if (hangarIsOpen()) fitHangar();
+  else if (codexIsOpen()) fitCodex();
 }
 
 function describeRun() {
@@ -348,6 +387,11 @@ function describeRun() {
     // What the run is worth between runs, and what the purse holds after it (game/stardust.js).
     dust: dustForRun(world),
     dustBank: world.dust,
+    // What the codex knew before this run and what it knows after it (game/codex.js): the count the
+    // card prints, and the ledger the panel is painted from, so the panel cannot disagree with the
+    // card that went up a frame before it.
+    codexNew: world.codexNew,
+    codexFound: foundLedger(world),
   };
 }
 
@@ -443,10 +487,15 @@ function boot() {
   // reason (game/perks.js). A run reads these when it is put together; nothing here is this run's
   // to lose, and a visit that bought nothing reads four zeros.
   world.perkRanks = boughtPerks();
+  // ...and what the codex has already met (game/codex.js), read the same once for the same reason. A
+  // first visit reads two empty lists and the panel prints every row as unknown, which is the true
+  // thing to say about a save that has met nothing.
+  world.found = foundFromSave();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust);
   showRack(world.ownedShips);
   showPerks(perkLedger(world));
+  showCodex(world.found);
   showShip(world.ship);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
@@ -461,6 +510,7 @@ function boot() {
     onPickCard: onPickCard,
     onReroll: onReroll,
     onHangar: onHangar,
+    onCodex: onCodex,
     onToggleMute: onMuteSwitch,
     onVolume: onVolume,
   });
@@ -532,6 +582,11 @@ window.STARFALL = {
       // ...and how many ranks of each perk it has paid for (game/perks.js), in the table's own
       // order and clamped to its own ladders, which is the shape a run is built from.
       perks: perkLedger(world),
+      // ...and what the codex has met (game/codex.js), in the shape the save holds it in, and what
+      // this run added to it. A tool that wants to know what a run *saw* - which bodies it met and
+      // which cards it took - has no other way to ask.
+      codex: foundLedger(world),
+      codexNew: world.codexNew,
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,
