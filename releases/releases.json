@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.7.2",
+    "date": "2026-10-10",
+    "summary": "UI ticks, hits pitched by the body's size, and loot that climbs as it comes in"
+  },
+  {
     "version": "0.7.1",
     "date": "2026-10-10",
     "summary": "Noise everywhere: explosions rumble, the dash whooshes, and a hit pulls the music behind a wall"
