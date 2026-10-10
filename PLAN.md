@@ -7,7 +7,7 @@ A first playable version already exists as a single `index.html`. This plan grow
 beautiful, finished game. It is many days of work. Go through the milestones in order.
 Tick items as `[x]` when done. Each item is sized to fit one session; split it if it turns out bigger.
 
-The file "OVERLORDS_REQUESTS" contains outstanding urgent hotfixes
+The file "OVERLORDS_REQUESTS" contains outstanding urgent hotfixes. Prioritize maximally. Indicate completion within the file itself to save thinking 
 
 
 ---

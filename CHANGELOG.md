@@ -1,5 +1,25 @@
 # Starfall — changelog
 
+## 0.10.0 — 2026-10-10
+`ATTRACTOR`: the deck gets a card that buys how far off the loot is yours.
+- **A new card, dealt like any other**: five ranks of +25% shard reach. The net that starts 145 px round
+  the ship is 326 px wide at the fifth rank, and it is the first line in the game that buys *reach* -
+  every other one multiplies the gun, adds a source of damage, or spends what the run already picked
+  up.
+- **A rank widens the well and deepens it.** The pull is measured over the reach itself, so a shard that
+  used to sit on the rim now sits a little inside it and is tugged *harder*, not weaker. Nothing about
+  the loot's own value changes and nothing about the ship does: it is a distance and nothing else.
+- **It is worth levels, not damage.** Five free ranks read +43.5% of a run's score and +39.7% of its
+  damage, where the DAMAGE line - the yardstick every card here is priced against - reads +31.2% and
+  +51.5% on the same seeds. What the card actually buys is levels: the median run goes from level 35 to
+  level 58, because shards are the only XP there is and levels are the only way to buy a build.
+- **A rank you cannot feel is worse than no card at all.** At +5% to +12% a rank the same measurement
+  came out *below* the game with the card taken out of the deck, because a level gets spent on it either
+  way. That is why a rank is a quarter of the reach and not a tenth.
+- **Nothing changed for a run that does not take it.** With the line out of the deck the ten-minute
+  reference run replays byte for byte, every frame hash of it. The card wears the shard's own mint, so
+  it costs the canvas no new sprite either.
+
 ## 0.9.5 — 2026-10-10
 `AUTO-FIRE` and `AUTO-AIM`: the game can be flown with the keyboard alone.
 - **Two new rows at the end of the settings panel** (`O`): AUTO-FIRE holds the trigger down for you,
