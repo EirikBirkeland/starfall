@@ -991,7 +991,24 @@ When every item above is ticked, go back to the first unchecked item of mileston
       stepped; the window losing focus holds it the same way, silently, which is PLAN section 6's rule
       arriving late. The camera keeps its lean, a dash asked for during a pause is spent and not kept,
       and no other key changes meaning because the panel is up.)
-- [ ] Full game over summary.
+- [x] Full game over summary. (The card already said score, clock, level, kills, shards, the fights,
+      stardust, awards and build, and had never said the one thing a death is asked about: *what took
+      the run down*. `game/tally.js` has kept that since the tally was built (`body:tank`,
+      `shot:spitter`, `beam:sniper`, `arm:eclipse`, `blast`) and only the balance tables ever read it
+      back. `causeWords` names a body by its codex name (`A TANK`) and gives a shot, a beam and a
+      blade to whoever loosed one (`A SPITTER'S SHOT`, `THE ECLIPSE'S BLADE`) - by then the thing that
+      fired it may be a wreck - and a run given up, which has no cause on the sheet because there was
+      none, is `RUN GIVEN UP` rather than a blank line. The card prints that under its own heading and
+      `hullLedger` costs every hull the run lost under that, costliest first. Which rows are kept is
+      the interesting part: a wreck's headline has just named what took the last hull, so a one-hull
+      run has nothing left for a rack to say and the rack hides itself; a win has no such headline -
+      nothing took it down - so it says every hull it spent, down to a single one, and so does a
+      give-up, whose headline is about the giving-up and not a body. The names come out of the codex's
+      own table (`hostName`), so the card and the codex cannot call one body two things, and a label
+      from a build this one has never met is named by what it was rather than breaking the card. "The
+      best of each" is read as the three numbers the save actually keeps a best of - best score on its
+      own line, the purse and the award count beside it - because nothing else in the game is
+      remembered well enough to be compared against.)
 - [ ] Settings screen with everything from section 6.
 - [ ] Key rebinding.
 - [ ] Gamepad support.

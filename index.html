@@ -352,6 +352,27 @@
     text-shadow: 0 0 14px rgba(255,179,64,.4);
   }
   .award-line:empty { display: none; }
+  /* What ended the run, said under the card's own heading (game/tally.js `causeWords`), because it
+     is the one fact a death is asked for and the one nobody outside the tally has ever said out
+     loud. Warm pink like the title above it: the arena's colour language says warm is the thing that
+     hurt you, and mint is the thing that paid you. A run that was given up has no cause and says so -
+     the tally keeps no cause for it, and the card is not going to invent one. */
+  .cause-line {
+    margin: 10px 0 0; font-size: clamp(10px, 1.8vw, 14px); white-space: nowrap;
+    letter-spacing: .42em; text-indent: .42em; color: #ffb2d0;
+    text-shadow: 0 0 14px rgba(255,94,196,.5);
+  }
+  /* Every hull the run lost, and what each one went to (game/tally.js `hurtBy`): one row apiece, the
+     thing that did it in the colour of the harm and how many hulls it took beside it in the dim. The
+     wreck's copy leaves the last hull out - the line under its heading has just said what it was - so
+     a one-hull wreck has an empty rack here, and an empty rack takes its space with it, like the
+     award line above it. The win's copy has no such line and so keeps every hull it has. */
+  .hull-list { display: grid; gap: 4px; margin-top: 12px; }
+  .hull-list:empty { display: none; }
+  .hull { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: 11px; letter-spacing: .12em; }
+  .hull .name, .hull .says { white-space: nowrap; }
+  .hull .name { color: #ffb2d0; text-shadow: 0 0 12px rgba(255,94,196,.35); }
+  .hull .says { color: #a0788c; }
   /* And the ship the next run will be flown in, which is what a number pressed over a wreck
      changes. Kept apart from the build line above it on purpose: that one is about the run that
      ended, this one is about the next. */
@@ -378,14 +399,21 @@
     margin-top: 22px; font-size: 12px; letter-spacing: .22em; text-indent: .22em;
     color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.4);
   }
-  /* An ended run's card is a tall column on a short window - the win's is taller still than the
-     death's - and every one of these lines is one the player came here to read. */
+  /* Two columns are tall on a short window: an ended run's card - the win's taller still than the
+     death's - and the title's control list, which is eleven rows now because every key the game
+     answers to gets a row of its own. Not one of these lines is one the player came here *not* to
+     read, so the space comes out of the gaps and never out of the words. */
   @media (max-height: 620px) {
+    .controls { margin-top: 10px; gap: 5px; }
+    .standing { margin-top: 10px; gap: 6px; }
+    .hint { margin-top: 12px; }
     .win-sub { margin-top: 8px; }
     .score-big { margin-top: 8px; }
     .best-line { margin-top: 10px; }
     .cleared { margin-top: 10px; }
+    .cause-line { margin-top: 8px; }
     .stats { margin-top: 10px; }
+    .hull-list { margin-top: 8px; gap: 3px; }
     .dust-line { margin-top: 8px; }
     .award-line { margin-top: 4px; }
     .next-line { margin-top: 8px; }
@@ -411,7 +439,8 @@
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
     <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD, DURING A RUN</span></div>
-    <div class="row"><span class="key">ESC / P</span><span>PAUSE &#183; THE RUN&#39;S STATS, AND GIVE IT UP</span></div>
+    <div class="row"><span class="key">ESC / P</span><span>PAUSE &#183; THE RUN&#39;S STATS</span></div>
+    <div class="row"><span class="key">G</span><span>GIVE THE RUN UP, WHILE IT IS PAUSED</span></div>
     <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
     <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
     <div class="row"><span class="key">M</span><span>MUTE</span></div>
@@ -516,6 +545,7 @@
 
 <div id="overScreen" class="screen hidden">
   <h2 class="over-title">GAME OVER</h2>
+  <div class="cause-line" id="finalCause"></div>
   <div class="score-label">FINAL SCORE</div>
   <div class="score-big" id="finalScore">0</div>
   <div class="best-line">BEST <span id="finalBest">0</span></div>
@@ -523,6 +553,10 @@
   <div class="dust-line" id="finalDust"></div>
   <div class="award-line" id="finalAwards"></div>
   <div class="stats" id="finalStats"></div>
+  <!-- What each hull went to, one row apiece (game/tally.js `hurtBy`). Empty for a wreck that lost one
+       hull - the line under the heading already said what the last one was - and an empty rack takes
+       its space with it, like the award line above it. -->
+  <div class="hull-list" id="finalHulls"></div>
   <div class="build" id="finalBuild"></div>
   <div class="next-line" id="nextShip"></div>
   <div class="hint">PRESS SPACE OR CLICK TO RESTART</div>
@@ -539,6 +573,10 @@
   <div class="award-line" id="winAwards"></div>
   <div class="cleared" id="winCleared"></div>
   <div class="stats" id="winStats"></div>
+  <!-- A win lost hulls on the way too, and what they went to is the run's story as much as the score
+       is - all of them, down to a single hull, because nothing here has said one already. No cause
+       line: nothing took a win down, and the tally has no cause to say (game/run.js `winRun`). -->
+  <div class="hull-list" id="winHulls"></div>
   <div class="build" id="winBuild"></div>
   <!-- The invitation arrives when it becomes true. The card goes up on the hush and spends the
        rest of the guard unreadable-but-visible (game/run.js `victoryCardIsAnswerable`), and a line

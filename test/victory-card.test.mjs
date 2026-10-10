@@ -387,5 +387,7 @@ test('a wreck out past the win says how long the run went on for', () => {
   const stats = game.screen.stats;
   assert.ok(stats.includes(BALANCE.endless.word + ' FOR 7m'), 'the endless stretch, on the card: ' + stats);
   assert.match(stats, /SEED \d+/, 'and the rest of the line it has always carried');
+  assert.equal(game.screen.finalCause, 'TAKEN BY A WEAVER',
+    'and what took it, seven minutes past the win (game/tally.js `endingWords`)');
   assert.equal(game.screen.overHidden, false, 'the wreck is what is on the glass');
 });

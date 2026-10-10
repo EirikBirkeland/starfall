@@ -311,6 +311,8 @@ function makeAudioContextStub(log, now) {
 const ELEMENT_IDS = [
   'game', 'startScreen', 'overScreen', 'finalScore', 'finalBest', 'newBest', 'finalStats',
   'finalBuild', 'shipRow', 'finalDust', 'finalAwards', 'nextShip',
+  // What ended the run, and what every hull of it went to (index.html, game/tally.js).
+  'finalCause', 'finalHulls', 'winHulls',
   // The hangar's second rack: the perks the purse buys ranks of (index.html, game/perks.js).
   'perkRow',
   // ...and its third, what the save has been credited with (index.html, game/awards.js).
@@ -714,6 +716,12 @@ export async function bootGame(options) {
         finalBest: elements.finalBest.textContent,
         stats: elements.finalStats.textContent,
         build: elements.finalBuild.textContent,
+        // What ended the run, in the card's own words, and one row per thing that took a hull
+        // (game/tally.js `causeWords`, `hullLedger`). Empty when there is nothing to say: a win has no
+        // cause, and a wreck that lost one hull has no rack because its own headline just said it.
+        finalCause: elements.finalCause.textContent,
+        hulls: elements.finalHulls.children.map(plainRow),
+        winHulls: elements.winHulls.children.map(plainRow),
         newBestShown: !elements.newBest.classList.contains('hidden'),
         // The win's card, in the same shape, so a test can ask either one what it is showing.
         winScore: elements.winScore.textContent,

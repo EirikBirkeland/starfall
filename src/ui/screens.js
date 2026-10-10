@@ -23,6 +23,7 @@ import { CARDS, HOSTS, metShare, SYNERGIES } from '../game/codex.js';
 import { AWARDS, dustOf, shareOf } from '../game/awards.js';
 import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
+import { endingWords, hullLedger } from '../game/tally.js';
 import { uiTick } from '../audio/sfx.js';
 
 let el = null;
@@ -67,6 +68,12 @@ let logRows = [];
 // a rack that leaves a stale row on the glass.
 let factRows = [];
 let buildRows = [];
+
+// The two ending cards' hull racks (game/tally.js `hullLedger`): what each hull of the run went to,
+// one row apiece. Both cards grow and trim theirs the way the log and the pause's racks do, because
+// the number of causes a run went through is the run's own and belongs to no table.
+let hullRows = [];
+let winHullRows = [];
 
 // The hangar's third rack: what this save has been credited with and what it has not (game/awards.js).
 // Thirty rows, and every word on them is static but the last column, because an award's rule is the
@@ -262,6 +269,18 @@ function buildBuildRow() {
   return buildEntryRow(el.buildRow);
 }
 
+/**
+ * One row of an ending's hull rack: what took a hull, and how many it took.
+ *
+ * The shape is the pause readout's own - a thing, and the number that belongs to it - because it is
+ * the same kind of line, and the two cards and the pause should not each invent their own way of
+ * putting a fact and its number side by side. Both endings have a rack of these, and each is built
+ * against its own list.
+ */
+function buildHullRow(where) {
+  return buildRow(where, 'hull', ['name', 'says']);
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -305,6 +324,10 @@ export function initScreens() {
     nextShip: document.getElementById('nextShip'),
     finalDust: document.getElementById('finalDust'),
     winDust: document.getElementById('winDust'),
+    // What ended the run, and what every hull of it went to (game/tally.js `causeWords`).
+    finalCause: document.getElementById('finalCause'),
+    finalHulls: document.getElementById('finalHulls'),
+    winHulls: document.getElementById('winHulls'),
     finalAwards: document.getElementById('finalAwards'),
     winAwards: document.getElementById('winAwards'),
     titleAwards: document.getElementById('titleAwards'),
@@ -839,11 +862,13 @@ function codexWords(count) {
 
 /**
  * summary: { score, best, newBest, level, kills, shards, bosses, seconds, seed, ship, shipId,
- * weapon, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust, awardsWon,
- * awardsOwned, pastRuns }
+ * weapon, cause, hulls, build, endlessPast, dust, dustBank, codexNew, codexFound, awards, awardDust,
+ * awardsWon, awardsOwned, pastRuns }
  * - `endlessPast` being how much of the run was flown after it had already been won, 0 for every run
- * that never got that far, `dust` / `dustBank` being what the run earned between runs and what the
- * purse holds after it (game/stardust.js), `codexNew` / `codexFound` being what the run added to the
+ * that never got that far, `cause` and `hulls` being what took the last hull and what every hull of
+ * the run went to (both from the run's own tally, and both empty for a run that was given up),
+ * `dust` / `dustBank` being what the run earned between runs and what the purse holds after it
+ * (game/stardust.js), `codexNew` / `codexFound` being what the run added to the
  * codex and what it holds afterwards (game/codex.js), `awards` / `awardDust` / `awardsWon` being
  * what this run won, what it paid, and where the whole table stands now, `awardsOwned` being those
  * ids themselves - what the save has, which the hangar's rack is painted from (game/awards.js) - and
@@ -868,6 +893,13 @@ export function showGameOver(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
+  // What ended the run, under the heading it happened to, and what every hull of it went to (game/
+  // tally.js). A run that was given up has no cause and says so. The rack keeps the last hull out of
+  // its own rows only when the headline above has just named it - a give-up's line names the giving-up
+  // and not a body, so a run that gave up with one hull missing still says what that one went to.
+  el.finalCause.textContent = endingWords(summary.cause);
+  paintRows(hullRows, el.finalHulls, hullLedger(summary.hulls, summary.cause !== ''),
+    () => buildHullRow(el.finalHulls));
   showDust(el.finalDust, summary.dust, summary.dustBank);
   showAwardLine(el.finalAwards, summary.awards, summary.awardDust);
   el.build.textContent = summary.ship + ' \u00b7 ' + summary.weapon
@@ -908,6 +940,12 @@ export function showVictory(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
+  // What the run lost on the way to winning it. No cause line: nothing took a win down, and the tally
+  // keeps no cause for a run that finished (game/run.js `winRun`) - which is also why the rack here
+  // says everything it has, down to a single hull, because there is no headline above it to have said
+  // any of them already.
+  paintRows(winHullRows, el.winHulls, hullLedger(summary.hulls, false),
+    () => buildHullRow(el.winHulls));
   showDust(el.winDust, summary.dust, summary.dustBank);
   showAwardLine(el.winAwards, summary.awards, summary.awardDust);
   el.winBuild.textContent = summary.ship + ' \u00b7 ' + summary.weapon

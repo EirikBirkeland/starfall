@@ -108,6 +108,21 @@ export function slugOf(id) {
   return id.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase());
 }
 
+/** What a body or a fight is called, by its id - or the id itself, upper case.
+ *
+ * The codex's own table is the one list in the game that names every body and every fight, so it is
+ * what the death's card reads a cause off too (game/tally.js `causeWords`): the card and the codex
+ * cannot then disagree about what a thing is called. A name this build has never met - a cause label
+ * left behind by a build with an enemy this one does not have - is named by its own text rather than
+ * throwing the card away, which is the same bargain the run log strikes with a ship it does not know
+ * (ui/screens.js `logShip`). */
+export function hostName(id) {
+  for (const entry of HOSTS) {
+    if (entry.id === id) return entry.name;
+  }
+  return String(id).toUpperCase();
+}
+
 /** A codex that has seen nothing: the shape every reader wants whether or not anything is in it. */
 export function emptyFound() {
   return { hosts: [], lines: [] };

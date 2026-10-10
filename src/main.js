@@ -496,6 +496,12 @@ function describeRun() {
     // instead of hoping the interface already knew (ui/screens.js `showShip`).
     shipId: world.ship,
     weapon: weaponName(world),
+    // What took the last hull, and what every hull before it went to (game/tally.js `hurtBy`). The
+    // tally is the only place either is kept, and a run that was given up has no cause at all - which
+    // the card says in words of its own rather than leaving the question unanswered (game/run.js
+    // `abandonRun`).
+    cause: world.tally.killedBy,
+    hulls: world.tally.hurtBy,
     build: describeRanks(world),
     // What the run is worth between runs, and what the purse holds after it (game/stardust.js).
     dust: dustForRun(world),
