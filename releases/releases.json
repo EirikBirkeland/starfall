@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.7.1",
+    "date": "2026-10-10",
+    "summary": "Noise everywhere: explosions rumble, the dash whooshes, and a hit pulls the music behind a wall"
+  },
+  {
     "version": "0.7.0",
     "date": "2026-10-10",
     "summary": "Generated music: a 110 BPM sequencer with pad, bass and arpeggio, on its own bus under the fight"
