@@ -76,9 +76,9 @@ function noiseBuffer(actx) {
  * sound it decided not to play.
  */
 export function noiseVoice(actx, bus, vol, spec) {
-  const buf = noiseBuffer(actx);
-  if (!buf) return false;
   try {
+    const buf = noiseBuffer(actx);
+    if (!buf) return false;
     const t0 = actx.currentTime;
     const len = spec.dur;
 
@@ -110,7 +110,8 @@ export function noiseVoice(actx, bus, vol, spec) {
     // about how long this thing can be heard (audio/mix.js).
     src.stop(t0 + len + MIX.tail);
   } catch (err) {
-    // One dropped voice is not worth losing a frame over (audio/sfx.js says the same thing).
+    // One dropped voice is not worth losing a frame over - and that includes a machine that
+    // throws on being handed a buffer at all (audio/sfx.js says the same thing).
     return false;
   }
   voices++;
