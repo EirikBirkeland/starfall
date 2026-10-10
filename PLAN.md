@@ -839,7 +839,31 @@ When every item above is ticked, go back to the first unchecked item of mileston
       allowed once its bus has taken its half. Drums come in with the intensity item, since they
       enter *after* 2:00. `test/music.test.mjs`
       owns all of it - the clock, the density, the clean silences, and the no-chase rule.)
-- [ ] Intensity layers, boss music, low-hull variation.
+- [x] Intensity layers, boss music, low-hull variation.
+      (`audio/music.js`: the sequencer's layers are now *patterns* - whole sets of parts, not
+      switches - and `patternFor(world)` picks one from what the run says about itself. Five of
+      them: the title's pad; the run's bass and arpeggio; **`driving`**, which is that same
+      groove with a drum kit laid on it and is what a run gets from 2:00 (PLAN's own threshold,
+      read off `world.elapsed`, measured as the kit appearing and nothing else changing - the
+      groove under it voices the same notes either way); **`boss`**, which speeds the whole grid
+      up by a third (166 BPM feel, chord changes included, because a "faster pattern" that only
+      speeds one layer up is a stutter), writes sixteenths where the run writes eighths, doubles
+      the detune on its pad and voices that pad with the scale's second rubbing on the root -
+      the sharpest rub the key can ask for without leaving it; and **`last`**, the stripped one
+      at one hull left, which is a long low drone, one high note to a bar and a heartbeat at
+      about resting rate - no groove, no kit, no arpeggio. The last hull outranks a boss being
+      in the arena, deliberately: taking the groove away lands harder than adding to it. Measured
+      through the fake audio device, notes per second of run: 8.9 in a run, 12.5 driving, 27.4
+      through a fight, 5.1 on one hull - and the grid itself measured at 9.8 steps a second
+      under a boss against 7.3 everywhere else. The music now keeps its own books to prove it:
+      the ledger counts drum voices and the seconds spent in each pattern, which is the line
+      `tools/simulate.js --audio` prints as the run's intensity curve (`run 2m02s, driving
+      3m05s, boss 4m54s`). And because the sequencer is deliberately outside the voice budget,
+      its loudness is metered instead: `patternPeak` lays a pattern's bar out on its own grid,
+      envelopes and all, and answers its loudest instant - title 0.18, run 0.36, driving 0.45,
+      boss 0.50, last 0.33, with `MUSIC.peakLoad` at 0.5 and a test refusing any pattern over
+      it, plus one that proves the meter still reads the tables it claims to. Drums are the
+      noise buffer and a falling triangle for the kick, so nothing about them is a sample.)
 - [ ] Volume settings and mute.
 - [ ] Release.
 

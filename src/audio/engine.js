@@ -22,10 +22,11 @@ const MASTER_GAIN = 0.22;
 // The effects bus stays at 1 on purpose: every `vol` in the game is already priced against
 // the whole master (the headroom analysis in mix.js is arithmetic on those numbers), so a
 // different number here would silently reprice the entire game's sound. The music bus sits
-// at half because the loudest bar the sequencer can write adds up to about 0.4 of its own
-// (audio/music.js): halved here, the whole of the music peaks at well under half of what
-// a full sky of effects is already allowed - music you feel under a fight, never a wall
-// on top of it.
+// at half because the loudest instant any pattern the sequencer can write reaches is
+// `MUSIC.peakLoad` - 0.5 of its own unit, measured by `patternPeak` in audio/music.js and
+// held there by a test: halved here, the busiest bar of the harshest pattern peaks at half
+// of what a full sky of effects is already allowed - music you feel under a fight, never a
+// wall on top of it.
 const SFX_BUS_GAIN = 1;
 const MUSIC_BUS_GAIN = 0.5;
 

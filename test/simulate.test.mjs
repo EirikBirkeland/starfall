@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun, endingItAt } from '../tools/headless/bot.js';
-import { median, aggregate, batchLine, batchStatsLine, reportLine } from '../tools/simulate.js';
+import { median, aggregate, batchLine, batchStatsLine, reportLine, patternsLine } from '../tools/simulate.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SIMULATE = path.join(ROOT, 'tools', 'simulate.js');
@@ -92,7 +92,17 @@ test('the sound cannot move a run', () => {
   const loud = simulate(args.concat('--audio'));
 
   assert.match(loud, /mix: [\d,]+ voices asked/, 'the loud one had an audio device and used it');
+  assert.match(loud, /of them drums \| \w+ \d+m\d+s/, 'and it names the patterns it played');
   assert.equal(dark, loud.replace(/^mix: .*\n/m, ''), 'hearing the game changed the game');
+});
+
+test('the intensity curve is a line a run can be read from', () => {
+  // What the mix line's second half is made of (audio/music.js keeps the seconds, one per
+  // pattern). A run that never reached two minutes has no `driving` in here and a run that
+  // never met a boss has no `boss`, which is the point of printing it at all.
+  assert.equal(patternsLine({}), 'silent');
+  assert.equal(patternsLine({ title: 4.4, run: 130.2, boss: 62 }),
+    'title 0m04s, run 2m10s, boss 1m02s');
 });
 
 test('the bot that dodges outlives the bot that does not', async () => {

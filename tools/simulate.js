@@ -196,6 +196,18 @@ export function batchStatsLine(batch) {
 }
 
 /**
+ * How long the music spent in each of its patterns, in the order they were first heard
+ * (audio/music.js `patternFor`). A run's intensity curve in one line: a bot that never made it
+ * to two minutes never gets a `driving` in here, and one that spent its last minute on one hull
+ * says so.
+ */
+export function patternsLine(heard) {
+  const parts = [];
+  for (const name of Object.keys(heard)) parts.push(name + ' ' + clock(heard[name]));
+  return parts.length ? parts.join(', ') : 'silent';
+}
+
+/**
  * What the mix did, on a run that had an audio device to do it on (audio/mix.js keeps the
  * books and audio/music.js keeps its own). This is how a change to the sound is measured
  * instead of hoped for: a bus that has run out of headroom shows up here as a pile of
@@ -208,7 +220,8 @@ function mixLine() {
     + int(ledger.dropped) + ' turned away (loudest of them ' + dec(ledger.loudestDropped, 3)
     + ') | peak ' + dec(ledger.peakLoad, 2) + ' of ' + MIX.headroom + ' at once, in '
     + int(ledger.peakVoices) + ' voices | ' + int(noiseVoices()) + ' noise voices | music '
-    + int(music.notes) + ' notes over ' + int(music.steps) + ' steps';
+    + int(music.notes) + ' notes over ' + int(music.steps) + ' steps, '
+    + int(music.drums) + ' of them drums | ' + patternsLine(music.heard);
 }
 
 /** Only run when called as a command, so the tests can import the parts above. */

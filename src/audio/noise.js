@@ -65,7 +65,9 @@ function noiseBuffer(actx) {
 }
 
 /**
- * One burst of noise on `bus`.
+ * One burst of noise on `bus`, starting at `when` - which every caller leaves as "now",
+ * except the sequencer, which lives on the audio clock and schedules a drum half a second
+ * before it is heard (audio/music.js).
  *
  * `spec` is `{ dur, cutoff, sweep, q }`: how long it lasts, where its low-pass starts, where
  * the sweep leaves it, and how resonant the filter is on the way. `cutoff` above `sweep` is
@@ -75,11 +77,11 @@ function noiseBuffer(actx) {
  * Answers whether the voice was started, so a caller can tell a silent old browser from a
  * sound it decided not to play.
  */
-export function noiseVoice(actx, bus, vol, spec) {
+export function noiseVoice(actx, bus, vol, spec, when) {
   try {
     const buf = noiseBuffer(actx);
     if (!buf) return false;
-    const t0 = actx.currentTime;
+    const t0 = when === undefined ? actx.currentTime : when;
     const len = spec.dur;
 
     const src = actx.createBufferSource();

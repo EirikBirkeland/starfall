@@ -274,9 +274,10 @@ function frame(now) {
   }
   consumeCues(world.state);
   // The music is wound on the same frame the cue queue drains on: what the run looks
-  // like right now is a frame's question, and the simulation never learns music exists
-  // at all (audio/music.js).
-  updateMusic(world.state);
+  // like right now - how far in it is, whether a boss is standing in it, how much hull the
+  // ship has left - is a frame's question, and the simulation never learns music exists at
+  // all (audio/music.js).
+  updateMusic(world);
   renderFrame(tick, input, mouse);
 
   requestAnimationFrame(frame);
