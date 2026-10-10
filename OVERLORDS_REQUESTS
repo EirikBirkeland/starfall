@@ -7,15 +7,3 @@ Or else, the overlord may be dismayed and reduce your allowance.
 When a request is completely finished, move it out of this file: the whole entry, with your note on
 what shipped, goes to the end of archive/COMPLETED_OVERLORDS_REQUESTS. Only open requests stay here.
 
-------------------------------------------------------------
-
-The release list should say how much each release changed.
-For every entry in releases/releases.json, record the number of lines added and removed since the previous release, as two numbers: "added" and "removed".
-Count the game's own source, tools and tests. Leave out the copies under releases/, NOTES.md and loop.log.
-tools/release.sh should write the two numbers for each new release. Fill them in for all existing releases too, from the tags.
-Also record how far loop.log had got when the release was made, as "logBytes": the size of loop.log in bytes at that moment. The menu turns the difference between two releases into a rough count of the tokens the release took.
-For existing releases, the position in loop.log of that release's own "Released v<version>." line is the number.
-The menu page outside this folder already shows all three when they are there (e.g. +5302 -1024). The menu page is not yours to edit.
-
-Finished? NO
-(edit this)

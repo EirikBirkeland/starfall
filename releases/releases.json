@@ -2,386 +2,561 @@
   {
     "version": "0.10.1",
     "date": "2026-10-10",
-    "summary": "VACUUM: every 10,000 points the arena empties itself into the ship"
+    "summary": "VACUUM: every 10,000 points the arena empties itself into the ship",
+    "added": 934,
+    "removed": 35,
+    "logBytes": 29989636
   },
   {
     "version": "0.10.0",
     "date": "2026-10-10",
-    "summary": "ATTRACTOR: a card that buys how far off the loot is yours"
+    "summary": "ATTRACTOR: a card that buys how far off the loot is yours",
+    "added": 355,
+    "removed": 4,
+    "logBytes": 29536997
   },
   {
     "version": "0.9.5",
     "date": "2026-10-10",
-    "summary": "AUTO-FIRE and AUTO-AIM: the game can be flown with the keyboard alone"
+    "summary": "AUTO-FIRE and AUTO-AIM: the game can be flown with the keyboard alone",
+    "added": 710,
+    "removed": 33
   },
   {
     "version": "0.9.4",
     "date": "2026-10-10",
-    "summary": "O opens the settings: shake, flash, score numbers, particles, and the mixer"
+    "summary": "O opens the settings: shake, flash, score numbers, particles, and the mixer",
+    "added": 1165,
+    "removed": 51
   },
   {
     "version": "0.9.3",
     "date": "2026-10-10",
-    "summary": "The card a run ends on says what ended it: what took the last hull, and what every hull before it went to"
+    "summary": "The card a run ends on says what ended it: what took the last hull, and what every hull before it went to",
+    "added": 568,
+    "removed": 7
   },
   {
     "version": "0.9.2",
     "date": "2026-10-10",
-    "summary": "Esc or P holds the run and shows its stats and its build; G gives the run up"
+    "summary": "Esc or P holds the run and shows its stats and its build; G gives the run up",
+    "added": 1133,
+    "removed": 72
   },
   {
     "version": "0.9.1",
     "date": "2026-10-10",
-    "summary": "The title writes its own name, and then keeps moving"
+    "summary": "The title writes its own name, and then keeps moving",
+    "added": 1070,
+    "removed": 19
   },
   {
     "version": "0.8.7",
     "date": "2026-10-10",
-    "summary": "The hangar keeps a third rack: all thirty awards, lit when they are yours and priced when they are not"
+    "summary": "The hangar keeps a third rack: all thirty awards, lit when they are yours and priced when they are not",
+    "added": 403,
+    "removed": 22
   },
   {
     "version": "0.8.6",
     "date": "2026-10-10",
-    "summary": "The codex keeps a rack of the last twenty runs: seed, ship, clock, score, and whether they cleared"
+    "summary": "The codex keeps a rack of the last twenty runs: seed, ship, clock, score, and whether they cleared",
+    "added": 839,
+    "removed": 19
   },
   {
     "version": "0.8.5",
     "date": "2026-10-10",
-    "summary": "Awards: thirty-one on the back of the hangar, won in the run, said on the glass the moment they turn true"
+    "summary": "Awards: thirty-one on the back of the hangar, won in the run, said on the glass the moment they turn true",
+    "added": 1535,
+    "removed": 25
   },
   {
     "version": "0.8.4",
     "date": "2026-10-10",
-    "summary": "The codex: C opens what this save has met, and runs fill it in as they end"
+    "summary": "The codex: C opens what this save has met, and runs fill it in as they end",
+    "added": 1099,
+    "removed": 49
   },
   {
     "version": "0.8.3",
     "date": "2026-10-10",
-    "summary": "Four perks, five ranks each, and both racks fitted to the window"
+    "summary": "Four perks, five ranks each, and both racks fitted to the window",
+    "added": 1102,
+    "removed": 81
   },
   {
     "version": "0.8.2",
     "date": "2026-10-10",
-    "summary": "Four of the five ships cost stardust now, and the hangar is where you buy them"
+    "summary": "Four of the five ships cost stardust now, and the hangar is where you buy them",
+    "added": 894,
+    "removed": 67
   },
   {
     "version": "0.8.1",
     "date": "2026-10-10",
-    "summary": "Stardust every run pays, and the hangar you spend it from"
+    "summary": "Stardust every run pays, and the hangar you spend it from",
+    "added": 907,
+    "removed": 118
   },
   {
     "version": "0.8.0",
     "date": "2026-10-10",
-    "summary": "One versioned save document, and the settings that live in it"
+    "summary": "One versioned save document, and the settings that live in it",
+    "added": 843,
+    "removed": 16
   },
   {
     "version": "0.7.4",
     "date": "2026-10-10",
-    "summary": "Two volume sliders and a mute that outranks them, with a readout that says what a key did"
+    "summary": "Two volume sliders and a mute that outranks them, with a readout that says what a key did",
+    "added": 947,
+    "removed": 11
   },
   {
     "version": "0.7.3",
     "date": "2026-10-10",
-    "summary": "The music plays the run: drums at 2:00, a boss tempo, and a heartbeat at one hull"
+    "summary": "The music plays the run: drums at 2:00, a boss tempo, and a heartbeat at one hull",
+    "added": 559,
+    "removed": 68
   },
   {
     "version": "0.7.2",
     "date": "2026-10-10",
-    "summary": "UI ticks, hits pitched by the body's size, and loot that climbs as it comes in"
+    "summary": "UI ticks, hits pitched by the body's size, and loot that climbs as it comes in",
+    "added": 722,
+    "removed": 19,
+    "logBytes": 24063829
   },
   {
     "version": "0.7.1",
     "date": "2026-10-10",
-    "summary": "Noise everywhere: explosions rumble, the dash whooshes, and a hit pulls the music behind a wall"
+    "summary": "Noise everywhere: explosions rumble, the dash whooshes, and a hit pulls the music behind a wall",
+    "added": 669,
+    "removed": 48
   },
   {
     "version": "0.7.0",
     "date": "2026-10-10",
-    "summary": "Generated music: a 110 BPM sequencer with pad, bass and arpeggio, on its own bus under the fight"
+    "summary": "Generated music: a 110 BPM sequencer with pad, bass and arpeggio, on its own bus under the fight",
+    "added": 403,
+    "removed": 24
   },
   {
     "version": "0.6.12",
     "date": "2026-10-10",
-    "summary": "Endless keeps climbing past every ceiling the schedule spent, and ends when the crowd outlasts the gun"
+    "summary": "Endless keeps climbing past every ceiling the schedule spent, and ends when the crowd outlasts the gun",
+    "added": 1091,
+    "removed": 10
   },
   {
     "version": "0.6.11",
     "date": "2026-10-09",
-    "summary": "Endless: the win hands the arena back; the room only shakes when it is worth it; the last card cannot be clicked away"
+    "summary": "Endless: the win hands the arena back; the room only shakes when it is worth it; the last card cannot be clicked away",
+    "added": 1582,
+    "removed": 83
   },
   {
     "version": "0.6.10",
     "date": "2026-10-09",
-    "summary": "The run can be won: a second ending, the hush, and the card that says ARENA CLEARED"
+    "summary": "The run can be won: a second ending, the hush, and the card that says ARENA CLEARED",
+    "added": 819,
+    "removed": 56,
+    "logBytes": 22089129
   },
   {
     "version": "0.6.9",
     "date": "2026-10-09",
-    "summary": "The Eclipse's shell walks its door: a gap that travels, shown the whole of the way"
+    "summary": "The Eclipse's shell walks its door: a gap that travels, shown the whole of the way",
+    "added": 760,
+    "removed": 71
   },
   {
     "version": "0.6.8",
     "date": "2026-10-09",
-    "summary": "The Eclipse's last phase lifts an arm: fans of blades shown whole, then swept"
+    "summary": "The Eclipse's last phase lifts an arm: fans of blades shown whole, then swept",
+    "added": 1721,
+    "removed": 27
   },
   {
     "version": "0.6.7",
     "date": "2026-10-09",
-    "summary": "The darkness covers the whole window now, and a test measures that it does"
+    "summary": "The darkness covers the whole window now, and a test measures that it does",
+    "added": 44,
+    "removed": 8,
+    "logBytes": 21032250
   },
   {
     "version": "0.6.6",
     "date": "2026-10-09",
-    "summary": "The Eclipse's darkness: the room goes dark and what is left is what is shining"
+    "summary": "The Eclipse's darkness: the room goes dark and what is left is what is shining",
+    "added": 1016,
+    "removed": 30,
+    "logBytes": 20990828
   },
   {
     "version": "0.6.5",
     "date": "2026-10-09",
-    "summary": "The Eclipse: a dark sun at 15:00 that drags you in and bursts out in shells"
+    "summary": "The Eclipse: a dark sun at 15:00 that drags you in and bursts out in shells",
+    "added": 936,
+    "removed": 35
   },
   {
     "version": "0.6.4",
     "date": "2026-10-09",
-    "summary": "The Hive's last phase: it comes apart into three smaller hives and one hull bar stays one fight"
+    "summary": "The Hive's last phase: it comes apart into three smaller hives and one hull bar stays one fight",
+    "added": 1130,
+    "removed": 211
   },
   {
     "version": "0.6.3",
     "date": "2026-10-09",
-    "summary": "The Hive: a mass of cells that breeds swarms and can be shot apart"
+    "summary": "The Hive: a mass of cells that breeds swarms and can be shot apart",
+    "added": 1449,
+    "removed": 89
   },
   {
     "version": "0.6.2",
     "date": "2026-10-09",
-    "summary": "The Warden calls Darters out of its own hoop: phase 3 is a summon and the Warden is finished"
+    "summary": "The Warden calls Darters out of its own hoop: phase 3 is a summon and the Warden is finished",
+    "added": 754,
+    "removed": 25
   },
   {
     "version": "0.6.1",
     "date": "2026-10-09",
-    "summary": "The Warden's second beat: a ring of shots with a door in it, thrown between the spokes"
+    "summary": "The Warden's second beat: a ring of shots with a door in it, thrown between the spokes",
+    "added": 884,
+    "removed": 57,
+    "logBytes": 18495729
   },
   {
     "version": "0.6.0",
     "date": "2026-10-09",
-    "summary": "Bosses: the arena shuts a room round the duel, and the Warden walks in at five minutes"
+    "summary": "Bosses: the arena shuts a room round the duel, and the Warden walks in at five minutes",
+    "added": 2488,
+    "removed": 91
   },
   {
     "version": "0.5.2",
     "date": "2026-10-09",
-    "summary": "Ships: five hulls to fly, each one the gun it was built around"
+    "summary": "Ships: five hulls to fly, each one the gun it was built around",
+    "added": 1097,
+    "removed": 265
   },
   {
     "version": "0.5.1",
     "date": "2026-10-09",
-    "summary": "Swarm: the fifth primary - slow micro-missiles that each find a body of their own and go off in it"
+    "summary": "Swarm: the fifth primary - slow micro-missiles that each find a body of their own and go off in it",
+    "added": 924,
+    "removed": 14,
+    "logBytes": 16850727
   },
   {
     "version": "0.5.0",
     "date": "2026-10-09",
-    "summary": "Lance: the fourth primary - a line of light down the whole arena, after a moment of winding up"
+    "summary": "Lance: the fourth primary - a line of light down the whole arena, after a moment of winding up",
+    "added": 1996,
+    "removed": 94
   },
   {
     "version": "0.4.21",
     "date": "2026-10-09",
-    "summary": "The run's own build, down the left edge: a mark for every upgrade taken and a pip for every rank"
+    "summary": "The run's own build, down the left edge: a mark for every upgrade taken and a pip for every rank",
+    "added": 1635,
+    "removed": 1018
   },
   {
     "version": "0.4.20",
     "date": "2026-10-09",
-    "summary": "Thermal shock: a corpse that wore both fire and frost takes the room with it, and the first synergy the deck can deal"
+    "summary": "Thermal shock: a corpse that wore both fire and frost takes the room with it, and the first synergy the deck can deal",
+    "added": 1953,
+    "removed": 72
   },
   {
     "version": "0.4.19",
     "date": "2026-10-09",
-    "summary": "Reroll and banish: the deal can be argued with twice a run"
+    "summary": "Reroll and banish: the deal can be argued with twice a run",
+    "added": 859,
+    "removed": 56
   },
   {
     "version": "0.4.18",
     "date": "2026-10-08",
-    "summary": "Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see"
+    "summary": "Turret: a gun is set down across the road ahead of you and holds that ground for ten seconds, aiming and firing at whatever it can see",
+    "added": 1661,
+    "removed": 3
   },
   {
     "version": "0.4.17",
     "date": "2026-10-08",
-    "summary": "Tether: a dash ties a line of light from where it started to wherever you get to, and everything standing on it burns"
+    "summary": "Tether: a dash ties a line of light from where it started to wherever you get to, and everything standing on it burns",
+    "added": 1523,
+    "removed": 7
   },
   {
     "version": "0.4.16",
     "date": "2026-10-08",
-    "summary": "Mines: the ship drops mines out of the way it was going, and a body that walks into the ring on the floor pays for the road"
+    "summary": "Mines: the ship drops mines out of the way it was going, and a body that walks into the ring on the floor pays for the road",
+    "added": 1656,
+    "removed": 4
   },
   {
     "version": "0.4.15",
     "date": "2026-10-08",
-    "summary": "Magnetar: the shards you pick up charge the field round the ship, and when it is full it lets go"
+    "summary": "Magnetar: the shards you pick up charge the field round the ship, and when it is full it lets go",
+    "added": 1064,
+    "removed": 6
   },
   {
     "version": "0.4.14",
     "date": "2026-10-08",
-    "summary": "Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds"
+    "summary": "Afterimage: the dash leaves images of the ship standing where it was, and the bodies next to them chase those for two seconds",
+    "added": 1051,
+    "removed": 6,
+    "logBytes": 11809516
   },
   {
     "version": "0.4.13",
     "date": "2026-10-08",
-    "summary": "Overcharge: stand still for a second and the next pull of the trigger is worth double"
+    "summary": "Overcharge: stand still for a second and the next pull of the trigger is worth double",
+    "added": 968,
+    "removed": 24
   },
   {
     "version": "0.4.12",
     "date": "2026-10-08",
-    "summary": "Leech: every body you bring down is worth a hull back, and the first card in the game that gives something"
+    "summary": "Leech: every body you bring down is worth a hull back, and the first card in the game that gives something",
+    "added": 807,
+    "removed": 6
   },
   {
     "version": "0.4.11",
     "date": "2026-10-08",
-    "summary": "Chill: every hit the ship lands takes the speed out of them, and a cold body coming apart throws ice"
+    "summary": "Chill: every hit the ship lands takes the speed out of them, and a cold body coming apart throws ice",
+    "added": 1273,
+    "removed": 10
   },
   {
     "version": "0.4.10",
     "date": "2026-10-08",
-    "summary": "Burn: every hit the ship lands sets the crowd alight, and a body that dies alight passes it on"
+    "summary": "Burn: every hit the ship lands sets the crowd alight, and a body that dies alight passes it on",
+    "added": 2642,
+    "removed": 38,
+    "logBytes": 10539415
   },
   {
     "version": "0.4.9",
     "date": "2026-10-08",
-    "summary": "The agent bridge: the game playable by a coding agent over stdin/stdout"
+    "summary": "The agent bridge: the game playable by a coding agent over stdin/stdout",
+    "added": 33,
+    "removed": 1502,
+    "logBytes": 9599948
   },
   {
     "version": "0.3.9",
     "date": "2026-10-08",
-    "summary": "The sniper: a stationary eye that draws a laser across the whole arena, and the last body of the roster"
+    "summary": "The sniper: a stationary eye that draws a laser across the whole arena, and the last body of the roster",
+    "added": 3521,
+    "removed": 22
   },
   {
     "version": "0.4.8",
     "date": "2026-10-08",
-    "summary": "Survival check: the median is in the tool, and the firepower milestone closes on it"
+    "summary": "Survival check: the median is in the tool, and the firepower milestone closes on it",
+    "added": 226,
+    "removed": 40
   },
   {
     "version": "0.4.7",
     "date": "2026-10-08",
-    "summary": "Arc: the third primary - lightning that finds the nearest body and leaps four of them"
+    "summary": "Arc: the third primary - lightning that finds the nearest body and leaps four of them",
+    "added": 1257,
+    "removed": 29
   },
   {
     "version": "0.4.6",
     "date": "2026-10-08",
-    "summary": "Scatter: six pellets in a 30-degree cone at half the pulse's reach, and the title screen asks which gun you fly"
+    "summary": "Scatter: six pellets in a 30-degree cone at half the pulse's reach, and the title screen asks which gun you fly",
+    "added": 1448,
+    "removed": 226
   },
   {
     "version": "0.4.5",
     "date": "2026-10-08",
-    "summary": "Nova: a ring of damage leaves the ship every 8 s, and a rank buys one more inside the cycle"
+    "summary": "Nova: a ring of damage leaves the ship every 8 s, and a rank buys one more inside the cycle",
+    "added": 1369,
+    "removed": 20
   },
   {
     "version": "0.4.4",
     "date": "2026-10-08",
-    "summary": "Orbitals: a ring of drones round the ship, two more per rank, biting whatever stands in it"
+    "summary": "Orbitals: a ring of drones round the ship, two more per rank, biting whatever stands in it",
+    "added": 1020,
+    "removed": 26
   },
   {
     "version": "0.4.3",
     "date": "2026-10-07",
-    "summary": "Ricochet: a shot that would die turns on to the next body, one more per rank"
+    "summary": "Ricochet: a shot that would die turns on to the next body, one more per rank",
+    "added": 638,
+    "removed": 42
   },
   {
     "version": "0.4.2",
     "date": "2026-10-07",
-    "summary": "Pierce: one pull of the trigger goes through one more body per rank"
+    "summary": "Pierce: one pull of the trigger goes through one more body per rank",
+    "added": 465,
+    "removed": 41
   },
   {
     "version": "0.4.1",
     "date": "2026-10-07",
-    "summary": "Split shot: one pull of the trigger fires a fan of shots"
+    "summary": "Split shot: one pull of the trigger fires a fan of shots",
+    "added": 585,
+    "removed": 133,
+    "logBytes": 6758019
   },
   {
     "version": "0.4.0",
     "date": "2026-10-07",
-    "summary": "The level-up choice: three cards, three upgrade lines, and a run that grows as it goes"
+    "summary": "The level-up choice: three cards, three upgrade lines, and a run that grows as it goes",
+    "added": 1111,
+    "removed": 37
   },
   {
     "version": "0.3.8",
     "date": "2026-10-07",
-    "summary": "The swarm: up to twenty small fast bodies that arrive as one wave member and fly as one thing"
+    "summary": "The swarm: up to twenty small fast bodies that arrive as one wave member and fly as one thing",
+    "added": 1454,
+    "removed": 54,
+    "logBytes": 6151435
   },
   {
     "version": "0.3.7",
     "date": "2026-10-07",
-    "summary": "The shielder: it armour-plates the crowd around it, and the crowd goes cheap when it dies"
+    "summary": "The shielder: it armour-plates the crowd around it, and the crowd goes cheap when it dies",
+    "added": 1285,
+    "removed": 26,
+    "logBytes": 5660985
   },
   {
     "version": "0.3.6",
     "date": "2026-10-07",
-    "summary": "Elites actually arrive now: one wave in five after 8:00 carries a gold body"
+    "summary": "Elites actually arrive now: one wave in five after 8:00 carries a gold body",
+    "added": 2630,
+    "removed": 80,
+    "logBytes": 5350523
   },
   {
     "version": "0.3.5",
     "date": "2026-10-07",
-    "summary": "Elite variants: gold bodies with four times the hull, a large shard, and a chance of a heal"
+    "summary": "Elite variants: gold bodies with four times the hull, a large shard, and a chance of a heal",
+    "added": 966,
+    "removed": 50
   },
   {
     "version": "0.3.4",
     "date": "2026-10-07",
-    "summary": "The window edge points at the danger you cannot see"
+    "summary": "The window edge points at the danger you cannot see",
+    "added": 700,
+    "removed": 8
   },
   {
     "version": "0.3.3",
     "date": "2026-10-07",
-    "summary": "The bomber: a blast whose circle you are shown while it lives"
+    "summary": "The bomber: a blast whose circle you are shown while it lives",
+    "added": 927,
+    "removed": 59,
+    "logBytes": 3888271
   },
   {
     "version": "0.3.2",
     "date": "2026-10-07",
-    "summary": "Enemies arrive as waves, bought with a spawn budget that grows with the run"
+    "summary": "Enemies arrive as waves, bought with a spawn budget that grows with the run",
+    "added": 878,
+    "removed": 177
   },
   {
     "version": "0.3.1",
     "date": "2026-10-07",
-    "summary": "The spitter: a telegraphed enemy shot"
+    "summary": "The spitter: a telegraphed enemy shot",
+    "added": 750,
+    "removed": 11,
+    "logBytes": 3300057
   },
   {
     "version": "0.3.0",
     "date": "2026-10-07",
-    "summary": "The darter: a telegraphed lunging enemy"
+    "summary": "The darter: a telegraphed lunging enemy",
+    "added": 1262,
+    "removed": 163
   },
   {
     "version": "0.2.6",
     "date": "2026-10-07",
-    "summary": "The sky is a nebula: drifting clouds baked once, painted behind the stars"
+    "summary": "The sky is a nebula: drifting clouds baked once, painted behind the stars",
+    "added": 532,
+    "removed": 5,
+    "logBytes": 2620245
   },
   {
     "version": "0.2.5",
     "date": "2026-10-07",
-    "summary": "Wreckage and a wake: three particle shapes on the pool"
+    "summary": "Wreckage and a wake: three particle shapes on the pool",
+    "added": 662,
+    "removed": 79
   },
   {
     "version": "0.2.4",
     "date": "2026-10-07",
-    "summary": "The arena is a world: 3000x3000, a camera that follows and leans, energy walls at its edge"
+    "summary": "The arena is a world: 3000x3000, a camera that follows and leans, energy walls at its edge",
+    "added": 893,
+    "removed": 64
   },
   {
     "version": "0.2.3",
     "date": "2026-10-07",
-    "summary": "Hit-stop: the run holds its breath on a big kill and on a hit"
+    "summary": "Hit-stop: the run holds its breath on a big kill and on a hit",
+    "added": 338,
+    "removed": 12
   },
   {
     "version": "0.2.2",
     "date": "2026-10-07",
-    "summary": "Pre-rendered glow sprites: no blurs, no per-frame gradients"
+    "summary": "Pre-rendered glow sprites: no blurs, no per-frame gradients",
+    "added": 787,
+    "removed": 117,
+    "logBytes": 1721469
   },
   {
     "version": "0.2.1",
     "date": "2026-10-07",
-    "summary": "The dash: 220 px on rails, a 2.5 s wait, invulnerable through it"
+    "summary": "The dash: 220 px on rails, a 2.5 s wait, invulnerable through it",
+    "added": 851,
+    "removed": 58,
+    "logBytes": 1503376
   },
   {
     "version": "0.2.0",
     "date": "2026-10-07",
-    "summary": "The ship flies like the plan says: acceleration, braking, a 6 px hitbox"
+    "summary": "The ship flies like the plan says: acceleration, braking, a 6 px hitbox",
+    "added": 261,
+    "removed": 28,
+    "logBytes": 1122877
   },
   {
     "version": "0.1.0",
     "date": "2026-10-07",
-    "summary": "Fixed-step simulation, seeded runs, collision grid and pools: the foundations release"
+    "summary": "Fixed-step simulation, seeded runs, collision grid and pools: the foundations release",
+    "added": 4515,
+    "removed": 1069
   },
   {
     "version": "0.0.1",
     "date": "2026-10-06",
-    "summary": "First playable: the single-file neon arena survival baseline"
+    "summary": "First playable: the single-file neon arena survival baseline",
+    "added": 1266,
+    "removed": 0
   }
 ]

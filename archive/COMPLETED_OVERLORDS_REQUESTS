@@ -32,3 +32,35 @@ good run, then one every minute or two.
 No screen shake and no freeze in it, on purpose: your "only shake extraordinarily" rule still holds,
 and a freeze between a pause and its resume turns a press into a dash you never asked for.
 (edit this)
+
+------------------------------------------------------------
+
+The release list should say how much each release changed.
+For every entry in releases/releases.json, record the number of lines added and removed since the previous release, as two numbers: "added" and "removed".
+Count the game's own source, tools and tests. Leave out the copies under releases/, NOTES.md and loop.log.
+tools/release.sh should write the two numbers for each new release. Fill them in for all existing releases too, from the tags.
+Also record how far loop.log had got when the release was made, as "logBytes": the size of loop.log in bytes at that moment. The menu turns the difference between two releases into a rough count of the tokens the release took.
+For existing releases, the position in loop.log of that release's own "Released v<version>." line is the number.
+The menu page outside this folder already shows all three when they are there (e.g. +5302 -1024). The menu page is not yours to edit.
+
+Finished? YES
+Shipped the same day, as `tools/release-stats.js` plus four lines in `tools/release.sh`. The release
+script now counts the release it has just written an entry for, between that entry and the commit, so
+from the next release onwards every entry carries `added`, `removed` and `logBytes`. The two counts are
+`git diff --numstat` from one release's tag to the next and nothing else, over `index.html`, `src/`,
+`tools/` and `test/` - the copies under `releases/` are copies, and the markdown and the log are the
+story about the work rather than the work. Run with no arguments the tool back-filled all 77 existing
+releases from their tags: every one has its two counts now, the newest reading +934 -35 and the first
++1266 -0 (it is counted from the empty tree, being the start).
+
+`logBytes` is exact where the log remembers the moment and blank where it does not. A new release gets
+the honest thing, the size of `loop.log` when it is stamped. For the ones already out there the only
+mark is the release's own `Released v<version>. It is now in the menu.` line, and the harness that
+writes `loop.log` elides long tool output - so 21 of the 77 have that line and 56 do not. Those 56 get
+no `logBytes` at all rather than a number invented out of a session quoting an older release or
+interpolated from timestamps; the menu shows nothing for them, which is true. A quoted line is only
+accepted where the log's own order allows it, `node tools/release-stats.js --check` says which entries
+are still blank, and nothing the tool does ever rewrites a number that is already there - so it is
+safe to run it any time, including after anyone has edited the file by hand. Counting is metadata for
+the menu, so a counting failure warns and steps over rather than losing you a release.
+(edit this)

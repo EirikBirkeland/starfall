@@ -82,6 +82,19 @@ releases.unshift({ version, date, summary });
 fs.writeFileSync(manifestPath, JSON.stringify(releases, null, 2) + "\n");
 ' "$version" "$summary"
 
+# How much this release changed, for the menu that lists them: the lines since the previous tag, and
+# how far the session log had got. This runs between the entry being written and the release being
+# committed, which is the only moment when "since the last release" is HEAD and "how far the log has
+# got" is the size of the file. --stamp fills the entry it just wrote and touches no other.
+if [ -f tools/release-stats.js ]; then
+  echo "Counting what this release changed..."
+  # A number for the menu must never be the reason a release did not happen, so a failure here is
+  # reported and stepped over: the entry keeps its version, date and summary and simply has no
+  # numbers, and `node tools/release-stats.js --check` will say which entries are still blank.
+  node tools/release-stats.js --stamp "$version" \
+    || echo "warning: could not count this release; releases.json has no numbers for $version"
+fi
+
 git add -A
 git commit -q -m "Release $tag: $summary"
 git tag -a "$tag" -m "$summary"

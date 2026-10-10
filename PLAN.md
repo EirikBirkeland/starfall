@@ -1107,6 +1107,22 @@ When every item above is ticked, go back to the first unchecked item of mileston
       only reason "loud enough to be the reward" is a number and not a hope. The reference run
       (`--seed 20261006 --trace`) is byte-identical to the 0.10.0 one until the frame the first well
       opens on, which is the proof the whole feature is inert until it is earned.
+- [x] The release list says how much each release changed (**the owner's request of 2026-10-11**, the
+      second one in `OVERLORDS_REQUESTS`, and the note on what shipped is in
+      `archive/COMPLETED_OVERLORDS_REQUESTS`). `tools/release-stats.js` counts a release's `added` and
+      `removed` lines with `git diff --numstat` from the previous release's tag to this one, over
+      `index.html`, `src/`, `tools/` and `test/` and nothing else - the copies under `releases/` are
+      copies and the markdown and `loop.log` are the story about the work and not the work - and
+      records `logBytes`, how far the session log had got when the release was made, which is what the
+      menu turns into a rough token cost per release. `tools/release.sh` stamps all three on the entry
+      it has just written, between the entry and the commit, and warns rather than fails if it cannot:
+      metadata for a menu is not allowed to lose a release. With no arguments the tool back-filled the
+      77 releases already out there from their tags - every one has its two counts (0.10.1 is +934 -35,
+      0.0.1 is +1266 -0 from the empty tree) - and left `logBytes` out of the 56 whose own
+      `Released v<version>. It is now in the menu.` line the harness elided from the log, because a
+      position quoted in a later session or interpolated from timestamps is a number with no fact
+      behind it and the menu shows nothing for a missing one. `--check` says which entries are still
+      blank; nothing it writes ever overwrites a number that is already there.
 - [x] Use the simulation to check the difficulty arc (**built, run, and the answer is that one half
       of PLAN's sentence holds and the other cannot be measured with the players there are** - what
       that asks for is the item under this one). PLAN's two numbers are its own and neither was
