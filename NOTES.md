@@ -10019,3 +10019,127 @@ panel is refused - both are things a tool needs before it presses).
   specific to seven rows - it grows and trims the rack the way the log does - but the *fit* is only
   asserted unfitted in the harness, so a wider row wants a real look.
 - Worktree hygiene: `/tmp/s84-head` was removed with `git worktree remove` after the trace comparison.
+
+---
+
+## Session 85 — AUTO-FIRE and AUTO-AIM (milestone 9, the item session 84 had to add to the plan)
+
+Released **0.9.5**. The suite is **1589 tests** (9 new in `test/assists.test.mjs`; three older tests in
+`save.test.mjs`, `settings.test.mjs` and `volume.test.mjs` had the panel's row list and the save
+document pinned and had to learn about the two new rows). `node tools/simulate.js --seed 20261006
+--trace` is **byte-identical** to a clean `HEAD` worktree taken before a line was changed, which - like
+session 84's settings work - is the claim the whole feature rests on.
+
+**What arrived as somebody else's half.** The tree opened with an uncommitted, untested `assists.js` and
+its wiring in `save.js`, `run.js`, `world.js` and `main.js` (plus the `OVERLORDS_REQUESTS` note and a
+deleted `BUG_REPORT_README`), and three failing tests. Session 9 and session 83 are the precedent: read
+it end to end, verify it, finish what is missing, commit it. The design was good and almost all of it
+stayed - the row table, the slack on changing its mind, `world.aimLock` as derived state, the "one aim
+per step, not per frame" argument, and the decision to hang the two rows at the *end* of the settings
+panel. What it did not have was a single test run, two behaviours that turned out to be bugs (below), a
+PLAN tick, a changelog, or a release.
+
+**What shipped.** Two rows at the bottom of the `O` panel: `AUTO-FIRE / THE TRIGGER IS ALREADY HELD` and
+`AUTO-AIM / THE GUN FINDS THE NEAREST BODY IT CAN HURT`. Both off, both kept as two flags in the save's
+new `assists` section, both read back at boot (`loadAssists()` beside `loadPicture(...)`), and reported
+to the tools through `stats().assists` as `'off'`/`'on'` per row. `game/world.js stepRun` calls
+`driveAssists(world, input)` immediately before `updatePlayer`, and `driveAssists` writes into the
+caller's own input descriptor - so every system downstream sees one set of controls and cannot tell
+which hand moved them, which is the only way an auto-fired shot and a shot the player fired can be the
+same shot. `takeAim` walks the crowd for the nearest body `damageEnemy` would accept (`hp > 0`,
+`immune <= 0` - the same question, asked at the same door), keeps the body it holds until the nearest is
+`KEEP_SLACK` (1.4, squared with the squared distances) further out, and leaves the nose wherever the
+hand left it when there is nothing to hold it on. `world.aimLock` is derived state like the grid and the
+packs: it goes with the crowd, with `resetRun`, and with the switch that asked for it.
+
+**The two bugs in the half, and both are the same shape: a claim in a comment the code did not keep.**
+1. `stepRow(id, 0)` turned a switch *off*, because `const next = delta > 0` reads zero as "not right". Its
+   sibling in `game/settings.js` refuses zero (`Math.sign`), and the honest answer a two-place row gives
+   has to be the one a five-place row gives. Now `Math.sign(delta) === 0` is refused, and the test says
+   "zero is not a direction" in both files' words.
+2. `loadFromSave()` handed `section('assists', stateAsStored())` - the module's *current* state as the
+   fallback - so a stored value that was neither yes nor no came back as whatever the switch was already
+   doing rather than the off its own header promised. `core/save.js section()` takes the default as a
+   parameter and that was the whole misunderstanding. Now every row carries `default: false` (the way
+   every row in `settings.js` carries its own) and reading the save is a fresh answer, not a nudge. The
+   test that writes `{ fire: 'yes', aim: 1 }` is what caught it.
+
+**Two things I checked rather than assumed, because they were the easy places to get it wrong.**
+- **Nothing but a switch touches a run.** The claim is not "the reference run is unchanged" alone (that
+  only shows the off position is inert) but `test/assists.test.mjs`'s first aim test and `hold(...)`
+  fingerprint: same seed, one world with the left button held, one with the switch, and score, kills,
+  shots fired, ship position and `angle.toFixed(9)` come out identical. It also pins that auto-fire does
+  not turn the ship - that is the other row's job.
+- **Nothing outside `game/assists.js` reaches for a switch.** Only `world.js` (for `driveAssists`) and
+  `main.js` (for the panel and `stats()`) import it; `game/` still imports nothing presentation-side and
+  the structure test's "no magic numbers outside balance.js" rule is satisfied by the named
+  `KEEP_SLACK`, which the test's `const NAME = number;` exemption allows.
+
+**Surprises.**
+- **My own off-by-one, twice.** A nine-row panel's last row is seven `ArrowDown` presses from the top,
+  not eight or nine, and I wrote both wrong numbers before the third try. `settings.test.mjs` walks
+  "twelve presses each way" and asserts the *index*, which is the version of the test that survives the
+  panel growing again.
+- **`game.resetToTitle()` must be awaited** (session 84's note, and I made the mistake anyway): my first
+  `flyHandedOff` helper was synchronous and so played a run over the top of a reset that had not
+  happened. Both real-run tests await it now.
+- **The bullet pool counts for the whole process.** `stats().spawned` is cumulative, so a "no shot went
+  off" assertion that reads it directly is measuring every earlier test in the file. Measure a
+  difference from a baseline taken after the world is built; `twoBodies()` hands back `spawnedAt` for
+  exactly that.
+- **Where the hand is pointing has to be said relative to the ship.** An input descriptor with
+  `aimX: 0, aimY: -100` is a ship pointing at the arena's top-left corner, not one pointing up, and my
+  "auto-fire did not turn the ship" assertion was comparing against `-PI/2` for a ship at (1500, 1500)
+  aiming at (0, -100). `handsOff(ship)` now points it up from wherever the ship is.
+- **An experiment that looked like a bug and was not.** With both switches on and a boss on the scripted
+  field, the core's `hp` never dropped - so I aimed by hand at the same core and it also did nothing. The
+  scripted boss arrangement simply is not taking the default gun's damage in that harness; the assist
+  behaved exactly like a hand. Writing this down so the next session does not spend an hour on it.
+- **The panel is nine rows now and still fits.** Session 84 predicted there was room for two more and it
+  was right, including by arithmetic (no layout engine here): a row is ~40px (12px name line + 10px
+  `.says` line + 6+6 padding + border), eight 5px gaps under the `@media (max-height: 760px)` tightening
+  that already covers `.setting-list`, plus note and title is ~480px against the ~670 a 720 window gives
+  the centred column. `fitSettings` would scale it anyway. The breakpoint did not have to move.
+
+**Decisions, so a later session does not relitigate them.**
+- **The title's control list did not grow.** Eleven rows is session 83's ~603px against the ~672 a 720
+  window leaves, so a twelfth row is a real risk and the switches are not a control the player presses
+  mid-run. Instead the existing `O` row's words went from `SHAKE, FLASH, NUMBERS, SOUND` to
+  `SHAKE, SOUND, AUTO-FIRE, AUTO-AIM`, which is the same length within five characters and names the two
+  things a one-handed player is looking for.
+- **Auto-fire does not ask whether there is anything to hit**, and auto-aim does not gate the trigger. Two
+  switches, two jobs, and a shot into empty sky is what an empty sky costs whether the hand or the switch
+  paid for it.
+- **Auto-aim walks the crowd instead of asking the collision grid**, and the reason is written in
+  `takeAim`: the grid is rebuilt *inside* the step by `updateBullets`/`updateEnemies`, and the aim is
+  taken before the ship moves, so an answer from it would be stale at best and a body that has left the
+  crowd at worst. One walk of a few hundred bodies, once a step, only while the switch is on.
+- **`assistRows()` is gone.** It was dead code (main.js imports `ROWS`), and `settings.js`'s `pictureRows()`
+  is still dead in exactly the same way - left alone, but if a future session cleans one, clean the other.
+
+**The owner's request, and where it went.** `OVERLORDS_REQUESTS` asked, with "Prio!", for an "Attractor
+mod" that "increases attraction range allowing you to collect faster", tentatively named "Speed-dating"
+with a note that the name is a joke they expect to rename. It is a gameplay card, not an interface item,
+so it is filed as the **first item of milestone 10** in PLAN.md with a note to do it *before* the gamepad
+and touch items: nothing in the deck buys `shards.magnetRadius` today (`magnetar` is what a swallowed
+shard does, not how far away one is noticed), so it is a new line to price off `tools/balance-report.js`
+rather than a tweak, and it wants a plain name. Both that file and the deletion of the stale
+`BUG_REPORT_README` are committed now - its two complaints had shipped long since, both of them in
+session 66's 0.6.11 (the shake policy and `test/shake-policy.test.mjs`, and the win card's five-second
+guard, which 0.9.1 tightened again).
+
+### For the next session
+- **The magnet upgrade is the next thing**, at the top of milestone 10, because the owner asked for it by
+  name and it is smaller than anything left in milestone 9. It is a session's work of a different shape
+  than this one: a new `BALANCE.upgrades` line, a card, the bot's `aware` policy noticing it, and a
+  balance-report number that justifies its price. The plain-name question is yours to decide and record.
+- Milestone 9's remainder after that: key rebinding, gamepad, touch, colour-blind palette, release.
+  If you do rebinding now, `O` is the panel that shows it and the two assist rows are the shape a row
+  with no numbers takes; the keys to bind are one array per meaning in `input/keyboard.js`.
+- `tools/agent/session.js` still cannot see `settingsUp`, `settings` or `assists`, and still has no
+  `choose_ship`. `stats().assists` is now the door for a bridge tool that turns the switches on, which
+  would be a *small* one and would let a keyboard-only agent play - worth an afternoon.
+- Still open from earlier sessions, all bigger than a session: the streak's arc and the tether's cord are
+  drawn by neither painter; the shake's painter (session 66); the Hive's owed spiral (session 60); the
+  mid-build measurement gap in `tools/simulate.js`; the four unbuilt synergies.
+- Worktree hygiene: `/tmp/s85-head` was removed with `git worktree remove` after the trace comparison.
