@@ -1069,7 +1069,32 @@ When every item above is ticked, go back to the first unchecked item of mileston
       `world.aimLock`, derived state like the grid and the packs - it goes with the crowd, with the run,
       and with the switch that asked for it.)
 - [ ] Key rebinding.
-- [ ] Gamepad support.
+- [x] Gamepad support. (PLAN section 6's three controls, and deliberately nothing else: **left stick
+      to fly, right stick to aim and to fire, a right shoulder to dash**, plus the two presses every
+      screen already means - A is the launch key and Start holds the run. `input/gamepad.js` is polled
+      once a frame rather than listened for, because `gamepadconnected` says a device arrived and no
+      event says a button moved: a pad plugged in mid-visit is flying the ship on the next frame with
+      no listener registered and nothing to unsubscribe from when it leaves, and a pad unplugged
+      mid-run stops driving it on the next one. **A stick is a direction and not a place on the glass**,
+      which is the one thing that stops the pad being just another pointer: the left stick's push goes
+      into the same field WASD writes into (a vector of at most 1, remeasured from its own dead zone so
+      a lean that has just cleared the line is a nudge and not a lurch), and the right stick's direction
+      is turned into an arena point a fixed distance in front of the ship by `main.js` - from the
+      *stepped* ship and not the painted one, because the step reads that point too and an interpolated
+      ship would put a shiver in the angle every gun is fired along. That stick also owns the nose after
+      it has been let go, which is what a pointer cannot do for itself: it has kept the place it was left
+      in, so `input/index.js` keeps one variable for "which hand spoke last" and one pointer moved
+      since is a hand taking the aim back. Two families of pad answer through the API and the two
+      buttons they disagree about - the right trigger and Start - are picked from the axis count, with
+      a note on what a pad that fits neither family still gets (both sticks, A, and the right bumper are
+      read unconditionally). **What is not bound is a decision**: the cards, the hangar, the codex and
+      the settings stay keyboard and mouse racks, because a pad in a browser is never the only device -
+      it arrives beside a keyboard and is polled beside it - and a fake cursor on the glass is a whole
+      second interface to keep in step for no gain a player could name. Nothing is simulated and nothing
+      is remembered: the reference run traces the same bytes with the whole feature in the tree, one of
+      the 14 new tests flies a whole run twice - once with no pad and once with a pad lying untouched on
+      the desk - and asks for every number to agree, and the only place a pad announces itself is the
+      developer's panel, which now has a HANDS row saying `gamepad  none` or the device's own name.)
 - [x] Touch support. (PLAN section 6's three halves, split three ways, because each one belongs to a
       different layer. `input/touch.js` knows where a thumb has to land for it to *mean* something and
       keeps the one fact everybody else reads, which is where the thumbs are; the stick is written into

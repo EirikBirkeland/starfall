@@ -605,6 +605,48 @@ export async function bootGame(options) {
     };
   }
 
+  /**
+   * The Gamepad API (input/gamepad.js).
+   *
+   * Every browser has the API, so every headless visit is handed one - and whether a pad is lying on
+   * it is the part a test says, through `setPad` below. The game polls this list once a frame, which
+   * is the whole of how it learns a pad arrived, so plugging one in is nothing more than putting it
+   * here between two frames.
+   *
+   * Node's own `navigator` is a getter and cannot be assigned, hence defineProperty.
+   */
+  let gamepad = null;
+  Object.defineProperty(globalThis, 'navigator', {
+    value: Object.assign({}, globalThis.navigator, {
+      getGamepads: () => (gamepad === null ? [] : [gamepad]),
+    }),
+    configurable: true, writable: true, enumerable: true,
+  });
+
+  /**
+   * One pad, in the shape input/gamepad.js reads.
+   *
+   * `axes` is either a count (zeroed, which is a pad nobody is leaning) or the axes themselves; it
+   * decides which layout family the game thinks the pad is, so four axes is the family with the
+   * triggers as buttons and five or six the family with them as axes 4 and 5. `buttons` may be
+   * booleans or numbers - the two shapes browsers have reported a button in - and is filled out to 16
+   * so every index the game may ask about is there to ask about.
+   */
+  function makePad(state) {
+    const given = state.buttons || [];
+    const buttons = [];
+    for (let i = 0; i < Math.max(given.length, 16); i++) {
+      const value = given[i] === undefined ? false : given[i];
+      buttons.push(typeof value === 'object' ? value : { pressed: !!value, value: value ? 1 : 0 });
+    }
+    const axes = typeof state.axes === 'number' ? new Array(state.axes).fill(0) : (state.axes || [0, 0, 0, 0]);
+    return {
+      id: state.id === undefined ? 'HEADLESS PAD (STANDARD GAMEPAD Vendor: 0x0000 Product: 0x0000)' : state.id,
+      connected: true, mapping: 'standard', timestamp: 0,
+      axes: axes.slice(), buttons: buttons,
+    };
+  }
+
   const windowObj = {
     get innerWidth() { return width; },
     get innerHeight() { return height; },
@@ -706,6 +748,28 @@ export async function bootGame(options) {
     },
     touchUp(x, y, id) {
       controller.fire('touchend', touchEvent(id, x, y));
+    },
+    /**
+     * Put a gamepad on the browser, or take it away again (`null`). input/gamepad.js polls, so a
+     * pad appears on the next frame and a pad that has been taken away stops flying the ship on the
+     * next one, which is the honest answer to a device that has left. `makePad` says what a state may
+     * say; `{}` is a four-axis pad with nothing leaned or held.
+     */
+    setPad(state) {
+      gamepad = state === null || state === undefined ? null : makePad(state);
+    },
+    /**
+     * Lean one of the pad's axes. Throws when no pad is plugged in, because a test that leans a stick
+     * that is not there has measured nothing and must not be allowed to think it measured something.
+     */
+    padAxis(index, value) {
+      if (gamepad === null) throw new Error('no pad is plugged in to lean');
+      gamepad.axes[index] = value;
+    },
+    /** Hold or release one of the pad's buttons. Same rule as `padAxis`. */
+    padButton(index, down) {
+      if (gamepad === null) throw new Error('no pad is plugged in to press');
+      gamepad.buttons[index] = { pressed: !!down, value: down ? 1 : 0 };
     },
     setViewport(w, h) {
       width = w;

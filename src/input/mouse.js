@@ -7,7 +7,13 @@
 // no button on it - a synthetic one from the headless harness, say - counts as
 // the fire button.
 
-export const mouse = { x: 0, y: 0, down: false };
+export const mouse = { x: 0, y: 0, down: false, moves: 0 };
+
+// How many times the pointer has been *put* somewhere: a mousemove, or a thumb's tap
+// (`noteGlass`). One number, and the only use anyone has for it is input/index.js asking which hand
+// pointed the guns last - a stick that has gone back to its middle has pointed nowhere since, and a
+// pointer that has moved since has. `main.js` sets the starting point directly, so a visit that has
+// not moved a mouse has moved it zero times.
 
 // One-shot requests, the same arrangement as the keyboard's. See input/index.js.
 export const mouseTaps = { dash: false };
@@ -17,12 +23,6 @@ const DASH_BUTTON = 2;
 
 function buttonOf(event) {
   return event.button === undefined ? FIRE_BUTTON : event.button;
-}
-
-function track(canvas, event) {
-  const rect = canvas.getBoundingClientRect();
-  mouse.x = event.clientX - rect.left;
-  mouse.y = event.clientY - rect.top;
 }
 
 /**
@@ -36,6 +36,15 @@ function track(canvas, event) {
 export function noteGlass(x, y) {
   mouse.x = x;
   mouse.y = y;
+  mouse.moves++;
+}
+
+/** Where the pointer was put, and the number that says it was. */
+function track(canvas, event) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = event.clientX - rect.left;
+  mouse.y = event.clientY - rect.top;
+  mouse.moves++;
 }
 
 /** handlers.onPress - a button went down, whatever the screen means by it. */

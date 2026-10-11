@@ -371,6 +371,23 @@ test('it never touches the save', () => {
   assert.equal(JSON.stringify(game.storage), before, 'F3 wrote to storage');
 });
 
+test('the panel says who is holding the ship', () => {
+  // A pad says nothing about itself anywhere else in the game - no ring to paint, no line on a screen -
+  // so this row is the only way a player finds out the browser handed one over at all (input/gamepad.js).
+  const empty = section('HANDS');
+  assert.equal(empty.get('gamepad'), 'none', 'a visit with no pad says none');
+  assert.equal(empty.get('thumb'), 'off');
+
+  game.setPad({ id: 'Wheel (STANDARD GAMEPAD Vendor: 0x046d)' });
+  wait(1);
+  const held = section('HANDS');
+  assert.equal(held.get('gamepad'), 'Wheel', 'and a pad is named, in the short form of its name');
+
+  game.setPad(null);
+  wait(1);
+  assert.equal(section('HANDS').get('gamepad'), 'none', 'and it goes back to none when it is unplugged');
+});
+
 test('the plate costs no gradients and no blurs', () => {
   // PLAN section 4: every glow is a baked sprite. The plate is a box and some words, and it must not
   // be the one place in the game that buys a gradient per frame on the way to milestone 10's perf run.

@@ -43,7 +43,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse, thumb } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb, pad } from './input/index.js';
 import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -815,14 +815,41 @@ function describeRun() {
   };
 }
 
+/**
+ * How far in front of the ship a stick's aim point is put, in px.
+ *
+ * It is a rendering number and nothing else: game/player.js takes an arctangent of the gap between
+ * the ship and the aim point, so any distance at all points the gun the same way, and the view's own
+ * lean towards whatever is being aimed at (render/camera.js) is the only thing that notices how far
+ * out the point sits. This is about the distance a hand on a mouse is usually pointing at - far
+ * enough that the view leans for a stick the way it leans for a cursor out near the edge.
+ */
+const STICK_AIM_REACH = 500;
+
+/**
+ * Point the nose where the right stick points (input/gamepad.js).
+ *
+ * A pointer is a place on the glass and comes into the arena through the camera. A stick is a
+ * direction, so it is written as a point a fixed distance in front of the ship instead - and it is
+ * measured from the ship's *stepped* position rather than its painted one on purpose. The step reads
+ * this point too, and a leaning, interpolated ship would put a shiver in the angle every gun is
+ * fired along; the camera is the only other reader and it smooths the difference away.
+ */
+function pointFromStick(input) {
+  const ship = world.player;
+  input.aimX = ship.x + input.aimDirX * STICK_AIM_REACH;
+  input.aimY = ship.y + input.aimDirY * STICK_AIM_REACH;
+}
+
 function frame(now) {
   // The simulation is stepped in whole fixed steps; whatever the clock still
   // owes is the moment in between them this frame is drawn at.
   const tick = clock.frame(now);
   const input = readInput();
   // The controls speak in pixels on the glass and the simulation speaks in arena
-  // coordinates, so the aim goes through the camera on its way in.
-  resolveAim(input);
+  // coordinates, so the aim goes through the camera on its way in - unless a hand is pointing the
+  // guns with a stick, which is a direction and has no place on the glass at all.
+  if (input.stickAim) pointFromStick(input); else resolveAim(input);
 
   // The sky drifts on the frame's clock, not the simulation's: the star layers and
   // the clouds behind them belong to the eye, so neither can move a run.
@@ -1089,6 +1116,11 @@ window.STARFALL = {
       // tool cannot tell it from the two switches, because a visit that turned them on by hand and a
       // visit whose thumb has been on the stick look the same from inside the run.
       thumbUsed: thumb.used,
+      // ...and what the pad is called, or '' when this visit has never had one. A headless tool cannot
+      // hold a stick, so this is the only way it can say whether the pad was there at all - and the two
+      // promises in test/gamepad.test.mjs (a stick flies the ship; no stick changes nothing) both have
+      // to be able to tell which of the two a run was flown on. input/gamepad.js.
+      pad: pad.name,
       seed: world.seed,
       // Which day this run was flown on, and whether its last ending beat that day's best
       // (game/daily.js). A headless run cannot read a card, and "did the day get banked" is the whole

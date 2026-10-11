@@ -34,6 +34,8 @@ import { clamp } from '../core/math.js';
 import { STATE } from '../game/state.js';
 import { world } from '../game/world.js';
 import { bodyCeiling } from '../game/waves.js';
+import { pad } from '../input/gamepad.js';
+import { thumbUsed } from '../input/touch.js';
 import { stats as glowStats } from './glow.js';
 import { roundRect } from './shapes.js';
 import { view } from './canvas.js';
@@ -334,6 +336,12 @@ function contentOf(compact, facts) {
   lines.push(two('glow sprites', group(glow.sprites), 'glow pixels', bytes(glow.bytes)));
   lines.push(row('device ratio', glow.pixelRatio + 'x'));
 
+  // Who is holding the ship. A pad says nothing else about itself anywhere in the game - it has no
+  // ring to paint and no line on a screen - so this is where a player finds out the browser handed
+  // one over at all (input/gamepad.js). `none` is the honest answer for the visit that has not had one.
+  lines.push(head('HANDS'));
+  lines.push(two('gamepad', facts.pad === '' ? 'none' : facts.pad, 'thumb', facts.thumb ? 'on' : 'off'));
+
   return lines;
 }
 
@@ -355,7 +363,10 @@ function heightOf(lines, rowHeight) {
  * painter below asks for nothing.
  */
 export function debugLayout() {
-  const facts = { cost: frameCosts(), grid: world.grid.stats(), glow: glowStats() };
+  const facts = {
+    cost: frameCosts(), grid: world.grid.stats(), glow: glowStats(),
+    pad: pad.name, thumb: thumbUsed(),
+  };
   const room = Math.max(PANEL.minRow, view.H - PANEL.top - PANEL.bottom);
   const full = contentOf(false, facts);
   const compact = heightOf(full, PANEL.row) > room;
