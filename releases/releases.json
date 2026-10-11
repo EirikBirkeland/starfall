@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.3",
+    "date": "2026-10-11",
+    "released": "2026-10-11T03:47:21.155Z",
+    "summary": "F3 puts up the developer's panel: frame cost, arena counts, and pool usage",
+    "added": 1711,
+    "removed": 17,
+    "logBytes": 32509215
+  },
+  {
     "version": "0.10.2",
     "date": "2026-10-11",
     "released": "2026-10-11T01:08:54Z",
