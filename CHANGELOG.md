@@ -1,5 +1,32 @@
 # Starfall — changelog
 
+## 0.10.4 — 2026-10-11
+Two pieces of a run stopped following it into the next one, and three rules that lived in prose are checks now.
+- **Nothing a run learned comes with it.** The lance kept the last run's fan angles and the tether kept
+  holding a body from a run that had already been paid for and written up in the log. Neither showed on
+  screen: the lance reads only as many angles as its own current pull, and the tether's spare rider is
+  only ever read straight after a yes. Both were the shape of bug that shows later, when someone reads
+  the field for what it is now.
+- **A machine reads both halves of `resetRun` now.** `tools/headless/reset-audit.js` snapshots the whole
+  shape of the world - every field, every list's length, every pool's live count - and compares a world
+  that was flown, ended and reset against one that was only ever reset. Those two findings are what it
+  turned up on its first pass; the eight things a run *is* allowed to keep (the seed, the session clock,
+  the screen, the best, the purse, the awards, the codex, the log) are named and argued in the open. The
+  two fixes each have a test that says their name, and the sweep covers everything else.
+- **"Every spawner writes every field" has a witness.** A pooled object comes out of the drawer wearing
+  its last life, and until today the only thing between that and a bug was that the spawner remembered.
+  `tools/headless/pool-audit.js` poisons every field of every object a pool hands out and reports
+  whatever is still poisoned when the step ends. `test/pool-contract.test.mjs` runs it over the whole
+  game - every line at its top rank, all five primaries, a crowd that keeps arriving, a dash whenever one
+  is ready, a boss's blade - and promises twice: nothing left unwritten, and every one of the seventeen
+  pooled lists actually reached. The first test poisons one on purpose.
+- **Four dead exports are gone**, and a structure test refuses the next one: `hasAfterimage`,
+  `fieldCentre`, `bossOf`, `pictureRows` - four accessors whose caller ended up reading something else.
+- **`APOLOGY.md`** is the overlord's request of today, and it is the honest version: the mistakes this
+  game has actually made, what each one cost, how each was found, and what now checks it - ending with
+  what is still wrong and unfixed. Suite 1734 → 1747, and the reference run
+  (`node tools/simulate.js --seed 20261006 --trace`) is byte for byte the run it was.
+
 ## 0.10.3 — 2026-10-11
 `F3` puts up the developer's panel: what the frame is costing, what the arena is holding, and what the pools have built.
 - **An instrument you can read while flying.** One key, over the title, over a fight, over the upgrade
