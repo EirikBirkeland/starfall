@@ -52,6 +52,7 @@ The script runs the checks, copies the playable game into `releases/v<version>/`
 `releases/releases.json` (which the menu reads), commits, and tags. If it refuses, fix what it reports.
 If the game starts loading files from a new top-level folder, add that folder to the copy list in the script.
 Never edit or delete an existing folder under `releases/`: old versions must stay playable as they were.
+`releases/index.html` is the owner's version menu, shown to visitors. Leave it alone.
 
 ## Quality bar
 

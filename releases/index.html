@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starfall versions</title>
+<style>
+  :root {
+    --background-top: #050a1e;
+    --background-bottom: #0a1638;
+    --text: #e8f1ff;
+    --muted: #8fa3c8;
+    --cyan: #5ef6ff;
+    --gold: #ffd76a;
+    --card: rgba(255, 255, 255, 0.04);
+    --card-border: rgba(94, 246, 255, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(var(--background-top), var(--background-bottom)) fixed;
+    color: var(--text);
+    font-family: system-ui, "Segoe UI", sans-serif;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 56px 16px 80px;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 44px;
+    letter-spacing: 0.18em;
+    font-weight: 300;
+    color: var(--cyan);
+    text-shadow: 0 0 24px rgba(94, 246, 255, 0.55);
+  }
+  .tagline { margin: 0 0 40px; color: var(--muted); }
+  h2 {
+    margin: 36px 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  a.version {
+    display: block;
+    margin-bottom: 10px;
+    padding: 16px 18px;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: var(--card);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 120ms, background 120ms, transform 120ms;
+  }
+  a.version:hover, a.version:focus-visible {
+    border-color: var(--cyan);
+    background: rgba(94, 246, 255, 0.08);
+    transform: translateX(3px);
+    outline: none;
+  }
+  .version-line { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .version-name { font-size: 20px; font-weight: 600; }
+  .version-date { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .lines-added, .lines-removed { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .lines-added { color: #6ee7a0; }
+  .lines-removed { color: #ff8f8f; }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1400;
+    background: var(--gold);
+  }
+  .version-summary { margin: 6px 0 0; color: var(--muted); }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>STARFALL</h1>
+  <p class="tagline">Pick a version to play.</p>
+
+  <h2>In development</h2>
+  <a class="version" href="../">
+    <div class="version-line">
+      <span class="version-name">Development build</span>
+    </div>
+    <p class="version-summary">The newest code in the repository. May be mid-change.</p>
+  </a>
+
+  <h2>Releases</h2>
+  <div id="releases"><p class="empty">Loading…</p></div>
+</main>
+
+<script>
+// The version menu for visitors. It lives in releases/ and reads the releases.json beside it, so it works
+// wherever the repository is served from. Everything it shows is in that one file.
+const releasesElement = document.getElementById('releases');
+
+function addText(parent, className, text) {
+  const element = document.createElement('span');
+  element.className = className;
+  element.textContent = text;
+  parent.append(element);
+}
+
+// Shown in the visitor's own time zone. Old entries without the exact moment fall back to the day.
+function releaseTime(release) {
+  const released = new Date(release.released);
+  if (!release.released || Number.isNaN(released.getTime())) return release.date;
+
+  const day = [
+    released.getFullYear(),
+    String(released.getMonth() + 1).padStart(2, '0'),
+    String(released.getDate()).padStart(2, '0'),
+  ].join('-');
+  const time = released.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
+/** previous is the release before this one, or undefined for the first. */
+function createReleaseLink(release, isNewest, previous) {
+  const link = document.createElement('a');
+  link.className = 'version';
+  link.href = `v${release.version}/`;
+
+  const line = document.createElement('div');
+  line.className = 'version-line';
+  addText(line, 'version-name', `v${release.version}`);
+  if (isNewest) addText(line, 'badge', 'Newest');
+  addText(line, 'version-date', releaseTime(release));
+
+  // Lines changed since the previous release.
+  if (Number.isFinite(release.added) && Number.isFinite(release.removed)) {
+    addText(line, 'lines-added', `+${release.added}`);
+    addText(line, 'lines-removed', `-${release.removed}`);
+  }
+
+  // How much the agent wrote to its log between the previous release and this one, at about four bytes a token.
+  if (Number.isFinite(release.logBytes) && Number.isFinite(previous?.logBytes)) {
+    const tokens = Math.max(0, release.logBytes - previous.logBytes) / 4;
+    addText(line, 'version-date', `≈${Math.round(tokens / 1000)}k tok`);
+  }
+
+  const summary = document.createElement('p');
+  summary.className = 'version-summary';
+  summary.textContent = release.summary;
+
+  link.append(line, summary);
+  return link;
+}
+
+function showMessage(text) {
+  const message = document.createElement('p');
+  message.className = 'empty';
+  message.textContent = text;
+  releasesElement.replaceChildren(message);
+}
+
+async function loadReleases() {
+  let releases;
+  try {
+    const response = await fetch('releases.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    releases = await response.json();
+  } catch (error) {
+    showMessage('The release list could not be loaded.');
+    return;
+  }
+
+  if (releases.length === 0) {
+    showMessage('No releases yet.');
+    return;
+  }
+
+  // Newest first, so the release before this one is the next in the list.
+  const links = releases.map(($_, index) => createReleaseLink($_, index === 0, releases[index + 1]));
+  releasesElement.replaceChildren(...links);
+}
+
+loadReleases();
+</script>
+</body>
+</html>

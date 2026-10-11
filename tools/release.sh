@@ -78,7 +78,8 @@ const [version, summary] = process.argv.slice(1);
 const manifestPath = "releases/releases.json";
 const releases = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, "utf8")) : [];
 const date = new Date().toISOString().slice(0, 10);
-releases.unshift({ version, date, summary });
+// released is the exact moment, for the version menu; date stays for anything that reads the day.
+releases.unshift({ version, date, released: new Date().toISOString(), summary });
 fs.writeFileSync(manifestPath, JSON.stringify(releases, null, 2) + "\n");
 ' "$version" "$summary"
 
