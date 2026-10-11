@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.14",
+    "date": "2026-10-11",
+    "released": "2026-10-11T19:47:16.704Z",
+    "summary": "Key rebinding: a CONTROLS rack inside the settings, thirteen keys you can move, and no page left printing an old one",
+    "added": 1670,
+    "removed": 147,
+    "logBytes": 37223643
+  },
+  {
     "version": "0.10.13",
     "date": "2026-10-11",
     "released": "2026-10-11T18:25:01.368Z",
