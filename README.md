@@ -25,7 +25,7 @@ Some fun dev stats for my Flash Next @ Strix Halo dev loop:
 Just a few weeks back I acquired a MINISFORUM MS-S1 MAX with a AI Max+ 395 and shared 128 GB RAM. This little box is capable of running Qwen 3.8 Flash Next at Q4 effortlessly at around 50-70 TPS using Halogen. For any fencesitters I can highly recommend this box, currently sitting at $3,879 USD, directly available from Minisforum.
 That said, now that we have Strata, anyone with a 12 GB VRAM card can replicate what I'm doing, at just a slightly higher wattage.
 
-Qwen 3.8 Flash Next represents a significant leap in overall competence over Qwen 3.8 27B, with an impressive intelligence score of 41.
+Qwen 3.8 Flash Next represents a significant leap in overall competence over Qwen 3.8 27B, with an impressive intelligence score of 40.
 The "Next" in the title signifies that it belongs to the next generation: Qwen 4. It is a preview of what is to come.
 
 ### The Game Itself
