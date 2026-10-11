@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.13",
+    "date": "2026-10-11",
+    "released": "2026-10-11T18:25:01.368Z",
+    "summary": "Gamepad support: left stick flies, right stick aims and fires, a shoulder dashes, A launches and Start holds the run",
+    "added": 876,
+    "removed": 22,
+    "logBytes": 36818536
+  },
+  {
     "version": "0.10.12",
     "date": "2026-10-11",
     "released": "2026-10-11T17:32:04.089Z",
