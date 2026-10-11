@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.11",
+    "date": "2026-10-11",
+    "released": "2026-10-11T15:49:48.008Z",
+    "summary": "A writing pass over every line the game says: one kill is 1 KILL, one clock wording everywhere, and the three voices held apart by a test",
+    "added": 726,
+    "removed": 32,
+    "logBytes": 35935446
+  },
+  {
     "version": "0.10.10",
     "date": "2026-10-11",
     "released": "2026-10-11T14:57:11.334Z",
