@@ -11,15 +11,14 @@ import { bootGame } from '../tools/headless/harness.js';
 import { STATE } from '../src/game/state.js';
 import { BALANCE } from '../src/game/balance.js';
 import { resetBosses } from '../src/game/bosses.js';
-import { initAudio } from '../src/audio/engine.js';
 import { MUSIC, PATTERNS, CHORDS, KEY, musicLedger, patternPeak } from '../src/audio/music.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const game = await bootGame({ root: ROOT, seed: 5, audio: true });
-
-// The title is music before it is a run - but only once something has given the page an
-// audio context, which in a browser is the first key or click and here is this call.
-initAudio();
+// `audio` builds the device and `autoplay` is a browser that lets this page make a sound before it has
+// been asked: this file is about what the sequencer does with a running clock, and it wants one from
+// the first frame rather than from a press in the right order. (The strict visit - device asleep until
+// a hand wakes it - is audio/engine.js's business and `test/menu-track-wake.test.mjs` holds it.)
+const game = await bootGame({ root: ROOT, seed: 5, audio: true, autoplay: true });
 
 /** Seconds one idle frame is worth on this machine's clocks. */
 const FRAME = 0.0167;

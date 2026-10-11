@@ -233,8 +233,16 @@ function makeContextStub(counters, drawLog) {
  * test can ask a question about - was that tick the body's own note, did the interface answer
  * with the note its row says - and a voice writes two of them (the note, and where it slides)
  * against the thousands of gain moves that nobody reads.
+ *
+ * **And the clock is asleep until the page has been pressed**, which is what a real browser does to a
+ * page that has not earned the right to make a sound yet (`gate.autoplay: true` is the machine that
+ * lets it anyway - a returning visitor, or a browser with no autoplay rule). A stopped clock does not
+ * advance, so a note written into a sleeping device is a note that waits for the wake instead of a
+ * note that is heard; `audioIsHeard` (audio/engine.js) is the game's way of asking, and this is what
+ * it is asking about. `resume()` lands only once a hand has done something, exactly as it does in a
+ * browser - the frame loop may ask until the end of the visit and will not be answered.
  */
-function makeAudioContextStub(log, now) {
+function makeAudioContextStub(log, now, gate) {
   const voice = () => ({
     type: '',
     frequency: knob('pitch'),
@@ -260,11 +268,16 @@ function makeAudioContextStub(log, now) {
     cancelScheduledValues(at) { log.ramps.push({ name, op: 'cancel', at }); },
   });
   const stub = {
-    state: 'running',
+    // Asleep unless the browser was told to let this page play (see the header above).
+    state: gate.autoplay ? 'running' : 'suspended',
     sampleRate: 48000,
     get currentTime() { return now(); },
     destination: {},
-    resume() {},
+    resume() {
+      log.resumes++;
+      // Only a press buys the clock. A resume asked by the frame loop is a resume refused.
+      if (gate.autoplay || gate.pressed()) stub.state = 'running';
+    },
     createGain() {
       log.voices++;
       return { gain: envelope(), connect() {} };
@@ -502,6 +515,9 @@ function keyRow(row) {
  * `network` is the files the page is served: `{ 'assets/song.flac': bytes }`. With none, every
  * request is refused - which is the same shape as a page that was served a file it does not have -
  * and the game that asks one says so in `game.audio.fetched` (audio/track.js is who asks).
+ * `autoplay: true` is a browser that lets this page make a sound without being asked (audio/engine.js
+ * `audioIsHeard`); without it the audio device is built asleep and only a press wakes it, which is
+ * what a first visit to a normal browser gets. `game.audioState` says which state the device is in.
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -509,6 +525,14 @@ export async function bootGame(options) {
   const seed = opts.seed === undefined ? 1 : opts.seed;
   let width = opts.width || 1280;
   let height = opts.height || 720;
+  // Has a hand pressed anything yet? A browser decides whether a page may make a sound by asking
+  // itself that question, and so does this stub (see `makeAudioContextStub`). Only the events that a
+  // browser counts as a gesture set it - a mouse moving is not one, a mouse pressed is.
+  let pressed = false;
+  /** The event types a browser counts as "the page has been pressed" (see `pressed`). */
+  const GESTURES = new Set(['keydown', 'mousedown', 'pointerdown', 'touchstart', 'click']);
+  /** The one audio device this visit built, or null while it has built none. */
+  let audioDevice = null;
 
   const counters = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
   // Everything the glow sprites need is counted apart, so "this frame baked
@@ -519,7 +543,7 @@ export async function bootGame(options) {
   // `noiseData` the grain it was given to fill (test/noise.test.mjs).
   const audioLog = {
     voices: 0, compressors: 0, buffers: 0, noise: 0, filters: 0, ramps: [],
-    noiseData: null, raw: opts.audio === 'raw',
+    noiseData: null, raw: opts.audio === 'raw', resumes: 0,
     // The one recording the game plays (audio/track.js): every url the page asked for, how many times
     // it was handed to the decoder and how many bytes that was. A headless visit cannot hear it; this
     // is how it can still say the bytes were asked for once, and not once a frame.
@@ -693,7 +717,11 @@ export async function bootGame(options) {
   if (opts.audio) {
     // The audio clock is the frame clock, so a voice ages as the run ages (see the stub).
     windowObj.AudioContext = function FakeAudioContext() {
-      return makeAudioContextStub(audioLog, () => clock / 1000);
+      audioDevice = makeAudioContextStub(audioLog, () => clock / 1000, {
+        autoplay: opts.autoplay === true,
+        pressed: () => pressed,
+      });
+      return audioDevice;
     };
   }
 
@@ -734,6 +762,7 @@ export async function bootGame(options) {
     },
     /** Send a browser event to window. */
     fire(type, event) {
+      if (GESTURES.has(type)) pressed = true;
       for (const handler of (listeners[type] || [])) handler(event || {});
     },
     /**
@@ -1017,6 +1046,8 @@ export async function bootGame(options) {
       };
     },
     get audio() { return audioLog; },
+    /** Whether there is an audio device at all, and whether it can be heard (see `makeAudioContextStub`). */
+    get audioState() { return audioDevice === null ? 'none' : audioDevice.state; },
     get storage() { return store; },
 
     /** Put the game back on its title screen, ready for another run. */

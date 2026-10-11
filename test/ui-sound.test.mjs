@@ -112,9 +112,14 @@ function dealOneCard() {
 }
 
 test('the title keeps quiet until it is asked', () => {
+  // The device is built at boot now (audio/engine.js `openAudioDevice`) so a browser that lets the
+  // page make a sound can hear the menu's song, and until a press its clock is stopped - so the graph
+  // is there and counted, and what may not move is everything after it.
+  const graph = game.audio.voices;
   wait(30);
-  assert.equal(game.audio.voices, 0,
-    'nothing has been pressed, so nothing has been scheduled: ' + game.audio.voices + ' voices');
+  assert.equal(game.audio.voices, graph,
+    'nothing has been pressed, so nothing has been scheduled: '
+    + (game.audio.voices - graph) + ' voices beyond the graph itself');
 });
 
 test('picking a ship answers with a note', () => {

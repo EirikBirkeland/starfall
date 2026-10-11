@@ -177,3 +177,33 @@ is a test and not a comment.
 Published in the same breath, as asked. Sixteen new tests, `src/audio/track.js`, and a stub browser that
 can now say "no network", "no such file" and "that is not sound", which is how all three failure paths
 are checked without a laptop.
+
+------------------------------------------------------------
+
+OUTSTANDING BUG, HOTFIX: The menu music does not start unless I hit H to enter the hangar. The menu
+music should announce itself on the root menu. Thanketh thee for thy service.
+
+Finished? YES
+It announces itself now, in 0.10.15, and the reason it did not was ours rather than the browser's. The
+audio device was only ever built by the first press that bothered to ask for one, and the press that
+asks is almost always the one that launches a run - so a browser that would have let the title screen
+make a sound on its own (one with no autoplay rule, or one that remembers you asking for sound here
+before) was never once asked. The device is asked for at boot now, before the first frame goes by, and
+where the browser says yes your song is playing before a hand has done anything at all.
+
+Two things came with it. The bytes are now fetched only when the device can actually be heard, because
+8.7 MB of samples queued onto a clock that is not running is a bill and not a song - and the sequencer
+does the same, waiting for the wake instead of writing half a second of the title pad into a stopped
+clock to be thrown at the present later. And `STARFALL.stats().menuTrack.reason` says out loud why the
+title is quiet, in the two cases it can be: "asleep: no browser lets a page make a sound before a
+press", or "this visit came back muted".
+
+The one thing no page can do is be heard before a press by a browser whose rule is strict and whose
+visitor is new. So the game now takes the first press of *any* kind as that press - including one the
+game does not answer, so a stray key wakes the menu just as `H` did - and a visit that came back muted
+gets its song the moment `M` lets the mute up, without having to go and open a panel first.
+
+Three new tests and eight amended ones, and a stub browser that now models the autoplay rule at all:
+`autoplay: true` is a browser that lets the page play, and without it the device is built asleep and
+`resume()` is refused until the harness presses something. The reference run traces the same bytes as
+before, which is the check that a device built a frame earlier moved nothing a player can feel.

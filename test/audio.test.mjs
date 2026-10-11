@@ -10,8 +10,14 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 5, audio: true });
 
 test('shots, kills, and pickups all reach the synthesiser', () => {
+  // The device is built at boot (audio/engine.js `openAudioDevice`) so that a browser which lets the
+  // page make a sound can hear the menu's song, and its clock stays stopped until a press - so what
+  // may not move on the title screen is the voice count: the graph's own gains are built and nothing
+  // is played on them.
+  const graph = game.audio.voices;
+  assert.equal(game.audioState, 'suspended', 'the device was awake before anybody pressed anything');
   for (let i = 0; i < 20; i++) game.step();
-  assert.equal(game.audio.voices, 0, 'the title screen stays quiet');
+  assert.equal(game.audio.voices, graph, 'the title screen spent voices before there was a press');
 
   // The mouse launches the run. Space would too, but it is the dash key as well
   // and this file is not about the dash - see test/controls.test.mjs.
@@ -26,8 +32,8 @@ test('shots, kills, and pickups all reach the synthesiser', () => {
 });
 
 test('effects and music each have their own bus', () => {
-  // The context is up now (the launch above made it), and everything the game plays
-  // reaches one of the two buses: the effects queue and the sequencer have no other
+  // The context has been up since boot and is running now (the launch pressed it awake), and everything
+  // the game plays reaches one of the two buses: the effects queue and the sequencer have no other
   // way to be heard, and the mute switch reaches both through the master above them.
   assert.ok(getSfxBus(), 'the effects bus is built');
   assert.ok(getMusicBus(), 'and so is the music bus');

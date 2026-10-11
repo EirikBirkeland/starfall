@@ -94,7 +94,7 @@
 
 import { STATE } from '../game/state.js';
 import { isVacuuming } from '../game/vacuum.js';
-import { getContext, getMusicBus, isMuted } from './engine.js';
+import { getContext, getMusicBus, isMuted, audioIsHeard, wakeAudio } from './engine.js';
 import { menuTrackIsUp } from './track.js';
 import { noiseVoice } from './noise.js';
 
@@ -644,7 +644,10 @@ export function auditionMusic(world, rising) {
   const actx = getContext();
   if (!actx || isMuted()) return false;
   if (patternFor(world) === NO_MUSIC) return false;
-  if (actx.state === 'suspended' && actx.resume) actx.resume();
+  // A slider moved before the browser would let this page play is a slider that has not been answered
+  // yet, so ask for the clock - and play the note anyway: it is one voice, and it lands the moment the
+  // clock does, which is the same breath the press was answered in.
+  if (!audioIsHeard()) wakeAudio();
   const tone = { ...AUDITION, drop: rising ? AUDITION_NOTE.up : AUDITION_NOTE.down };
   return voice(actx, AUDITION_NOTE.at, tone, actx.currentTime + 0.001);
 }
@@ -773,8 +776,9 @@ function scheduleStep(actx, index, when, pattern) {
 
 /**
  * Wind the sequencer. main.js calls this once per frame with the world; it does nothing
- * until a context exists (audio starts on the first input, like everything else here) and
- * nothing while the game is muted.
+ * until a context exists, nothing while the game is muted, and nothing while the browser has the
+ * context asleep - which is every frame of a visit that has not been pressed yet (audio/engine.js
+ * `audioIsHeard`), and the reason the title screen is quiet until there is somewhere to put a sound.
  *
  * One frame's pattern is used for the whole window of music it schedules - up to half a
  * second ahead - so a boss arriving or a hull going is heard as the next half bar changing
@@ -794,7 +798,11 @@ export function updateMusic(world) {
     return;
   }
 
-  if (actx.state === 'suspended' && actx.resume) actx.resume();
+  // A sleeping device has a clock that is not moving, and thirty steps of the past written into it
+  // is the tune thrown at the wall when it wakes. Leave the schedule where it is: the first frame that
+  // finds the clock running re-anchors below and starts from the top of the progression.
+  if (!audioIsHeard()) return;
+
   const now = actx.currentTime;
 
   if (nextAt < now) {

@@ -15,13 +15,15 @@
 // audio/music.js is told `menuTrackIsUp()` and stands the generated title pad down while the song
 // is playing, so the title screen has one soundtrack and not two arguing.
 //
-// **Nothing is asked for until the menu is on the screen and the audio device exists.** The file is
+// **Nothing is asked for until the menu is on the screen and the device can be heard.** The file is
 // 8.7 MB and the browser decodes it into about 31 MB of samples, and the frame loop must not wait a
-// millisecond on either. So the bytes are fetched on the first frame that finds the attract screen
-// up *with* an AudioContext (audio/engine.js only builds one on a real press, and a browser allows
-// no sound before one), they are fetched once, and a visit that never sits on the menu with sound
-// unlocked never spends a byte - which matters, because the first press of a first visit is usually
-// the press that launches a run, and a menu nobody waits on is not worth 8.7 MB per load.
+// millisecond on either. So the bytes are fetched on the first frame that finds the attract screen up
+// *and* the audio device running (audio/engine.js builds one at boot now, and a browser that has not
+// been given a press keeps it asleep until it is), they are fetched once, and a visit that never sits
+// on the menu with sound to be heard never spends a byte - which matters, because the first press of a
+// first visit is usually the press that launches a run, and a menu nobody waits on is not worth 8.7 MB
+// per load. And a browser that will let a page make a sound without being asked gets the song on its
+// first frame, which is what a title screen is for.
 //
 // **Silence is the answer to every failure.** No network, no file, a browser that cannot decode
 // FLAC, a bus that does not exist: each of them leaves the attract screen doing what it did before
@@ -40,7 +42,7 @@
 // after it is stopped, so a stop lets this one go and the next start builds another.
 
 import { STATE } from '../game/state.js';
-import { getContext, getMusicBus, isMuted } from './engine.js';
+import { getContext, getMusicBus, isMuted, audioIsHeard, wakeAudio } from './engine.js';
 
 /** Where the recording lives, beside `index.html` - and beside it again inside every release folder. */
 export const MENU_TRACK_URL = 'assets/MenuMusic-SpaceRapBattle.flac';
@@ -171,7 +173,7 @@ function glideTo(knob, value, time, at) {
 function play(actx) {
   const bus = getMusicBus();
   if (!bus || !track.buffer) return;
-  if (actx.state === 'suspended' && actx.resume) actx.resume();
+  wakeAudio();          // the ask is the engine's; this file only knows how to play
   const source = actx.createBufferSource();
   const gain = actx.createGain();
   source.buffer = track.buffer;
@@ -221,16 +223,29 @@ function fadeOut(actx) {
  * Wind it. main.js calls this once per frame beside the sequencer (audio/music.js), and the
  * simulation never learns it exists - the same seam, for the same reason.
  *
- * Three doors before the bytes are worth asking for: there has to be an audio device (there is not
- * until a press, and a browser would not let us use one before that anyway), the visit has to not be
- * muted (a muted visitor should not pay 8.7 MB for a song they cannot hear, and pressing M asks for
- * it then), and the attract screen has to be the screen being looked at.
+ * Three doors before the bytes are worth asking for: the device has to be there *and* the browser has
+ * to be letting it make a sound (audio/engine.js `audioIsHeard`: a device built at boot before any
+ * press is asleep, and 8.7 MB of samples nobody can hear is not a thing to buy), the visit has to not
+ * be muted (a muted visitor should not pay 8.7 MB for a song they cannot hear, and pressing M asks
+ * for it then), and the attract screen has to be the screen being looked at.
  */
 export function updateMenuTrack(world) {
   const actx = getContext();
   if (!actx) return;
   if (!track.asked) {
-    if (isMuted() || world.state !== STATE.START) return;
+    // Two honest reasons a menu has not bought its song yet, and the ledger says which one it is - for
+    // the visitor who wonders why the title is quiet, `STARFALL.stats().menuTrack` is the answer.
+    if (!audioIsHeard()) {
+      // The device was built at boot and the browser has it asleep: a page may not make a sound until
+      // somebody presses it, and 8.7 MB of samples nobody can hear is not a thing to buy.
+      track.reason = 'asleep: no browser lets a page make a sound before a press';
+      return;
+    }
+    if (isMuted()) {
+      track.reason = 'this visit came back muted';
+      return;
+    }
+    if (world.state !== STATE.START) return;
     track.asked = true;
     // The frame does not wait on this, and `load` is written so that nothing escapes it. This is the net
     // underneath, because a song that throws must not take the frame loop with it.

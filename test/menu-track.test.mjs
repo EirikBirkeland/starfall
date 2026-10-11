@@ -55,18 +55,21 @@ test('the shipped recording is in the game, and the release script ships it', ()
 });
 
 test('nothing is asked for before the machine has heard a press', async () => {
-  // No AudioContext yet - and no browser will have one before a press - so there is nothing to decode
-  // into and no sound allowed anyway. The attract screen sits here for as long as the visitor takes.
+  // The device was built at boot (main.js) and the browser has it asleep, because no browser lets a
+  // page make a sound before a press - and this visit is muted on top of that, which is a knob on the
+  // bus and not an absence of a device. The attract screen sits here for as long as the visitor takes.
   await frames(30);
+  assert.equal(game.audioState, 'suspended', 'the game woke a device no press had woken');
   assert.deepEqual(game.audio.fetched, [], 'the bytes were asked for before there was any audio');
   assert.equal(menuTrackLedger().status, 'waiting');
   assert.equal(menuTrackLedger().playing, false);
 });
 
 test('a muted visit never spends the bytes', async () => {
-  // H is a press, and it is a press that does not start a run: the audio device exists now and the
-  // attract screen is still the screen being looked at. The visit is muted, so the song is not asked
-  // for - 8.7 MB is not nothing, and a visitor who left the game muted should not pay it.
+  // H is a press, and it is a press that does not start a run: the device is awake now and the attract
+  // screen is still the screen being looked at - and a device a press woke is one the browser lets
+  // run. The visit is muted, so the song is not asked for - 8.7 MB is not nothing, and a visitor who
+  // left the game muted should not pay it.
   game.key('KeyH', true);
   game.key('KeyH', false);
   await frames(20);

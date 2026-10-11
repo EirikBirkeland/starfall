@@ -266,8 +266,73 @@ export function restoreAudio() {
   return { music: levels.music, effects: levels.effects, muted: muted };
 }
 
-/** Safe to call on every click; it gives up quietly if audio is impossible. */
+/**
+ * Whether anything played on the device right now would actually be heard: there is a device, and
+ * the browser is letting its clock run.
+ *
+ * A device that exists but is asleep answers to nothing, because its clock is not running: a note
+ * scheduled at `currentTime` while the clock is stopped is a note that lands the moment the clock
+ * starts again, however long that is. So the two things that write ahead of the frame - the
+ * sequencer and the menu's recording (audio/music.js, audio/track.js) - ask this instead of asking
+ * only whether there is a device, and wait for the browser rather than filling up a stopped clock.
+ *
+ * A machine whose context has no `state` at all is treated as awake: that is an old browser, and the
+ * game made sound on one of those before the property existed.
+ */
+export function audioIsHeard() {
+  return actx !== null && actx.state !== 'suspended' && actx.state !== 'interrupted';
+}
+
+/**
+ * Ask a sleeping device to wake up, and answer whether it can be heard now.
+ *
+ * Only a press may do this. A browser will not let the frame loop start a device - that is the whole
+ * of the autoplay rule - so this is called from presses: from `initAudio` below, and from the small
+ * set of first-press listeners main.js puts on the window. Asking again when the device is already
+ * running is nothing at all, which is why the callers do not have to be careful about how often.
+ */
+export function wakeAudio() {
+  if (!actx) return false;
+  if (actx.state === 'suspended' && actx.resume) {
+    try {
+      const waking = actx.resume();
+      // A resume the browser will not grant is a device that stays asleep, and a rejected promise
+      // nobody is watching is a red line in somebody's console. Both are the same non-event.
+      if (waking && typeof waking.catch === 'function') waking.catch(() => {});
+    } catch (err) {
+      // Including the browser that resumes with a callback and hands back nothing.
+    }
+  }
+  return audioIsHeard();
+}
+
+/**
+ * Build the device at boot, before there has been a press, and say whether it can be heard.
+ *
+ * This is the half of the menu's song that used to be missing: the device was only ever built by a
+ * press, and the press that builds it is usually the one that launches a run - so a browser that
+ * *would* have let the title screen make a sound on its own (one with no autoplay rule, or one that
+ * remembers this visitor asking for sound before) never got asked. Now the device is there from the
+ * first frame and the menu says what it has to say. Where the browser will not, the device is built
+ * and asleep, nothing is spent on it, and the first press wakes it (main.js, and `wakeAudio`).
+ *
+ * It does not ask for the wake itself. A browser that lets a page play hands out a device that is
+ * already running, and one that will not refuses a resume asked by anything but a press - so asking
+ * here would buy nothing and print a warning in somebody's console for the asking.
+ */
+export function openAudioDevice() {
+  openDevice();
+  return audioIsHeard();
+}
+
+/** Open the device if this visit has not got one yet, and wake it if it is asleep. */
 export function initAudio() {
+  openDevice();
+  wakeAudio();
+}
+
+/** Safe to call on every click and on every boot; it gives up quietly if audio is impossible. */
+function openDevice() {
   if (actx || failures > 2) return;
   try {
     const Ctor = window.AudioContext || window.webkitAudioContext;

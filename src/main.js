@@ -49,7 +49,7 @@ import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
 import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys } from './input/index.js';
-import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
+import { initAudio, openAudioDevice, wakeAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { menuTrackLedger, updateMenuTrack } from './audio/track.js';
@@ -1133,6 +1133,15 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+/**
+ * The presses a sleeping audio device will accept as its permission to start (audio/engine.js
+ * `wakeAudio`). Every one of them, and not just the ones the game answers: a visitor who presses a key
+ * this page does nothing with has still told the browser that sound is wanted here, and a menu that
+ * stays quiet through that press is the bug this is here for. They stay on for the whole visit, because
+ * waking a device that is already running is nothing and a browser can fall asleep again on its own.
+ */
+const AUDIO_WAKE_EVENTS = ['keydown', 'mousedown', 'pointerdown', 'touchstart'];
+
 function boot() {
   // The keys first, before anything can print one: the rack of them, the title's list and the lesson
   // plate in play all read the table this fills (core/keymap.js).
@@ -1148,6 +1157,20 @@ function boot() {
   // The mixer first, before anything can make a sound or paint a level: the two sliders and the
   // mute come back from wherever the last visit left them (core/save.js).
   const mixer = restoreAudio();
+  // ...and the device itself, before the first frame has gone by. A browser decides for itself whether
+  // a page may make a sound without being asked (a visitor who has heard sound here before, or a
+  // browser with no such rule, gets a device that is already running) and the only way to find out
+  // which kind of visit this is, is to ask for the device - so the title screen's own song gets its
+  // chance at the first frame instead of waiting for a press that is usually the launch (audio/track.js).
+  // Where the browser says no the device is built and asleep, nothing is spent on it, and the first
+  // press of any kind wakes it - which is what the listeners below are, because a press the game does
+  // not answer is still a press, and still the browser's answer to "may this page make a sound". A
+  // visit that came back muted gets one too: the mute is a knob on the bus above it, and pressing M
+  // on the title is meant to be the moment the menu starts singing.
+  openAudioDevice();
+  for (const wakeEvent of AUDIO_WAKE_EVENTS) {
+    window.addEventListener(wakeEvent, wakeAudio, { passive: true });
+  }
   // ...and the picture the same way (game/settings.js): the shake, the flash, the floating numbers and
   // the sparks, back from wherever the last visit left them. The one thing the save is *not* asked
   // about is whether this machine was told to keep still: a first visit has no answer of its own to
