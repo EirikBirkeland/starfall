@@ -10959,3 +10959,90 @@ prints `... 2,474 of them drums and 777 the tune |` - the harness can see the tu
    they spend different slots. It is defensible - each sits in the register the pattern had free -
    but if a player notices the reward "changes register" at two minutes, give the fanfare its own
    octave and pay for it out of the arp.
+## Session 92, second half — the owner's music request, shipped as 0.10.2
+
+**Read this first if you are a future session: someone else edits this tree while you work.**
+`OVERLORDS_REQUESTS` had a live request in it (the music, below) and `src/audio/music.js` had been
+rewritten *around the header* by something outside this session about a minute before I committed
+session 91 - so `git add -A` took it into a commit that was about weapons. It was comment-only and
+harmless, but it described forms, per-bar figures, a `lead`, a `sub`, a `checked` and a key test
+that did not exist in the code: a brief for the owner's request, written as a description of a file
+that had not been written yet. Either way the header was lying about the code, so the code now does
+what its header says. **Run `git status` before you commit, and expect hands you did not move.**
+
+### The request, and the four moves that answered it
+
+*More oomph, less repetitive, expand the tune.* All four moves live inside the loudness ceiling the
+music has always been held to (`MUSIC.peakLoad` = 0.5, measured by `patternPeak`, and the bus gain
+in `audio/engine.js` is priced against it), because the one thing this request could not buy was
+the music being louder than a fight.
+
+1. **Eight bars of harmony, not four**: Am - F - C - G, then Am - F - Dm - G (`third: 3`, root 50).
+   Every line is intervals from its own bar's chord, so bars five to eight sound new for free.
+2. **A pattern is a form.** `bars` on the pattern, a *list* of bar figures on each part, `checked`
+   refusing anything whose figures do not divide the form or whose form is not a whole number of
+   chord phrases, and `fills(kit, 8, {...})` for the last bar of a phrase. Forms are eight bars
+   everywhere - not sixteen: one turn of the harmony is the shortest arrangement that can say
+   something and come back, and every list (4, 2, 8) divides it.
+3. **A tune**, `LEAD`, eight bars of long chord-tone notes at `octave: 12`, arriving with the kit.
+   That is the request's headline: the game used to own exactly one melody, the vacuum's ten-second
+   fanfare, and now the tune plays for most of a run. `fanfareOver` spends the melody's slot where
+   there is one and the arpeggio's where there is not, which is what keeps "the reward is more line
+   than the slot it spent" true instead of quietly false.
+4. **A floor**, `SUB`: a sine on the bar's own root, `dur: 1.6`, one note a bar. At the bass's own
+   octave and *not* an octave below - the point is weight a laptop speaker is physically able to
+   admit, and 55 Hz admits nothing. It holds the root rather than following the bass's walking notes,
+   so it cannot walk into a wrong chord and it never fights the harmony.
+
+### The ceiling is the whole story, so here are the numbers
+
+The boss pattern was at **0.497 of 0.5** before anything was added: every new voice had to be paid
+for by an old one. A throwaway `peakDebug` (the same walk as `patternPeak`, answering *which voices
+are sounding at the loudest instant and how loud each is*) is what found the money, and it is the
+tool to rebuild if this ever has to be done again:
+
+title 0.18 → 0.12, run 0.362 → 0.288, last 0.333 → 0.267, driving 0.453 → 0.455, boss 0.497 →
+**0.457**, loudest fanfare 0.492 → 0.488. Paid out of: pad 0.03 → 0.02 (boss 0.018 → 0.013), saw
+bass 0.16 → 0.105, boss bass 0.12 → 0.095, arp 0.05 → 0.042, kick 0.11 → 0.095, crack 0.07 → 0.055,
+hat 0.035 → 0.028, fanfare 0.05 → 0.038, and `AUDITION` 0.03 → 0.02 because it is priced as one pad
+voice and its comment says so. The guarded loudness ladder still holds: title < run < driving <=
+boss, last < run. **`peakLoad` and the bus gain were not touched.**
+
+What the instant-by-instant reading taught, so it does not have to be learned twice: the pad is six
+sawtooth oscillators and is the single biggest thing on the bus; in the run's kit the kick and the
+crack land on the *same* steps every bar, so the drums arrive as one 0.17 sum; three fanfare notes
+overlap at the boss's faster grid; **a fill of consecutive kicks is not a fill** - two kicks 0.136 s
+apart with a 0.14 s decay is one mess and the meter counts it twice - while **a hat roll is free**,
+because a 0.05 s decay at sixteenths never overlaps. Fills went on the crack and the hat.
+
+### Tests: 1704, and two honest rewrites instead of two loosened ones
+
+Seven new (`test/music.test.mjs` is 13 → 20): the key and chord-tone sweep the file's header had
+been promising since 0.10.1 (895 figure notes, every note in A natural minor and every note on a
+beat a tone of the chord under it); the form arithmetic; "the basic song is not one bar on a loop";
+the floor is a sine, is the lowest thing playing, and is really scheduled; the tune is the longest
+line and sits between the bass and the sparkle; which slot the fanfare spends; and a mutation test
+that `patternPeak` is reading the last bar of a form and not the first (which is exactly the way
+the meter could have gone stale when forms arrived). Rewritten: *what arrives at 2:00* is now the
+kit **and** the tune, and the groove underneath is proved by identity (`PATTERNS.driving.bass ===
+PATTERNS.run.bass`) rather than by a ten-second note count, which a form makes fuzzy anyway; and
+*the kit never stopped for the fanfare* is a proportion, because a kit with a fill in it is not the
+same number of hits in every ten seconds of it. `tools/simulate.js --audio` prints `2,474 of them
+drums and 777 the tune`, so the harness can watch the melody arrive, and `test/simulate.test.mjs`
+matches the new line.
+
+Reference run byte for byte unchanged (10m00s / 75,596 / level 58 / kills 4004 / shards 5162 /
+vacuums 7 (2065 in)) - the simulation still does not know music exists, which is the rule.
+
+### What should come next
+
+1. **The weapon re-tune** is still the big open item in milestone 10: price the five primaries in
+   bodies a second, close the 21x with `tools/weapon-ladder.js`.
+2. **Nobody has heard this.** Every claim above is a measurement, and a measurement of the right
+   things, but the tune being a *good tune* is the one thing this box cannot check. If a listen says
+   it is thin, the next place to spend the ceiling is a second lead voice in octaves, not a louder
+   pad - the pad is already the biggest thing on the bus and nobody misses it.
+3. `run-fanfare` and `driving-fanfare` put the reward an octave apart because they spend different
+   slots. Defensible, and each sits in the register its pattern had free - but if a player says the
+   reward "changes register" at two minutes, give the fanfare its own octave and take it out of the
+   arp instead.
