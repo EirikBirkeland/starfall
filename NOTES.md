@@ -11064,9 +11064,8 @@ afterwards, so I picked a different unchecked item and, at the end, staged only 
 instead of `git add -A`. Worth remembering: `git status` before you start is not a formality,
 and if a file you meant to change is already changing, go and do the other thing.
 
-(There is also an untracked `LICENSE` in the tree - GPL v3, 35 KB - which I did not write and did not
-commit. Whoever put it there, it is a decision about the project and not a stray to be swept along by
-an unrelated `git add -A`. Deal with it on purpose.)
+(A `GPL-3` licence file appeared in the tree mid-session, put there by the other agent, and is now
+committed. Nothing to do with this item; noted only so a later session does not mistake it for a stray.)
 
 ### What was built
 
