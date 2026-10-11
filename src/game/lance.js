@@ -327,6 +327,11 @@ export function resetLance(world) {
   line.windMax = 0;
   line.weight = 0;
   line.pull = 0;
+  // And the angles of the last fan. Nothing reads them wrong today - both readers walk `pull` of them
+  // and `pull` went above - but they are the run's own, written by `windUp` by index, and a list that
+  // keeps the last run's fan is a trap for the next reader who asks `spreads` what the fan is instead
+  // of asking `pull` how many there are. `resetRun` promises every piece of run state goes back.
+  line.spreads.length = 0;
   line.loaded = false;
   line.pulls = 0;
   line.fired = 0;

@@ -123,6 +123,13 @@ export function resetTether(world) {
   const line = world.tether;
   line.cords.clear();
   line.riders.clear();
+  // And the spare rider's answer about who was standing on a thread. `heldOn` only writes it when the
+  // answer is yes, so the probe is left holding the last body it said yes to - through the rest of the
+  // run, which is harmless because nobody reads it except straight after a yes, and through the end of
+  // the run too, which is not: it is a body from the last run, still held by this one's world.
+  line.probe.body = null;
+  line.probe.x = 0;
+  line.probe.y = 0;
   line.live = 0;
   line.cool = 0;
   line.gap = 0;
