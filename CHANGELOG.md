@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 0.10.11 — 2026-10-11
+Every line of text in the game was read in one sitting - first by a tool that plays a whole visit and writes
+down what it sees, then by a person. Four things had drifted, and all four are fixed where you see them.
+- **A win with one kill on it said `1 KILLS`.** Both end cards join a number to a fixed plural, so a run
+  that took one body and one fight read `1 KILLS · 0 SHARDS · 1 BOSS`. It says `1 KILL` now.
+- **The clock beside the score was in seconds and the card under it was not.** A fifteen-minute run read
+  `TIME 902s` at the top of the screen and `CLEARED IN 15m02s` when it ended. One wording now, everywhere
+  the run's length is written: the HUD, the pause, both cards, the log of past runs.
+- **The volume readout and the settings panel are one machine with two names for one thing** - the effects
+  bus was `SOUND` on the readout the volume keys put up and `SOUNDS` in the panel. It is `SOUND` in both,
+  and the readout's line of keys is in caps like everything else drawn on the glass.
+- **Two lines in the control list read like the odd ones out** (`PICK A CARD, DURING A RUN`, `GIVE THE RUN
+  UP, WHILE IT IS PAUSED`); they say `PICK A CARD WHEN IT IS DEALT` and `GIVE THE RUN UP WHILE PAUSED`.
+  The codex said the sniper was "bolted down"; it "plants itself, draws a line, then fires down it".
+- **And the gate, so it stays true:** `tools/text-survey.js` prints every sentence the game can put in front
+  of you, grouped by the screen it lands on, and `test/words.test.mjs` keeps the three voices apart - the
+  interface in caps, the catalogue in lower case, a card's copy a full sentence - along with the length
+  ceilings, the separators and the plurals. Eleven tests new, suite 1862.
+
 ## 0.10.10 — 2026-10-11
 The game teaches you now, one line at a time. There is no tutorial screen and nothing to click through: a
 new save gets a small plate at the bottom of the glass, and it is gone the moment you have done the thing
