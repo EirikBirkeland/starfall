@@ -1295,7 +1295,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the five rows are priced as hull a pull times pulls a second, and the game pays per body.
       The item under this one is what closes it. Also `tools/run-shape.js` takes `--weapon` now, so
       a shape table can be read for the gun a ship actually carries.
-- [ ] Price the five primaries in **bodies a second**, not hull a second, and re-tune them against
+- [x] Price the five primaries in **bodies a second**, not hull a second, and re-tune them against
       `tools/weapon-ladder.js` until its verdict reads PASS. The measurement above is the argument:
       a run's income is the body (a shard drops per kill, XP is the shard, levels are the build), so
       a gun that costs 5 hull to remove a 3-hull body is taxed a fifth of its income on every pull,
@@ -1307,6 +1307,52 @@ When every item above is ticked, go back to the first unchecked item of mileston
       lance run spends two of its card slots on cards that do nothing, and a run that is already
       short of levels is short twice over. Nothing in this item is a nerf of the three guns inside
       the band; they are 1.09x apart and that is parity.
+      **Shipped in session 96, and the verdict reads PASS**: the same sixteen seeds and the same
+      fifteen minute window now give SCATTER 120,642, SWARM 125,756, PULSE 118,867, LANCE 111,963,
+      ARC 110,868 - **1.13x best over worst against the 1.25x allowed**, with all five outlasting the
+      window and every middle run between level 63 and 66 where the lance's was level 7 and dead at
+      3m40s. Two rows moved, and the three inside the band were not touched (their three medians are
+      byte for byte what the failing batch printed). The run table prints **`bodies/s`** now, because
+      that is the currency: 6.09 to 7.04 across the five, which is 1.16x, and it is the first column
+      this game has ever had that a shotgun and a beam can be read against each other on.
+      **The first of the two questions is answered: a pull costs a body, and a body is worth three.**
+      The lance's `damage` 5 → 3, which is what a swarmling is once the crowd's ramp has spent itself,
+      and the `cost/kill` column comes down from 5.00 to 3.00 to sit with the other four's 3.00-3.25;
+      `test/weapon-ladder.test.mjs` fails any row that starts paying a multiple of a body for one
+      again. What the two points of hull per pull gave up is bought back with **pulls**: the lance's
+      trigger 0.9 → 2.6 a second (and its recoil 220 → 90 and its hit-stop 0.03 → 0.018, because a
+      kick and a freeze are felt per second and not per pull), which is the whole of the difference
+      between 6,736 and 111,963 - after a beam twice as wide (5,025), a fan of three beams a pull
+      (4,891 at 20% more hull a pull, 7,592 at 80% more) and, on the other slow gun, a longer-reach
+      missile (18,050) had all been measured and had all done nothing. **A heavy gun buys bodies with
+      pulls and not with weight**, because a press has to be thinned continuously. The Swarm's row
+      takes the same lesson the other way round and keeps PLAN's three pulls a second: `pellets` 1 → 2,
+      so a pull is a pair and is paid for two shells, which was worth more than the bigger blast that
+      would also have worked (radius 90 medianed 68,678 against the pair's 75,996) and would have made
+      a liar out of "micro".
+      **The second question is still open and is now its own item below**, rather than being quietly
+      folded into a number: three of the five primaries cannot spend `pierce`, and two of them cannot
+      spend `ricochet` either, and nothing in the deck or the deal knows that yet.
+- [ ] Decide what the deck does with the lines a primary cannot spend. Session 96 priced the five
+      primaries in bodies and left this behind: `pierce` buys nothing for a beam or for a shell that
+      detonates on what it hits, and `ricochet` buys nothing for a beam, by design and on purpose
+      (NOTES session 53) - so a LANCE run is offered two cards in ten that do literally nothing and a
+      SWARM run two that do nothing, and takes them anyway (the bot's own picker puts `ricochet` and
+      `pierce` third and fourth in its appetite, and a lance run is short of levels anyway, so it
+      pays for them out of the very thing it is short of). Three ways out, and they are not the same
+      game: **say it on the card** (the deal keeps offering them and the card's own line tells the
+      player this gun cannot use it, which is honest and cheap and leaves the dead slot dead);
+      **filter the deal** (game/upgrades.js is asked what this ship's gun can spend and the dead lines
+      never come up, which is kind but silently shrinks the deck for three of the five ships and
+      would have to be measured to be sure it is not just a buff); or **make them spendable** (a beam
+      that reads `pierce` as something - a second body at the far end of the line, say - and a shell
+      that reads it as passing through the first body to detonate at the second), which is a new
+      mechanic with a feel to it and is the only one of the three that makes the deck bigger.
+      Measure before choosing, and note that the tool for it is one flag short: `tools/line-ab.js`
+      prices a line against a batch (`--line pierce --seeds 24`) but cannot yet say which primary the
+      batch is flying, which `tools/simulate.js` and `tools/run-shape.js` both can. Add that flag as
+      part of the work. And none of the three ways out may be a nerf of the pulse, which can spend
+      every line in the deck and is the yardstick everything else is priced against.
 - [x] The music is monotonous (**the owner's request of 2026-10-11**: "the basic song should have
       more oomph, and it should be less repetitive. Expand-elaborate-develop the tune."). Shipped in
       four moves, each one a number and not a hope, and all of them inside the one bus ceiling the

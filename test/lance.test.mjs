@@ -309,7 +309,11 @@ test('the damage line is in the beam before it ever left the trigger', () => {
   field.upgrades.damage = 2;
   body.hp = 100000;
   pullAndFire();
-  assert.equal(lost(body, 100000), GUN.damage * (1 + BALANCE.upgrades.damage.step * 2),
+  // Off a body planted at a hundred thousand hull, a hull lost and regained is float dust: the row's
+  // own product and what came off the body agree to well inside a thousandth of a point, and asking
+  // them for exact bits is a test that breaks whenever the row is retuned (session 96 moved it).
+  const ranks = GUN.damage * (1 + BALANCE.upgrades.damage.step * 2);
+  assert.ok(Math.abs(lost(body, 100000) - ranks) < 1e-6,
     'and the ranks taken after that first pull are in the next one');
 });
 
@@ -326,7 +330,12 @@ test('the fire rate line shortens the wait between beams and nothing else', () =
   }
 
   const plain = beamsIn(4);
-  assert.ok(plain >= 3 && plain <= 5, 'four seconds of the plain cycle is ' + plain + ' beams');
+  // Counted off the row and not off a remembered number: this is the test that says the fire rate
+  // line moves the cycle and nothing else, and the cycle is the row's own (2.6 pulls a second since
+  // session 96 priced this gun in bodies).
+  const expected = Math.round(GUN.fireRate * 4);
+  assert.ok(Math.abs(plain - expected) <= 1,
+    'four seconds of the plain cycle is ' + plain + ' beams, against the row\'s ' + expected);
 
   field.upgrades.fireRate = 2;
   const faster = GUN.fireRate * (1 + BALANCE.upgrades.fireRate.step * 2);
@@ -374,7 +383,10 @@ test('the split line fans the beam into more lines, each at its share', () => {
   assert.equal(field.lance.fired, lines.length, 'the second pull threw the same fan');
   assert.equal(lost(bodies[0], 1000), GUN.damage, 'the aimed line is a whole one');
   for (let i = 1; i < bodies.length; i++) {
-    assert.equal(lost(bodies[i], 1000), GUN.damage * split.share,
+    // A thousand hull and a share of a three-hull line are not exact in binary; what is promised is
+    // the share and not the last bit of it.
+    const share = GUN.damage * split.share;
+    assert.ok(Math.abs(lost(bodies[i], 1000) - share) < 1e-6,
       'line ' + i + ' costs a share, exactly as an extra pellet does');
   }
 });
@@ -449,7 +461,14 @@ test('one body, at 200 px, with the cursor parked on where it was', () => {
   still /= 3;
   walking /= 3;
 
-  assert.ok(still > 4 && still < 8, 'six beams\' worth of hull takes ' + still.toFixed(2) + 's');
+  // How long the row says it takes: as many whole beams as the hull needs, at the row's own cycle,
+  // plus the wind-up the first one spends. Priced in beams and not in a remembered number of seconds,
+  // because session 96 moved the row and what this test holds is the relation and not a stopwatch.
+  const beams = Math.ceil(HULL / GUN.damage);
+  const wanted = (beams - 1) / GUN.fireRate + BEAM.wind;
+  assert.ok(Math.abs(still - wanted) < 0.6,
+    beams + ' beams of ' + GUN.damage + ' hull take ' + still.toFixed(2)
+      + 's against the ' + wanted.toFixed(2) + 's the row\'s own numbers say');
   assert.ok(Math.abs(still - walking) < 0.5,
     'and a body walking at the line dies no slower: ' + walking.toFixed(2) + 's');
   assert.ok(HULL / still > PULSE.damage * PULSE.fireRate * 0.85,

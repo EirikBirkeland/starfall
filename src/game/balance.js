@@ -566,24 +566,62 @@ export const BALANCE = {
     },
     lance: {
       name: 'LANCE',
-      // PLAN's 0.9 pulls a second, and it is by far the slowest trigger in the game: one line of
-      // light every 1.1 s against the pulse's 4.4 shots. That is the trade this gun is - it gives
-      // up the sky in front of it for the whole of one line, and the wind-up below is the second
-      // half of the price.
-      fireRate: 0.9,
+      // Pulls a second, and this is the number that was wrong about this gun (NOTES session 96).
+      //
+      // PLAN's 0.9 shipped for eight milestones, and it was a faithful reading of PLAN: one line of
+      // light every 1.1 s against the pulse's 4.4 shots, buying the whole of one line and giving up
+      // the sky in front of it. What that number was measuring was *hull a second*, and a run is not
+      // paid in hull. A run is paid in bodies - a shard drops per kill (game/enemies.js), a shard is
+      // XP, and XP is the build - and a trigger that moves 0.9 times a second caught 1.9 bodies a
+      // pull in a live crowd, so the whole gun was paid for two bodies a second while the pulse was
+      // paid for six. The compounding from there is the whole of the story: level 7 by the end of a
+      // lance run against the pulse's 66, and a middle run that stopped at 3m40s.
+      //
+      // So the row is priced in bodies now, and a body is bought with a *pull*. 2.6 lines a second is
+      // the middle of the pack's rate band (the scatter 2.2, the swarm 3, the arc 4, the pulse 4.4),
+      // and it is the number that stopped the gun losing: eight seeds at the old rate medianed 6,736
+      // with six of the eight dead before the window shut; at 1.8 it medianed 57,852 with two dead;
+      // from 2.6 up it is level with everything else (`tools/weapon-ladder.js` is the gate).
+      //
+      // Worth writing down what did *not* work, because two of them are good ideas that were tried
+      // (session 96, eight to twelve seeds and a ten minute window each, against the shipped 6,736): a
+      // beam twice as wide gave 5,025, and a fan of three lines a pull - one line become a fork - gave
+      // 4,891 with 20% more hull behind the pull and 7,592 with 80% more. Neither is a rate in
+      // disguise, and the rate is what the crowd is actually asking for: a press has to be thinned
+      // *continuously*, and a sweep once a second leaves the bodies round the ship standing there for a
+      // whole second while the line empties the far end of the arena.
+      fireRate: 2.6,
       // One line a pull, before the split line fans it out into more lines. `pellets` is how many
       // things a pull sends out and on this gun the things are beams (game/lance.js), so the line
       // that adds "one more projectile" adds one more *line*, each at that line's own share.
       pellets: 1,
       gap: 0,             // nothing is fanned until the split line fans it; see BALANCE.upgrades.split
-      // What one line costs a body standing on it, in the unit enemy hull is counted in - so
-      // five of these is five plain shots, which kills a drifter, a darter and a weaver outright
-      // and leaves a spitter with a quarter of its hull.
+      // What one line costs a body standing on it, in the unit enemy hull is counted in: **one
+      // body**, which is what a mid-run swarmling is worth (`tools/weapon-ladder.js` asks
+      // game/kinds.js for it rather than guessing, and the near-field knot is planted at exactly
+      // this number).
+      //
+      // That is the answer to the question this re-price had to answer instead of skating over -
+      // *what should a heavy gun cost a body?* - and the answer is: what a body costs. Five of these
+      // were paying five hull to remove a three-hull body on every single pull, and the two hull over
+      // the top of a body buy no shard, no XP and no level: the near knot's `cost/kill` column read
+      // 5.00 against the other four guns' 3.00-3.25, which is a fifth of this gun's income thrown
+      // away eight hundred times a run. At three that column reads 3.00 and the gun is charged like
+      // everything else - and the two points of hull it gave up are spent on the rate above, which
+      // buys far more than they did: 3 x 2.6 is 7.8 hull a second off a lone body against the 4.5 the
+      // row used to spend, inside the pack's near-field band (the pulse 4.3, the scatter 6.1, the arc
+      // 7.2), and 3 x 6 bodies x 2.6 is 46.8 on a column, which is still three times anything else in
+      // the game and still this gun's whole reason for existing.
+      //
+      // The old number, for the record, and it was argued at length here: five plain shots a line,
+      // which killed a drifter, a darter and a weaver outright and left a spitter with a quarter of
+      // its hull.
       //
       // PLAN writes 60 against the pulse's 10 - six of its shots - and at PLAN's own rates that
       // is 54 hull a second against the pulse's 60, i.e. nine tenths of the plain gun on a body
       // that is standing on the line. Here the plain gun is 4.4 hull a second, so nine tenths of
-      // it is four at a time at 0.9/s, and what was decided is to spend the tenth of a point the
+      // it is four at a time at PLAN's rate, and what was decided then was to spend the tenth of a
+      // point the
       // ratio leaves over on the wind-up instead: at five, measured with `tools/power-ladder.js
       // --weapon lance`, the gun is level with the plain one on the knot that prices a gun - the
       // near field, one body at a time, 4.4 hull a second against the pulse's 4.3 and the
@@ -595,21 +633,30 @@ export const BALANCE = {
       // saying plainly: on a crowd that happens to be in a line the lance is worth as much again as
       // a maxed damage rank on anything else, and the only thing standing between it and the
       // scatter is that the line has to be *found*, once a second, by whoever is holding the mouse.
-      // The measurements are in NOTES session 52; test/lance.test.mjs holds the shape of the
-      // single-body number and `tools/gun-clock.js` prints what the wait costs a body that moves.
+      // (Every hull-a-second number in the two paragraphs above this one was measured at PLAN's rate
+      // and is quoted from NOTES session 52 for what it was worth then; `--knots-only` prints what
+      // the row is worth now.) test/lance.test.mjs holds the shape of the single-body number and
+      // `tools/gun-clock.js` prints what the wait costs a body that moves.
       //
       // Note what this number buys *nothing* on: a line that hits everything on it cannot also be
       // given pierce, and a line that arrives in one instant cannot be given ricochet or a bullet
       // speed. Three of the ten upgrade lines do nothing at all for this gun, which is the price
       // of the sixth being the whole arena, and it is the same reading that leaves pierce and
       // ricochet off the arc (BALANCE.weapons.arc).
-      damage: 5,
-      // The heaviest kick in the game, and it is paid at the discharge and not at the trigger -
-      // the gun goes off, the ship is shoved back, in that order (game/lance.js). The brake eats
-      // it in a fraction of a second (NOTES session 8), so what it is: a lurch backwards every
-      // time the thing lets go, and a ship that fires it with a body at its back should expect to
-      // be shoved at it.
-      recoil: 220,
+      damage: 3,
+      // The heaviest kick in the game, per pull, and it is paid at the discharge and not at the
+      // trigger - the gun goes off, the ship is shoved back, in that order (game/lance.js). The brake
+      // eats it in a fraction of a second (NOTES session 8), so what it is: a lurch backwards every
+      // time the thing lets go, and a ship that fires it with a body at its back should expect to be
+      // shoved at it.
+      //
+      // It came down with the rate went up, and the reason is that a kick is felt per second and not
+      // per pull: 220 at nine tenths of a pull a second was 198 px/s of shove, and the same 220 at
+      // 2.6 would have been 572 - more than the ship's own top speed, so a player holding the trigger
+      // would be flying backwards out of the very press this gun now exists to clear. At 90 the gun
+      // still hands out 234 px/s, the heaviest in the game by half again (the scatter's is 121, the
+      // pulse's 62), and still the one lurch a player can feel through a whole fight.
+      recoil: 90,
       // The beam itself (game/lance.js). Everything about a lance is here: how long the gun hums
       // before it goes off, how thick a line still hurts, what a body on it is thrown by, and how
       // long the light that remembers it is kept.
@@ -642,9 +689,9 @@ export const BALANCE = {
         // off it. It is not a nova front's wall of shove and it never pushes a body sideways out
         // of the line, so the next beam finds the crowd it just moved.
         shove: 220,
-        // How long the light is kept after the flash. Longer than an arc bolt's and about a fifth
-        // of the cycle: the line is where the damage went, and at nine tenths of a pull a second
-        // there is room on the glass for it to be seen and gone before the next one.
+        // How long the light is kept after the flash. Longer than an arc bolt's and about a third
+        // of the cycle: the line is where the damage went, and at two and a half pulls a second there
+        // is just room on the glass for it to be seen and gone before the next one.
         light: { life: 0.22 },
         // Sparks off each body the line came round, thrown down the line rather than back along
         // it, because a lance does not so much hit a body as take it off its feet.
@@ -656,7 +703,12 @@ export const BALANCE = {
         // None, and the hit-stop below is what carries the weight instead: a primary that
         // moved the window every pull would move it the whole run (`screen`, above).
         shake: 0,
-        hitStop: 0.03,
+        // The stop is priced per second and not per pull, like the kick above: 30 ms at nine tenths of
+        // a pull a second held the world 27 ms in every second, and the same 30 at 2.6 would hold it
+        // 78 - which is not a beat, it is a stutter, and a stutter on the trigger is read as input lag
+        // (pillar 1). At 18 ms the gun holds the world 47 ms a second: more than it used to, because
+        // the rhythm is heavier now, and one frame and a bit of held world per pull instead of two.
+        hitStop: 0.018,
         // The wind-up is heard as well as seen: one rising note, started at the trigger and ending
         // when the gun does, which is the whole clock of the thing in one sound. `dur` is the
         // wind-up, to the hundredth.
@@ -669,21 +721,57 @@ export const BALANCE = {
     swarm: {
       name: 'SWARM',
       // PLAN's three pulls a second, and it is the middle rate of the five: the pulse pulls four and
-      // a half times a second, the arc four, the scatter two and a bit, the lance once. Three slow
-      // things a second, each one finding a body of its own - that is the whole shape of this gun.
+      // a half times a second, the arc four, the scatter two and a bit, the lance two and a half.
+      // Three pulls a second, each one a pair of slow things that each find a body of their own -
+      // that is the whole shape of this gun.
       fireRate: 3,
-      pellets: 1,
-      gap: 0,             // nothing is fanned until the split line fans it; see BALANCE.upgrades.split
-      // What one missile costs the body it lands on, in the unit enemy hull is counted in - so a
-      // missile is one and a half plain shots of the pulse, thrown two-thirds as often.
+      // Shells a pull, and this is the number that was wrong about this gun (NOTES session 96).
+      //
+      // One shell a pull at three pulls a second is three bodies a second at best, and a run is paid
+      // in bodies: a shard per kill, XP per shard, levels per XP. The three guns that were doing well
+      // were being paid for six bodies a second and the swarm for three, which is the whole of why its
+      // middle run medianed 35,071 against their 68,000-75,000 while its hull a second was level with
+      // theirs (the near knot says the same story in the other currency: 1.5 bodies a second against
+      // the scatter's 2.0 and the arc's 2.3). So the row buys bodies, not hull: a pull is a *pair*,
+      // which is what the gun's own name was always promising.
+      //
+      // Each of the two hunts for itself (game/missiles.js: the nearest body it can see), so in a thin
+      // sky both of them will take the same body and the pair is one body with extra steps; in a crowd
+      // that is what the shells are for, and what a pair really buys is that a chipped body is finished
+      // and a blast lands twice as often. That is the honest version of the claim - the row is paid for
+      // two shells a pull and the crowd decides which two bodies they are.
+      //
+      // A bigger blast was the other candidate and it works - radius 90 instead of 46 medianed 68,678
+      // with the rate untouched - and it was refused for a simple reason: `micro` is in the name and in
+      // the blurb, and a 180 px circle going off three times a second is not a micro missile, it is a
+      // nova you have to aim. Two small shells in the crowd is the same number of bodies and the same
+      // screen full of small cracks, and it leaves the blast's own note below true. Longer *reach* was
+      // the third idea - 500 px instead of 320 of eye - and it cost the run instead of paying for it
+      // (18,050), because a shell that goes looking further afield is a shell that arrives later and
+      // leaves the bodies at the ship's hull to their own devices.
+      pellets: 2,
+      // Radians between the two shells of a pair - a look and not an income, and measured as one:
+      // eight seeds and a ten minute window at 0, 0.12 and 0.25 rad medianed 75,533, 76,984 and 75,996,
+      // which is the same number wearing three hats. So it is chosen for the eye. Two shells that leave
+      // one nose side by side fly in lockstep and read as one fat shot; a quarter of a radian puts a
+      // body's width between them by the time they are 100 px out, which is what makes it a *pair*
+      // (game/missiles.js hunts with the nearest body it can see, so two shells chase one body just as
+      // easily here as anywhere else - the gap is not a target-spreader, and the run does not care).
+      // It is also wider than the split line's own fan (BALANCE.upgrades.split), and game/weapons.js
+      // takes the wider of the two, so a rank of split never squeezes the pair back together.
+      gap: 0.25,
+      // What one shell costs the body it lands on, in the unit enemy hull is counted in - so a shell
+      // is one and a half plain shots of the pulse, and a pull of two of them is three.
       //
       // PLAN writes 6 against the pulse's 10, i.e. three fifths of a pulse shot, and at PLAN's own
       // rates that is eighteen hull a second against the pulse's sixty: a third of the plain gun,
       // with homing and a small blast as the reason for the difference. This game counts hull in pulse
       // shots (BALANCE.bullets.damage), so it is the ratio that transfers and not the number, and the
       // ratio that shipped is a bigger one: three pulls of a missile and a half is 4.5 hull a second,
-      // which is what the plain gun does. Measured, `tools/power-ladder.js --weapon swarm` (20 s, six
-      // seeds, the same knots every gun is priced on):
+      // which is what the plain gun does - one shell a pull, which is what these next three lines were
+      // measured with, and a pull is a pair now so read them all as half of what the row is worth today
+      // (`tools/weapon-ladder.js --knots-only` prints that). Measured, `tools/power-ladder.js
+      // --weapon swarm` (20 s, six seeds, the same knots every gun is priced on):
       //
       //   the near field   4.5 hull/s   (the pulse 4.3, the scatter 5.9, the lance 4.3)
       //   the ring        13.9          (the pulse 4.3, the scatter 12.2, the lance 20.0)

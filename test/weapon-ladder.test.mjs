@@ -138,18 +138,31 @@ test('the same knot is planted whether it can die or not', () => {
     `a pulse kill cost ${alive.hull / alive.kills}, not the body's ${bodyHull()}`);
 });
 
-test('a heavy gun pays for a body in whole beams, which is the tax the felled column exists to show', () => {
+test('the heaviest line in the game costs a body exactly what a body is worth', () => {
+  // The number PLAN 10's re-price was built to land on. This row used to cost a body five hull and a
+  // body is worth three (`bodyHull()`, asked of game/kinds.js), so every pull of the slowest trigger
+  // in the game threw two hull away past the body it took off - and a shard, and so a level, is paid
+  // per body, so the hull past a body buys nothing at all. Session 96 priced the row in bodies: a
+  // pull is one body and the gun's weight is bought with pulls. The near knot is where that shows,
+  // because it is one body at a time and one line a pull.
   const near = KNOTS.length - 1;
   const chipped = knotRate('lance', near, 1, 6, undefined);
   const felled = knotRate('lance', near, 1, 6, bodyHull());
-  // What a body costs the gun is the hull it chipped over the bodies it felled, and for the lance
-  // that is one whole beam per body on the near knot: 5 hull spent on a body that had 3 to give.
-  // A shard drops per kill (game/enemies.js `killEnemy` -> `dropShards`), so the two hull past the
-  // body buy no XP at all - which is the tax, and the reason it is printed beside a kills column.
   const cost = chipped.hull / felled.kills;
   assert.ok(Math.abs(cost - BALANCE.weapons.lance.damage) / BALANCE.weapons.lance.damage < 0.05,
     `a beam costs a body ${cost}, and the row says ${BALANCE.weapons.lance.damage}`);
-  assert.ok(cost > bodyHull(), `a beam costs ${cost} and a body was only worth ${bodyHull()}`);
+  assert.ok(cost <= bodyHull() * 1.05,
+    `a beam costs ${cost} and a body is only worth ${bodyHull()}: the row is paying over the top of`
+    + ' a body again, which is the tax this column exists to show');
+  // And no gun in the game pays a *multiple* of a body for one, which is the same denomination rule
+  // read down the column: the five of them land in 3.00-3.25, and the quarter over a body is a shot
+  // that landed part-way through a kill and not a beam twice the width of what it removed.
+  for (const gun of ['pulse', 'scatter', 'arc', 'swarm']) {
+    const its = knotRate(gun, near, 1, 6, bodyHull());
+    const itsChipped = knotRate(gun, near, 1, 6, undefined);
+    assert.ok(itsChipped.hull / its.kills <= bodyHull() * 1.1,
+      `${gun} pays ${itsChipped.hull / its.kills} for a body worth ${bodyHull()}`);
+  }
   // The hull that actually came off a mortal body never exceeds what the body had: overkill is
   // wasted, not banked, and the run's income is the body and not the hull.
   assert.ok(felled.hull / felled.kills <= bodyHull() + 0.01,

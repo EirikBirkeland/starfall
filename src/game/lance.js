@@ -44,7 +44,7 @@
 //     the pull threw nothing yet, and everything a pull normally costs is paid here, later.
 //
 // One wind-up is held at a time. A pull that arrives while the gun is still humming is spent on
-// the beam that is already coming rather than starting a second one: with PLAN's rate and this
+// the beam that is already coming rather than starting a second one: at the row's own rate this
 // wind-up the cycle is always the longer of the two, so it cannot happen in a real run, but the
 // fire rate line is allowed to change a cycle and the answer may not be a beam nobody asked for.
 //

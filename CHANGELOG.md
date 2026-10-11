@@ -1,5 +1,39 @@
 # Starfall — changelog
 
+## 0.10.5 — 2026-10-11
+Two of the five primaries were twenty times worse than the other three. They are in the band now, and the ladder prices a gun in bodies instead of in hull.
+- **The gap, and what it was.** Sixteen seeds a gun and a fifteen minute window said SCATTER 120,642
+  against LANCE 5,658 and SWARM 35,960 - 21.32x, against the 25% PLAN allows. The two knot tables said
+  neither gun was short of damage: what a run is paid in is *bodies*, not hull, because a shard drops
+  per kill and a level is bought with shards, and a lance run ended at level 7 where a pulse run ended
+  at 66. So the two slow rows were re-priced in bodies. Same seeds, same window: SCATTER 120,642, SWARM
+  125,756, PULSE 118,867, LANCE 111,963, ARC 110,868 - **1.13x, PASS**, all five outlasting the window.
+- **A heavy gun buys bodies with pulls and not with weight.** The lance now pulls 2.6 times a second
+  instead of 0.9, and that is the whole of its 6,736 → 111,963: a beam twice as wide did nothing
+  (5,025), a fan of three beams a pull did nothing (4,891 with 20% more hull behind the pull), and a
+  longer-reach missile on the other slow gun cost it runs (18,050). A press has to be thinned
+  *continuously*, and no amount of size on a rare pull buys that. The Swarm keeps PLAN's three pulls a
+  second and buys its bodies inside the pull instead: a pull is a pair of shells now, which was worth
+  more than the bigger blast that would also have worked and would have made a liar out of "micro".
+- **A body costs a body.** The lance used to pay 5 hull to remove a 3-hull body, eight hundred times a
+  run, and the two hull past the body bought nothing at all; its line costs 3 now, and what it gave up
+  there is what bought the rate. Every row in the table lands at 3.00-3.25 in the ladder's `cost/kill`
+  column, and a test refuses any row that starts paying a multiple of a body for one again.
+- **A kick and a freeze are felt per second, not per pull.** Firing a lance 2.6 times a second with its
+  old recoil would have shoved the ship backwards at 572 px/s - more than it can fly - so the kick came
+  to 90 and still leaves it the heaviest gun in the game; and its 30 ms stop would have held the world
+  78 ms in every second, which is not a beat but a stutter, so it is 18 ms now. Both numbers are argued
+  where they are written.
+- **The ladder prints `bodies/s`**, because that is the currency it is now read on: 6.09 to 7.04 across
+  the five guns, 1.16x, which is the first number this game has had that lets a shotgun and a beam be
+  read against each other at all.
+- **Still open, and now written down as its own item**: three of the five primaries cannot spend the
+  deck's `pierce` line and two cannot spend `ricochet`, by design - so a lance run is dealt two dead
+  cards in ten and pays for them out of the levels it is short of. Session 96 priced the guns and
+  refused to answer that one with a number.
+- Suite 1747 → 1748, and the reference run (`node tools/simulate.js --seed 20261006 --trace`) is byte
+  for byte the run it was: the pulse is the yardstick, and the yardstick was not touched.
+
 ## 0.10.4 — 2026-10-11
 Two pieces of a run stopped following it into the next one, and three rules that lived in prose are checks now.
 - **Nothing a run learned comes with it.** The lance kept the last run's fan angles and the tether kept

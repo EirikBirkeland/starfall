@@ -8,6 +8,9 @@
 //   **it hunts, and never gives up** - a missile bends toward whatever it can see, at a rate and no
 //     more, for as long as it is in the air; a body outside its reach is not hunted at all and the
 //     shot flies where it was pointed until it dies of old age;
+//   **a pull is a pair** - two shells a pull, two fingers apart, and a pull paid for both of them,
+//     because a run is bought in bodies and a gun that touches one body a pull is paid for one
+//     (session 96); each shell hunts for itself;
 //   **nearest first** - of everything in reach it chases the closest body, which is what spreads a
 //     flight of them across a crowd without anybody aiming;
 //   **one body, one detonation** - a missile is spent on the first body it meets, so the pierce line
@@ -86,6 +89,21 @@ function headingOf(shot) {
   return Math.atan2(shot.vy, shot.vx);
 }
 
+/**
+ * One pull, and then only the first shell of it.
+ *
+ * A pull of this gun is a pair (BALANCE.weapons.swarm.pellets, which is how the row buys bodies
+ * since session 96), and nearly everything promised below is about a single shell - what it hunts,
+ * what the body it lands on pays, when its fuse runs out - so the second one is taken back out of
+ * the sky here rather than doubling every number in this file. The pair has its own test, a few lines
+ * below.
+ */
+function fireOne() {
+  fire(field);
+  while (field.bullets.count > 1) field.bullets.killAt(1);
+  return field.bullets.items[0];
+}
+
 test('the row is a whole row, and it is the only one that hunts', () => {
   // game/missiles.js reads the Swarm's own row for the turn rate, the reach and the blast, which is
   // the one thing it assumes about the table. If a second homing gun ever arrives that row moves onto
@@ -155,8 +173,7 @@ test('a body out of reach is not chased, and the shot dies of old age', () => {
   swarmRun(603);
   const far = bodyBeside(MISSILE.reach + 260, 40, 1000);
 
-  fire(field);
-  const shot = field.bullets.items[0];
+  const shot = fireOne();
   const from = headingOf(shot);
   letItFly(GUN.life / 2);
   assert.equal(field.bullets.count, 1, 'the missile is still in the air');
@@ -178,6 +195,29 @@ test('of everything in reach it chases the nearest', () => {
   assert.equal(lost(far, 1000), 0, 'and the one behind it is 120 px further out than the blast');
 });
 
+test('a pull is a pair of shells, two fingers apart, and both of them are paid for', () => {
+  // This is where the row buys its income (session 96): the Swarm was behind the other four guns not
+  // on hull a second but on *bodies* a second - a shard drops per kill, and a level is bought with
+  // shards - so one pull of the trigger throws a pair instead of one, and a pull is worth two shells
+  // wherever they land. Each of them still hunts on its own (game/missiles.js: the nearest body it can
+  // see), so in a thin sky they will both take the same body; what the pair buys is that the run is
+  // paid for two of them either way, and in a crowd there is never a thin sky for long.
+  swarmRun(614);
+  const ahead = bodyAhead(200, 10000);
+
+  fire(field);
+  assert.equal(field.bullets.count, GUN.pellets,
+    'one pull of the trigger, ' + GUN.pellets + ' shells');
+  const apart = Math.abs(headingOf(field.bullets.items[0]) - headingOf(field.bullets.items[1]));
+  assert.ok(apart > GUN.gap - 2 * GUN.spread,
+    'and they leave two fingers apart: ' + apart.toFixed(3) + ' rad');
+
+  letItFly(1.5);
+  assert.ok(Math.abs(lost(ahead, 10000) - GUN.pellets * GUN.damage) < 1e-9,
+    'and the body they both found pays ' + GUN.pellets + ' shells, not one: '
+      + lost(ahead, 10000));
+});
+
 test('the body it lands on pays the missile, and the crowd around it pays the blast', () => {
   swarmRun(605);
   const hit = bodyAhead(200, 10000);
@@ -188,7 +228,7 @@ test('the body it lands on pays the missile, and the crowd around it pays the bl
   const inside = bodyBeside(BLAST.radius - edge - 2, 200, 10000);
   const outside = bodyBeside(BLAST.radius + edge + 2, 200, 10000);
 
-  fire(field);
+  fireOne();
   letItFly(1.5);
 
   assert.ok(Math.abs(lost(hit, 10000) - GUN.damage) < 1e-9,
@@ -252,13 +292,13 @@ test('the blast kills, and a body the blast finishes comes apart', () => {
 test('the damage line is in the shell before it left the trigger', () => {
   swarmRun(609);
   const body = bodyAhead(200, 10000);
-  fire(field);
+  fireOne();
   letItFly(1.5);
   assert.ok(Math.abs(lost(body, 10000) - GUN.damage) < 1e-9, 'what the row says');
 
   field.upgrades.damage = 2;
   body.hp = 10000;
-  fire(field);
+  fireOne();
   letItFly(1.5);
   assert.ok(Math.abs(lost(body, 10000) - GUN.damage * (1 + BALANCE.upgrades.damage.step * 2)) < 1e-9,
     'and the ranks taken after that first pull are in the next one');

@@ -160,6 +160,12 @@ function cleared() {
   field.spawnTimer = Infinity;
   field.shake = 0;
   field.freeze = 0;
+  // And no level-up in the middle of a test: nothing here is about the cards, and a gun that can kill
+  // a planted target out of its own three seconds of firing would deal a card and pause the arena on
+  // whatever the next test was measuring (session 96's Swarm stopped being able to do that to a tank,
+  // and this file's world does not need to be told twice).
+  field.xp = 0;
+  field.xpNeed = Infinity;
   ship.invuln = Infinity;
   ship.x = MID.x;
   ship.y = MID.y;

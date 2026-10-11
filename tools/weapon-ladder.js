@@ -40,7 +40,8 @@
 //   a body that comes apart put back where it stood and counted (power-ladder's pinning, plus
 //   `revive`). This is the column the game *pays* in: shards, and so XP, and so levels, are paid per
 //   body and not per hull, so a gun that spends 5 hull on a 3-hull body buys a body with it and
-//   throws two hull away. `cost/kill` is that in one number: what a body costs the gun in damage.
+//   throws two hull away - which is what the lance's row did until session 96, and what `cost/kill`
+//   is there to catch in any row that starts doing it again.
 //
 //   **the run** - the bot plays N seeds of each gun through the real game, and the middle run of
 //   each batch is what gets compared. This is the only column that says what a player gets, and it
@@ -57,18 +58,23 @@
 // 33), and a knot is a geometry rather than a fight. Its spread is printed so that a `FAIL` up
 // there can be read as a fact about the shape of the guns and not as a red light.
 //
-// Today the band reads red, and wide: sixteen seeds a gun, the aware bot, a fifteen minute window -
-// scatter 120,642, pulse 118,867, arc 110,868, swarm 35,960, lance 5,658, which is 21.32x best
-// over worst against the 1.25x allowed. The knot columns say neither outlier is short of damage -
-// the lance is the strongest of the five on the ring and on the column - so what a run is actually
-// buying is not hull a second but *bodies* a second, because XP is paid per body and a run's
-// damage is made of levels. The lance pulls its trigger 0.9 times a second and catches 1.9 bodies
-// a pull in a live crowd (its own scorecard: game/lance.js `pulls`/`fired`/`caught`/`dealt`), so it
-// is paid for two bodies a second while the pulse is paid for four; the compounding does the rest
-// and the middle lance run ends at level 7 where the middle pulse run ends at 64. NOTES session 91
-// has all of it, including the four probes that did not fix it (a lane aim for the bot, a beam
-// twice as wide, a cheaper and faster beam, and all three together) and what the ladder says a
-// re-tune would have to move.
+// The band used to read red, and wide: sixteen seeds a gun, the aware bot, a fifteen minute window -
+// scatter 120,642, pulse 118,867, arc 110,868, swarm 35,960, lance 5,658, which was 21.32x best over
+// worst against the 1.25x allowed. The knot columns said neither outlier was short of damage - the
+// lance was the strongest of the five on the ring and on the column - so what a run is actually
+// buying is not hull a second but *bodies* a second, because XP is paid per body and a run's damage
+// is made of levels. NOTES session 91 has all of that, and session 96 has the re-price it led to:
+// the lance's pull now costs one body instead of one and two thirds and its trigger pulls 2.6 times
+// a second instead of 0.9, and the Swarm's pull throws a pair of shells instead of one. Same sixteen
+// seeds, same window: **scatter 120,642, swarm 125,756, pulse 118,867, lance 111,963, arc 110,868 -
+// 1.13x best over worst, PASS**, with every one of the five outlasting the window and a middle run of
+// level 63-66.
+//
+// The lesson that is worth keeping out of that, because it took eight milestones of looking at the
+// wrong column to learn it: a heavy gun's income is what it *touches*, and a slow trigger cannot buy
+// its way out of that with a bigger pull. Twice the width of the lance's beam did nothing (5,025);
+// three beams a pull did nothing (4,891); a longer-reach missile did nothing (18,050); the rate did
+// everything (57,852 at 1.8/s). What a press asks for is thinned continuously.
 //
 // Same rules as every other measurement here: every gun plays the *same* seeds, in the same order,
 // so the comparison is a paired one and a lucky seed is lucky for all five; nothing is judged but
@@ -327,8 +333,9 @@ export function felledTable(knots) {
     'This is the column the game pays in: a shard, and so a level, is paid per body and not per hull.\n'
     + 'cost/kill is the near knot\u2019s chipped hull over its felled kills - what a body costs the gun in\n'
     + 'damage. 3.00 is a gun that never pays more than a mid-run body is worth; 5.00 is a 5-hull beam\n'
-    + 'through a 3-hull body, and the two hull past it buy no XP at all. The two spread columns are\n'
-    + 'printed and not gated, for the same reason as above.',
+    + 'through a 3-hull body, and the two hull past it buy no XP at all - the tax the lance\u2019s row\n'
+    + 'carried until session 96. The two spread columns are printed and not gated, for the same reason\n'
+    + 'as above.',
     'l' + 'r'.repeat(KNOTS.length) + 'rr',
     ['gun'].concat(KNOT_NAME.map((name) => name + ' kills/s')).concat(['cost/kill', 'across knots']),
     rows);
@@ -435,6 +442,10 @@ export function standingOf(gun, rows, cap) {
     score: median(mine.map((row) => row.score)),
     level: median(mine.map((row) => row.level)),
     kills: median(mine.map((row) => row.kills)),
+    // The middle run's bodies a second, which is what a run is actually paid in (a shard per kill,
+    // a level per shard) and the currency PLAN 10's re-price was read on. From the two medians
+    // above rather than a mean of per-run rates, so it is the same run the rest of the row is.
+    bodies: median(mine.map((row) => row.kills)) / median(mine.map((row) => row.seconds)),
     damage: mean((row) => row.damage / (row.seconds || 1)),
     cap: cap,
   };
@@ -483,9 +494,12 @@ export function verdictOf(standings) {
       'is a weak gun, and its row in BALANCE.weapons is what moves; a gun above them is one',
       'this instrument cannot drive, and buffing it to match may be a nerf of every player who',
       'can. Check the driver before the row: NOTES session 91 gave the bot a lane-aiming eye and',
-      'the lance did not get better.'].join('\n'));
+      'the lance did not get better. And check what the row buys *a second* and not only what it',
+      'buys a pull - the whole of the 21x this tool was written about was two rows whose triggers',
+      'were too slow to touch as many bodies as the rest, and no amount of width, fan or hull',
+      'moved them (session 96).'].join('\n'));
   }
-  const also = ['kills', 'level'].map((key) => {
+  const also = ['kills', 'bodies', 'level'].map((key) => {
     const other = spanOf(standings, (standing) => standing[key]);
     return key + ': ' + other.best.toUpperCase() + ' over ' + other.worst.toUpperCase()
       + ' = ' + dec(other.ratio, 2) + 'x';
@@ -505,19 +519,22 @@ export function ladderTable(standings, opts) {
     dec(one.score / best, 2) + 'x',
     dec(one.level, 1),
     int(one.kills),
+    dec(one.bodies, 2),
     dec(one.damage, 1),
   ]);
   return table(
     'the run: ' + standings.map((one) => one.runs).join('/') + ' runs a gun, '
     + opts.policy + ' bot' + (opts.picks === 'wise' ? '' : ' answering the level-up with a die')
     + ', a ' + clock(opts.seconds) + ' window, the same seeds for every gun',
-    'The middle run of each batch. vs best is the only column PLAN\u2019s 25% is read on, and hull/s is\n'
-    + 'what the run took off bodies a second (game/tally.js), which says how much of a gun\u2019s score is\n'
-    + 'the crowd\u2019s size rather than the gun. A bot is in this number and it aims at whatever is nearest;\n'
+    'The middle run of each batch. vs best is the only column PLAN\u2019s 25% is read on. bodies/s is\n'
+    + 'what that run removed a second, which is what it was paid in - a shard per body, a level per\n'
+    + 'shard - and it is the column the five rows are priced on now (session 96). hull/s is what the\n'
+    + 'run took off bodies a second (game/tally.js), which says how much of a gun\u2019s score is the\n'
+    + 'crowd\u2019s size rather than the gun. A bot is in this number and it aims at whatever is nearest;\n'
     + 'giving it a lane-finding eye did not help the lance (NOTES session 91), so read a line gun\u2019s\n'
     + 'row as a fact about how this fight goes rather than as a floor for a better one.',
-    'lrrrrrrr',
-    ['gun', 'alive', 'median time', 'median score', 'vs best', 'level', 'kills', 'hull/s'],
+    'lrrrrrrrr',
+    ['gun', 'alive', 'median time', 'median score', 'vs best', 'level', 'kills', 'bodies/s', 'hull/s'],
     rows);
 }
 
