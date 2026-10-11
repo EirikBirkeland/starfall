@@ -24,6 +24,7 @@ import { AWARDS, dustOf, shareOf } from '../game/awards.js';
 import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { endingWords, hullLedger } from '../game/tally.js';
+import { cardWords, titleWords } from '../game/daily.js';
 import { uiTick } from '../audio/sfx.js';
 
 let el = null;
@@ -316,6 +317,9 @@ export function initScreens() {
     winStats: document.getElementById('winStats'),
     winBuild: document.getElementById('winBuild'),
     winHint: document.getElementById('winHint'),
+    // Which day the run was flown on, on each of the two cards that end one (game/daily.js).
+    finalDaily: document.getElementById('finalDaily'),
+    winDaily: document.getElementById('winDaily'),
     shipRow: document.getElementById('shipRow'),
     perkRow: document.getElementById('perkRow'),
     hangar: document.getElementById('hangarScreen'),
@@ -344,6 +348,7 @@ export function initScreens() {
     settingRow: document.getElementById('settingRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
+    titleToday: document.getElementById('titleToday'),
     titleShip: document.getElementById('titleShip'),
     nextShip: document.getElementById('nextShip'),
     finalDust: document.getElementById('finalDust'),
@@ -751,7 +756,7 @@ export function showAwards(won) {
  * them, because a run is flown in a body and a gun and there is no sense in splitting the two.
  */
 function factLines(run) {
-  return [
+  const rows = [
     { name: 'FLOWN IN', says: shipWords(run.shipId) },
     { name: 'LEVEL', says: String(run.level) },
     { name: 'HULL', says: run.hull + ' OF ' + run.maxHull },
@@ -764,10 +769,14 @@ function factLines(run) {
     // and not what has been paid, which is the whole reason this row can be honest mid-run).
     { name: 'RUN WORTH', says: '+' + run.dust.toLocaleString('en-US') + ' STARDUST' },
     { name: 'BEST', says: run.best.toLocaleString('en-US') },
-    // Last, because it is the one number on this panel a player can do something with afterwards:
-    // `?seed=` in the address bar flies this arena again (main.js `addressSeed`).
+    // Last of the numbers, because it is the one on this panel a player can do something with
+    // afterwards: `?seed=` in the address bar flies this arena again (main.js `addressSeed`).
     { name: 'SEED', says: String(run.seed) },
   ];
+  // A run flown on today's arena says which day, beside the seed that made it (game/daily.js). A run
+  // flown on an arena of its own has no row here at all, which is how the rack stayed the rack it was.
+  if (run.daily !== null && run.daily !== undefined) rows.push(run.daily);
+  return rows;
 }
 
 /**
@@ -869,10 +878,18 @@ export function fitSettings() {
  * are the same kind of thing - the number you are trying to beat, the number you are saving up,
  * and the number you are working towards - and because a reward nobody can see being earned is a
  * reward nobody believes in. `awards` is `{ won, of }` from game/awards.js.
+ *
+ * The fourth of them is today's own best (game/daily.js), and it is empty - and so invisible - until
+ * the day has been flown: a title that showed a zero for a day nobody has tried would be a line about
+ * nothing, and it is the third number on a line that has to stay one line tall.
  */
 export function showStanding(best, dust, awards) {
   el.titleBest.textContent = best.toLocaleString('en-US');
   el.titleDust.textContent = dust.toLocaleString('en-US');
+  // The separator belongs to the line and not to the day: no number, no dot. The other two numbers are
+  // kept apart in the markup, and this one cannot be, because it is the one that is sometimes not there.
+  const today = titleWords();
+  el.titleToday.textContent = today === '' ? '' : ' \u00b7 ' + today;
   el.titleAwards.textContent = 'AWARDS ' + awards.won + ' OF ' + awards.of;
   el.hangarDust.textContent = dust.toLocaleString('en-US');
 }
@@ -968,6 +985,9 @@ export function showGameOver(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.newBest.classList.remove('hidden');
   else el.newBest.classList.add('hidden');
+  // Which day this run was flown on, under the best it is measured against (game/daily.js). '' for a
+  // run that flew an arena of its own, and an empty line takes its space with it.
+  el.finalDaily.textContent = cardWords(summary);
   // What ended the run, under the heading it happened to, and what every hull of it went to (game/
   // tally.js). A run that was given up has no cause and says so. The rack keeps the last hull out of
   // its own rows only when the headline above has just named it - a give-up's line names the giving-up
@@ -1015,6 +1035,7 @@ export function showVictory(summary) {
     + '   \u00b7   SEED ' + summary.seed;
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
+  el.winDaily.textContent = cardWords(summary);   // a won daily run is a daily run (game/daily.js)
   // What the run lost on the way to winning it. No cause line: nothing took a win down, and the tally
   // keeps no cause for a run that finished (game/run.js `winRun`) - which is also why the rack here
   // says everything it has, down to a single hull, because there is no headline above it to have said

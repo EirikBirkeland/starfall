@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Rng, logic, fx, visual, setSeed, getSeed, randomSeed } from '../src/core/rng.js';
+import { Rng, logic, fx, visual, setSeed, getSeed, randomSeed, seedFor } from '../src/core/rng.js';
 
 const SAMPLES = 20000;
 
@@ -149,4 +149,20 @@ test('randomSeed hands out a fresh 32-bit number every time', () => {
     seeds.add(seed);
   }
   assert.ok(seeds.size > 190, 'randomSeed repeated itself ' + (200 - seeds.size) + ' times in 200');
+});
+
+test('seedFor turns a number that is already chosen into a seed', () => {
+  // A daily arena is dated and not drawn (game/daily.js): the number it comes from is small, ordered
+  // and public, and the seed has to look like none of those things - while being exactly the same seed
+  // whenever anybody asks for that date again, which is the whole of what a shared daily is.
+  assert.equal(seedFor(20261012), seedFor(20261012), 'asked twice about one day is answered once');
+  assert.notEqual(seedFor(20261012), 20261012, 'and the answer is not the question');
+
+  const seeds = new Set();
+  for (let n = 20260101; n < 20260301; n++) {
+    const seed = seedFor(n);
+    assert.ok(Number.isInteger(seed) && seed >= 0 && seed < 4294967296, 'seedFor gave ' + seed);
+    seeds.add(seed);
+  }
+  assert.equal(seeds.size, 200, 'two hundred neighbours, two hundred unrelated streams');
 });

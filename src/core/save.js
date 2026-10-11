@@ -90,6 +90,11 @@ const MAX_SEED = 4294967295;
 // was never the run's own.
 const MAX_RUN_SECONDS = 86400;
 
+// ...and the daily run's day (game/daily.js), which is a date written the way it is spoken -
+// 2026-10-12 is 20261012 - so the widest day there is is the ceiling, and anything past it did not
+// come off a calendar.
+const MAX_DAY = 99999999;
+
 /**
  * What a remembered thing is allowed to be. A kind answers with the value it was given, or
  * null for "that is not one of these". A whole number is a non-negative integer: every number
@@ -244,6 +249,15 @@ const SCHEMA = {
   // one thing, and because the store has no business knowing what a run means (see `records`).
   runs: {
     log: KINDS.records(MAX_RUNS, RUN_FIELDS),
+  },
+  // Which day this save last flew a daily arena, and the best it scored on it (game/daily.js, PLAN
+  // milestone 10). One day and not a history: the day before the one the player is standing in is a
+  // number nothing in the game can still be compared against, and a stored field nobody reads is a
+  // field that quietly rots. Whoever owns this reads it *for a day* and gets 0 for any day other than
+  // the one stored, which is how a turned calendar says "nobody has flown today yet".
+  daily: {
+    day: KINDS.whole(MAX_DAY),
+    best: KINDS.whole(MAX_WHOLE),
   },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again

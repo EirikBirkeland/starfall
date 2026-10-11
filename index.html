@@ -392,6 +392,16 @@
     text-shadow: 0 0 14px rgba(255,179,64,.4);
   }
   .award-line:empty { display: none; }
+  /* Which day the run was flown on, and where the best on that day stands (game/daily.js). Under the
+     best because it is the same kind of number and the smaller of the two claims - a daily run can
+     beat today and still be nowhere near the save's best, and the card says so by having two lines and
+     not one argument. Empty for a run that flew an arena of its own, and an empty line takes its space
+     with it, exactly like the award line below it: an ordinary card is the card it was. */
+  .daily-line {
+    margin-top: 8px; font-size: 11px; letter-spacing: .2em; color: #ffd8a8;
+    text-shadow: 0 0 14px rgba(255,179,64,.4);
+  }
+  .daily-line:empty { display: none; }
   /* What ended the run, said under the card's own heading (game/tally.js `causeWords`), because it
      is the one fact a death is asked for and the one nobody outside the tally has ever said out
      loud. Warm pink like the title above it: the arena's colour language says warm is the thing that
@@ -456,6 +466,7 @@
     .hull-list { margin-top: 8px; gap: 3px; }
     .dust-line { margin-top: 8px; }
     .award-line { margin-top: 4px; }
+    .daily-line { margin-top: 4px; }
     .next-line { margin-top: 8px; }
   }
   /* Last, so it outvotes every `animation:` above it without a fight: a visitor who has asked their
@@ -488,11 +499,21 @@
     <div class="row"><span class="key">F3</span><span>FRAME COST, COUNTS AND POOLS</span></div>
   </div>
   <div class="standing rise">
-    <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>
+    <!-- Three banked numbers, on two lines: the score to beat and the purse being saved up on this
+         one, and the awards being worked towards on the next. The third of them - today's own best,
+         which resets by itself (game/daily.js) - is empty until the day has been flown, because a zero
+         for a day nobody has tried is not a number anybody scored, and an empty span takes up no room.
+         The day's own date is on the run's card and beside its clock; this is a banked figure and
+         nothing more, because the title's column is exactly as tall as the window it was built for and
+         there is no row in it to spare (see `.standing`). -->
+    <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST
+      <span id="titleDust">0</span><span id="titleToday"></span></div>
     <div class="standing-line" id="titleAwards">AWARDS 0 OF 0</div>
     <div class="flying" id="titleShip">FLYING</div>
   </div>
-  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH</div>
+  <!-- The day's key is written where the other launch keys are, because it is one: one press and the
+       run is flying the arena everybody else is flying today (game/daily.js). -->
+  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH &#183; T FOR TODAY&#39;S ARENA</div>
 </div>
 
 <!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.
@@ -606,6 +627,9 @@
   <div class="score-big" id="finalScore">0</div>
   <div class="best-line">BEST <span id="finalBest">0</span></div>
   <div class="newbest hidden" id="newBest">&#9733; NEW BEST &#9733;</div>
+  <!-- Which day this run was flown on, when it was flown on one (game/daily.js). Empty - and so gone,
+       space and all - for a run that flew an arena of its own. -->
+  <div class="daily-line" id="finalDaily"></div>
   <div class="dust-line" id="finalDust"></div>
   <div class="award-line" id="finalAwards"></div>
   <div class="stats" id="finalStats"></div>
@@ -625,6 +649,8 @@
   <div class="score-big" id="winScore">0</div>
   <div class="best-line">BEST <span id="winBest">0</span></div>
   <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
+  <!-- The same line the death's card gets (game/daily.js): a won daily run is a daily run. -->
+  <div class="daily-line" id="winDaily"></div>
   <div class="dust-line" id="winDust"></div>
   <div class="award-line" id="winAwards"></div>
   <div class="cleared" id="winCleared"></div>

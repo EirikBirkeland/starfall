@@ -137,6 +137,23 @@ test('only the seed chooser reaches for Math.random', () => {
   assert.deepEqual(offenders, []);
 });
 
+test('only the day asks the clock what day it is', () => {
+  // game/daily.js is the one place in the simulation folder allowed to read the wall clock, and it
+  // reads it to *label* a run and never to change one: a step that asked the date would give a run's
+  // own facts a clock to move on, and a run launched at 23:59 would end up belonging to whichever day
+  // its last step happened to land in. Everything else is handed the day, or gets no day at all.
+  const allowed = ['src/game/daily.js'];
+  const offenders = [];
+  for (const file of jsFilesIn('src/game')) {
+    if (allowed.includes(file)) continue;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/\bnew Date\b|\bDate\.now\b|\.getFullYear\(|\.getMonth\(|\.getDate\(/.test(source)) {
+      offenders.push(file + ' asks the clock');
+    }
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test('nothing in the game reaches for Math.hypot', () => {
   // Not a style rule. `Math.hypot` takes any number of arguments, so V8 lays them out in a list on the
   // heap and throws the list away again on every call: with the schedule's crowd on the glass that was

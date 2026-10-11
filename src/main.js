@@ -12,6 +12,7 @@ import { perkAt, perkLedger } from './game/perks.js';
 import { foundFromSave, foundLedger } from './game/codex.js';
 import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './game/awards.js';
 import { loggedFromSave, runLedger } from './game/history.js';
+import { beginDailyRun, endDailyRun, pauseWords } from './game/daily.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -82,6 +83,13 @@ function addressSeed() {
 // restart never replays the same arena.
 let seedIsPinned = false;
 
+// The seed an ordinary run comes back to. It is kept apart from `world.seed` because of the daily run
+// (game/daily.js): flying today's arena writes the day's seed into the world, and the ordinary run
+// after it has to go back to the arena this visit was given rather than keep flying the day by default.
+// Nothing else reads it, and it is nothing but whatever `world.seed` was the last time an ordinary run
+// was launched - the address bar's number, a tool's, or a fresh draw.
+let visitSeed = 0;
+
 // Whether this win has had its card put up yet. The card is a frame thing - it goes up a beat
 // after the run is won, not on the step it is - so the frame loop is what has to remember that it
 // has happened once, and it forgets again the moment the world is on any other screen.
@@ -113,14 +121,37 @@ let logoBox = null;
 let saveNote = '';
 let saveWritable = true;
 
-/** Begin a new run, if the screen accepts one right now. */
-function beginRun() {
+/**
+ * Begin a new run, if the screen accepts one right now.
+ *
+ * `whichDay` is 'today' for a run flown on the day's own arena (game/daily.js, the `T` key) and
+ * anything else for one flown on an arena of its own. The two differ in exactly one thing before the
+ * run begins: where the seed comes from. Everything after it - the arena, the crowd, the purse, the
+ * awards - is one run and one set of rules, which is the whole of what "a daily is not a second mode"
+ * means in the code.
+ */
+function beginRun(whichDay) {
   if (!canStartRun(world)) return false;
   initAudio();
   // The press that launches a run is not also a dash. Space is both keys, and a
   // run that began with a dash already spent would read as a broken cooldown.
   consumeInput();
-  if (!seedIsPinned) world.seed = randomSeed();
+  if (whichDay === 'today') {
+    // The day's seed goes into the world for this run and no further, so the seed being replaced is
+    // written down on its way past (game/daily.js `beginDailyRun`) - but only by the run that first
+    // leaves the visit's own arena, or a second daily run would save the day's seed as the ordinary
+    // one and the visit would never come back at all.
+    if (world.dailyDay === 0) visitSeed = world.seed;
+    beginDailyRun(world);
+  } else {
+    // Coming back from the day: the day's seed was never this visit's. Otherwise an ordinary launch
+    // leaves `world.seed` exactly as it found it - a pinned visit flies its one seed over and over,
+    // and a visitor who pinned nothing gets a fresh arena every time.
+    if (world.dailyDay !== 0) world.seed = visitSeed;
+    endDailyRun(world);
+    if (!seedIsPinned) world.seed = randomSeed();
+    visitSeed = world.seed;
+  }
   startRun(world);
   hideScreens();
   // The plates belong to the run that earned them, and this is a different run: a window about to
@@ -188,6 +219,23 @@ function answerChoice(x, y) {
   } else if (takeOffer(world, hit.card)) {
     uiTick('take');
   }
+}
+
+/**
+ * T: fly today's arena (PLAN milestone 10, game/daily.js).
+ *
+ * One press is one run, on the day's own seed - the arena everybody else is flying today and nobody
+ * gets to re-roll. It answers on every screen the launch key launches from (the title, the death's
+ * card, and a won run once its card can be answered) and nowhere else, because it *is* a launch: mid-
+ * run there is nothing to answer, and `canStartRun` is the one question that says so.
+ *
+ * It is not a mode. Nothing is remembered about "being on the daily": press it again for another run
+ * today, press the launch key for a run of your own, and the day is only ever written into the run
+ * that was flown on it.
+ */
+function onToday() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  beginRun('today');
 }
 
 /**
@@ -601,6 +649,9 @@ function describePause() {
     bosses: world.bossesDown,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    // Which day this run is being flown on, in the pause's own row shape - null for a run flying an
+    // arena of its own, which is how the rack leaves the row out (game/daily.js).
+    daily: pauseWords(world),
     shipId: world.ship,
     // What the run would be paid if it stopped this second (game/stardust.js) - which, with a "give
     // up" key on this very panel, it might.
@@ -708,6 +759,11 @@ function describeRun() {
     bosses: world.bossesDown,
     seconds: Math.floor(world.elapsed),
     seed: world.seed,
+    // Which day this run was flown on, and whether this ending beat the day (game/daily.js
+    // `cardWords`). 0 and false for a run that flew an arena of its own, which is what makes the card's
+    // line empty rather than wrong.
+    dailyDay: world.dailyDay,
+    newDailyBest: world.newDailyBest,
     // How much of this run was flown past its own win, and so whether it was endless at all
     // (game/endless.js). The death card says so when there is something to say.
     endlessPast: endlessTime(world),
@@ -880,6 +936,7 @@ function boot() {
   else if (!fromTools) setSeed(randomSeed());
   seedIsPinned = fromAddress !== null || fromTools;
   world.seed = getSeed();
+  visitSeed = world.seed;
   world.best = section('score', SAVED_SCORE).best;
   // ...and the purse the hangar spends from, and what it has already bought, read the same once for
   // the same reason (game/stardust.js, game/hangar.js).
@@ -925,6 +982,7 @@ function boot() {
     onPause: onPauseKey,
     onGiveUp: onGiveUp,
     onSettings: onSettings,
+    onToday: onToday,
     onDebug: onDebug,
     onRowMove: onRowMove,
     onRowChange: onRowChange,
@@ -1007,6 +1065,11 @@ window.STARFALL = {
       // a tool wants to be able to see them.
       assists: assistSteps(),
       seed: world.seed,
+      // Which day this run was flown on, and whether its last ending beat that day's best
+      // (game/daily.js). A headless run cannot read a card, and "did the day get banked" is the whole
+      // of what the day's key does - 0 for a run that flew an arena of its own.
+      dailyDay: world.dailyDay,
+      newDailyBest: world.newDailyBest,
       score: world.score,
       // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot
       // read a card, and the costs milestone 8 puts on ships and perks have to be priced against

@@ -53,6 +53,11 @@ function createWorld() {
   const world = {
     state: STATE.START,
     seed: 0,          // the seed this run is a function of; see core/rng.js
+    // Which day this run was flown on, if it was a daily one (game/daily.js): the number the arena
+    // came from, written when the run is launched and read at its ending and by nothing in a step.
+    // 0 means this run flew an arena of its own, which is what every run was before there were
+    // dailies and what every run is that was not launched with the day's key.
+    dailyDay: 0,
     // Has this run finished the schedule (game/run.js `winRun`)? A run that was won and then handed
     // back to be flown on keeps the fact after it is flying again, which is what makes the win part
     // of its stardust one payment rather than two (game/stardust.js).
@@ -81,6 +86,10 @@ function createWorld() {
     // How many waves this run has seen. The HUD will want it (PLAN section 4).
     waveNumber: 0,
     newBest: false,
+    // ...and whether this run's last ending beat the day's best as well (game/daily.js). A run's own
+    // fact like the one above it, and cleared with it: a card that lit NEW today does not stay lit for
+    // the run that comes after it.
+    newDailyBest: false,
     // Hit-stop: how long the run still has to hold still for, in seconds (0 when
     // nothing is frozen). game/effects.js `hitStop` sets it, `stepWorld` spends it.
     freeze: 0,

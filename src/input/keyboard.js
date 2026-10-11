@@ -79,6 +79,12 @@ const SETTINGS_KEYS = ['KeyO'];
 // and card alike, which is the whole point of a tool you reach for in the middle of a fight.
 const DEBUG_KEYS = ['F3'];
 
+// The daily run (PLAN milestone 10): fly today's arena, the one everybody else is flying. T for
+// *today* - D is the ship's own right key and a key that moves the ship never means anything else,
+// the same reason the settings are O and not S. It is not a movement key, the launch, the dash, a
+// card or ship number, the reroll, the mute, a slider, H, C, P, G or O.
+const TODAY_KEYS = ['KeyT'];
+
 // Inside the settings panel, the arrow keys are the cursor and nothing else. WASD are deliberately
 // not bound here: they are how the ship flies, and a panel that also flew the ship one way and pointed
 // a row another would be the one screen in the game where a key means two things at once. The arrows
@@ -103,6 +109,7 @@ export const keyTaps = { dash: false };
  * handlers.onPause     - the run was asked to hold still, or to go on
  * handlers.onGiveUp    - the run was given up, from the pause screen and nowhere else
  * handlers.onSettings  - the settings panel was asked for, or asked to go away
+ * handlers.onToday     - today's arena was asked for (game/daily.js)
  * handlers.onDebug     - the developer's panel was asked for, or asked to go away (F3)
  * handlers.onRowMove   - the settings cursor was moved one row: +1 down the panel, -1 up
  * handlers.onRowChange - the row the settings cursor is on was changed: -1 down its travel, +1 up
@@ -131,6 +138,7 @@ export function initKeyboard(handlers) {
       if (PAUSE_KEYS.indexOf(code) >= 0 && handlers.onPause) handlers.onPause();
       if (GIVEUP_KEYS.indexOf(code) >= 0 && handlers.onGiveUp) handlers.onGiveUp();
       if (SETTINGS_KEYS.indexOf(code) >= 0 && handlers.onSettings) handlers.onSettings();
+      if (TODAY_KEYS.indexOf(code) >= 0 && handlers.onToday) handlers.onToday();
       if (DEBUG_KEYS.indexOf(code) >= 0 && handlers.onDebug) handlers.onDebug();
       const row = ROW_KEYS[code];
       if (row !== undefined && handlers.onRowMove) handlers.onRowMove(row);

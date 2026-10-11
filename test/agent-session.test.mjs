@@ -22,6 +22,7 @@ import { makeEnemy } from '../src/game/kinds.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { levelUp } from '../src/game/progress.js';
 import { BALANCE } from '../src/game/balance.js';
+import { seedForDay, todayDay } from '../src/game/daily.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 5 });
@@ -63,6 +64,23 @@ function frames(count) {
 }
 
 const seconds = () => ask('status').run.seconds;
+
+/**
+ * Put a body the ship cannot survive standing on the ship, and let the frame run: the run is over
+ * afterwards.
+ *
+ * The crowd is cleared first: a body planted on the ship in the middle of a knot is shouldered out of
+ * reach by the separation pass before it can touch anything. And the gun is held off - a drifter with
+ * one hull of its own does not get to land the killing blow if the ship shoots it first.
+ */
+function killTheShip() {
+  field.enemies.length = 0;
+  ship.hull = 1;
+  ship.invuln = 0;
+  ship.fireTimer = 5;
+  field.enemies.push(makeEnemy(field, 'drifter', ship.x, ship.y, { hp: 1, speed: 0, drop: 0, score: 0 }));
+  frames(10);
+}
 
 test('the title screen is a screen an agent can read', async () => {
   await toTitle();
@@ -349,13 +367,7 @@ test('a death is said once, and the result is the run that happened', async () =
   await toTitle(9);
   ask('start');
   frames(30);
-  // The crowd is cleared first: a body planted on the ship in the middle of a knot is
-  // shouldered out of reach by the separation pass before it can touch anything.
-  field.enemies.length = 0;
-  ship.hull = 1;
-  ship.invuln = 0;
-  field.enemies.push(makeEnemy(field, 'drifter', ship.x, ship.y, { hp: 1, speed: 0, drop: 0, score: 0 }));
-  frames(10);
+  killTheShip();
 
   const deaths = events.filter((event) => event.event === 'died');
   assert.equal(deaths.length, 1, 'exactly one death for one death');
@@ -382,4 +394,24 @@ test('the brief says the things the game can actually do', () => {
   }
   assert.ok(INSTRUCTIONS.length > 300);
   assert.ok(toolList().length >= 12);
+});
+
+test('the daily arena is a launch an agent can ask for, and it says which day it was', async () => {
+  // `start` with `today: true` is the player's other launch key, T (game/daily.js). It answers
+  // back the day as well as the seed, because a score is only worth anything once you know whose
+  // day it belongs to - and an ordinary run says 0, which is the same answer the card gives.
+  await toTitle(5);
+  const ordinary = ask('start');
+  assert.equal(ordinary.daily, 0, 'an ordinary run belongs to no day');
+  assert.equal(ordinary.seed, 5, 'and it flies the seed this session was given');
+  killTheShip();
+  ask('step', { seconds: 5 });            // out of the ending's guard
+
+  const daily = ask('start', { today: true });
+  assert.equal(daily.screen, 'playing');
+  assert.equal(daily.daily, todayDay(), 'the run says which day it is flown on');
+  assert.equal(daily.seed, seedForDay(todayDay()), 'and it is the day, the whole of it');
+
+  killTheShip();
+  assert.equal(ask('run_result').daily, todayDay(), 'and the result is said to belong to the day');
 });

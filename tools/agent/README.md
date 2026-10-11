@@ -90,7 +90,7 @@ Everything the game will do for you. Coordinates are arena pixels, y going down;
 | `reroll` | Deal the whole table again. Costs one of the run's rerolls (one per run), and is refused - ask kept - when there is nothing else to deal. |
 | `banish` | Take card `number` out of the run for good, so that line is never dealt again this run. Costs one of its banishes (one per run), and fills the slot with a fresh card. |
 | `choose_weapon` | Which primary the next run flies. Between runs only - a run does not swap its gun mid-flight. |
-| `start` | Begin a run, from the title or from either card a run ends on - the wreck or the win. Over a win it says so instead of pressing a key that would keep the won run flying: Space is that run's hand-back now, and a new one is `R`. Answers back the seed it played. |
+| `start` | Begin a run, from the title or from either card a run ends on - the wreck or the win. Over a win it says so instead of pressing a key that would keep the won run flying: Space is that run's hand-back now, and a new one is `R`. Answers back the seed it played. `today: true` presses the other launch key instead, `T`, and flies the arena everybody else is flying on this date - the daily run (game/daily.js) - whose score belongs to the day and not to the session. |
 | `step` | Let up to 30 seconds of game time go by, and get the state afterwards. Stops early, and says why, if the run ends or a card is dealt and nobody is flying. |
 | `autopilot` | Hand the flying to the headless bot (`aware`, or `naive`) so a slow player can still play the decisions. It holds the fire button too; `on: false` gives everything back. |
 | `run_result` | What the finished run was, including what killed the ship. |

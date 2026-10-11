@@ -198,6 +198,10 @@ function describeRun(world) {
     score: world.score,
     best: world.best,
     newBest: world.newBest,
+    // Which day this run was flown on, if it was flown on one at all: 0 for an arena of its own, and
+    // the date as a number - 2026-10-12 is 20261012 - for today's arena (game/daily.js). An agent
+    // playing the daily needs it to know which day its score belongs to.
+    daily: world.dailyDay,
     seconds: +world.elapsed.toFixed(2),
     wave: world.waveNumber,
     level: world.player.level,
@@ -524,7 +528,7 @@ export function createSession(game, options) {
     return { weapon: weaponName(world) };
   }
 
-  function start() {
+  function start(args) {
     if (game.world.state === STATE.PLAY || game.world.state === STATE.LEVEL) refuse('a run is already flying');
     // Over a won run whose card is up, Space no longer means "a new run": it hands that one back
     // to fly on (game/run.js `continueRun`). This tool asks for a new one, so it says so rather
@@ -534,8 +538,12 @@ export function createSession(game, options) {
     }
     // The same key press a player makes. Space means "go" on the title and the
     // game-over card, and the game itself retires the dash it would otherwise queue.
-    game.key('Space', true);
-    game.key('Space', false);
+    // `today: true` is the other launch key the game has, T, which flies the arena everybody
+    // else is flying today instead of one of this visit's own (game/daily.js).
+    const today = args !== undefined && args.today === true;
+    const launchKey = today ? 'KeyT' : 'Space';
+    game.key(launchKey, true);
+    game.key(launchKey, false);
     notice();
     if (game.world.state !== STATE.PLAY) {
       const why = game.world.state === STATE.OVER
@@ -547,7 +555,7 @@ export function createSession(game, options) {
           : '';
       refuse('the game did not start' + why);
     }
-    return { screen: 'playing', seed: game.world.seed, weapon: weaponName(game.world) };
+    return { screen: 'playing', seed: game.world.seed, weapon: weaponName(game.world), daily: game.world.dailyDay };
   }
 
   function result() {
@@ -768,9 +776,14 @@ export const TOOLS = [
   },
   {
     name: 'start',
-    description: 'Begin a run, from the title or from the game-over card. The seed the run plays on is answered back.',
-    inputSchema: { type: 'object', properties: {} },
-    run: function (api) { return api.start(); },
+    description: 'Begin a run, from the title or from the game-over card. The seed the run plays on is answered back. `today: true` flies today\'s arena - the one every player is flying on this date (game/daily.js) - instead of an arena of this session\'s own.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        today: { type: 'boolean', description: 'default false: fly the day\'s shared arena' },
+      },
+    },
+    run: function (api, args) { return api.start(args); },
   },
   {
     name: 'step',

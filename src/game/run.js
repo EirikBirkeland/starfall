@@ -10,6 +10,7 @@ import { payForRun } from './stardust.js';
 import { recordRun } from './codex.js';
 import { bankAwards, resetAwards } from './awards.js';
 import { logRun } from './history.js';
+import { bankDaily } from './daily.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -180,6 +181,10 @@ export function resetRun(world) {
   world.shardStreak.count = 0;
   world.shardStreak.left = 0;
   world.newBest = false;
+  // ...and it has not beaten today's best either (game/daily.js). The day itself - `dailyDay` - is not
+  // this run's to forget: it is written when the run is launched and it is what the ending is scored
+  // on, and a run that is restarted flies whatever arena the next launch asks for.
+  world.newDailyBest = false;
   // ...and this run has taught the codex nothing yet (game/codex.js). What the codex *knows* is
   // above, in `world.found`, and is none of this run's to forget.
   world.codexNew = 0;
@@ -238,6 +243,10 @@ export function startRun(world) {
  * The log is written here for the fourth and same reason (game/history.js): a row about a run is a
  * sentence that only finishes when the run does. One run makes one row, and the second ending of a
  * run that was won and flown on rewrites that row instead of adding a second one.
+ *
+ * The day's best is banked here for the fifth and same reason (game/daily.js), and only for a run that
+ * was flown on a day at all: "this is the best today" is a claim about a finished score, and a run
+ * that is won, handed back and goes down later is one claim, the bigger of its two endings.
  */
 function bankRun(world) {
   world.newBest = world.score > world.best;
@@ -245,6 +254,10 @@ function bankRun(world) {
     world.best = world.score;
     remember('score', { best: world.best });
   }
+  // ...and the day's own best, for a run that was flown on a day (game/daily.js). Asked after the
+  // all-time one because it is the smaller of the two claims: a daily run can beat today and still be
+  // nowhere near the save's best, and the card says both numbers separately for that reason.
+  world.newDailyBest = bankDaily(world);
   payForRun(world);
   recordRun(world);
   bankAwards(world);

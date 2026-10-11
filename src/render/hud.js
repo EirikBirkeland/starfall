@@ -14,6 +14,7 @@ import { dueOf as dropDue } from '../game/mines.js';
 import { dueOf as crewDue } from '../game/turret.js';
 import { vacuumLeftOf } from '../game/vacuum.js';
 import { endlessTime } from '../game/endless.js';
+import { hudWords } from '../game/daily.js';
 import { polygon, roundRect } from './shapes.js';
 import { drawIcon, tintOf } from './icons.js';
 import { fitOneLine } from './fit.js';
@@ -239,9 +240,23 @@ export function drawHUD(ctx, fps) {
   // cannot be spelled differently.
   const clockLine = 'TIME ' + Math.floor(world.elapsed) + 's   LV ' + world.player.level;
   ctx.fillText(clockLine, PAD, PAD + 64);
+  // The two marks beside the clock are written one after the other, each measured off the last, so a
+  // run that is both endless and flown on a day says both and neither word lands on top of the other.
+  let markAt = PAD + ctx.measureText(clockLine).width;
   if (world.endless) {
     ctx.fillStyle = PALETTE.elite;
-    ctx.fillText('   ' + endlessMark(world), PAD + ctx.measureText(clockLine).width, PAD + 64);
+    const endless = '   ' + endlessMark(world);
+    ctx.fillText(endless, markAt, PAD + 64);
+    markAt += ctx.measureText(endless).width;
+  }
+  // ...and which day it is, for a run flown on one (game/daily.js). Cool and not gold: the day is a
+  // fact about where the arena came from, where ENDLESS is a fact about the crowd still coming, and
+  // the two of them want to be readable apart from each other when a won run is handed back and
+  // carried on past both.
+  const day = hudWords(world);
+  if (day !== '') {
+    ctx.fillStyle = PALETTE.uiDim;
+    ctx.fillText('   ' + day, markAt, PAD + 64);
   }
 
   // Which primary the run is flying (game/weapons.js). It is picked once, on the title,

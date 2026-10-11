@@ -1606,7 +1606,53 @@ When every item above is ticked, go back to the first unchecked item of mileston
       in here noticing. Thirteen tests in `test/memory-hunt.test.mjs`, one in `test/glow.test.mjs`; suite
       1718. The reference run is byte for byte what it was. Notes, and the traps in reading a heap,
       in NOTES session 93.
-- [ ] Daily run: a seed taken from the date, the same for everyone that day, with its own best score.
+- [x] Daily run: a seed taken from the date, the same for everyone that day, with its own best score.
+      **Shipped as `src/game/daily.js` and one key, `T`.** A daily run is an ordinary run flown on a
+      seed nobody chose - the day's own number, scrambled through the same mixer `core/rng.js` scrambles
+      successive seeds with, so 2026-10-12 is not 2026-10-11 with one drifter moved but an unrelated
+      arena (`seedFor`, tested over 400 consecutive days: 400 different seeds, none of them the date
+      itself). The date is a whole number written the way a date is spoken - `20261012` - because it is
+      a label and not a duration: nothing is ever measured between two of them, so it can sit in the save
+      document and be read there without a decoder. The day's best is a fourth banked number on the
+      title (`BEST · STARDUST · TODAY 4,321`), the run's own card says which day it was flown on
+      and whether it beat the day, the pause names the whole date, and the HUD writes `TODAY 10-12`
+      beside the clock - and every one of those four says nothing at all for a run that flew an arena of
+      its own, so an ordinary visit is the visit it was, down to the pixels.
+      **Four decisions, none of them free.** *The day is the player's own and not the clock's:* the date
+      is read locally, so "today" is the day on the machine being played on. A shared UTC day is the
+      more globally consistent answer and the less honest one - it calls yesterday's arena "today" for
+      half the planet for a few hours and resets a best at four in the afternoon, and two people
+      comparing scores are almost always in the same day already. *One day is kept, not a history:* the
+      save holds the latest day it saw and the best on it, because once today has begun yesterday's best
+      is a number nothing in the game can be compared against, and a stored field nobody reads is a
+      field that quietly rots. *A daily run banks everything an ordinary one banks* - the all-time best,
+      the purse, the codex, the awards, the log - because it is a run, and a run that paid half as much
+      for being on everybody's seed would be a punishment for taking the challenge; the day's best is an
+      extra line on top, which is what makes it a challenge and not a second mode. *`T` is a launch and
+      not a mode:* one press flies today and the next launch is an ordinary run again, so nothing has to
+      be remembered about "being on the daily", `Space` never changes meaning, and the only state a
+      daily run leaves behind is the day written into the run that was flown on it.
+      **The clock is asked for in exactly one place** (`todayDay`, and a new guard in
+      `test/structure.test.mjs` refuses `new Date` anywhere else in `src/game`), and never during a step:
+      a run launched at 23:59 belongs to the day it started on even if it is still flying after midnight,
+      which is why the ending is banked *for the day it cares about* rather than for "today". **What the
+      key is not:** a thirteenth row on the title's control list - the column is already exactly as tall
+      as the window it was designed for (index.html's own comment says so, and the type adds up to it),
+      so the key is written on the launch line instead, beside the launch key, which is where a first
+      visit looks for it, and a test pins that sentence. `tools/agent-bridge.js` gained the same launch
+      (`start { today: true }`, with the day answered back in the run result) so an agent can fly the
+      arena everybody else is flying and know which day its score belongs to.
+      **One real bug came out of it, in `main.js`:** the day's seed was being written into `world.seed`
+      and left there, so the ordinary run after a daily one flew the day by default - and the same field
+      is how the address bar, `tools/simulate.js` and the test harness hand a visit its seed, so three
+      existing tests caught it before it shipped (`test/seed.test.mjs`, `test/history.test.mjs`,
+      `test/agent-session.test.mjs`). `beginRun` now knows which seed an ordinary run comes back to, and
+      a test pins the coming-back. Suite 1809 to **1837**: 25 tests in `test/daily.test.mjs` (the day and
+      its words, the seed, nonsense in the save refused on the way in *and* on the way out, the key, the
+      banking through a real death, a day that has turned, the three surfaces' words, and the page's own
+      rules), one in `test/rng.test.mjs` for `seedFor`, and the clock guard - ten mutations checked, all
+      ten caught. The reference run (`--seed 20261006 --trace`) is byte for byte what it was: a day is a
+      label, and the simulation never learns what date it is.
 - [ ] A short first-run tutorial: three prompts that appear in play and vanish once done.
 - [ ] Read every line of text in the game and make it short, clear, and consistent.
 - [ ] Release `1.0.0`.

@@ -98,6 +98,17 @@ export function getSeed() {
 }
 
 /**
+ * A seed for a number that is already chosen and must not be guessed: a day of the
+ * calendar (game/daily.js), where the number itself is small, ordered and public
+ * and a seed has to look like nothing. The same number always gives the same seed,
+ * which is the whole of what a daily arena needs, and neighbours land far apart,
+ * which is the whole of what makes two days feel like two arenas.
+ */
+export function seedFor(value) {
+  return scramble(value >>> 0);
+}
+
+/**
  * A seed nobody could guess, for a visit that did not ask for one. This is the
  * one unseeded draw in the game: something has to choose the first seed.
  */

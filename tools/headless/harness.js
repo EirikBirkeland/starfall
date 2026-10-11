@@ -346,6 +346,8 @@ const ELEMENT_IDS = [
   'awardRow', 'awardTitle',
   // What the visit has banked, and what the hangar spends it on (index.html).
   'titleBest', 'titleDust', 'titleAwards', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
+  // ...and the fourth of them, which resets by itself (index.html, game/daily.js).
+  'titleToday',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
@@ -357,6 +359,8 @@ const ELEMENT_IDS = [
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',
+  // Which day a run was flown on, on both of the cards that end one (index.html, game/daily.js).
+  'finalDaily', 'winDaily',
   // The pause: a run held where it stands, and its numbers (index.html, game/run.js, ui/screens.js).
   'pauseScreen', 'pauseBody', 'pauseHead', 'factRow', 'buildRow',
   // The settings: what the game does to the eyes and the ears (index.html, game/settings.js,
@@ -805,6 +809,7 @@ export async function bootGame(options) {
         // What the visit has banked, and the line that says what the next run flies.
         titleBest: elements.titleBest.textContent,
         titleDust: elements.titleDust.textContent,
+        titleToday: elements.titleToday.textContent,
         titleShip: elements.titleShip.textContent,
         nextShip: elements.nextShip.textContent,
         // What a finished run paid, on each of the two cards - its own stardust, and what it won
@@ -814,6 +819,10 @@ export async function bootGame(options) {
         finalAwards: elements.finalAwards.textContent,
         winAwards: elements.winAwards.textContent,
         titleAwards: elements.titleAwards.textContent,
+        // Which day the run was flown on and where that day's best stands ('' for a run that flew an
+        // arena of its own - the line is not painted, space and all). game/daily.js.
+        finalDaily: elements.finalDaily.textContent,
+        winDaily: elements.winDaily.textContent,
         // The hangar: whether it is up, and what its purse says.
         hangarHidden: elements.hangarScreen.classList.contains('hidden'),
         hangarDust: elements.hangarDust.textContent,
