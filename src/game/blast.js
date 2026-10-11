@@ -24,7 +24,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { STATE } from './state.js';
-import { dist2 } from '../core/math.js';
+import { dist2, hypot } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { burst, hitStop, ring, shakeIt } from './effects.js';
@@ -62,7 +62,7 @@ export function blast(world, x, y, spec, byPlayer) {
 
     // Thrown outwards, the same way a ship that takes a hit shoves the crowd clear
     // of itself. It also means a chain reaction spreads rather than sitting still.
-    const dist = Math.hypot(enemy.x - x, enemy.y - y) || 1;
+    const dist = hypot(enemy.x - x, enemy.y - y) || 1;
     enemy.ix += ((enemy.x - x) / dist) * spec.shove;
     enemy.iy += ((enemy.y - y) / dist) * spec.shove;
   }

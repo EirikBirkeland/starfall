@@ -29,7 +29,7 @@
 // cannot notice it.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
-import { clamp, TAU } from '../core/math.js';
+import { clamp, TAU, hypot } from '../core/math.js';
 import { world } from '../game/world.js';
 import { camera, onScreen } from './camera.js';
 import { view } from './canvas.js';
@@ -134,7 +134,7 @@ function fade(distance, near, far) {
  * worth an arrow; the list is `indicatorSlots()`.
  */
 export function collectIndicators(source, shipX, shipY, alpha) {
-  const reach = Math.hypot(camera.w, camera.h);
+  const reach = hypot(camera.w, camera.h);
   const near = reach * NEAR_SHARE;
   const far = reach * FAR_SHARE;
 
@@ -154,7 +154,7 @@ export function collectIndicators(source, shipX, shipY, alpha) {
 
     const dx = x - shipX;
     const dy = y - shipY;
-    const distance = Math.hypot(dx, dy);
+    const distance = hypot(dx, dy);
     if (distance <= 1) continue;
 
     const weight = enemy.cost * fade(distance, near, far);
@@ -170,7 +170,7 @@ export function collectIndicators(source, shipX, shipY, alpha) {
   for (let i = 0; i < SECTORS; i++) {
     const slot = SLOTS[i];
     if (slot.threat <= 0) continue;
-    const length = Math.hypot(slot.dirX, slot.dirY);
+    const length = hypot(slot.dirX, slot.dirY);
     if (length <= 0) continue;
     slot.aimX = slot.dirX / length;
     slot.aimY = slot.dirY / length;
@@ -231,7 +231,7 @@ export function drawIndicators(ctx, dt, alpha) {
     slot.level += (want - slot.level) * ease;
     if (slot.level <= FLOOR_LIGHT) continue;
 
-    const length = Math.hypot(slot.aimX, slot.aimY);
+    const length = hypot(slot.aimX, slot.aimY);
     if (length <= 0) continue;
     const dirX = slot.aimX / length;
     const dirY = slot.aimY / length;

@@ -42,7 +42,7 @@ import { SCENES } from '../tools/perf-probe.js';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'alloc-probe.js');
 
-/** One run of the tool, with the short windows a test wants rather than the ladder a reader wants. */
+/** One run of the tool, with the windows a test wants rather than the ladder a reader wants. */
 function probe(args) {
   return spawnSync(process.execPath, [TOOL, ...args], { cwd: ROOT, encoding: 'utf8', timeout: 900000 });
 }
@@ -58,7 +58,11 @@ function rows(args) {
   return { rows: JSON.parse(parts[0]), floor: Number(parts[1]) };
 }
 
-const QUICK = ['--json', '--steps', '150', '--windows', '3'];
+// Long enough that a load reads the same number twice in a row (there is a test for exactly that) and
+// short enough that the whole file is a handful of seconds. At 150 steps a window the arena on its own
+// reads twice what it does at 300, and a budget set against a number that jangles with the window is a
+// budget somebody will raise out of irritation.
+const QUICK = ['--json', '--steps', '300', '--windows', '6'];
 
 // --- the arithmetic in the tool ---------------------------------------------------
 
@@ -131,10 +135,13 @@ test('a crowd costs the step something, and it is a fraction of what it used to 
     '100 bodies should be visible against an empty arena, and the ruler would be worthless if not');
   assert.ok(crowd.perBody <= BODY_BYTES, 'a body costs ' + bytes(crowd.perBody)
     + ' a step, over the ' + bytes(BODY_BYTES) + ' the budget allows');
-  // Before core/grid.js kept its cells and awards stopped listing the ranks table every step, the same
-  // crowd cost 94 bytes a body. The budget is half of that again, so a regression that put an object
-  // back in the walk trips this and a rounding error does not.
-  assert.ok(crowd.perBody < 94, 'a body used to cost 94 B a step; it now costs ' + crowd.perBody);
+  // The history of this number, because it is the one that shows what the rule has cost: **94 B** a body
+  // while `core/grid.js` emptied its cells with `cell.length = 0`, **31 B** once a cell was a count and a
+  // store and `game/awards.js` stopped listing the ranks table every step, and **6 B** now that the
+  // crowd's walks call `core/math.js`'s `hypot` instead of `Math.hypot`. The bound below is where it sat
+  // before the last of those two fixes, so a regression that puts an allocation back in the walk trips
+  // this and a rounding error does not.
+  assert.ok(crowd.perBody < 31, 'a body used to cost 31 B a step; it now costs ' + crowd.perBody);
 });
 
 test('the two lists that live in pools throw away nothing extra', () => {
@@ -189,9 +196,9 @@ test('the gated loads are inside the budgets - the ratchet', () => {
 
 test('the empty arena is inside its own budget', () => {
   // The floor is the noisiest number in the file (it is small, and a short window has less of the step
-  // to hide in): measured 184 B a step over 300-step windows and 319-442 over 150-step ones. The budget
-  // is over the worst of those, because what it is for is a whole system's worth of per-step lookups
-  // turning up here, not a rounding error.
+  // to hide in): measured 184 B a step at the tool's own window and 219-415 across the short windows
+  // these tests ask for. The budget is over the worst of those, because what it is for is a whole
+  // system's worth of per-step lookups turning up here, not a rounding error.
   assert.ok(parts.floor <= FLOOR_BYTES, 'the arena on its own throws away ' + bytes(parts.floor)
     + ' a step, over the ' + bytes(FLOOR_BYTES) + ' allowed - a lookup added to every step belongs in'
     + ' a system that needs it, not in the frame');

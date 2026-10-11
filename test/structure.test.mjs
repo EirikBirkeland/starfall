@@ -137,6 +137,22 @@ test('only the seed chooser reaches for Math.random', () => {
   assert.deepEqual(offenders, []);
 });
 
+test('nothing in the game reaches for Math.hypot', () => {
+  // Not a style rule. `Math.hypot` takes any number of arguments, so V8 lays them out in a list on the
+  // heap and throws the list away again on every call: with the schedule's crowd on the glass that was
+  // **2.7 KB of the 3.5 KB a step threw away** (`tools/alloc-probe.js`), and a step's garbage is a
+  // scavenge of the collector waiting for somebody - the F3 plate's worst steps of 1.4-1.7 ms are the
+  // collector and nothing else. `core/math.js` has a two-argument `hypot` that is the same number and
+  // allocates nothing, and that is the one the game calls.
+  const offenders = [];
+  for (const file of allJsIn('src')) {
+    if (file === 'src/core/math.js') continue;   // the one place it is allowed to be written about
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/\bMath\.hypot\b/.test(source)) offenders.push(file + ' calls Math.hypot');
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test('nothing exports a name nobody calls', () => {
   // An export nothing calls is a piece of the game nothing can test and nothing dares to delete, and it
   // accumulates quietly: a line is written for a caller that never arrives, or the caller is rewritten

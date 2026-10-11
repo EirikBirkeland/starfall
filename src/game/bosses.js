@@ -93,7 +93,7 @@
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { PALETTE } from '../core/palette.js';
-import { TAU, clamp } from '../core/math.js';
+import { TAU, clamp, hypot } from '../core/math.js';
 import { logic } from '../core/rng.js';
 // The run's own life cycle, for the one thing this file has to say about the run it is fighting in:
 // that the schedule has run out. It is a two-way import (game/run.js reaches back here for
@@ -367,7 +367,7 @@ function holdsItsBand(enemy, step) {
   const where = stationOf(step.world, step.ship, boss.row.approach, core);
   const dx = where.x - enemy.x;
   const dy = where.y - enemy.y;
-  const away = Math.hypot(dx, dy);
+  const away = hypot(dx, dy);
   if (away > boss.row.approach.park) {
     glide(enemy, step, dx / away, dy / away, enemy.speed);
   } else {
@@ -401,7 +401,7 @@ const STATION = { x: 0, y: 0 };
 function stationOf(world, ship, band, core) {
   const enemy = core.enemy;
   if (core.bearing === null) {
-    const distance = Math.hypot(ship.x - enemy.x, ship.y - enemy.y);
+    const distance = hypot(ship.x - enemy.x, ship.y - enemy.y);
     const want = distance > band.far ? band.far : (distance < band.near ? band.near : distance);
     const bearing = Math.atan2(enemy.y - ship.y, enemy.x - ship.x);
     STATION.x = ship.x + Math.cos(bearing) * want;
@@ -527,7 +527,7 @@ function arrivalSpot(world, row) {
     const bearing = logic.range(0, TAU);
     const x = clamp(ship.x + Math.cos(bearing) * row.arrival.gap, box.x0 + r, box.x1 - r);
     const y = clamp(ship.y + Math.sin(bearing) * row.arrival.gap, box.y0 + r, box.y1 - r);
-    const by = Math.hypot(x - ship.x, y - ship.y);
+    const by = hypot(x - ship.x, y - ship.y);
     if (by >= row.arrival.gap) {
       SPOT.x = x;
       SPOT.y = y;
@@ -825,7 +825,7 @@ function holdTheShip(world, boss, dt) {
   const ship = world.player;
   const dx = body.x - ship.x;
   const dy = body.y - ship.y;
-  const away = Math.hypot(dx, dy);
+  const away = hypot(dx, dy);
   if (away === 0 || away <= spec.floor) return;
 
   dragShip(world, dx / away, dy / away, spec.force, dt);

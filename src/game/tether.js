@@ -63,7 +63,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { Pool } from '../core/pool.js';
-import { clamp, dist2 } from '../core/math.js';
+import { clamp, dist2, hypot } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
@@ -301,7 +301,7 @@ function strike(world, riders, spec) {
     // thrown to and is left where it is, which is the honest answer and not a missing case.
     const dx = body.x - rider.x;
     const dy = body.y - rider.y;
-    const off = Math.hypot(dx, dy);
+    const off = hypot(dx, dy);
     if (off > 0) {
       body.ix += (dx / off) * spec.shove;
       body.iy += (dy / off) * spec.shove;

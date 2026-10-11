@@ -23,6 +23,7 @@
 // None of it is simulated. `world.arms` is stepped by game/arms.js and painted here.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
+import { hypot } from '../core/math.js';
 import {
   armArc, armCount, armHalf, armProgress, armReach, armStep, bossCores, bossTint,
 } from '../game/bosses.js';
@@ -207,7 +208,7 @@ export function drawBlades(ctx, arms, alpha) {
     const blade = blades[i];
     const ends = bandEnds(blade);
     if (!onScreen((ends.x0 + ends.x1) / 2, (ends.y0 + ends.y1) / 2,
-      Math.hypot(ends.x1 - ends.x0, ends.y1 - ends.y0) / 2)) continue;
+      hypot(ends.x1 - ends.x0, ends.y1 - ends.y0) / 2)) continue;
 
     bandPasses(ctx, ends.x0, ends.y0, ends.x1, ends.y1, blade.half, 1, blade.color, PALETTE.white);
     paintGlow(ctx, glowFor(PALETTE.white, BLADE_HEAD), ends.x1, ends.y1, 1);

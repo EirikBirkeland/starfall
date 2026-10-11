@@ -10,7 +10,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { clamp } from '../core/math.js';
+import { clamp, hypot } from '../core/math.js';
 import { addText, burst, ring, shakeIt, hitStop, spray, engineTrail } from './effects.js';
 import { cueBeep, cueChord, cueMuffle, cueNoise } from './cues.js';
 import { endRun } from './run.js';
@@ -97,12 +97,12 @@ export function dragShip(world, ux, uy, speed, dt) {
  */
 function dashDirection(ship, input) {
   if (input.moveX !== 0 || input.moveY !== 0) {
-    const length = Math.hypot(input.moveX, input.moveY);
+    const length = hypot(input.moveX, input.moveY);
     return { x: input.moveX / length, y: input.moveY / length };
   }
   const dx = input.aimX - ship.x;
   const dy = input.aimY - ship.y;
-  const length = Math.hypot(dx, dy);
+  const length = hypot(dx, dy);
   // Nothing held and the cursor sitting on the ship: go where it is pointing.
   if (length === 0) return { x: Math.cos(ship.angle), y: Math.sin(ship.angle) };
   return { x: dx / length, y: dy / length };

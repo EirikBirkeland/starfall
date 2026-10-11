@@ -1,5 +1,40 @@
 # Starfall — changelog
 
+## 0.10.8 — 2026-10-11
+A step of the game throws away four to seven times less than it did, and that answers the thing the debug
+plate has been reporting since the plate was built: the worst frames are the collector, and now it is
+called seven times less often.
+- **It was `Math.hypot`.** V8's `Math.hypot` takes any number of arguments, so it lays them out in a list
+  on the heap and throws that list away again on every call. The crowd asks for a distance once or twice a
+  body every step - the stand-off band a spitter and a shielder hold, the line a darter commits to, the
+  middle of a swarm's flock, a bomber's circle, a missile's aim - **38 call sites**, and that was **2.7 KB
+  of the 3.5 KB a crowded step threw away**. `core/math.js` has a two-argument `hypot` of its own now: a
+  multiply, an add and a square root, which is the same number to within a rounding error and throws away
+  nothing. Every call site in the game - the simulation and the painting of it - uses that one, and a
+  structure test refuses the old one anywhere else in `src/`.
+- **The same scenes, the same tool, the same box:** the schedule's crowd **3.4 KB a step down to 816 B**,
+  the endless wall **6.1 KB down to 854 B**, the same crowd dying **8.5 KB down to 1.2 KB**, PLAN's
+  impossible 600-body scene **19.6 KB down to 2.8 KB**. What one body costs went **31 B down to 3 B**, so
+  a young generation of a browser is now about ten seconds of play instead of one and a half, and a
+  scavenge of that heap costs a millisecond - which is the whole of the 1.4-1.7 ms worst steps the F3
+  plate has been seeing.
+- **The budgets came down with the game**: a body 52 B to **16 B** and a gated load 10 KB to **2.5 KB**,
+  and each gate was mutation-checked by putting an allocation back into a copy of the tree. `Math.hypot`
+  back in the crowd reads 8.5 KB a step and fails; a scratch object per step of a walk reads 15 KB and
+  fails; a grid cell emptied with `cell.length = 0` reads 11.8 KB and fails. Under the old 10 KB budget,
+  putting `Math.hypot` back would have passed - which is the argument for moving a ceiling when the floor
+  drops, and for never tightening a gate without checking that it still bites.
+- **Two wrong guesses, written down so nobody spends a session on them again**: this was not double boxing
+  (writing a double into a live enemy's `x`, `rot`, `timer` or `hp` in a hot loop was measured to throw
+  away *nothing* on this box) and it was not the `for..of` loops over the crowd (an iterator nobody can
+  see). What found it was ablation taken one level finer than a system - copy the tree, switch one *part*
+  of one function off, weigh the step again - plus V8's own allocation sampler for names.
+- **The runs moved, and it is worth knowing.** `sqrt(dx*dx + dy*dy)` and `Math.hypot(dx, dy)` are the same
+  number to within a rounding error, and a rounding error is enough to move a darter's aim: the reference
+  run is a different run from frame ~11,000 on (10m00s / 73,982 / level 57 against 75,596 / level 58) and
+  a four-seed batch's median score moved +16%, which is less than the spread between its own best and worst
+  seed. No number in `balance.js` was touched. 6 new tests, suite 1809.
+
 ## 0.10.7 — 2026-10-11
 The menu has a song of its own now, and a step of the game throws away a third of what it used to.
 - **The owner's recording is the main menu music.** `assets/MenuMusic-SpaceRapBattle.flac` - 80 s of

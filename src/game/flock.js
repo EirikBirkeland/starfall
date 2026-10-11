@@ -33,7 +33,7 @@
 // walk that reads it still be a function of the seed and nothing else.
 
 import { cueBeep } from './cues.js';
-import { clamp } from '../core/math.js';
+import { clamp, hypot } from '../core/math.js';
 
 /** The two named beats of a pack. Between them it is gathering, which is `''`. */
 const BRACED = 'brace';
@@ -154,7 +154,7 @@ function tickBeat(pack, dt, ship) {
     // line the player was shown while it bunched is the line every body flies.
     const dx = ship.x - pack.cx;
     const dy = ship.y - pack.cy;
-    const away = Math.hypot(dx, dy) || 1;
+    const away = hypot(dx, dy) || 1;
     pack.dirX = dx / away;
     pack.dirY = dy / away;
     pack.stage = DIVING;

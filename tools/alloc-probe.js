@@ -97,9 +97,15 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 //                 scales: the crowd is the load that grows, and 30 bytes a body at the endless wall is
 //                 four thousand bytes a step the day the wall moves. Measured per body against an arena
 //                 with none, so it is the walk and the broad phase and nothing else.
+//
+// Where the two load budgets stood when they were last moved: the four gated loads read 1.1 KB, 1.4 KB,
+// 1.8 KB and 1.6 KB a step at these windows (1.2 KB at the tool's own default), a body 5-8 B, and the
+// empty arena 219-414 depending on the day. The budgets are over the dearest of those with a third to
+// spare, and both came down by more than half on the commit that removed `Math.hypot` from the game -
+// which is the point of a ratchet: it goes down when the game does, or it is only a ceiling.
 export const FLOOR_BYTES = 512;
-export const STEP_BYTES = 10 * 1024;
-export const BODY_BYTES = 52;
+export const STEP_BYTES = 2560;
+export const BODY_BYTES = 16;
 
 /** How many steps a load is stepped before it is believed - see the header on warming up. */
 export const WARM_STEPS = 2400;

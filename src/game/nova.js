@@ -42,7 +42,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { dist2, clamp } from '../core/math.js';
+import { dist2, clamp, hypot } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
@@ -109,7 +109,7 @@ function throwFront(world, spec) {
 function bite(world, front, enemy, spec) {
   const dx = enemy.x - front.x;
   const dy = enemy.y - front.y;
-  const dist = Math.hypot(dx, dy) || 1;
+  const dist = hypot(dx, dy) || 1;
   enemy.ix += (dx / dist) * spec.shove;
   enemy.iy += (dy / dist) * spec.shove;
 

@@ -21,7 +21,7 @@
 // nothing from being painted as a whole window of letters.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
-import { clamp } from '../core/math.js';
+import { clamp, hypot } from '../core/math.js';
 import { view } from './canvas.js';
 import { glowFor, paintGlow } from './glow.js';
 import { polygon } from './shapes.js';
@@ -136,8 +136,8 @@ const TAIL_LONG = 2.2;      // the whole trail, in cap heights
 const HEAD_WIDE = 0.4;      // the head's pool of light, in cap heights
 
 /** How far along the dive's axis one unit of travel moves x and y. */
-const FALL_X = 1 / Math.hypot(1, FALL_SLOPE);
-const FALL_Y = FALL_SLOPE / Math.hypot(1, FALL_SLOPE);
+const FALL_X = 1 / hypot(1, FALL_SLOPE);
+const FALL_Y = FALL_SLOPE / hypot(1, FALL_SLOPE);
 
 /**
  * One tube of one letter, with its lengths already measured in the space it will be drawn in - so
@@ -149,7 +149,7 @@ function buildTube(points, squeeze) {
   const legs = [];
   let total = 0;
   for (let i = 1; i < pts.length; i++) {
-    const len = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    const len = hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
     legs.push(len);
     total += len;
   }

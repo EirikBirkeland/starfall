@@ -64,7 +64,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { Pool } from '../core/pool.js';
-import { TAU, clamp, dist2 } from '../core/math.js';
+import { TAU, clamp, dist2, hypot } from '../core/math.js';
 import { widestBodyOn } from './enemies.js';
 import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
@@ -129,7 +129,7 @@ export function hasTurret(world) {
  * another to a standing one.
  */
 function roadOf(ship, spec) {
-  const speed = Math.hypot(ship.vx, ship.vy);
+  const speed = hypot(ship.vx, ship.vy);
   if (speed > spec.drifting) return { x: ship.vx / speed, y: ship.vy / speed };
   return { x: Math.cos(ship.angle), y: Math.sin(ship.angle) };
 }

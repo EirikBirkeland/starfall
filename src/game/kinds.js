@@ -33,7 +33,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
-import { clamp, TAU } from '../core/math.js';
+import { clamp, TAU, hypot } from '../core/math.js';
 import { cueBeep } from './cues.js';
 import { burst, ring, spray } from './effects.js';
 import { enemyShotAt } from './enemyshots.js';
@@ -396,7 +396,7 @@ function hunting(enemy, step, hunt) {
   const dy = step.ship.y - enemy.y;
   if (dx * dx + dy * dy > hunt.commit * hunt.commit) return;
 
-  const distance = Math.hypot(dx, dy) || 1;
+  const distance = hypot(dx, dy) || 1;
   enemy.dirX = dx / distance;
   enemy.dirY = dy / distance;
   enemy.stage = AIMING;
@@ -465,7 +465,7 @@ const band = { nx: 0, ny: 0, distance: 0 };
 function holdTheBand(enemy, step, range, drift) {
   const dx = step.ship.x - enemy.x;
   const dy = step.ship.y - enemy.y;
-  const distance = Math.hypot(dx, dy) || 1;
+  const distance = hypot(dx, dy) || 1;
   const nx = dx / distance;
   const ny = dy / distance;
 
@@ -474,7 +474,7 @@ function holdTheBand(enemy, step, range, drift) {
   const sideways = Math.sin(step.world.elapsed * drift.rate + enemy.phase) * drift.speed;
   const vx = nx * inOrOut - ny * sideways;
   const vy = ny * inOrOut + nx * sideways;
-  const pace = Math.hypot(vx, vy);
+  const pace = hypot(vx, vy);
   if (pace > 0) glide(enemy, step, vx / pace, vy / pace, pace);
   else glide(enemy, step, 0, 0, 0);      // standing still, but a shove still moves it
   // It walks backwards on purpose, so without this it would simply leave the world.
@@ -592,7 +592,7 @@ function flying(enemy, step, pack, spec) {
  */
 function holdingStation(enemy, pack, spec) {
   if (pack === null || spec.loiter === 0 || pack.n < 2) return 1;
-  const off = Math.hypot(pack.cx - enemy.x, pack.cy - enemy.y);
+  const off = hypot(pack.cx - enemy.x, pack.cy - enemy.y);
   const inside = 1 - Math.min(1, off / spec.keep);
   return 1 - spec.loiter * inside;
 }
@@ -606,7 +606,7 @@ function headingThePack(enemy, step, pack, spec) {
   const ship = step.ship;
   let vx = ship.x - enemy.x;
   let vy = ship.y - enemy.y;
-  const away = Math.hypot(vx, vy) || 1;
+  const away = hypot(vx, vy) || 1;
   vx /= away;
   vy /= away;
 
@@ -616,7 +616,7 @@ function headingThePack(enemy, step, pack, spec) {
     // how a flock collapses into one point.
     const ox = pack.cx - enemy.x;
     const oy = pack.cy - enemy.y;
-    const off = Math.hypot(ox, oy);
+    const off = hypot(ox, oy);
     const keep = spec.keep * (isBraced(enemy) ? spec.braceKeep : 1);
     if (off > keep && off > 0) {
       const pull = spec.pull * Math.min(1, (off - keep) / keep);
@@ -673,7 +673,7 @@ function tracking(enemy, step, spec) {
   turnToward(enemy, step, Math.atan2(dy, dx), spec.turn);
   if (enemy.timer > 0) return;
 
-  const distance = Math.hypot(dx, dy) || 1;
+  const distance = hypot(dx, dy) || 1;
   enemy.dirX = dx / distance;
   enemy.dirY = dy / distance;
   enemy.stage = LOCKING;

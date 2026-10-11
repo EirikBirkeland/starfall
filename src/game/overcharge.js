@@ -45,6 +45,7 @@
 // one while it is in the air.
 
 import { BALANCE } from './balance.js';
+import { hypot } from '../core/math.js';
 import { PALETTE } from '../core/palette.js';
 import { burst, ring } from './effects.js';
 import { cueBeep } from './cues.js';
@@ -99,7 +100,7 @@ export function isStandingStill(world, input) {
   const ship = world.player;
   if (input.moveX !== 0 || input.moveY !== 0) return false;
   if (ship.dashLeft > 0) return false;
-  return Math.hypot(ship.vx, ship.vy) <= spec.still;
+  return hypot(ship.vx, ship.vy) <= spec.still;
 }
 
 /**

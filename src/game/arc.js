@@ -45,7 +45,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { dist2 } from '../core/math.js';
+import { dist2, hypot } from '../core/math.js';
 import { fx } from '../core/rng.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
@@ -135,7 +135,7 @@ function leaveBolt(world, spec, x0, y0, body, rank, charged) {
 function land(world, spec, body, fromX, fromY, weight) {
   const dx = body.x - fromX;
   const dy = body.y - fromY;
-  const dist = Math.hypot(dx, dy) || 1;
+  const dist = hypot(dx, dy) || 1;
   body.ix += (dx / dist) * spec.jolt;
   body.iy += (dy / dist) * spec.jolt;
 

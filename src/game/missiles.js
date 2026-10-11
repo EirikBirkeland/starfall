@@ -44,7 +44,7 @@
 
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
-import { clamp, dist2 } from '../core/math.js';
+import { clamp, dist2, hypot } from '../core/math.js';
 import { damageEnemy, widestBodyOn } from './enemies.js';
 import { burst, ring, shakeIt } from './effects.js';
 import { cueBeep } from './cues.js';
@@ -103,13 +103,13 @@ export function hunt(world, bullet, dt) {
   for (let i = 0; i < found; i++) {
     const body = hunted[i];
     if (body.hp <= 0) continue;          // dead things are not chased; they have already paid
-    const dist = Math.hypot(body.x - bullet.x, body.y - bullet.y);
+    const dist = hypot(body.x - bullet.x, body.y - bullet.y);
     if (dist - body.r > line.reach) continue;
     if (dist < nearestBy) { nearestBy = dist; target = body; }
   }
   if (target === null) return;
 
-  const speed = Math.hypot(bullet.vx, bullet.vy);
+  const speed = hypot(bullet.vx, bullet.vy);
   if (speed === 0) return;
   const have = Math.atan2(bullet.vy, bullet.vx);
   const want = Math.atan2(target.y - bullet.y, target.x - bullet.x);
@@ -149,7 +149,7 @@ export function detonate(world, bullet, spared) {
     victims.push(body);
     // Outwards from where it went off, the way every blast in this game throws. It is what makes a
     // cluster *open* rather than sit there and take the next flight.
-    const dist = Math.hypot(body.x - x, body.y - y) || 1;
+    const dist = hypot(body.x - x, body.y - y) || 1;
     body.ix += ((body.x - x) / dist) * blast.shove;
     body.iy += ((body.y - y) / dist) * blast.shove;
   }

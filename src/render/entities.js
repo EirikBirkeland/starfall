@@ -7,7 +7,7 @@
 import { BALANCE } from '../game/balance.js';
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
-import { clamp, TAU } from '../core/math.js';
+import { clamp, TAU, hypot } from '../core/math.js';
 import { polygon, shipPath, shipShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
@@ -434,7 +434,7 @@ export function drawLocks(ctx, list, alpha) {
     const y0 = y - enemy.dirY * ends.back;
     const x1 = x + enemy.dirX * ends.fore;
     const y1 = y + enemy.dirY * ends.fore;
-    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
+    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, hypot(x1 - x0, y1 - y0) / 2)) continue;
 
     const light = LOCK_CALM + (LOCK_SHOUT - LOCK_CALM) * aimProgress(enemy);
     bandPasses(ctx, x0, y0, x1, y1, half, light, PALETTE.beamEdge, PALETTE.beamCore);
@@ -1965,7 +1965,7 @@ function wander(seed, segment, bucket) {
 function boltPath(ctx, x0, y0, x1, y1, seed, bucket) {
   const dx = x1 - x0;
   const dy = y1 - y0;
-  const len = Math.hypot(dx, dy) || 1;
+  const len = hypot(dx, dy) || 1;
   const steps = Math.max(2, Math.round(len / BOLT_SEG));
   // The sideways of the line, which is the only direction a wobble may go in.
   const ux = -dy / len;
@@ -1996,7 +1996,7 @@ export function drawArcs(ctx) {
     const bolt = bolts.items[i];
     const dx = bolt.x1 - bolt.x0;
     const dy = bolt.y1 - bolt.y0;
-    const len = Math.hypot(dx, dy);
+    const len = hypot(dx, dy);
     // A bolt is a line and not a point, so the cull test is taken from its middle with half
     // of it either side: either end may be on screen while the middle is not.
     if (!onScreen(bolt.x0 + dx / 2, bolt.y0 + dy / 2, len / 2 + BOLT_JAG + BOLT_REACH)) continue;
@@ -2041,7 +2041,7 @@ export function drawBeams(ctx) {
     const y0 = beam.y - beam.dirY * beam.back;
     const x1 = beam.x + beam.dirX * beam.fore;
     const y1 = beam.y + beam.dirY * beam.fore;
-    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2)) continue;
+    if (!onScreen((x0 + x1) / 2, (y0 + y1) / 2, hypot(x1 - x0, y1 - y0) / 2)) continue;
 
     bandPasses(ctx, x0, y0, x1, y1, beam.width, clamp(beam.life / beam.max, 0, 1),
       PALETTE.beamEdge, PALETTE.beamCore);

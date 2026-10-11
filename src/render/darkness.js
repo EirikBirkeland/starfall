@@ -46,6 +46,7 @@
 // without moving one thing in it, and every fingerprint of every run is unchanged by this file.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
+import { hypot } from '../core/math.js';
 import { BALANCE } from '../game/balance.js';
 import { world } from '../game/world.js';
 import { bossCores, coreReach, darknessOf } from '../game/bosses.js';
@@ -221,7 +222,7 @@ function punchBlades(g, boss, alpha) {
 function bandOutline(g, ends, half) {
   const dx = ends.x1 - ends.x0;
   const dy = ends.y1 - ends.y0;
-  const length = Math.hypot(dx, dy) || 1;
+  const length = hypot(dx, dy) || 1;
   const nx = -dy / length * half;
   const ny = dx / length * half;
   g.beginPath();

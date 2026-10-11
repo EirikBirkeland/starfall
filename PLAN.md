@@ -44,7 +44,11 @@ Every decision should serve these. When in doubt, re-read them.
 - All randomness in game logic goes through one seeded generator (`src/core/rng.js`), so a run can be
   replayed exactly from its seed.
 - Performance target: 60 fps with 600 enemies, 1500 bullets, 4000 particles on a mid-range laptop.
-  Use object pools for bullets, particles, and enemies. No allocation inside the per-frame loops.
+  Use object pools for bullets, particles, and enemies. No allocation inside the per-frame loops -
+  `tools/alloc-probe.js` weighs a step in bytes and `test/alloc-probe.test.mjs` holds the budgets, and
+  that rule is also why every distance in the game comes from `hypot` in `core/math.js`: V8's
+  `Math.hypot` takes any number of arguments, so it lays them out in a list on the heap and throws the
+  list away on every call, which was three quarters of what a crowded step threw away.
 - Use a uniform spatial grid for collision. Never test every bullet against every enemy.
 
 ### Folder layout to work towards
@@ -1544,13 +1548,42 @@ When every item above is ticked, go back to the first unchecked item of mileston
       count of `BALANCE`, that the young-generation arithmetic is the arithmetic of a megabyte, and that
       every flag is refused before it can print a wrong number. Suite 1787. The reference run is byte
       for byte what it was: a step that allocates less does the same work.
-- [ ] The crowd still throws away what it throws away. **The rule in section 2 is ratcheted, not met:**
-      a body costs the step **31 B** and the budget allows 52 B, so the game is inside a budget it is
-      not yet near. An ablation of one step (switch one system's update off, measure again) says where
-      they are: of the schedule load's 3.9 KB a step, **`updateEnemies` is 3.5 KB**, `updateBullets` is
-      1.2 KB and `updateAwards` is still 0.9 KB even after its table walk went. `tools/alloc-probe.js
-      --parts` is the ruler and `.scratch`-style ablation is the method; the escape-analysis trap in the
-      probe's header is why a cold measurement of a line can show nothing at all.
+- [x] The crowd still throws away what it throws away. **It threw away four to seven times what it needs
+      to.** The reading when this item was written was **31 B a body** against a 52 B budget, and the
+      ablation had named `updateEnemies` as three quarters of a step; it was right, and the thing inside
+      `updateEnemies` was **`Math.hypot`**. V8's `Math.hypot` takes any number of arguments, so it lays
+      them out in a list on the heap and throws that list away again on every call - and the crowd called
+      it one or twice a body every step, in `holdTheBand`, in `hunting`, in `advance`, in the flock and
+      the bomber's circle and the missile's aim: **38 call sites**, all of them two-argument.
+      `core/math.js` now has a two-argument `hypot` of its own (a multiply, an add and a square root),
+      every call site uses it, and `test/structure.test.mjs` refuses the old one anywhere in `src/`
+      outside the file that explains it. The same scenes, same tool, same box: the **schedule crowd 3.4 KB
+      a step down to 816 B, the endless wall 6.1 KB down to 854 B, the same crowd dying 8.5 KB down to
+      1.2 KB, PLAN's own impossible scene 19.6 KB down to 2.8 KB** - and what a body costs went **31 B to
+      3 B**, so a young generation is now a megabyte of play rather than a megabyte every 1.4 s.
+      Measured with the same ablation doors, in the order they fell over: the walks are the crowd's
+      garbage and everything else is rounding (`updateEnemies` is 731 B of the schedule's 816, and within
+      it the separation pass is 259 B and the walk calls 727 B before they were made cheap; `updateShields`
+      287 B, `updateBullets` 125 B, the grid rebuild 81 B, everything else under 40 B). It is *not* a
+      double-unboxing story, which was the first guess and is wrong: writing a double into a live enemy's
+      `x`, `rot`, `timer` or `hp` in a hot loop was measured to throw away nothing at all on this box, and
+      a `for..of` over the crowd costs an iterator nobody can see.
+      **The budgets came down with the game** - a body 52 B to **16 B**, a load 10 KB to **2.5 KB** - and
+      all three were mutation-checked by putting the allocation back in a copy of the tree: `Math.hypot`
+      back in the walk reads 8.5 KB a step and fails, a scratch object per `glide` reads 15 KB and fails,
+      `cell.length = 0` back in `core/grid.js` reads 11.8 KB and fails. The old 10 KB budget would have
+      passed the first of those, which is the whole argument for moving a ceiling when the floor drops.
+      Six tests new (five in `test/math.test.mjs` for the helper itself - that it is the same number
+      `Math.hypot` was, to within 1e-12, over every line the arena can draw - and one structure guard).
+      Suite 1803 to 1809. What is left is small and diffuse: about 4 B a body, most of it inside the walk
+      functions' own arithmetic, and getting that to zero would mean positions in typed arrays - which is
+      a rewrite of the crowd's storage and not a sweep, and is not worth it at three bytes a body.
+      One thing the reference run did move: `Math.hypot` and `sqrt(dx^2 + dy^2)` are the same number to
+      within a rounding error and a rounding error is enough to move a darter's aim, so the run
+      (`--seed 20261006`) is a different run from frame ~11,000 onward - 10m00s / 73,982 / level 57
+      against 10m00s / 75,596 / level 58, well inside the seed-to-seed spread, and the four-seed batch
+      moved +16% median score which is less than the spread between its own best and worst seed.
+
 - [ ] The browser half of the performance pass, which this project cannot take by itself: open the game,
       put up the F3 plate, fly the endless door until the plate reads `bodies 200 / 200`, and write down
       what `step ms` and `draw ms` say. `tools/perf-probe.js` knows the arena (0.11 ms a step at that

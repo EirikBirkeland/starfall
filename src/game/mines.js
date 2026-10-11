@@ -50,7 +50,7 @@
 import { BALANCE } from './balance.js';
 import { PALETTE } from '../core/palette.js';
 import { Pool } from '../core/pool.js';
-import { dist2, clamp } from '../core/math.js';
+import { dist2, clamp, hypot } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { ignite } from './burn.js';
 import { chill } from './chill.js';
@@ -103,7 +103,7 @@ export function hasMines(world) {
  * anything once the ship has stopped meaning a direction at all.
  */
 function falloutOf(ship, spec) {
-  const speed = Math.hypot(ship.vx, ship.vy);
+  const speed = hypot(ship.vx, ship.vy);
   if (speed > spec.drifting) return { x: -ship.vx / speed, y: -ship.vy / speed };
   return { x: -Math.cos(ship.angle), y: -Math.sin(ship.angle) };
 }
@@ -206,7 +206,7 @@ function detonate(world, mine, spec) {
     const enemy = world.enemies[i];
     if (dist2(enemy.x, enemy.y, mine.x, mine.y) > reach2) continue;
     victims.push(enemy);
-    const dist = Math.hypot(enemy.x - mine.x, enemy.y - mine.y) || 1;
+    const dist = hypot(enemy.x - mine.x, enemy.y - mine.y) || 1;
     enemy.ix += ((enemy.x - mine.x) / dist) * spec.shove;
     enemy.iy += ((enemy.y - mine.y) / dist) * spec.shove;
   }
