@@ -31,7 +31,7 @@ The "Next" in the title signifies that it belongs to the next generation: Qwen 4
 ### The Game Itself
 First, Opus 5.5 drew up a detailed game development plan with minimal input from my side, and the game in its current state is a result of about 4-5 days of continuous iteration, day and night. The code base is already quite large, with a wild number of tests. The sheer amount of code written is reminiscent of perhaps about 2-3 months of human development, assuming a competent and experienced game developer who moves fast.
 
-The game itself is, frankly, quite bare bones, but it contains the secret sauce of Vampire Survivor and its innumerable successors.
+The game itself is, frankly, quite bare-bones, but it contains the secret sauce of Vampire Survivor and its innumerable successors.
 I call them pachinko clones. I cannot make up my mind: Are they dopamine-draining nonsense games, or perhaps zen-like?
 I am not sure of the neurobiology to be honest. Perhaps your neurobiological reaction to these games depends on whether you've yet attained a high level of Hedonic Adaptation.
 While it's rather likely these games are potentially addictive, the way real-life pachinko and gambling can be to some people, I think they are rather innocuous as long as you don't keep playing them forever.
