@@ -25,6 +25,7 @@ import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { endingWords, hullLedger } from '../game/tally.js';
 import { cardWords, titleWords } from '../game/daily.js';
+import { clockWords } from '../core/words.js';
 import { uiTick } from '../audio/sfx.js';
 
 let el = null;
@@ -87,20 +88,6 @@ let winHullRows = [];
 // table's own sentence and never changes - which is the opposite of a codex row and the same as a
 // perk's (`showPerks`).
 let awardRows = [];
-
-/**
- * The run's clock the way a card reads it: `47s` inside a minute and `15m02s` past one. The win
- * is always past the first minute - the last fight on the schedule is not due until the fifteenth
- * - and a run that went that far deserves better than "902s". The death card reads it the same
- * way, because it is the same number and there is only one place in the game it is written.
- */
-function clockWords(seconds) {
-  const whole = Math.floor(seconds);
-  if (whole < 60) return whole + 's';
-  const minutes = Math.floor(whole / 60);
-  const rest = whole % 60;
-  return minutes + 'm' + (rest < 10 ? '0' : '') + rest + 's';
-}
 
 /**
  * The fights the schedule sent, in the order it sent them (game/bosses.js). The win card names
@@ -936,11 +923,20 @@ function showAwardLine(where, names, dust) {
 }
 
 /**
+ * A count and the thing counted, in the one number and noun the cards say it with: `1 KILL`,
+ * `7 KILLS`, `0 SHARDS`. A card reads out a run's numbers in a single line, and `1 KILLS` is the
+ * mistake a joined-up sentence makes when it never looked at the number it was given.
+ */
+function countWords(count, one, many) {
+  return count + ' ' + (count === 1 ? one : many);
+}
+
+/**
  * One fight buried or several, in the words both cards use. A boss is the one kill worth its own
  * word on a card: it is the mark a run is built around (PLAN 3.4).
  */
 function bossWords(count) {
-  return count + ' BOSS' + (count > 1 ? 'ES' : '');
+  return countWords(count, 'BOSS', 'BOSSES');
 }
 
 /**
@@ -970,8 +966,8 @@ export function showGameOver(summary) {
   el.finalScore.textContent = summary.score.toLocaleString('en-US');
   el.finalBest.textContent = summary.best.toLocaleString('en-US');
   el.stats.textContent = 'LEVEL ' + summary.level
-    + '   \u00b7   ' + summary.kills + ' KILLS'
-    + '   \u00b7   ' + summary.shards + ' SHARDS'
+    + '   \u00b7   ' + countWords(summary.kills, 'KILL', 'KILLS')
+    + '   \u00b7   ' + countWords(summary.shards, 'SHARD', 'SHARDS')
     // A boss is the one kill worth its own word on the card: it is the mark a run is built
     // around (PLAN 3.4), and it only shows up at all when the run got that far.
     + (summary.bosses > 0 ? '   \u00b7   ' + bossWords(summary.bosses) : '')
@@ -1028,8 +1024,8 @@ export function showVictory(summary) {
   el.winCleared.textContent = 'CLEARED   \u00b7   ' + scheduleNames();
   el.winStats.textContent = 'CLEARED IN ' + clockWords(summary.seconds)
     + '   \u00b7   LEVEL ' + summary.level
-    + '   \u00b7   ' + summary.kills + ' KILLS'
-    + '   \u00b7   ' + summary.shards + ' SHARDS'
+    + '   \u00b7   ' + countWords(summary.kills, 'KILL', 'KILLS')
+    + '   \u00b7   ' + countWords(summary.shards, 'SHARD', 'SHARDS')
     + '   \u00b7   ' + bossWords(summary.bosses)
     + codexWords(summary.codexNew)
     + '   \u00b7   SEED ' + summary.seed;

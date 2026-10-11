@@ -1723,7 +1723,47 @@ When every item above is ticked, go back to the first unchecked item of mileston
       kills / 4,934 shards - which it has to be, and `tools/reset-audit.js`'s list of what a run is
       allowed to keep grew by two rows with a reason next to each (`tips`, and the board's one reading
       of it) rather than by one silently.
-- [ ] Read every line of text in the game and make it short, clear, and consistent.
+- [x] Read every line of text in the game and make it short, clear, and consistent. **Done as a pass with an
+      instrument, because the line count is the problem:** the game says something to the player in about
+      three hundred and fifty places, and half of those sentences are built out of two or three string
+      literals at the moment they are painted (`'RANK ' + held + ' OF ' + max`), so a grep reads the parts
+      and not the writing. **`tools/headless/text.js` plays a whole visit instead** - title, hangar, codex,
+      settings, mixer, a run flying, the card table, the pause, the wreck's card, the win's card - and
+      takes back every word on the glass and on the page at each stop, plus the sentences written straight
+      into `index.html`, which is where most of the interface's lines actually live and which the stub
+      browser cannot see at all. `node tools/text-survey.js` prints that harvest for a human to read
+      (`--counts` for the shape of it); **`test/words.test.mjs` is the same harvest with the rules on.**
+      **The three voices, which is what "consistent" turned out to mean.** The interface speaks in caps
+      (`HANGAR · BUY SHIPS AND PERKS`, `TAKEN BY A TANK`); the catalogue speaks in lower case with no full
+      stop (`too heavy to turn, and comes apart in two`); a card's own copy is a sentence and ends like one
+      (`A shot goes through one more body, and on to the next.`), which is the one place a full stop
+      belongs. Eleven tests hold that: caps everywhere else a player reads, the catalogue's length ceilings
+      (60 characters, and 130 for a card's sentence, which is `game/upgrades.js`'s own budget made
+      enforceable), a middle dot with room either side, one noun for one thing, one wording for the run's
+      clock, and no line that writes `1 KILLS`. Nine mutations were run against the file and all nine were
+      caught. Suite 1851 to **1862**.
+      **What the reading found, all of it still visible in the game until now.** The mixer's readout and
+      the settings panel are one machine seen from two places and they called its effects bus `SOUND` in
+      one and `SOUNDS` in the other - now `SOUND` in both, and a test pins that the two places cannot drift
+      again. The readout's own line of keys was the only lower-case sentence on the glass (`M mute [ ]
+      music - = sound`); it is caps like the rows above it, and the comment above it no longer claims there
+      is no settings page. **`1 KILLS`**: both end cards join a count to a fixed plural, so a win with
+      exactly one kill on it read `1 KILLS · 0 SHARDS · 1 BOSS` - `countWords` now says `1 KILL`, and the
+      win this pass reached is the test. The HUD wrote `TIME 902s` while the card the same run ended on
+      wrote `CLEARED IN 15m02s`, and `clockWords`'s own comment argued that a fifteen-minute run deserves
+      better than `902s`; the wording moved to `core/words.js` (the palette's argument again: the page and
+      the glass may not read each other) and the HUD reads it, with a test comparing the two clocks off one
+      win. In the title's control list, two rows were the only ones joining their clauses with a comma -
+      `PICK A CARD WHEN IT IS DEALT` and `GIVE THE RUN UP WHILE PAUSED` now read like the ten rows beside
+      them and say the same thing in fewer characters. And the codex said the sniper was `bolted down;
+      draws a line, then fires down it`, which is both the semicolon of the set and a phrase nobody would
+      pick; it `plants itself, draws a line, then fires down it`.
+      **Left as it is, on purpose.** The developer's plate (`F3`) is lower case like a terminal and stays
+      that way - it is a readout and not a sentence, and the test file says so rather than leaving it
+      unexplained. The one thing in the harvest that still reads telegraphically is a wreck's build line
+      when the run took no cards at all (`WISP · PULSE · BUILT FROM · NO UPGRADES`); it was left alone
+      because the only fix that reads better would split one sentence across two modules, and `NO UPGRADES`
+      is the same clause the banished lines are said with (`NO TETHER`).
 - [ ] Release `1.0.0`.
 
 ### After 1.0

@@ -308,7 +308,7 @@ test('the panel asks for the two switches last, and keeps them in the save', asy
   // Last, and that is a decision: everything above them is the game's report about a run and cannot
   // change one; these two are the hand (main.js `settingRows`).
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
   ], 'four to the eyes, three to the ears, then the two to the hand');
   assert.deepEqual(game.screen.settingsRows.slice(7).map((row) => row.value), ['OFF', 'OFF'],

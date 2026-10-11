@@ -443,7 +443,7 @@ function settingRows() {
     step: function (delta) { return onVolume('music', delta); },
   });
   rows.push({
-    name: 'SOUNDS', says: 'EVERY SHOT, HIT AND EXPLOSION',
+    name: 'SOUND', says: 'EVERY SHOT, HIT AND EXPLOSION',
     value: sliderWords(effectsLevel()),
     step: function (delta) { return onVolume('effects', delta); },
   });

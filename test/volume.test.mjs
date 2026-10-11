@@ -366,7 +366,8 @@ test('the readout answers a press, says what it says, and goes away', () => {
   const words = game.words();
   assert.ok(words.includes('MUSIC'), 'the row that moved');
   assert.ok(words.includes('SOUND'), 'and the row that did not, because the question is always both');
-  assert.ok(words.some((w) => w.includes('mute')), 'and the keys, since there is no settings page');
+  assert.ok(words.some((w) => w.indexOf('M MUTE') === 0),
+    'and the keys that did it, said in the same caps the rows above them are said in');
   assert.equal(panelIsUp(), true);
 
   const ms = untilPanelIsDown();
@@ -452,7 +453,7 @@ test('the readout fits the plate it is drawn on', () => {
   }
 
   const words = game.texts().filter((t) => t.text === 'MUSIC' || t.text === 'SOUND'
-    || t.text.indexOf('mute') > 0 || t.text.indexOf('MUTED') === 0);
+    || t.text.indexOf('M MUTE') === 0 || t.text.indexOf('MUTED') === 0);
   assert.ok(words.length >= 3, 'the two rows and the line under them, got ' + words.length);
   for (const word of words) {
     // `x` is the pen's anchor: the right edge of a right-aligned label, the middle of the centred
@@ -554,7 +555,7 @@ test('the settings panel shows the mixer, and steps it through the same door', a
   tap('KeyO');
   assert.equal(game.stats().settingsUp, true, 'O puts the settings up over the title');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
   ], 'four things the game does to the eyes, then three it does to the ears');
 

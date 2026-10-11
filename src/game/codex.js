@@ -51,7 +51,7 @@ const CROWD = [
   { id: 'bomber', name: 'BOMBER', says: 'the circle it stands in is the warning' },
   { id: 'shielder', name: 'SHIELDER', says: 'stands off and shields what stands near it' },
   { id: 'swarmling', name: 'SWARMLING', says: 'one of a pack that turns as one' },
-  { id: 'sniper', name: 'SNIPER', says: 'bolted down; draws a line, then fires down it' },
+  { id: 'sniper', name: 'SNIPER', says: 'plants itself, draws a line, then fires down it' },
 ];
 
 /**

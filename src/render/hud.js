@@ -2,6 +2,7 @@
 // frame rate. Everything here reads the world; nothing here changes it.
 
 import { PALETTE, withAlpha } from '../core/palette.js';
+import { clockWords } from '../core/words.js';
 import { BALANCE } from '../game/balance.js';
 import { clamp, TAU } from '../core/math.js';
 import { world } from '../game/world.js';
@@ -238,7 +239,10 @@ export function drawHUD(ctx, fps) {
   // way to say that is next to the clock. In gold, the colour every reward here is written in, and
   // out of the balance row, so this and the word that floats over the ship on the step it happens
   // cannot be spelled differently.
-  const clockLine = 'TIME ' + Math.floor(world.elapsed) + 's   LV ' + world.player.level;
+  // The clock in the same words the cards, the pause and the log say it in (core/words.js): a run
+  // fifteen minutes old reads `TIME 15m02s` here and `CLEARED IN 15m02s` on the card under it, and not
+  // `TIME 902s` here and `15m02s` there.
+  const clockLine = 'TIME ' + clockWords(world.elapsed) + '   LV ' + world.player.level;
   ctx.fillText(clockLine, PAD, PAD + 64);
   // The two marks beside the clock are written one after the other, each measured off the last, so a
   // run that is both endless and flown on a day says both and neither word lands on top of the other.

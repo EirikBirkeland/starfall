@@ -251,7 +251,7 @@ test('the cursor walks the panel and the rows step under it', async () => {
   frames(4);
   press('KeyO');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUNDS', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
   ], 'four things it does to the eyes, three it does to the ears, and the two it does to the hand');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.chosen),

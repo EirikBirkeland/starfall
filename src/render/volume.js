@@ -55,9 +55,11 @@ const ROW_LIT = 1;
 const ROW_QUIET = 0.5;
 const TRACK = 'rgba(111,143,176,0.28)';
 const PIP_R = 2;    // px of corner on a pip
-// The line under the rows, which is also the only place in the game that says what the keys
-// were: there is no settings page yet, so the readout has to do the explaining.
-const KEYS_LINE = 'M mute    [ ] music    - = sound';
+// The line under the rows: the keys that did it, said in the same caps the rows above them are said
+// in. The settings panel has the same two sliders as two rows (game/settings.js, ui/screens.js) and
+// `O` opens it, but these keys work from anywhere - over a run, over a card, over the panel itself -
+// so the readout that answers them has to explain them wherever it lands.
+const KEYS_LINE = 'M MUTE   [ ] MUSIC   - = SOUND';
 const MUTED_LINE = 'MUTED \u2014 PRESS M TO HEAR IT AGAIN';
 
 // Frame state, not run state: how long the panel has left to live, and what was last touched.
