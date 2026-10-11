@@ -52,6 +52,9 @@ Indeed, the LLM has so far thought more than 22 megabytes of text, in just a few
 The music is hand-written without external tools, thus it is rather simple.
 If I keep this up, I will use various means later to make the music far better.
 For now I am not disappointed in Flash Next's ability to put together rudimentary music.
+The one recording in the game is mine: `assets/MenuMusic-SpaceRapBattle.flac` is the main menu music, added
+when I asked for it, and it plays on the attract screen only - the run keeps the generated soundtrack,
+because a file cannot hear a boss walk in.
 
 ### The Graphics
 There really are no graphics. Just placeholders. I might look into Blender object sculpting or sprites after PLAN.md blueprint has been completed.

@@ -45,6 +45,7 @@ import { initInput, readInput, consumeInput, mouse } from './input/index.js';
 import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
+import { menuTrackLedger, updateMenuTrack } from './audio/track.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
@@ -826,6 +827,9 @@ function frame(now) {
   // ship has left - is a frame's question, and the simulation never learns music exists at
   // all (audio/music.js).
   updateMusic(world);
+  // ...and beside it sits the one thing that is not synthesised: the menu's recording, which asks for
+  // its bytes only while the attract screen is the screen being looked at (audio/track.js).
+  updateMenuTrack(world);
   const drawStart = performance.now();
   renderFrame(tick, input, mouse);
   // The frame is over, so all three of its numbers are known and the developer's panel is told about
@@ -1069,6 +1073,11 @@ window.STARFALL = {
       musicLevel: musicLevel(),
       effectsLevel: effectsLevel(),
       muted: isMuted(),
+      // ...and what the menu's recording has got to (audio/track.js): its state machine's name, why it
+      // is there, how many bytes and seconds arrived, and how many times it has started and stopped. A
+      // headless visit cannot hear it and a browser will not play it before a press, so this is the only
+      // way to ask whether the song is there at all.
+      menuTrack: menuTrackLedger(),
       // Is the developer's panel on the glass (render/debug.js)? A headless player cannot see it,
       // and "did F3 do anything" is otherwise an unanswerable question without pixels.
       debugUp: debugIsUp(),

@@ -151,3 +151,29 @@ found ones is a sales pitch: the primaries are 21x apart against PLAN's 1.25x, t
 both ways up, the crowd is walled at 200 bodies against a 600-body target, and milestone 9's access work
 is unbuilt. The reference run is byte for byte the run it was: the apology moved nothing a player can
 see, which is the only kind of repentance a simulation can check.
+
+------------------------------------------------------------
+
+As soon as possible, use the file "MenuMusic-SpaceRapBattle.flac" as the main menu music and publish.
+
+Finished? YES
+Your recording is the attract screen's music now, in 0.10.7: 8.7 MB of 48 kHz stereo, 80 seconds, looped
+gaplessly through the music bus, so the music slider moves it, the mute out-mutes it, and the
+player-hit muffle ducks it like anything else on that bus. It plays on the menu and nowhere else, and
+that is not a hedge: the sequencer earns its keep by answering the run - a boss walking in, a hull going,
+the two minutes that buy the drum kit - and a fixed song would be deaf to all of it. So while your song
+is up, the generated title pad stands down, and the moment a run starts the song fades out over a third
+of a second and the sequencer takes the bus back.
+
+Two things about hearing it, both of them the browser's doing rather than the game's. No page may make a
+sound before it has been given a press, and the press that launches a run is usually the first one - so
+the song starts on the menu for anybody who unlocks sound without launching: `H` for the hangar, `C` for
+the codex, `O` for settings, `M` for the mute, and then it plays under whatever they read. Second, it is
+fetched lazily and once, only while the menu is up with sound unlocked and only if the visit is not muted,
+because 8.7 MB is a real thing to spend on a page that opens in a second and 31 MB of samples is a real
+thing to hold: the ordinary visit - open, press Space, fly - never spends a byte of it, and that promise
+is a test and not a comment.
+
+Published in the same breath, as asked. Sixteen new tests, `src/audio/track.js`, and a stub browser that
+can now say "no network", "no such file" and "that is not sound", which is how all three failure paths
+are checked without a laptop.

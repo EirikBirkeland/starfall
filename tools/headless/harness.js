@@ -304,6 +304,33 @@ function makeAudioContextStub(log, now) {
       log.filters++;
       return { type: '', frequency: knob('tone'), Q: knob('resonance'), connect() {} };
     };
+    // The decoder is one of the optional parts (audio/track.js). It cannot decode - there is no codec
+    // in here - but it can be faithfully unhelpful in the two ways a real one is: it refuses anything
+    // that does not start with the bytes a real audio file starts with, and on a machine with none of
+    // the optional parts it is not there at all. What it accepts it answers with a fixed 80-second
+    // stereo buffer, because nothing in the game reads a duration but the ledger that says the song
+    // arrived. Both calling styles are honoured, because browsers have both.
+    stub.decodeAudioData = (bytes, onOk, onErr) => {
+      log.decodes++;
+      log.decodedBytes += bytes.byteLength;
+      const head = String.fromCharCode.apply(null, new Uint8Array(bytes.slice(0, 4)));
+      const known = ['fLaC', 'OggS', 'RIFF', 'ID3'].includes(head);
+      const seconds = 80;
+      const buffer = () => {
+        const length = seconds * stub.sampleRate;
+        return {
+          numberOfChannels: 2, length, sampleRate: stub.sampleRate, duration: seconds,
+          getChannelData() { return new Float32Array(length); },
+        };
+      };
+      if (!known) {
+        const err = new Error('this browser cannot decode a file that starts with ' + head);
+        if (onErr) onErr(err);
+        return Promise.reject(err);
+      }
+      if (onOk) onOk(buffer());
+      return Promise.resolve(buffer());
+    };
   }
   return stub;
 }
@@ -432,13 +459,16 @@ function settingRow(row) {
 /**
  * Boot the game with no browser.
  *
- * Options: { root, seed, url, width, height, dpr, audio, storage, layout, motion }
+ * Options: { root, seed, url, width, height, dpr, audio, storage, layout, motion, network }
  * `seed: null` leaves the game to choose its own, which is what a browser does.
  * Pass `url` (a query string such as '?seed=42') to exercise address-bar seeds.
  * `layout` says what the page measured for a box, per id: `{ hangarBody: { offsetHeight: 900 } }`,
  * or `{ logoBox: { rect: { left, top, width, height } } }` for a box with a place as well as a size.
  * Nothing is laid out here, so a block answers 0 until a test that cares says what it came to.
  * `motion: 'reduce'` says the visitor asked for as little movement as the machine can give.
+ * `network` is the files the page is served: `{ 'assets/song.flac': bytes }`. With none, every
+ * request is refused - which is the same shape as a page that was served a file it does not have -
+ * and the game that asks one says so in `game.audio.fetched` (audio/track.js is who asks).
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -457,6 +487,28 @@ export async function bootGame(options) {
   const audioLog = {
     voices: 0, compressors: 0, buffers: 0, noise: 0, filters: 0, ramps: [],
     noiseData: null, raw: opts.audio === 'raw',
+    // The one recording the game plays (audio/track.js): every url the page asked for, how many times
+    // it was handed to the decoder and how many bytes that was. A headless visit cannot hear it; this
+    // is how it can still say the bytes were asked for once, and not once a frame.
+    fetched: [], decodes: 0, decodedBytes: 0,
+  };
+  /**
+   * The network. Without `network` the stub has none and every request is refused, which is the same
+   * answer a browser gives a page whose file has gone missing - and a game that plays a recording has
+   * to be tested against that answer as much as against the file.
+   */
+  globalThis.fetch = (url) => {
+    const asked = String(url);
+    audioLog.fetched.push(asked);
+    const files = opts.network;
+    if (!files) return Promise.reject(new Error('the stub browser has no network'));
+    const body = files[asked];
+    if (body === undefined) return Promise.reject(new Error('nothing here was served at ' + asked));
+    const bytes = body instanceof Uint8Array ? body : Uint8Array.from(body);
+    return Promise.resolve({
+      ok: true, status: 200,
+      arrayBuffer: () => Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)),
+    });
   };
   // Everything the last frame asked to be put on the canvas. The renderer paints
   // entities by translating to them, so this is how a test can see what was drawn

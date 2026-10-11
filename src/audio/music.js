@@ -95,6 +95,7 @@
 import { STATE } from '../game/state.js';
 import { isVacuuming } from '../game/vacuum.js';
 import { getContext, getMusicBus, isMuted } from './engine.js';
+import { menuTrackIsUp } from './track.js';
 import { noiseVoice } from './noise.js';
 
 const BPM = 110;
@@ -516,8 +517,13 @@ const NO_MUSIC = null;
 /**
  * Which pattern the run is playing, out of what the world says about itself.
  *
- * The title breathes; a run - and a run paused for its cards, which is still the same run
- * holding its breath - drives; and the two endings are silent on purpose: the hush after
+ * The title's slot belongs to the owner's recording while it is up (audio/track.js) - the one thing
+ * in this game that is not synthesised - and the sequencer has nothing to add over it, so the attract
+ * screen has one soundtrack and not two arguing. `auditionMusic` below stays quiet in the same case,
+ * which is right: the song is itself the answer to moving the music slider.
+ *
+ * With that slot free the title breathes; a run - and a run paused for its cards, which is still the
+ * same run holding its breath - drives; and the two endings are silent on purpose: the hush after
  * the last fight and the death's card both belong to what the run just did, not to a tune
  * over the top of it. Above that, three things make the music change its mind, in this
  * order and for these reasons:
@@ -545,7 +551,7 @@ const NO_MUSIC = null;
  */
 function patternFor(world) {
   const state = world.state;
-  if (state === STATE.START) return TITLE;
+  if (state === STATE.START) return menuTrackIsUp() ? NO_MUSIC : TITLE;
   if (state !== STATE.PLAY && state !== STATE.LEVEL) return NO_MUSIC;
   const ship = world.player;
   const base = ship && ship.hull <= MUSIC.lastHull ? LAST

@@ -32,7 +32,9 @@ Every decision should serve these. When in doubt, re-read them.
 - Plain JavaScript ES modules, loaded natively by the browser. No build step, no bundler, no libraries.
 - `index.html` holds only the canvas, minimal CSS, and `<script type="module" src="src/main.js">`.
 - Rendering on one 2D `<canvas>` filling the window. Offscreen canvases are allowed for caching.
-- All sound is synthesised with the Web Audio API. No audio files.
+- All sound is synthesised with the Web Audio API. No audio files. (**One exception, on the owner's
+  order:** the attract screen plays their recording - see milestone 10 and `src/audio/track.js`. It is
+  the only file the game plays, it plays nowhere else, and it is fetched lazily or not at all.)
 - All art is drawn in code. No image files.
 - Saved data lives in `localStorage` under the single key `starfall.save`, as versioned JSON.
 - **Game logic must not touch the DOM, canvas, or audio.** Logic modules take input and time, and
@@ -404,6 +406,9 @@ Everything synthesised. One `AudioContext`, started on the first key or click.
 - Music is generated: a step sequencer with bass, pad, arpeggio, and drums built from synthesis, at 110 BPM,
   in a minor key. Layers come in as intensity rises: pad only on the title; bass and arpeggio in a run;
   drums after 2:00; a faster, harsher pattern for bosses; a stripped, tense version at 1 hull.
+- The title's share of that is the one thing here that is not generated: the owner's recording plays on
+  the attract screen and the sequencer stands down while it does (`src/audio/track.js`). The run is
+  left to the sequencer because a file cannot hear a boss walk in or a hull go.
 - Separate volume sliders for music and effects, and a mute key (M).
 - A master compressor so nothing clips.
 
@@ -1433,6 +1438,36 @@ When every item above is ticked, go back to the first unchecked item of mileston
       and the sparkle; the fanfare spends the melody slot or the sparkle's; and a mutation test that
       the load meter really is reading the last bar of the form. Suite 1704. The reference run is
       byte for byte what it was - the simulation still does not know music exists.
+- [x] The menu's music (**the owner's request of 2026-10-11**: "use the file
+      `MenuMusic-SpaceRapBattle.flac` as the main menu music and publish"). Their recording is in the
+      game at `assets/MenuMusic-SpaceRapBattle.flac` - 80 s of 48 kHz stereo, 8.7 MB - and it plays on
+      the attract screen and nowhere else, which is the only reading of "main menu music" that does not
+      fight section 5: the sequencer earns its keep by answering the run (the boss that walked in, the
+      hull that went, the two minutes that bought the kit) and a fixed song would be deaf to all of it,
+      so `patternFor` stands the generated title pad down while the recording is up and the title has
+      one soundtrack instead of two arguing. `src/audio/track.js` is the whole feature: it decodes to an
+      `AudioBuffer` and loops it - gapless, which a media element is not, and it is the only way to hand
+      the song to the **music bus**, so the music slider moves it, the mute out-mutes it and the
+      player-hit muffle reaches it without this file knowing any of those things exist; it fades in and
+      out on its own gain, because a whole song starting and stopping on a state change is a click
+      waiting to happen; and it **asks for the bytes late and once**: not before an `AudioContext`
+      exists (no browser allows sound before a press anyway), not while the visit is muted, and only
+      while the attract screen is the screen being looked at - which matters, because the usual way to
+      open this game is to press Space the moment the title appears, and that press is the launch, so a
+      visit that never sits on the menu with sound unlocked spends neither the 8.7 MB nor the 31 MB of
+      samples it turns into. No network, no file, or a browser that will not decode FLAC all leave the
+      attract screen playing the pad it played before this file existed, with the reason written in
+      `menuTrackLedger()` and `stats().menuTrack` for a tool to read - and the `tools/headless/harness.js`
+      stub browser grew a `network` option and a decoder that refuses anything that does not begin with
+      the bytes an audio file begins with, so all of that is testable here and not only on a laptop.
+      Sixteen tests in four files - `test/menu-track.test.mjs` (one visit that sits on the menu: asked
+      once and only once, sequencer stood down, the run taking the bus back over a fade and not a cut,
+      and the song coming back on a new source), `test/menu-track-cheap.test.mjs` (the launch-on-the-
+      first-press visit spends nothing), `test/menu-track-missing.test.mjs` (refused once, not once a
+      frame) and `test/menu-track-broken.test.mjs` (bytes that are not sound), plus one that the shipped
+      file is really a FLAC and that `release.sh` really copies `assets/`. Suite 1803. The reference run
+      is byte for byte what it was: a song is a frame's business, and the simulation still does not know
+      music exists at all.
 - [x] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage. (**the overlay is in, from 0.10.3** - `src/render/debug.js`,
       `test/debug.test.mjs`, and `noteFrame` in the frame loop: F3 puts up a plate with the frame's

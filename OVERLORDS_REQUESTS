@@ -1,5 +1,5 @@
-No open requests. The last one - the apology asked for on 2026-10-11 - is in
-`archive/COMPLETED_OVERLORDS_REQUESTS`, and what it produced is `APOLOGY.md`.
+No open requests. The last one - the menu music asked for on 2026-10-11 - is in
+`archive/COMPLETED_OVERLORDS_REQUESTS`, and what it produced is `src/audio/track.js`.
 
 When a request is completely finished, move it out of this file: the whole entry, with your note on
 what shipped, goes to the end of archive/COMPLETED_OVERLORDS_REQUESTS. Only open requests stay here.
