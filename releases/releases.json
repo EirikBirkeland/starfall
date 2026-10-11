@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.7",
+    "date": "2026-10-11",
+    "released": "2026-10-11T11:42:10.409Z",
+    "summary": "The menu has a song of its own, and a step throws away a third of what it used to",
+    "added": 2549,
+    "removed": 47,
+    "logBytes": 34734987
+  },
+  {
     "version": "0.10.6",
     "date": "2026-10-11",
     "released": "2026-10-11T07:24:41.029Z",
