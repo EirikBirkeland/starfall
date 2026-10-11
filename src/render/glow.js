@@ -43,6 +43,8 @@ const STEP_SPACING = 3;    // px of travel per blob
 const BLOB_SPREAD = 1.7;   // how far a blob's soft edge reaches past its size
 const TAIL_WIDTH = 0.3;    // the tail's width, as a fraction of the head's
 const TAIL_ALPHA = 0.3;    // and its brightness
+/** Bytes behind one pixel of a baked sprite: red, green, blue, alpha. */
+const PIXEL_BYTES = 4;
 
 /** colour -> Map(radius -> holder). The memo `glowFor` reads. */
 const glowMemo = new Map();
@@ -59,11 +61,25 @@ export function setGlowResolution(next) {
   for (const holder of holders) holder.sprite = null;
 }
 
-/** What the sprite cache holds, for the F3 overlay (PLAN milestone 10). */
+/**
+ * What the sprite cache holds, for the F3 overlay (PLAN milestone 10) and for the memory hunt
+ * (tools/memory-hunt.js).
+ *
+ * `bytes` is the reason that second tool can say anything about this cache at all: a sprite is an
+ * offscreen canvas of its own, baked at device resolution, and the headless harness has no pixels in
+ * its canvases - so a cache that baked one sprite per size would grow forever and no heap reading
+ * here would notice. This is the arithmetic of what a browser is really holding: every baked holder's
+ * own pixels, four bytes each, at the ratio they were baked at.
+ */
 export function stats() {
   let sprites = 0;
-  for (const holder of holders) if (holder.sprite) sprites++;
-  return { holders: holders.length, sprites, pixelRatio };
+  let bytes = 0;
+  for (const holder of holders) {
+    if (!holder.sprite) continue;
+    sprites++;
+    bytes += Math.ceil(holder.w * pixelRatio) * Math.ceil(holder.h * pixelRatio) * PIXEL_BYTES;
+  }
+  return { holders: holders.length, sprites, bytes, pixelRatio };
 }
 
 /** The round glow of `color` reaching `radius` px out from its middle. */

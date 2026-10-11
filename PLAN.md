@@ -1334,7 +1334,22 @@ When every item above is ticked, go back to the first unchecked item of mileston
       byte for byte what it was - the simulation still does not know music exists.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.
-- [ ] Hunt for memory growth over a 30-minute simulated run.
+- [x] Hunt for memory growth over a 30-minute simulated run.
+      `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
+      accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read
+      after a forced collection), and before them eight careless runs on one visit, because an ending
+      is where a run's objects get built and thrown away, and a page that gets heavier per wreck needs
+      a reload by lunchtime. The reading it ships with: the flight 0.030 MB a minute against a 0.12
+      budget, the wrecks 0.063 MB a run against 0.20, the glow cache 8.9 MB of baked pixels against
+      40. What does grow is the crowd and the pools holding it - the rings built 123 more objects and
+      the fires 104 between minute 5 and the end, and the arena filled to exactly its 200-body wall -
+      and the save document, and all of it is bounded: by the cap, by `BALANCE.history.keep`, by a
+      palette that stops asking for new sprites. No leak found. One real change came out of looking:
+      `render/glow.js`'s `stats()` now prices its own cache in bytes, because a headless canvas holds no
+      pixels and a cache that baked one sprite per size would grow forever without a single heap reading
+      in here noticing. Thirteen tests in `test/memory-hunt.test.mjs`, one in `test/glow.test.mjs`; suite
+      1718. The reference run is byte for byte what it was. Notes, and the traps in reading a heap,
+      in NOTES session 93.
 - [ ] Daily run: a seed taken from the date, the same for everyone that day, with its own best score.
 - [ ] A short first-run tutorial: three prompts that appear in play and vanish once done.
 - [ ] Read every line of text in the game and make it short, clear, and consistent.

@@ -200,3 +200,29 @@ test('nothing at all is drawn for no light', () => {
   paintStreak(ctx, makeStreak('#fff', '#000', 10, 4), 0, 0, 0, 1, 0);
   assert.equal(log.images.length, 0, 'a glow with no strength is not stamped');
 });
+
+test('the cache prices what it holds in pixels, because that is what a browser pays', () => {
+  // A sprite is an offscreen canvas and the headless harness has no pixels in its canvases, so the
+  // one place a glow cache can be seen to be cheap or expensive is this arithmetic (the memory hunt
+  // in tools/memory-hunt.js reads `bytes` for exactly that reason, and a test is what stops the
+  // number becoming a story instead of a sum).
+  bakeRecorder();
+  const { ctx } = stampRecorder();
+  setGlowResolution(1);
+  const before = stats();
+
+  const unbaked = glowFor('#0b0b0b', 10);
+  const asked = stats();
+  assert.ok(asked.holders > before.holders, 'asking for a glow takes a holder');
+  assert.equal(asked.bytes, before.bytes, 'and nothing yet, because nothing has been baked');
+
+  paintGlow(ctx, unbaked, 0, 0);
+  const one = stats();
+  assert.equal(one.bytes - before.bytes, 20 * 1 * 20 * 1 * 4, 'a 10 px glow is 20x20 px, four bytes a pixel');
+  assert.equal(one.sprites - before.sprites, 1);
+
+  setGlowResolution(2);
+  assert.equal(stats().bytes, 0, 'an unbaked cache costs nothing, however many holders it has');
+  paintGlow(ctx, unbaked, 0, 0);
+  assert.equal(stats().bytes, 40 * 40 * 4, 'and the same glow at twice the ratio costs four times the pixels');
+});

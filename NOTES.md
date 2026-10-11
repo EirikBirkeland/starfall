@@ -11046,3 +11046,120 @@ vacuums 7 (2065 in)) - the simulation still does not know music exists, which is
    slots. Defensible, and each sits in the register its pattern had free - but if a player says the
    reward "changes register" at two minutes, give the fanfare its own octave and take it out of the
    arp instead.
+
+## Session 93 — the memory hunt: a thirty-minute flight, and the page is not getting heavier
+
+Milestone 10's `- [x] Hunt for memory growth over a 30-minute simulated run`. One real change in
+`src/` and it is not gameplay: `render/glow.js`'s `stats()` now prices its own sprite cache in bytes.
+Everything else is a new check, `tools/memory-hunt.js`, plus `test/memory-hunt.test.mjs` (13 tests)
+and one test in `test/glow.test.mjs`. Suite 1718. `tools/simulate.js --seed 20261006` is byte for byte
+what session 91 recorded (10m00s / 75,596 / level 58 / kills 4004 / shards 5162 / vacuums 7, 2065 in),
+which is the check that nothing in a tool folder reached the game. No release: nothing a player would
+notice changed.
+
+**First, a thing future sessions need to know.** There was another live agent in this working tree when
+I started - it was mid-flight on the owner's music request and shipped 0.10.2 while I was still reading
+files. Two agents editing `src/audio/music.js` at once would have been a wreck nobody could read
+afterwards, so I picked a different unchecked item and, at the end, staged only the files I had touched
+instead of `git add -A`. Worth remembering: `git status` before you start is not a formality,
+and if a file you meant to change is already changing, go and do the other thing.
+
+(There is also an untracked `LICENSE` in the tree - GPL v3, 35 KB - which I did not write and did not
+commit. Whoever put it there, it is a decision about the project and not a stray to be swept along by
+an unrelated `git add -A`. Deal with it on purpose.)
+
+### What was built
+
+`tools/memory-hunt.js`, a check that exits non-zero when something is accumulating. Two phases, in
+this order:
+
+1. **Eight careless runs on one page visit** (`--runs 8 --run-seconds 300 --picks random`), sampled
+   after each. A single long run exercises the steady state; forty short runs exercise the *seams* -
+   the tally, the history row, the save write, the toast list, the level-up table - all of which are
+   built and thrown away at an ending. A visit that gets 200 KB heavier per wreck needs a reload by
+   lunchtime, so the check is megabytes-per-run, not megabytes-total.
+2. **A thirty-minute flight** through the endless door, sampled every minute, reusing
+   `tools/endless-gauge.js`'s doors for the same reason it built them: the schedule is parked on the
+   last fight and the ladder is spent, so the ship is still in the arena an hour of frames later.
+
+Every sample is taken after `global.gc()`, and the tool re-execs itself under `--expose-gc` when it
+has to (`requireGc`) rather than trusting the operator to remember a flag: a heap reading without a
+collection first is a reading of whatever the allocator happened to be holding. It then reports three
+numbers against three budgets, and separately, *what grew* - which pools built objects, how many more
+sprite holders there are and what their pixels cost, how big the save document got, and the top movers
+in a breadth-first census of everything reachable from the world (`censusOf`, depth-limited, cycle-safe,
+found by walking rather than by a list I might forget to update).
+
+The budgets that ship: 0.12 MB a minute of steady flight, 0.20 MB a wreck, 40 MB of sprite cache.
+
+### The reading (the shipped one, `node tools/memory-hunt.js`, no flags)
+
+| phase | measured | budget | verdict |
+| --- | --- | --- | --- |
+| the flight, minutes 5-27 | 0.030 MB a minute | 0.12 | pass |
+| the glow cache at the end | 8.9 MB of pixels | 40 | pass |
+| the wrecks, last 5 of 8 | 0.063 MB a run | 0.20 | pass |
+
+Heap over the flight: 13.66 MB at the launch, 16.52 MB at minute 24 - which is the minute the crowd
+landed exactly on its 200-body wall - and it was a wreck at 27m00s. Pool objects 531 → 1,757, world
+slots 587 → ~6,000, sprite holders 48 → 82 (5.1 → 8.9 MB, flat from about minute 5). The warm-up slope
+- minutes 0 to 5 - was 0.461 MB a minute, fifteen times the steady one, and that is not a leak either:
+it is the pools reaching the size they need and the sprite cache filling, which happens once per page
+visit and then stops. `grewBetween` says what the rest of it is - rings built 123 more objects between
+the baseline at minute 5 and the end, fires 104, shards 37, and the enemy array is holding 151 more
+bodies than it was. The arena was still filling toward its wall when the flight went down.
+
+### Things that surprised me
+
+- **A Pool never shrinks**, which is the design (session 78's high-water wall) and is most of the answer
+  to "why is the heap bigger at minute 24 than at minute 5": in the flight there is one world, its
+  pools are sized by the biggest frame they have ever seen, and the biggest frame keeps being bigger
+  until the cap. Nothing is leaked; the ceiling is a few megabytes wide and it is a ceiling, not a floor.
+  (The short runs are the opposite case, which is why the next bullet matters.)
+- **The first runs of a visit are warm-up too, and not for the reason I guessed.** The first three of
+  the eight careless runs put on 1.3 MB between them and the remaining five sat still (13.19, 13.63,
+  13.26, 13.54, 13.56 MB). Read run 1 against run 8 and the check FAILs on something - but it is not
+  the pools, because every run gets a brand-new world and brand-new pools. What actually fills out
+  across a batch is the sprite cache getting its first bakes (48 holders to 50), the save document
+  taking on its first log rows, and the panels' modules being imported the first time a screen wants
+  them. That is why `--warm-runs 3` exists, and why `verdictOf` always measures at least three runs
+  however small the batch: a slope off two points is a line drawn through whatever the second one
+  happened to be.
+- **The save document is not where a leak lives, and reading it nearly went unnoticed.** It is 316 bytes
+  after one run and about 500 after four; it grows one log row per ended run up to
+  `BALANCE.history.keep` (twenty) and stops. But `core/save.js` goes through `window.localStorage`, and
+  the headless shim hangs its store on the window object it builds, so the first version of `survey()` -
+  which looked on `globalThis` - reported a save of zero bytes forever. It is a number that being wrong
+  looks exactly like being right, so it now reads `window` first and there is a test on the size being
+  plausible rather than zero.
+- **The careless runs were not careless enough.** With the aware bot and a die, seven of the eight
+  outlived the five-minute window, so the batch measured one ending where it needed eight - and an
+  ending is the thing it was for. The perfect-eyed bot with a die rarely dies (session 89: 22 of 48
+  outlived fifteen minutes). So the wrecks are flown by `--wreck-policy human`, whose hand was a wreck
+  eight times in eight, none of them later than 3m17s. It is the same die, just attached to somebody
+  who mis-times things.
+- **A theory I checked and threw away.** I had written that the wrecks go first because the flight banks
+  stardust, the hangar spends it, and a late batch would be flying a better ship. Measured on a fresh
+  visit, the same eight aware runs came out identical before the flight and after it (down to the score
+  of each). The stardust story was wrong; the policy was the whole difference. The header says so now,
+  with the measurement in it, because a comment that guesses is a comment nobody re-checks.
+- **The headless harness has no pixels.** `tools/headless/shim.js` gives canvases a 300×150 `width`
+  and nothing behind them, so `holder.sprite.width * holder.sprite.height * 4` - what a browser is
+  really holding - reads as zero here forever. `glow.stats()` now does that arithmetic itself
+  (`Math.ceil(w * pixelRatio) * Math.ceil(h * pixelRatio) * 4` summed over baked holders), so the hunt
+  can say something about the one cache the heap cannot see. 82 holders, 8.9 MB, bounded because
+  `glowFor` is keyed on colour and a radius off a table, and the tables are finite.
+- **`node --test test/` lies.** With the path it reports one failing test called `test` on this Node;
+  `node --test` (no argument) finds all 1718 and they all pass. AGENTS.md says `node --test`, and this
+  time I know why.
+
+### What should come next
+
+1. **The F3 debug overlay** is the next unchecked milestone-10 item and it now has everything it needs
+   already written: `Pool.stats()` (made/live/free/spawned) for pool usage, `glow.stats()` for the
+   sprite cache including the new `bytes`, and `censusOf` if you ever want a deep count on demand.
+   Nothing new should be invented for it - assemble, do not re-derive.
+2. **The performance pass against section 2's target** wants saying out loud first: PLAN's target is
+   600 enemies, 1500 bullets, 4000 particles, and the shipped game stops its crowd at 200 bodies
+   (session 76). Either the target moves or the wall does. Measure before deciding.
+3. The weapon ladder - PLAN's 25% band, measured at 21x by session 91 - is still the big open item.
