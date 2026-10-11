@@ -11360,7 +11360,7 @@ vacuums, 2065 in).
    21x and the currency is wrong), and the **performance pass**, which needs the 600-enemies-vs-200-body
    question answered by measurement first. Both have their instruments already (`tools/weapon-ladder.js`,
    the F3 plate, `tools/headless/frame-cost.js`).
-2. If a pool is ever added and one of its spacers left half-written, `test/pool-contract.test.mjs` will
+2. If a pool is ever added and one of its spawners left half-written, `test/pool-contract.test.mjs` will
    say `<pool>.<field>` - but only if the new system is *reached*: the coverage test fails with the name
    of any list that spawned nothing, so the fix is to teach `plantWave`/`hands`/this file what wakes it.
 3. `test/structure.test.mjs`'s new export check counts prose, so a function that is only ever *talked
