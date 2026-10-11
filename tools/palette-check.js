@@ -26,7 +26,8 @@
 import { PALETTE } from '../src/core/palette.js';
 import { oklch, lightnessStar, STEP_OF } from './colour-lab.js';
 import {
-  SIGHTS, SKY, auditSights, auditSky, measure, visionName, promised,
+  SIGHTS, SKY, auditSights, auditSky, auditMarks, markNames, measure, visionName, promised,
+  marginOf as margin,
 } from './sights.js';
 
 function readArgs(argv) {
@@ -49,12 +50,6 @@ function readArgs(argv) {
 
 const pad = (text, width) => String(text).padEnd(width);
 const num = (value, digits) => value.toFixed(digits);
-
-/** The worst a pair is doing against what it was asked to show, worst first. */
-function margin(pair) {
-  if (!pair.promised) return 99;
-  return Math.min(pair.redGreen.ratio - pair.need.redGreen, pair.hueless.ratio - pair.need.hueless);
-}
 
 function head(title) {
   process.stdout.write('\n' + title + '\n' + '='.repeat(title.length) + '\n\n');
@@ -143,6 +138,62 @@ function reportSky(sky) {
   }
 }
 
+/**
+ * The MARKS row, measured (game/settings.js).
+ *
+ * One block per step of the row that paints anything - the faintest first, because the faint step is
+ * the one that has to clear the bar: the full step is the same colours laid with more ink in them.
+ * Every pair a mark touches is printed before and after, and the ones the marks are *for* - the pairs
+ * the palette promises a whole step of brightness about - are the ones the section is judged on.
+ */
+function reportMarks(marks, opts) {
+  head('When MARKS is asked for');
+  for (const mark of markNames()) {
+    process.stdout.write('  ' + mark.name + ' is ' + mark.colour + ', at ' + mark.ratio
+      + ' of the thing it sits in the middle of\n');
+  }
+  process.stdout.write('  a mark is measured as the mean of itself over the thing it covers, so these\n');
+  process.stdout.write('  numbers are the least an eye gets and not the most\n\n');
+  if (marks.length === 0) {
+    process.stdout.write('  the row has no step that paints anything, so there is nothing to measure.\n');
+    return;
+  }
+  for (const one of marks) {
+    process.stdout.write('  step ' + one.step.words + ' \u00b7 ' + one.step.share + ' of an opacity\n');
+    const sorted = one.pairs.slice().sort((x, y) => margin(x) - margin(y));
+    const shown = opts.all ? sorted : sorted.filter((p) => margin(p) < 0.45);
+    for (const pair of shown) {
+      process.stdout.write('    ' + (pair.pass ? 'ok  ' : 'FAIL') + ' '
+        + pad(pair.a.id + ' / ' + pair.b.id, 26)
+        + 'red-green ' + pad(num(pair.redGreen.ratio, 2), 7)
+        + 'no hue ' + pad(num(pair.hueless.ratio, 2), 6)
+        + 'asked ' + num(pair.need.redGreen, 2) + '/' + num(pair.need.hueless, 2) + '\n');
+    }
+    for (const row of one.sky) {
+      process.stdout.write('    FAIL ' + pad(row.sight.id + ' ' + row.part, 26)
+        + 'is ' + num(row.worst.ratio, 2) + ' of a step from the sky, needs ' + row.need + '\n');
+    }
+    if (one.needed.length === 0) {
+      process.stdout.write('    nothing in this corner of the table is promised a whole step of brightness,');
+      process.stdout.write(' so nothing here is what the marks were built for\n');
+    } else {
+      process.stdout.write('    ' + one.bought.length + ' of ' + one.needed.length
+        + ' pairs the marks are for came out further over their bar\n');
+    }
+    for (const each of one.needed) {
+      process.stdout.write('      ' + pad(each.pair.a.id + ' / ' + each.pair.b.id, 26)
+        + 'was ' + pad(num(margin(each.before), 2), 6) + ' clear of its bar, is '
+        + num(margin(each.pair), 2) + '\n');
+    }
+    if (one.failures.length > 0) {
+      process.stdout.write('    ' + one.failures.length + ' promised pair'
+        + (one.failures.length === 1 ? '' : 's') + ' under the bar with the mark on: '
+        + one.failures.map((p) => p.a.id + '/' + p.b.id).join(', ') + '\n');
+    }
+    process.stdout.write('\n');
+  }
+}
+
 const opts = readArgs(process.argv.slice(2));
 let sights = SIGHTS;
 if (opts.only !== null) {
@@ -163,9 +214,13 @@ reportSights(sights);
 reportPairs(pairs, opts);
 reportReported(pairs, opts);
 reportSky(sky);
+const marks = auditMarks(sights);
+reportMarks(marks, opts);
 
 const failures = promised(pairs).filter((p) => !p.pass).length
-  + sky.filter((r) => r.worst.ratio < r.need).length;
+  + sky.filter((r) => r.worst.ratio < r.need).length
+  + marks.reduce((sum, one) => sum + one.failures.length + one.sky.length
+    + (one.needed.length - one.bought.length), 0);
 head('Verdict');
 if (failures === 0) {
   process.stdout.write('  every pair clears what the rule asks of it.\n');

@@ -1,14 +1,15 @@
-// The settings (PLAN section 6): the four things the game does to its own picture, the panel that
+// The settings (PLAN section 6): the five things the game does to its own picture, the panel that
 // shows them, and the one rule that holds the whole feature together - **not one of them may change
 // what happens in a run**.
 //
-// Three of the four change the drawing and nothing else, one stops a number from being put on the
-// screen at all, and all four are kept for the next visit, which is a shape that makes exactly one
+// Four of the five change the drawing and nothing else, one stops a number from being put on the
+// screen at all, and all five are kept for the next visit, which is a shape that makes exactly one
 // mistake easy: a "shake" row implemented by moving the camera inside the simulation, or a "fewer
 // sparks" row implemented by making a death drop fewer chips. So the last test here plays one seed
 // twice, once with every row at the top of its travel and once with every row at the bottom, and
 // compares what the world *did* rather than what it looked like. That test is the reason the rest of
-// this is allowed to exist.
+// this is allowed to exist - and it is also what the MARKS row is held to, since a mark is a fifth
+// thing the game paints and nothing else.
 //
 // What lives where: the rows and their steps are game/settings.js; the mixer's own three rows and the
 // keys that step them are test/volume.test.mjs; the panel's furniture is ui/screens.js and the keys
@@ -28,7 +29,7 @@ import { bootGame } from '../tools/headless/harness.js';
 import { SAVE_KEY } from '../src/core/save.js';
 import {
   ROWS, loadFromSave, stepRow, wordsOf, stepIdOf,
-  shakeShare, flashShare, particleStride, numbersShown,
+  shakeShare, flashShare, particleStride, numbersShown, markShare,
 } from '../src/game/settings.js';
 import { playOneRun } from '../tools/headless/bot.js';
 
@@ -84,15 +85,18 @@ test('every row ships at the end the game was built and balanced at', () => {
   // and it has to be *quieter*, not a different game wearing the same arena. So the last step of every
   // row is the shipped one, and no number below is allowed to be named twice.
   assert.deepEqual(ROWS.map((row) => row.steps[row.steps.length - 1].id),
-    ['full', 'full', 'on', 'all'], 'the last step of every row is the shipped one');
+    ['full', 'full', 'on', 'all', 'off'], 'the last step of every row is the shipped one');
   assert.deepEqual(ROWS.map((row) => row.default),
-    ['full', 'full', 'on', 'all'], 'and it is the step the row says it ships at');
+    ['full', 'full', 'on', 'all', 'off'], 'and it is the step the row says it ships at');
 
   shippedAgain();
   assert.equal(shakeShare(), 1, 'the window is moved by all of the trauma');
   assert.equal(flashShare(), 1, 'every hurt body is flashed');
   assert.equal(particleStride(), 1, 'every spark of every spray is let out');
   assert.equal(numbersShown(), true, 'and every number is painted');
+  assert.equal(markShare(), 0,
+    'and no mark is painted: it is the one row here that is added rather than turned down, so it ships '
+    + 'at nothing and its steps run the other way round');
 
   // Every row is worth reading by a person: a name, one plain line, and steps with words of their own.
   for (const row of ROWS) {
@@ -137,6 +141,22 @@ test('a row walks its own steps and stops at both ends', () => {
   assert.equal(particleStride(), 1, 'and the top of the row is every spark there is');
   leftThemAt({ particles: 'none' });
   assert.equal(particleStride(), 0, 'the bottom is none of them');
+
+  // The marks row runs the other way round from every other row here, and that is the one promise kept
+  // the hard way: nothing is the game as it shipped, so `off` is the last step and a hand that keeps
+  // pressing left walks *up* the marks rather than down to nothing.
+  leftThemAt({ marks: 'off' });
+  assert.equal(markShare(), 0, 'the shipped step paints nothing');
+  const none = markShare();
+  const faint = stepRow('marks', -1);
+  assert.equal(stepIdOf('marks'), 'faint');
+  assert.ok(markShare() > none, 'one step up the row is more mark');
+  assert.ok(stepRow('marks', -1) !== null, 'and one more is the most of it');
+  assert.equal(stepIdOf('marks'), 'full');
+  assert.equal(markShare(), 1, 'which is the whole mark, the whole time');
+  assert.equal(stepRow('marks', -1), null, 'and there is nothing past the top of the row');
+  for (let i = 0; i < 6; i++) stepRow('marks', 1);
+  assert.equal(wordsOf('marks'), 'OFF', 'and back down to the game as it shipped');
   shippedAgain();
 });
 
@@ -153,7 +173,7 @@ test('what a row is set to is answered by the row, in words, and nowhere else', 
     }
   }
   shippedAgain();
-  assert.deepEqual(ROWS.map((row) => wordsOf(row.id)), ['FULL', 'FULL', 'ON', 'ALL']);
+  assert.deepEqual(ROWS.map((row) => wordsOf(row.id)), ['FULL', 'FULL', 'ON', 'ALL', 'OFF']);
 });
 
 test('the one default that is not the shipped one is the one the player already asked for', () => {
@@ -251,23 +271,24 @@ test('the cursor walks the panel and the rows step under it', async () => {
   frames(4);
   press('KeyO');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'KEYS', 'MUSIC', 'SOUND', 'MUTE',
-    'AUTO-FIRE', 'AUTO-AIM',
-  ], 'four things it does to the eyes, the door onto the keys, three it does to the ears, and the two '
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MARKS', 'KEYS', 'MUSIC', 'SOUND',
+    'MUTE', 'AUTO-FIRE', 'AUTO-AIM',
+  ], 'five things it does to the eyes, the door onto the keys, three it does to the ears, and the two '
     + 'it does to the hand');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.chosen),
-    [true, false, false, false, false, false, false, false, false, false], 'one cursor, on the first row');
+    [true, false, false, false, false, false, false, false, false, false, false],
+    'one cursor, on the first row');
   for (const row of game.screen.settingsRows) {
     assert.ok(row.says.length > 0, row.name + ' says what it does');
   }
 
   // Up and down move the cursor and nothing else; twenty presses each way and it has not left.
   for (let i = 0; i < 20; i++) press('ArrowDown');
-  assert.equal(cursorOn(), 9, 'the bottom row is the last one');
+  assert.equal(cursorOn(), 10, 'the bottom row is the last one');
   for (let i = 0; i < 20; i++) press('ArrowUp');
   assert.equal(cursorOn(), 0);
   assert.deepEqual(game.stats().settings, { shake: 'full', flash: 'full', numbers: 'on',
-    particles: 'all' }, 'walking the cursor changed no row');
+    particles: 'all', marks: 'off' }, 'walking the cursor changed no row');
   assert.deepEqual(game.stats().assists, { fire: 'off', aim: 'off' },
     'and not one of the two switches either - a cursor is not an answer');
 
@@ -289,8 +310,8 @@ test('the cursor walks the panel and the rows step under it', async () => {
 
   press('KeyO');
   const saved = JSON.parse(game.storage[SAVE_KEY]);
-  assert.deepEqual(saved.view, { shake: 'full', flash: 'soft', numbers: 'on', particles: 'all' },
-    'the row that was moved is kept, by name, for the next visit');
+  assert.deepEqual(saved.view, { shake: 'full', flash: 'soft', numbers: 'on', particles: 'all',
+    marks: 'off' }, 'the row that was moved is kept, by name, for the next visit');
   assert.deepEqual(saved.assists, {}, 'and the two switches were not walked over on the way');
   shippedAgain();
 });
@@ -335,11 +356,12 @@ test('none of it changes what happens in a run', async () => {
   // every gate sits in a painter or in a spawner that hands nothing back to the run.
   shippedAgain();
   const loud = await playAFullRun(20260717);
-  leftThemAt({ shake: 'off', flash: 'off', numbers: 'off', particles: 'none' });
+  leftThemAt({ shake: 'off', flash: 'off', numbers: 'off', particles: 'none', marks: 'full' });
   assert.equal(shakeShare(), 0);
   assert.equal(flashShare(), 0);
   assert.equal(particleStride(), 0);
   assert.equal(numbersShown(), false);
+  assert.equal(markShare(), 1, 'every mark the game can paint, painted');
   const quiet = await playAFullRun(20260717);
   shippedAgain();
 

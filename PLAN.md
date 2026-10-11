@@ -1140,7 +1140,32 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the settings stay keyboard racks - section 6 asks that screens work with keyboard alone and with a
       gamepad, and 22 tests hold what a thumb was promised: `test/touch.test.mjs` for the driving and
       `test/touch-art.test.mjs` for the picture and for the promise that a mouse visit is untouched.)
-- [ ] Colour-blind palette.
+- [x] Colour-blind palette. (Two halves, and the measuring came first. **The palette itself was
+      measured** (`tools/colour-lab.js`: Oklab, and five eyes each named by the axis it keeps;
+      `tools/sights.js`: 19 sights - nine bodies read out of `BALANCE.kinds`, an enemy shot, a beam, a
+      blast, a mine, the ship, its shot, a shard at each size, the wall, a boss's cage - each with a
+      *meaning*, the form the renderer really draws and a size, plus a promise matrix that says which
+      pairs an eye is actually being asked to decide between: only pairs with harm in them, and where the
+      shape cannot tell them apart, a full step on every axis the eye keeps. `tools/palette-check.js`
+      prints the whole thing and `test/palette-read.test.mjs` holds it, in the same words, off the same
+      function. **The shipped palette passed all 84 promised pairs** - so no colour moved, and the two
+      thinnest pairs (a shard against an enemy's shot at 1.12, their shot against yours at 1.20) are
+      documented rather than painted over: deepening the shot, the obvious candidate, lands it on top of
+      the spitter's own body, which the audit catches and a screenshot would not.)
+    **The row that came out of it is `MARKS`** - the fifth picture row on the settings panel, `FULL` /
+      `FAINT` / `OFF`, shipping at `off` because it is the one row in the game that *adds* something and
+      the last step of every row has to be the game as it shipped. On, it punches a dark centre through
+      every enemy shot and lights one in every shard: a signature made of light and the lack of it and of
+      nothing else, so it cannot undo the one colour rule the game runs on (`a mark is a shade and not a
+      colour` is a test), and it is measured at the row's *faintest* step against every promise the
+      palette makes - every pair still clears, nothing goes invisible on the sky, and the two thinnest
+      pairs go from 1.12 and 1.20 to 1.58 and 1.61 for an eye with no hue at all, and further with the
+      full step. Only the two small fast things are marked, because only they are ever mistaken for each
+      other: no crowd body, no beam, no wall, and not the ship's own gun (`test/marks-art.test.mjs`,
+      painted and counted on the canvas stub, and the ratios pinned out of the renderer's source so the
+      audit cannot measure a picture nobody paints). It changes nothing about a run - the same seed
+      played with every row at both ends of its travel is the same run, 1970 tests and a reference run
+      that traces the same bytes as before it.)
 - [ ] Release.
 
 ### Milestone 10: balance and polish

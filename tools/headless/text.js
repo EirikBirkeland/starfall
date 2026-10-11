@@ -241,9 +241,14 @@ export async function harvestVisit(options) {
 
   tap(game, 'KeyO');
   stops.push(look(game, 'settings'));
-  // The rack of keys behind the door on that panel. The cursor is walked down to the door rather than
-  // guessed at, because the door is wherever the panel prints it (main.js `settingRows`).
-  for (let i = 0; i < 4; i++) tap(game, 'ArrowDown');
+  // The rack of keys behind the door on that panel. The cursor is walked down until the panel says the
+  // door is the row it is on - the door is wherever the panel prints it (main.js `settingRows`), so a
+  // row added above it moves the door and not the visit, and a counted walk would step the row above
+  // the door instead and open nothing.
+  for (let guard = 0; guard < game.screen.settingsRows.length; guard++) {
+    if (game.screen.settingsRows.some((row) => row.name === 'KEYS' && row.chosen === true)) break;
+    tap(game, 'ArrowDown');
+  }
   tap(game, 'ArrowRight');
   stops.push(look(game, 'keys'));
   tap(game, 'KeyO');                                    // back to the settings it came from

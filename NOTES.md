@@ -12745,3 +12745,105 @@ silhouette the list shortens and that is a better game.
    the ship you are piloting, and that is exactly the pair the promise matrix declines to judge, but
    it is a thin wall. And the audit has no opinion on the interface (cards, HUD, codex); a
    `tools/contrast-check.js` for text-on-panel would be the same ruler pointed at `render/cards.js`.
+
+## Session 110 — A second signature over the palette: the MARKS row, measured at its faintest
+
+Suite **1957 → 1970** (7 in `test/marks-art.test.mjs`, 6 in `test/palette-read.test.mjs`). The reference
+run (`--seed 20261006 --trace`) is byte for byte session 109's again (10m00s / 73,982 / level 57 /
+3,934 kills / 4,934 shards, 7 vacuums, 2036 in) - and the settings test now plays one seed twice with
+**every picture row at both ends of its travel including `marks: full`** and asks for the same run, so the
+new row is proven cosmetic in the same sentence the other four are.
+
+Milestone 9's colour-blind item is ticked and released as **0.10.16**: session 109's measurement said the
+shipped palette needs no rescuing, and the honest half that was left was the row.
+
+### What landed
+- **`MARKS` is the fifth picture row** on the settings panel: `FULL` / `FAINT` / `OFF`, shipping at
+  `off`. It is the one row in the game that *adds* something rather than turning something down, so its
+  steps run the other way from every other row here - `off` is the last step because the last step of
+  every row is the game as it shipped, and a hand that keeps pressing `←` walks *up* the marks.
+  `game/settings.js` says that in the row's own comment and `test/settings.test.mjs` walks it both ways.
+- **What it paints** (`render/entities.js`): every enemy shot gets a dark centre punched through its hot
+  core (`MARK_PUPIL_RATIO` 0.42 of the shot's own reach, which leaves a ring of light rather than a black
+  disc with a halo) and every shard - either size - gets a lit spark set in its middle (0.42 of the body,
+  inside the shard's own fading). Two palette colours, `markPupil` `#160b04` and `markCore` `#f2fff8`,
+  neither of which has a hue worth the name: **a mark is light and the lack of it**, so it can be laid on
+  top of anything the arena already wears without moving a body off warm-is-harm (there is a test named
+  `a mark is a shade and not a colour`, and it allows four degrees of hue). The strength is written into
+  the rgba and not into `globalAlpha`, because the entity pass already has a `globalAlpha` of 0.8 in
+  flight and the two would multiply into something nobody chose.
+- **Only the two small fast things are marked.** A crowd body has a silhouette, a size and a way of
+  walking; a beam is a band of light nothing can be mistaken for; a wall is where the wall is; and the
+  ship's own shot is already the lit half of the pair. That is the same argument the promise matrix makes
+  about shape, and both halves of it are held: `test/marks-art.test.mjs` counts fills and proves the ship,
+  its own gun and the whole crowd cost exactly what they cost with the row off, and
+  `test/palette-read.test.mjs` asserts `markFor()` answers null for every one of them.
+- **`tools/sights.js` grew the marks half**: `MARKS` (the two marks and which sights they paint, decided
+  off `meaning` and `form` so a new dot-shaped harm is marked the day it is added), `marked(sight, share)`
+  (the sight's colour with the mark blended over it by `ratio²`, i.e. the area the mark actually covers -
+  deliberately harsh, since an eye that can resolve the shape gets more than that), and `auditMarks()`
+  which reads the row's own steps out of `game/settings.js` and measures each one against every promise
+  the palette makes.
+- **Three promises about the marks**, all in `test/palette-read.test.mjs`: every step clears every
+  promised pair *and* stays visible on the sky; every pair the palette promises a whole step of
+  **brightness** about - the promise that says "shape is not enough here" - and that a mark touches, comes
+  out further over its bar; and `enemyShot / shard` and `enemyShot / playerShot`, the two thinnest pairs
+  in the shipped palette, each gain at least 0.4 of a step for an eye with no hue at the *faint* step. The
+  full step buys about twice that: 1.12 → 2.49 and 1.20 → 2.57.
+- **`tools/palette-check.js` prints a `When MARKS is asked for` section** and `--strict` fails on a mark
+  that broke a promise, so the report and the tests cannot disagree - they call the same `auditMarks()`.
+
+### What bit, in order of how much it wasted
+1. **An edit that silently did half of what was asked.** One `edit` call with two hunks: the second hunk's
+   `oldText` did not match, so the tool applied *nothing*, and I did not notice for a while - the constants
+   and the shard half were in and the shot half was not, and `node --check` was happy the whole time. The
+   art test found it ("one fill more than the same shot wore unmarked: 0 !== 1"), which is the first time
+   this suite has caught a *missing feature* rather than a wrong value. Lesson: after a rejected multi-hunk
+   edit, re-read the file before writing the next one.
+2. **Two harness indices that hard-coded where the panel prints its rows.** Adding a fifth row shifted
+   `MUSIC` from 5 to 6 and `AUTO-FIRE` from 8 to 9 in `test/volume.test.mjs` and `test/assists.test.mjs`
+   (both now walk one further and read one further), and it broke the *writing* visit in a way that looked
+   like a broken game: `tools/headless/text.js` pressed `ArrowDown` four times - a counted walk its own
+   comment claimed it was not doing - landed the cursor on `MARKS` instead of the `KEYS` door, stepped the
+   row instead of opening the rack, and then its two `O` presses left the panel up, so the visit never
+   launched: `cards-not-dealt`, `win-not-reached`, and `test/words.test.mjs` red. It now walks down until
+   the panel says the door is the row it is on. **`test/keys.test.mjs` had the same disease** and I only
+   found it by running the whole suite: it asserted the settings cursor came back to row 4 where the door
+   is now 5; it asks `doorRow()` now. Anything that walks a rack should ask where the rack printed the
+   thing it is looking for.
+3. **A shard planted next to the ship is not there by the time the frame is painted** - the magnet takes it
+   (game/pickups.js, 145 px). The art test plants them 400 px out and pins their velocity, and reads the
+   mark by its ink rather than its position, because a shard's mark is drawn inside the shard's own
+   translate-and-rotate so the coordinates it was asked with are the shard's and not the arena's.
+4. The harness's `circles()` logged no colour at all - so `arc` now records `fill`, `stroke` and `alpha`
+   alongside `mode`. That is what lets a test say "the pupil was painted in `PALETTE.markPupil` at the
+   row's share" instead of counting fills and hoping.
+
+### Decisions, so nobody relitigates them
+- **A mark may trade a hair of an axis an eye did not need for a lot of the one it did.** Marked
+  `enemyShot / playerShot` goes 1.20 → 1.61 for a hueless eye and 2.59 → 2.36 for a red-green one, because
+  a pupil takes a little warmth out of a warm dot and that eye was already 1.6 clear of its bar. The test
+  asserts the pair's *margin* and the hueless gain, and the "every step clears every promise" test is what
+  bounds the trade.
+- **The audit measures a mark as an area-weighted mean and says so.** It is a floor, not a ceiling: a pupil
+  covers about 18% of the shot's read area, and the picture an eye actually gets is a hole in a light,
+  which anything with acuity reads as a shape. Anyone tempted to make the number prettier should notice
+  that the *faint* step is what has to clear the bar, and it clears it by half a step.
+- **`MARK_FAINT` is 0.45 of an opacity, not a smaller dot**: the faint step is the same picture with less
+  ink in it, which is what makes it a *step* of one row rather than a different picture.
+- The row has no key of its own and is not on the title's key line: it lives inside `O` like the other four
+  picture rows, and the panel prints it.
+
+### What should come next
+1. Milestone 9's last item is its **release** - the milestone's checklist is that item; read it against
+   what exists, tick it or argue with it. Then milestone 10's browser half of the performance pass,
+   and `1.0.0`.
+2. Still owed from earlier sessions: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed
+   --weapon pulse --seeds 1-16`), the **difficulty band** (`tools/difficulty-arc.js` still fails),
+   `tools/gun-tune.js` from session 96, and session 101's `--paint` door on `tools/alloc-probe.js`.
+3. Small things this session noticed and did not do: the audit still has no opinion on the **interface** (a
+   `tools/contrast-check.js` pointed at `render/cards.js` text-on-panel would be the same ruler, and a
+   third mark could serve the HUD); `cageWall` is still a thin wall for a protanope (0.13 from the ship,
+   and deliberately unjudged); and the four crowd pairs that share a colour (`darter/swarmling` 0.35 above
+   all) want a silhouette rather than a colour - which is the other word in PLAN's sentence and a different
+   session.

@@ -99,8 +99,9 @@
 //   is only asked to be visible on the sky at all (FILL_STEP), because a fill that is
 //   invisible is a body drawn as a hole in the background.
 
-import { PALETTE, parseColor } from '../src/core/palette.js';
+import { PALETTE, parseColor, mixColors } from '../src/core/palette.js';
 import { BALANCE } from '../src/game/balance.js';
+import { ROWS as VIEW_ROWS } from '../src/game/settings.js';
 import { oklab, over, worstVision, VISIONS } from './colour-lab.js';
 
 /** The colour a body sits on. The sky is a vertical gradient; this is its middle. */
@@ -384,4 +385,153 @@ export function auditSky(sights = SIGHTS) {
 export function visionName(id) {
   const vision = VISIONS.find((v) => v.id === id);
   return vision === undefined ? id : vision.name;
+}
+
+/** How far a pair is clear of what it was asked to show, worst first. */
+export function marginOf(pair) {
+  if (!pair.promised) return 99;
+  return Math.min(pair.redGreen.ratio - pair.need.redGreen, pair.hueless.ratio - pair.need.hueless);
+}
+
+// --- the marks ----------------------------------------------------------------
+//
+// The palette was measured and it holds (session 109), and a promise about hues is still a promise
+// made to eyes a tenth of which do not have the hue it is written in. The MARKS row
+// (game/settings.js, painted by render/entities.js) is the second signature those visits can have:
+// a small dark centre punched through the things that can end the run, and a small lit one set in the
+// middle of the thing the run wants. It is painted *over* the palette, not instead of it, and neither
+// of its two colours has a hue worth the name, so it cannot undo the one colour rule the game runs on.
+//
+// What is measured here is whether that is worth anything, in the same units the palette is measured
+// in. A mark is not a colour you can drop into the table and compare as written, because it covers a
+// small part of the thing it sits on: a sight is measured with its mark as the *mean* of the two,
+// blended by the share of its own middle the mark covers - `ratio * ratio`, the area of a disc of
+// that radius over the area of a disc of the sight's own reach. That is deliberately harsh on the
+// mark: a pupil of 0.42 r covers about a seventh of a shot's glow, and an eye that can resolve the
+// shape at all gets a great deal more out of it than a seventh.
+
+/**
+ * How big each mark is, as a share of the thing it sits in the middle of.
+ *
+ * They are written here because they are part of what is measured, and `test/palette-read.test.mjs`
+ * reads them out of `src/render/entities.js` and fails if the two ever disagree - the same rule the
+ * sizes are held to, for the same reason: an audit of a picture nobody paints is a formality.
+ */
+const MARK_PUPIL_RATIO = 0.42;
+const MARK_CORE_RATIO = 0.42;
+
+/**
+ * The two marks, and which sights they belong to.
+ *
+ * Only the small fast things: a shot and a shard. A crowd body has a silhouette and a size and a way
+ * of walking, a beam is a band of light nothing can be mistaken for, and a wall is where the wall is -
+ * which is the same argument `promiseOf` makes about shape, and it is why marking more would be
+ * painting the arena for no promise at all.
+ */
+const MARKS = [
+  {
+    id: 'pupil', name: 'A DARK CENTRE', colour: PALETTE.markPupil, ratio: MARK_PUPIL_RATIO,
+    paints: (sight) => sight.meaning === 'harm' && sight.form === 'dot',
+  },
+  {
+    id: 'spark', name: 'A LIT CENTRE', colour: PALETTE.markCore, ratio: MARK_CORE_RATIO,
+    paints: (sight) => sight.meaning === 'help' && sight.form === 'diamond',
+  },
+];
+
+/** The MARKS row itself, out of the table the game ships. There is no second copy of it here. */
+function markRow() {
+  const row = VIEW_ROWS.find((each) => each.id === 'marks');
+  if (row === undefined) throw new Error('the game has no MARKS row to measure');
+  return row;
+}
+
+/** The mark a sight carries, or null when the row paints nothing on it. */
+export function markFor(sight) {
+  for (const mark of MARKS) {
+    if (mark.paints(sight)) return mark;
+  }
+  return null;
+}
+
+/** The steps of the row that paint anything, in the order the row prints them. */
+export function markSteps() {
+  return markRow().steps.filter((step) => step.share > 0);
+}
+
+/** The names of the two marks, for a report that wants to say what it painted. */
+export function markNames() {
+  return MARKS.map((mark) => ({ name: mark.name, colour: mark.colour, ratio: mark.ratio }));
+}
+
+/**
+ * One sight as an eye gets it with its mark painted on it: the mean of the mark over the sight's own
+ * colour, blended by how much of the sight's middle the mark covers and by how solid the visit asked
+ * for (`share`). A sight the row does not paint is handed back as it stands.
+ */
+export function marked(sight, share) {
+  const mark = markFor(sight);
+  if (mark === null) return sight;
+  const coverage = mark.ratio * mark.ratio * share;
+  return Object.assign({}, sight, {
+    colour: mixColors(sight.colour, mark.colour, coverage),
+    mark: mark.name,
+    from: sight.from + ' with ' + mark.name.toLowerCase(),
+  });
+}
+
+/** The whole table with its marks on. */
+export function markedSights(share, sights = SIGHTS) {
+  return sights.map((sight) => marked(sight, share));
+}
+
+/** The two sides of a pair, as a key that survives one of them being a marked copy. */
+function pairKey(pair) {
+  return pair.a.id + '|' + pair.b.id;
+}
+
+/**
+ * What the MARKS row is worth, measured one step of it at a time.
+ *
+ * Three things come back per step, and all three are measured rather than asserted:
+ *
+ *   `failures`   - a marked thing that no longer clears a promise the unmarked palette keeps. A mark
+ *                  is allowed to move a colour, and not allowed to move it onto something else.
+ *   `sky`        - a marked thing that has gone so dark it is not visible on the sky at all, which is
+ *                  the one way a mark could do harm rather than good.
+ *   `needed` / `bought` - the pairs the marks exist for, and how many of them ended up further over
+ *                  their bar. The pairs it picks are the ones promised a whole step of *brightness*,
+ *                  because that is the promise that says "shape is not enough here", and a mark is
+ *                  nothing but shape and brightness. Every one of those pairs has to come out ahead,
+ *                  or the row is decoration and should say so.
+ */
+export function auditMarks(sights = SIGHTS) {
+  const off = new Map(auditSights(sights).map((pair) => [pairKey(pair), pair]));
+  const out = [];
+  for (const step of markSteps()) {
+    const painted = markedSights(step.share, sights);
+    const pairs = promised(auditSights(painted));
+    const needed = [];
+    const bought = [];
+    for (const pair of pairs) {
+      if (pair.need === null || pair.need.hueless < FULL) continue;
+      const before = off.get(pairKey(pair));
+      if (before === undefined || !before.promised) continue;
+      if (markFor(pair.a) === null && markFor(pair.b) === null) continue;
+      // The same object goes on both lists, which is what lets a caller ask "was this one bought" by
+      // looking for it rather than by re-deriving the rule in two places.
+      const each = { pair, before, bought: marginOf(pair) > marginOf(before) };
+      needed.push(each);
+      if (each.bought) bought.push(each);
+    }
+    out.push({
+      step,
+      pairs,
+      failures: pairs.filter((pair) => !pair.pass),
+      sky: auditSky(painted).filter((row) => row.worst.ratio < row.need),
+      needed,
+      bought,
+    });
+  }
+  return out;
 }

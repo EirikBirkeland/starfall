@@ -242,6 +242,18 @@ export const PALETTE = {
   enemyShot: '#ff9a5c',
   enemyShotCore: '#fff1dd',
   spitCharge: '#ffd9a8',
+  // The two colours the MARKS row paints with (game/settings.js, render/entities.js). A mark is a
+  // second signature laid *over* the palette for a visit that cannot read the warm/cool rule off the
+  // hues: whatever can hurt you gets a dark centre and everything the run wants gets a lit one.
+  //
+  // Neither of them has a hue worth the name, on purpose. A mark that was a colour could only be
+  // painted by stealing a hue from something else in the arena - which is the trap session 109
+  // measured and walked away from - and these two are light and the lack of it, so they can be laid
+  // on top of any colour the game already wears without moving a body off the warm/cool rule. The
+  // pupil is a very dark ember rather than plain black for the same reason every darkest thing here
+  // is warm: it is only ever painted inside a warm light.
+  markPupil: '#160b04',
+  markCore: '#f2fff8',
 };
 
 const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;

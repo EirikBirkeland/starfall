@@ -86,11 +86,16 @@ function theSettingsKey() {
   return codeFor('settings');
 }
 
+/** Where the settings panel prints the door onto this rack, or -1 when it does not print one. */
+function doorRow() {
+  return game.screen.settingsRows.findIndex((row) => row.name === 'KEYS');
+}
+
 /** From the title: the settings panel, the door walked to, and the rack opened. */
 function openRack() {
   closePanels();
   press(theSettingsKey());
-  const at = game.screen.settingsRows.findIndex((row) => row.name === 'KEYS');
+  const at = doorRow();
   assert.ok(at >= 0, 'the settings panel has a door onto the keys');
   for (let i = 0; i < at; i++) press('ArrowDown');
   press('ArrowRight');
@@ -186,7 +191,7 @@ test('O goes back the way it came, and the settings panel is still the same rack
   press('KeyO');
   assert.equal(settingsAreUp(), true, 'back to the settings, not out to the title');
   assert.equal(rackIsUp(), false);
-  assert.equal(game.screen.settingsRows.findIndex((row) => row.chosen), 4,
+  assert.equal(game.screen.settingsRows.findIndex((row) => row.chosen), doorRow(),
     'the settings cursor came back to the door it was walked to - it was never moved');
   press('KeyO');
   assert.equal(settingsAreUp(), false, 'and the second O closes the settings themselves');

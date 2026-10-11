@@ -8,6 +8,7 @@ import { BALANCE } from '../game/balance.js';
 import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU, hypot } from '../core/math.js';
+import { markShare } from '../game/settings.js';
 import { polygon, shipPath, shipShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
@@ -72,6 +73,20 @@ const DART_BLUR_LIGHT = 0.55;
 const DART_CHARGE = 8;         // px of light building at the nose while it aims
 const SPIT_CHARGE = 9;         // px of light filling a spitter's mouth
 const ENEMY_SHOT_HALO = 8;     // px of light past a shot's own reach
+
+// The marks (game/settings.js `MARKS`, PLAN section 6): a dark centre punched through what can hurt
+// you, a lit one lit in what the run wants, painted over the palette rather than instead of it, for a
+// visit that cannot read the warm/cool rule off the hues. Two ratios of the thing being marked, and
+// that is the whole of the picture - the colours are the palette's (`markPupil`, `markCore`) and the
+// strength is the row's.
+//
+// Why the pupil is under half the shot's own reach: its hot core is `r * 0.7`, so a pupil at 0.42 r
+// leaves a ring of light round it rather than a black disc with a halo, which is the reading that
+// makes a shot a *hole* and not a smudge. `tools/sights.js` measures these two numbers against every
+// promise the palette makes, at the faintest step the row offers, and `test/palette-read.test.mjs`
+// reads them back out of this file so the measurement cannot drift from the drawing.
+const MARK_PUPIL_RATIO = 0.42;   // of a shot's own reach, the dark centre punched through it
+const MARK_CORE_RATIO = 0.42;    // of a shard's own body, the lit spark set in its middle
 
 // An elite (PLAN 3.3): the same body with a gold outline, and gold twice over - the
 // wide soft pass under the thin bright one is how light is painted here (see
@@ -236,6 +251,23 @@ export function drawEnemyShots(ctx, alpha) {
     ctx.beginPath();
     ctx.arc(paintX(shot, alpha), paintY(shot, alpha), shot.r * 0.7, 0, TAU);
     ctx.fill();
+  }
+
+  // ...and the mark, for the visit that asked for one: the same shot is now a ring of light with a
+  // dark hole through it, which is a shape and not a hue. The glow and the core are untouched, so a
+  // marked shot is no harder to *find* than an unmarked one - only harder to mistake for a shard or
+  // for the ship's own gun. One pass, one fill colour, no blur.
+  const mark = markShare();
+  if (mark > 0) {
+    ctx.fillStyle = withAlpha(PALETTE.markPupil, mark);
+    for (let i = 0; i < shots.length; i++) {
+      const shot = shots[i];
+      const halo = shot.r + ENEMY_SHOT_HALO;
+      if (!onScreen(shot.x, shot.y, halo + 4)) continue;
+      ctx.beginPath();
+      ctx.arc(paintX(shot, alpha), paintY(shot, alpha), shot.r * MARK_PUPIL_RATIO, 0, TAU);
+      ctx.fill();
+    }
   }
 }
 
@@ -2144,11 +2176,14 @@ export function drawBullets(ctx, alpha) {
 
 export function drawShards(ctx, alpha) {
   const shards = world.shards.items;
+  const mark = markShare();
+  const lit = mark > 0 ? withAlpha(PALETTE.markCore, mark) : '';
   for (let i = 0; i < shards.length; i++) {
     const shard = shards[i];
     const big = shard.worth > 1;
     const halo = big ? BIG_SHARD_HALO : SHARD_HALO;
     if (!onScreen(shard.x, shard.y, halo + SHARD_REACH)) continue;
+    const body = big ? BIG_SHARD_BODY : SHARD_BODY;
     const fade = shard.life < 2 ? clamp(shard.life / 2, 0, 1) : 1;
     const pulse = 0.75 + 0.25 * Math.sin(world.time * 6 + shard.rot);
     ctx.save();
@@ -2159,9 +2194,18 @@ export function drawShards(ctx, alpha) {
     ctx.strokeStyle = PALETTE.shardLine;
     ctx.fillStyle = PALETTE.shardFill;
     ctx.lineWidth = big ? 2.2 : 1.6;
-    polygon(ctx, 0, 0, big ? BIG_SHARD_BODY : SHARD_BODY, 4, 0);
+    polygon(ctx, 0, 0, body, 4, 0);
     ctx.fill();
     ctx.stroke();
+    // The other half of the mark: a shard's middle is a wash of mint over the sky, which is the one
+    // part of it that is not already light, so the mark lights it. The dot is round, so the shard's own
+    // twinkle and rotation cannot move it, and it fades away with the shard it sits in.
+    if (lit !== '') {
+      ctx.fillStyle = lit;
+      ctx.beginPath();
+      ctx.arc(0, 0, body * MARK_CORE_RATIO, 0, TAU);
+      ctx.fill();
+    }
     ctx.restore();
   }
 }

@@ -2,10 +2,10 @@
 //
 // PLAN section 4 asks for "a colour-blind palette that separates harmful and helpful by brightness
 // and shape as well as hue", and PLAN section 6 lists it among the settings a player can turn. This
-// file holds the first half - the separation - and `tools/palette-check.js` prints the same numbers
-// for a human to argue with. The settings row is the next thing built on this, and NOTES.md for the
-// session that writes it will say why the ruler came first: a row with choices nobody measured is a
-// dial with no instrument behind it, and the shipped palette had never once been measured.
+// file holds both halves: the separation the game ships with, and the MARKS row a visit can put on top
+// of it. `tools/palette-check.js` prints the same numbers for a human to argue with. The ruler came
+// first on purpose (session 108 parked it, session 109 measured with it): a row with choices nobody
+// measured is a dial with no instrument behind it, and the shipped palette had never once been measured.
 //
 // Everything here is measured, not remembered: no test in this file names a hex value or asserts
 // that a colour is what it was last Tuesday. Re-aim a colour and these tests move with it, which is
@@ -20,9 +20,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PALETTE, parseColor } from '../src/core/palette.js';
 import { BALANCE } from '../src/game/balance.js';
-import { oklab, separation } from '../tools/colour-lab.js';
+import { oklab, oklch, separation } from '../tools/colour-lab.js';
 import {
-  SIGHTS, SKY, MEANINGS, auditSights, auditSky, auditPair, measure, promiseOf, promised,
+  SIGHTS, SKY, MEANINGS, auditSights, auditSky, auditPair, auditMarks, markFor, markNames,
+  marked, measure, promiseOf, promised, marginOf,
 } from '../tools/sights.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -200,4 +201,141 @@ function auditPairOf(aId, bId) {
   assert.ok(a !== undefined, 'no sight is called ' + aId);
   assert.ok(b !== undefined, 'no sight is called ' + bId);
   return auditPair(a, b);
+}
+
+// --- the MARKS row -------------------------------------------------------------
+//
+// The palette holds on its own (every test above is about the game as it shipped). What these hold is
+// the second signature a visit can *ask for* on top of it - a dark centre on the small things that can
+// end the run, a lit one on the thing the run wants - in the same units, on the same table, measured
+// one step of the row at a time. `tools/sights.js` says what a mark is and what it is for; the short
+// version is that a mark is nothing but shape and brightness, which is exactly what PLAN section 6 asks
+// the palette to separate harm from help with when the hue is not available.
+
+test('every step of the marks row clears every promise the palette makes', () => {
+  const steps = auditMarks();
+  assert.ok(steps.length > 0, 'the row offers a step that paints anything, or there is nothing to measure');
+  for (const one of steps) {
+    assert.deepEqual(failing(one.pairs), [],
+      'MARKS ' + one.step.words + ' broke a promise the shipped palette keeps');
+    assert.deepEqual(one.sky.map((row) => row.sight.id + ' ' + row.part + ' is ' + row.worst.ratio.toFixed(2)
+      + ' of a step from the sky'), [],
+      'MARKS ' + one.step.words + ' put something so dark on the arena it cannot be seen on it');
+  }
+});
+
+test('a mark buys margin exactly where the palette was shortest', () => {
+  // The pairs it picks are the ones promised a whole step of *brightness* - the promise that says
+  // "shape is not enough here" - and only the ones a mark is actually painted on. If any of them comes
+  // out no further over its bar than it was, the mark is decoration and this test says so.
+  for (const one of auditMarks()) {
+    assert.ok(one.needed.length >= 2, 'the audit found the pairs the marks are for, and found '
+      + one.needed.length + ' at ' + one.step.words);
+    const missed = one.needed.filter((each) => !each.bought)
+      .map((each) => each.pair.a.id + ' / ' + each.pair.b.id + ' was ' + marginOf(each.before).toFixed(2)
+        + ' and is ' + marginOf(each.pair).toFixed(2));
+    assert.deepEqual(missed, [], 'MARKS ' + one.step.words + ' bought nothing for: ' + missed.join(', '));
+  }
+});
+
+test('the two pairs the shipped palette was shortest on are not short any more', () => {
+  // Session 109 measured the shipped palette and named the two thinnest promises: a shard against an
+  // enemy's shot, and their shot against yours. This is what the row was built for, so it is measured
+  // at the faintest step the row offers - the full step is the same two colours with more ink in them.
+  //
+  // What is asserted is the pair's margin (how far its worst eye is clear of what that eye was asked
+  // for) and the eye with no hue, because that is what a mark is *for*. A red-green eye can lose a hair
+  // on the axis it was already a long way clear on - a mark takes a little saturation out of a warm dot
+  // to put a hole in it - and the test above is what says that trade is bounded: the pair still clears
+  // its bar on every eye, at every step the row offers.
+  const faint = auditMarks()[0];
+  for (const [aId, bId] of [['enemyShot', 'shard'], ['enemyShot', 'playerShot']]) {
+    const before = auditPairOf(aId, bId);
+    assert.ok(before.pass, 'the shipped palette has to hold up on its own too: ' + aId + ' / ' + bId);
+    const pair = onePair(faint, aId, bId);
+    assert.ok(marginOf(pair) > marginOf(before),
+      aId + ' / ' + bId + ' was ' + marginOf(before).toFixed(2)
+      + ' clear of its bar and is ' + marginOf(pair).toFixed(2) + ' with the marks on');
+    assert.ok(pair.hueless.ratio >= before.hueless.ratio + 0.4,
+      aId + ' / ' + bId + ' with no hue at all: ' + before.hueless.ratio.toFixed(2)
+      + ' unmarked, ' + pair.hueless.ratio.toFixed(2) + ' with the marks on');
+  }
+});
+
+test('a mark goes on the two things an eye is asked to decide between, and on nothing else', () => {
+  // The rule the painter paints by (render/entities.js) and the rule the audit measures by are this one
+  // sentence: the harm that is a dot gets a dark centre, the help that is a diamond gets a lit one.
+  assert.ok(markFor(sightOf('enemyShot')), "an enemy's shot is the small warm thing a shard is mistaken for");
+  assert.ok(markFor(sightOf('shard')), 'and a shard is the thing it is mistaken for');
+  assert.ok(markFor(sightOf('bigShard')), 'the same shard at twice the size');
+
+  assert.equal(markFor(sightOf('playerShot')), null,
+    "the ship's own shot is already the lit half of the pair");
+  assert.equal(markFor(sightOf('ship')), null, 'the ship is not a thing anybody mistakes for a shard');
+  assert.equal(markFor(sightOf('beam')), null, 'a band of light is not a dot');
+  assert.equal(markFor(sightOf('blastZone')), null, 'nor is a zone of floor paint');
+  assert.equal(markFor(sightOf('mine')), null, 'the ship owns its own mines');
+  assert.equal(markFor(sightOf('wall')), null, 'a wall is where the wall is');
+  assert.equal(markFor(sightOf('cage')), null);
+  for (const sight of SIGHTS) {
+    if (BALANCE.kinds[sight.id] === undefined) continue;
+    assert.equal(markFor(sight), null, sight.id + ' has a silhouette, a size and a way of walking');
+  }
+});
+
+test('a mark is a shade and not a colour', () => {
+  // The whole reason the row can exist without a second palette: it puts light where there was less of
+  // it and less where there was more, and it leaves the hue alone - so it cannot undo the one colour
+  // rule the game does run on (warm is harm, cool is help, PLAN section 4).
+  for (const sight of SIGHTS) {
+    if (markFor(sight) === null) continue;
+    const before = oklch(parseColor(sight.colour));
+    const after = oklch(parseColor(marked(sight, 1).colour));
+    let swing = Math.abs(before.h - after.h);
+    if (swing > 180) swing = 360 - swing;
+    assert.ok(swing < 4, sight.id + ' swung ' + swing.toFixed(1) + ' degrees of hue, which is a colour');
+  }
+  // ...and the lightness is where the money is, or the mark is invisible.
+  const shot = oklch(parseColor(PALETTE.enemyShot));
+  const markedShot = oklch(parseColor(marked(sightOf('enemyShot'), 1).colour));
+  assert.ok(markedShot.L < shot.L - 0.04,
+    'a marked shot is a good deal darker through the middle: ' + markedShot.L.toFixed(3)
+    + ' against ' + shot.L.toFixed(3));
+  const shard = oklch(parseColor(PALETTE.shard));
+  const markedShard = oklch(parseColor(marked(sightOf('shard'), 1).colour));
+  assert.ok(markedShard.L > shard.L, 'and a marked shard brighter: ' + markedShard.L.toFixed(3)
+    + ' against ' + shard.L.toFixed(3));
+});
+
+test('the marks the audit measures are the marks the game paints', () => {
+  // The sizes are pinned the same way the bodies' are, and for the same reason: an audit of a picture
+  // nobody paints is a formality. The two ratios are read out of the renderer and the two colours out
+  // of the palette it paints with, and the paint is looked for in the source.
+  const source = fs.readFileSync(path.join(ROOT, 'src/render/entities.js'), 'utf8');
+  const constant = (name) => {
+    const found = new RegExp('const ' + name + ' = ([\\d.]+);').exec(source);
+    assert.ok(found !== null, 'render/entities.js no longer has a const ' + name + ' to read');
+    return Number(found[1]);
+  };
+  const names = markNames();
+  assert.equal(names.length, 2, 'a dark centre and a lit one');
+  assert.equal(names[0].ratio, constant('MARK_PUPIL_RATIO'), 'the pupil the audit measures is the one drawn');
+  assert.equal(names[1].ratio, constant('MARK_CORE_RATIO'), 'and so is the spark');
+  assert.equal(names[0].colour, PALETTE.markPupil);
+  assert.equal(names[1].colour, PALETTE.markCore);
+  assert.match(source, /PALETTE\.markPupil/, 'the renderer stopped punching pupils');
+  assert.match(source, /PALETTE\.markCore/, 'and stopped lighting shards');
+  // Both colours have to parse, like every other colour in the game (test/palette.test.mjs), and neither
+  // may be a colour in any meaningful sense: see the test above about a mark being a shade.
+  assert.equal(parseColor(PALETTE.markPupil).length, 3);
+  assert.equal(parseColor(PALETTE.markCore).length, 3);
+});
+
+/** One promised pair out of a marks audit, by the two sight ids. */
+function onePair(stepAudit, aId, bId) {
+  const pair = stepAudit.pairs.find((p) => (p.a.id === aId && p.b.id === bId)
+    || (p.a.id === bId && p.b.id === aId));
+  assert.ok(pair !== undefined, 'the marks audit did not measure ' + aId + ' / ' + bId);
+  assert.ok(pair.promised, aId + ' / ' + bId + ' carries no promise to buy anything on');
+  return pair;
 }

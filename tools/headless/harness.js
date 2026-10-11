@@ -183,10 +183,13 @@ function makeContextStub(counters, drawLog) {
     arc: (x, y, r, from, to) => {
       // The composite it was asked for is logged as well, because that is the only way to tell a body
       // that *covers* the sky from one that adds to it: there is no pixel here to look at, and the
-      // arena is painted additively (render/renderer.js), so a dark body is only a hole if it said so.
+      // arena is painted additively (render/renderer.js). The paint it was asked for goes with it for
+      // the same reason - a mark's whole meaning is in the colour it was filled with
+      // (test/marks-art.test.mjs), and by the time `fill()` happens the path is already logged.
       drawLog.circles.push({
         x: x, y: y, r: r, from: from, to: to, at: onto(x, y),
         mode: target.globalCompositeOperation,
+        fill: target.fillStyle, stroke: target.strokeStyle, alpha: target.globalAlpha,
       });
     },
     arcTo: noop,
@@ -908,7 +911,8 @@ export async function bootGame(options) {
     /**
      * Every circle the last frame asked for, with its radius, in arena coordinates, and with `mode`
      * - the composite it was asked for under, which is how a test can tell a body that covers the sky
-     * from one that adds to it (the arena is painted additively, render/renderer.js).
+     * from one that adds to it (the arena is painted additively, render/renderer.js) - and with the
+     * paint and the opacity it was asked for (`fill`, `stroke`, `alpha`).
      */
     circles() { return drawLog.circles.slice(); },
     /** Every string the last frame put on the canvas, in the order it put them there. */

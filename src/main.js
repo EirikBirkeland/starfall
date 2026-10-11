@@ -403,7 +403,7 @@ function onVolume(which, delta) {
 }
 
 // --- the settings panel ---------------------------------------------------------
-// Four rows belong to game/settings.js, three to audio/engine.js and two to game/assists.js; nothing
+// Five rows belong to game/settings.js, three to audio/engine.js and two to game/assists.js; nothing
 // on this panel keeps a copy of any of them. What is kept here is the *cursor* - which row the arrow
 // keys are pointing at - and that is panel furniture and not a fact about a run or a save: it is
 // forgotten when the panel comes down, and no system outside this screen can see it.
@@ -420,7 +420,7 @@ function sliderWords(level) {
 }
 
 /**
- * The panel's rows, in the order it prints them: the four the game keeps for its own picture
+ * The panel's rows, in the order it prints them: the five the game keeps for its own picture
  * (game/settings.js), then the two sliders and the mute the mixer owns (audio/engine.js), then the two
  * switches that answer for the hand (game/assists.js).
  *
@@ -1319,10 +1319,10 @@ window.STARFALL = {
       // cannot see the panel, and over it the launch key and the ship numbers go quiet - which is
       // exactly the kind of thing a tool needs to know before it presses either.
       settingsUp: settingsIsUp(),
-      // Where the four picture rows stand (game/settings.js): the shake, the flash, the floating
-      // numbers and the sparks. They are the only settings a headless run cannot see any other way,
-      // because a screenshot is the only thing any of them changes - and a run played with all four at
-      // one end of their travel has to be the same run as one played at the other.
+      // Where the five picture rows stand (game/settings.js): the shake, the flash, the floating
+      // numbers, the sparks and the marks. They are the only settings a headless run cannot see any other
+      // way, because a screenshot is the only thing any of them changes - and a run played with all five
+      // at one end of their travel has to be the same run as one played at the other.
       settings: settingsSteps(),
       // ...and where the two switches that answer for the hand stand (game/assists.js): the held
       // trigger and the pointed gun. They are on the same panel and kept the same way, and they are the

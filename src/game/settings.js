@@ -1,8 +1,9 @@
 // What the player has told the game to do to its own picture (PLAN section 6).
 //
-// Four rows live here: how far the window shakes, how bright the white flash of a hurt body is,
-// whether the numbers that float off a body are painted at all, and how much of every spray of
-// sparks is let out. They are the settings that are not sound - the two sliders and the mute are
+// Five rows live here: how far the window shakes, how bright the white flash of a hurt body is,
+// whether the numbers that float off a body are painted at all, how much of every spray of
+// sparks is let out, and whether every small thing that can hurt you is drawn with a dark centre.
+// They are the settings that are not sound - the two sliders and the mute are
 // owned by audio/engine.js, which owns the graph they move, and the settings panel asks both
 // owners rather than keeping a copy of either.
 //
@@ -37,6 +38,7 @@ const SHAKE_HALF = 0.65;
 const FLASH_SOFT = 0.4;      // of the white bloom a hurt body wears
 const FEW_SPARKS = 3;        // one spark in this many is let out
 const HALF_SPARKS = 2;
+const MARK_FAINT = 0.45;     // of the opacity a mark is painted at, on the faint step of its row
 
 // The step the shake row is given to a machine that has asked for as little movement as it will give
 // (render/canvas.js `calmMotion`), and the only default in the game that is not the shipped one. It is
@@ -46,7 +48,7 @@ const CALM_SHAKE = 'off';
 /**
  * One row: what the save calls it, what the panel calls it, the one plain line about what it is, and
  * the steps it can be set to. Each step carries the number the row means by it - a `share` of some
- * one thing for three of them, a `stride` through a spray for the fourth - and only that row's own
+ * one thing for four of them, a `stride` through a spray for the fifth - and only that row's own
  * getters below read it, so no reader has to know how a stranger's row is written.
  */
 export const ROWS = [
@@ -114,6 +116,34 @@ export const ROWS = [
       { id: 'few', words: 'FEW', stride: FEW_SPARKS },
       { id: 'half', words: 'HALF', stride: HALF_SPARKS },
       { id: 'all', words: 'ALL', stride: 1 },
+    ],
+  },
+  {
+    id: 'marks',
+    name: 'MARKS',
+    says: 'A DARK CENTRE ON WHAT CAN HURT YOU',
+    default: 'off',
+    // The one row in the game that is *added* rather than turned down, which is why its steps run the
+    // other way from every other row here: full strength at the top and nothing at the bottom, because
+    // nothing is the game as it shipped and the last step of every row has to be that.
+    //
+    // What it paints: a small dark centre on the things that can end the run, and a small lit one on
+    // the things the run wants - a shot is punched through with a pupil and a shard is given a spark
+    // in its middle (render/entities.js). PLAN section 6 asks for a palette that separates harm and
+    // help "by brightness and shape as well as hue", and session 109 measured that the shipped hues
+    // already do it; this row is the *as well*, for the visit that cannot read the hues it is written
+    // in. It is a share of an opacity and touches no hue anywhere, so it cannot undo the one colour
+    // rule the game does run on - `tools/palette-check.js` measures every step of this row against
+    // every promise the palette makes, and says in numbers what a mark is worth.
+    //
+    // Only the small fast things are marked, because only they are ever mistaken for each other: a
+    // crowd body has a silhouette, a beam has a shape no dot has, and a wall is where the wall is (see
+    // the note at the top of `tools/sights.js` for the whole argument, and the promise matrix for
+    // which pairs an eye is actually being asked to decide between).
+    steps: [
+      { id: 'full', words: 'FULL', share: 1 },
+      { id: 'faint', words: 'FAINT', share: MARK_FAINT },
+      { id: 'off', words: 'OFF', share: 0 },
     ],
   },
 ];
@@ -225,7 +255,7 @@ export function stepIdOf(id) {
 }
 
 // --- what the eye and the cosmetics read ---------------------------------------
-// Four small functions rather than the raw choices, because every reader wants the number of *its*
+// Five small functions rather than the raw choices, because every reader wants the number of *its*
 // thing and nothing else, and a painter that could read a stranger's row could quietly start
 // depending on a setting it has no business with.
 
@@ -247,4 +277,16 @@ export function particleStride() {
 /** Whether the numbers that float off a body are painted at all (game/enemies.js). */
 export function numbersShown() {
   return stepOf('numbers').share > 0;
+}
+
+/**
+ * Of the opacity a mark is painted at, how much this visit asked for: 0 when it asked for none
+ * (render/entities.js).
+ *
+ * A share of an opacity rather than a size, so the faint step is the same picture with less ink in it
+ * and not a different picture - and so that the audit in `tools/sights.js` can measure the weakest
+ * mark the row offers, which is the one that has to clear the bar.
+ */
+export function markShare() {
+  return stepOf('marks').share;
 }

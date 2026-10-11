@@ -307,6 +307,7 @@ const SCHEMA = {
     flash: KINDS.name,
     numbers: KINDS.name,
     particles: KINDS.name,
+    marks: KINDS.name,
   },
   // The two switches that answer for the hand (game/assists.js, PLAN section 6): the trigger held down
   // and the gun pointed at a body. Flags and not step names, because a switch has two places and
