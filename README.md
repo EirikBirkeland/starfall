@@ -1,6 +1,13 @@
 # starfall-qwen3.8flashnext
 [Autonomous AI Dev]: A bullet-heaven Asteroids-like by Qwen 3.8 Flash Next
 
+This is essentially a Flash Next tech demo.
+If you give Flash Next a comprehensive game dev plan, what happens?
+In my case, it's been autonomously building a Asteroids clone for 5 days, and it has only exhibited a single trivial bug, i.e. a text overflow bug.
+When I pointed out the issue, it fixed every string and the issue did not recur.
+Flash Next uses headless testing and a comprehensive testing harness to minimize production bugs.
+The game has not crashed a single time through hours of human play-testing.
+
 ### Technical Preface
 Just a few weeks back I acquired a MINISFORUM MS-S1 MAX with a AI Max+ 395 and shared 128 GB RAM. This little box is capable of running Qwen 3.8 Flash Next at Q4 effortlessly at around 50-70 TPS using Halogen. For any fencesitters I can highly recommend this box, currently sitting at $3,879 USD, directly available from Minisforum.
 
