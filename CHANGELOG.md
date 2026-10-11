@@ -1,5 +1,33 @@
 # Starfall — changelog
 
+## 0.10.14 — 2026-10-11
+Every key the ship answers is yours to move. There is a **CONTROLS** rack one press inside the settings
+panel - pick the row with the arrows, press the arrow that means "take a key", then press whatever is
+under that finger. Nothing else about how the game plays has changed.
+- **Thirteen controls on the rack**: the four that fly the ship, the dash, the pause, giving the run up,
+  the hangar, the codex, the settings, today's arena, the reroll and the mute. Each row says in one line
+  what its control is, and what key it is on right now.
+- **A key can only be in one place.** Give the DASH row a key that was the HANGAR's and the hangar takes
+  the key the dash just left - a table you can tie into a knot is a table you cannot escape, so nothing is
+  ever stolen, only traded. One press of `←` puts a row's shipped key back, and the shipped keys are what
+  the rack prints when nothing has been moved.
+- **The arrow keys always fly the ship too**, whatever the rows say. They are the pair a keyboard with no
+  letters to spare still has, and no panel can be put up over a run being flown - so a rack's cursor and
+  the ship's movement can share them without a key ever meaning two things at once.
+- **What stays put, and why**: `SPACE` to launch, the numbers that pick a card or a ship, `[ ]` and `- =`
+  for the two volumes, `F3`, and `ESC`. A key that cancels a rebinding cannot be the key a rebinding
+  takes, which is why the pause row is `P` and its line says `ESC` does it too.
+- **Nothing is left holding an old key.** The title's list, the hints under the hangar and the codex, the
+  pause's own line, the two ending cards and the little plate that teaches you to fly all say what the
+  game currently hears, not what it shipped with. A visit that rebound its keys before its first run is
+  taught its own keys.
+- **It is kept**, in the same save as your ships and your perks, and a save that names a key the game
+  will not take just leaves that one row on its shipped key.
+- **Twenty-nine tests** - the table on its own, and then the machine around it: the door on the settings
+  panel, the row lit amber while it waits, a rebound that has to move the actual ship, `Esc` refusing to
+  be eaten twice, every page label checked against the table at once, and a save full of nonsense. Suite
+  1899 → 1928; the reference run traces the same bytes as before.
+
 ## 0.10.13 — 2026-10-11
 Plug a pad in and it is flying the ship on the next frame - no page reload, no option to find, nothing to
 press first. It joins the keyboard and the mouse instead of replacing them, so the cards, the hangar and
