@@ -12523,3 +12523,103 @@ the tree - which is the check that mattered most here: a key table is not allowe
 3. Small things this session noticed and did not do: the rack's rows are all one line each and a very narrow
    window leans on `fitKeys()` (it fits, but it is the tightest panel in the game now); and a pad has no way
    into the racks (session 106's note 2 still stands - a selection per panel, not a glass cursor).
+
+## Session 108 — The menu announces itself: the device is built at boot, any press wakes it. Released **0.10.15**
+
+The owner's hotfix: *"The menu music does not start unless I hit H to enter the hangar. The menu music
+should announce itself on the root menu."* They were right and the bug was ours. Suite **1928 → 1936**;
+the reference run (`--seed 20261006 --trace`) is byte for byte session 107's again (10m00s / 73,982 /
+level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in), and `--audio` still prints its pattern line.
+
+### What landed
+- **`openAudioDevice()` (audio/engine.js) is called at boot**, in `main.js` right after `restoreAudio()`.
+  That was the missing half: the device had only ever been built by a press, and the press that builds it
+  is usually the one that launches a run, so a browser that *would* have let the title screen make a
+  sound on its own - no autoplay rule, or one that remembers this origin playing audio before - was never
+  once asked. Now the ask happens before the first frame and, where the browser says yes, the song is
+  playing before a hand has done anything. Two new test files hold the two kinds of browser:
+  `test/menu-track-boot.test.mjs` (`autoplay: true` - the song is up with no press at all, the title pad
+  stands down under it, a run still takes the bus back) and `test/menu-track-wake.test.mjs` (the ordinary
+  strict browser - device built and asleep, nothing spent, and the first press waking it).
+- **`audioIsHeard()` is the new question, and it replaced `getContext() !== null` in both places that
+  write ahead of the frame** - `updateMenuTrack` (audio/track.js) and `updateMusic` (audio/music.js). A
+  device that exists but is asleep has a clock that is not advancing, so a note scheduled at
+  `currentTime` is not a note that is heard, it is a note that waits; thirty steps of the past written
+  into a stopped clock is the tune thrown at the wall on the wake. The sequencer now leaves `nextAt`
+  where it is and re-anchors on the first frame that finds the clock running, which is the same rule it
+  already applied to a clock that jumped forward.
+- **`wakeAudio()` is the engine's one door to `resume()`** (promise caught, callback-only browsers
+  forgiven). It is called from presses and from nowhere else: `initAudio()` (every action handler that
+  already called it), main.js's new first-press listeners, `play()` in track.js, and `auditionMusic`.
+  The frame loop does not ask any more - `updateMusic` used to `resume()` on every frame while the device
+  slept, and a browser only ever answers that question the first time.
+- **`AUDIO_WAKE_EVENTS` (main.js): `keydown`, `mousedown`, `pointerdown`, `touchstart`**, permanent
+  window listeners on `wakeAudio`. A press the game does not answer is still a press, and still the
+  browser's answer to "may this page make a sound" - which is the exact hole the owner fell into (they
+  pressed `H`, which answers, and got the song). They stay on: waking a running device is nothing, and a
+  browser can fall asleep on its own.
+- **A visit that came back muted gets a device too.** The mute is a knob on the bus above both buses, not
+  an absence of a device, so pressing `M` on the title is now the moment the menu starts singing instead
+  of a trip to a panel. The bytes are still not spent on a muted visit - that door is in track.js, where
+  it was.
+- **Two reasons the title is quiet are now said out loud** in `menuTrackLedger().reason` - "asleep: no
+  browser lets a page make a sound before a press" and "this visit came back muted" - so `STARFALL.stats().menuTrack`
+  answers the visitor who wonders. `waiting` was the whole answer before and it answered nothing.
+- **The stub browser models the autoplay rule at last** (tools/headless/harness.js): the fake device is
+  built `suspended`, `resume()` is honoured only once the harness has fired a real gesture (`GESTURES` in
+  `fire()` - a mouse *moving` is not one), `bootGame({ autoplay: true })` is a browser that lets the page
+  play, and `game.audioState` says `none | suspended | running`. `game.audio.resumes` counts the asks,
+  which is how a test can prove the frame loop never tried to buy what only a press buys.
+- Docs: track.js's header, engine.js's three new doc blocks, `updateMusic`'s, README's music paragraph,
+  and the request itself is archived with the note on what shipped.
+
+### Decisions worth keeping
+- **The device is asked for at boot even though it may be refused.** The refusal costs a device that
+  plays nothing and, in Chrome, one console line ("The AudioContext was not allowed to start") - which is
+  the browser describing the very thing the owner asked for. `openAudioDevice()` deliberately does *not*
+  call `resume()`: a browser that allows it hands out a running device anyway, and a resume asked by a
+  frame cannot land, so asking would only add noise.
+- **Sound effects are not gated on audibility, on purpose.** Every sfx is caused by a press and that same
+  press wakes the clock, so gating them would swallow the launch tick - the one sound a first visit must
+  never lose. The only things that write *ahead* of a frame (the sequencer's half second of lookahead,
+  the recording) are the ones that have to wait for a running clock.
+- **A blocked browser whose first press is the launch still never hears the menu**, and nothing in this
+  session pretends otherwise: there is no way to be heard before a press, and the launch press has already
+  left the menu by the time it is granted. The honest shapes of "hear the song again after a run" would
+  be a way back to the title (the death's card has two keys and could hold a third), not a second song.
+- The wake listeners are permanent rather than one-shot. Two `if`s per press is cheaper than the state
+  machine that retires them, and one of them has to survive in case the browser suspends the context on
+  its own and needs waking again.
+
+### Things that bit, worth remembering
+- **`game.audio.voices` counts the master graph's three gain nodes**, so "the title screen plays nothing"
+  is no longer a `=== 0` assertion. `test/audio.test.mjs` and `test/ui-sound.test.mjs` now snapshot the
+  graph's count and assert it does not *move*, which says what they meant anyway.
+- **A test that calls `initAudio()` to stand in for "the browser's first click" no longer gets a running
+  clock** - the stub is right to refuse it, because nothing pressed anything. `test/music.test.mjs` boots
+  `autoplay: true` and dropped its `initAudio()`. `mix` and `noise` were unaffected and stayed as they
+  were: sfx are not gated, so their buses work fine on a sleeping device.
+- One game per process, so "the browser that lets us" and "the browser that does not" are two test files
+  and not two tests. `test/menu-track.test.mjs` (the muted visit) keeps its own file for the same reason.
+- `state: 'interrupted'` (iOS's word for a stopped clock) counts as not heard, next to `suspended`. A
+  context with no `state` at all - an old browser - counts as heard, so it keeps the behaviour it had.
+- The release script refuses a dirty tree, and **`git status --porcelain` counts untracked files**:
+  `tools/colour-lab.js` had been sitting untracked since session 107 (an Oklab measurement module whose
+  two named consumers - `tools/palette-check.js`, `test/palette-read.test.mjs` - were never written). It
+  is now `.scratch/colour-lab.js`, which `.gitignore` already covers, so the palette session starts from
+  it instead of writing it again. Nothing tracked was touched.
+
+### What should come next
+1. Milestone 9 has the **colour-blind palette** left: a `settings.js` row with choices plus "brightness
+   and shape as well as hue" across the ~20 enemy bodies and the shards - an art decision before it is a
+   code change, and `.scratch/colour-lab.js` is the measurement half of it (pull it back into `tools/`
+   with the `palette-check.js` it was written for). Then milestone 9's release checklist.
+2. Still owed from earlier sessions: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed
+   --weapon pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails,
+   `tools/gun-tune.js` from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`.
+   Then milestone 10's browser half of the performance pass, and `1.0.0`.
+3. Noticed and not done: the title's own generated pad is now audible on a permissive browser before the
+   recording arrives, which is the fade the design wanted - but if the recording is *missing* on such a
+   visit (a release without `assets/`), the title now plays the pad where it used to be silent until the
+   first press. That is the right sound, and it is worth one line in the palette-of-sounds sense: the pad
+   is 0.02 per voice and it is what the sequencer has always played there.
