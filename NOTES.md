@@ -11712,3 +11712,113 @@ somebody with a browser and the F3 plate has to look at `draw ms` once.
    laptop, which is the only thing that can re-open `bodiesCeil`).
 5. `tools/gun-tune.js`, still owed from session 96: patch one `BALANCE` row from the command line and
    play N seeds, as a real tool. `line-ab.js --set` is nearly enough for it now.
+
+## Session 100 — Somebody else's ruler, the owner's song, and the release that carried both
+
+Two things in one session, and only because the tree was dirty again: **`git status` showed session 99's
+unfinished allocation work** (an untracked `tools/alloc-probe.js` of 600 lines, its test file, and the
+two `src/` fixes it had found). Reading it and running it was cheaper than rewriting it for the third
+time, so it got finished, verified and committed first. Then `OVERLORDS_REQUESTS` had a new line in it -
+*"As soon as possible, use the file MenuMusic-SpaceRapBattle.flac as the main menu music and publish"* -
+which is an order and not a milestone item, so it became the session's real work and it is **released as
+v0.10.7**. Suite 1772 → **1803**; the reference run (`--seed 20261006 --trace`) is byte for byte session
+98's both times it was asked, which it has to be: neither half of this touched the simulation.
+
+### What landed, part one: what a step throws away (session 99's ruler, finished)
+- **`tools/alloc-probe.js` weighs a step in garbage**, and the three things that make it honest are the
+  deliverable: **one load per process** (a step that has only ever seen empty pools is compiled for empty
+  pools, and the same 60 shots threw away 479 B a step as the first load a process saw and 3,145 B when
+  an empty arena had been measured first), **the best of twelve 300-step windows**, and **every window
+  the collector came into is thrown away and retried** - a window the collector interrupted reads *low*,
+  so a plain best-of-N would keep the lies and call them the truth. It reads the heap twice
+  (`heapUsed` and V8's new-space figure) and discards a window where they disagree, and it runs with a
+  64 MB young generation so a window cannot fill it.
+- **The reading answers session 97's question.** The F3 plate's worst steps of 1.4-1.7 ms are the
+  collector, not the crowd: a scavenge of this heap measures 0.85-1.12 ms, and the crowd at its endless
+  wall throws away a megabyte every 1.4 s of play (empty arena 184 B a step, the schedule's 100 bodies
+  3.4 KB at 33 B a body, the wall of 200 6.1 KB, the same crowd dying 8.5 KB, PLAN's impossible scene
+  19.6 KB).
+- **The two fixes are in `src/`.** `core/grid.js`: a cell is `{ n, items }` now, because `cell.length = 0`
+  throws the array's element store away and the next `push` buys a new one - and the hot door is
+  `queryInto(x, y, r, out)`, which answers with a count and never touches `out.length` (a caller that
+  cleared its scratch array put the allocation straight back). `game/awards.js` walks the ranks table
+  once a step instead of `Object.keys` once per rule per step. **94 B a body a step down to 31 B.**
+- **The rule is ratcheted, not met**, and PLAN says so in as many words: the budgets are 512 B an empty
+  arena, 10 KB a gated load, 52 B a body - each about a quarter over what this commit measured, because
+  a ratchet with no room in it gets raised the first time anybody needs it. The crowd still costs 31 B a
+  body, and an ablation the previous session left in `.scratch` says where: of the schedule load's 3.9 KB
+  a step, `updateEnemies` is 3.5 KB, `updateBullets` 1.2 KB, `updateAwards` 0.9 KB. That is next session's
+  item and PLAN has it as one.
+- Thirteen tests in `test/alloc-probe.test.mjs`, both gates mutation-checked, and `.scratch/` is gitignored
+  from now on (throwaway measurements should not be what makes a tree dirty).
+
+### What landed, part two: the menu's song (the overlord's request, shipped)
+- `assets/MenuMusic-SpaceRapBattle.flac` - 8.7 MB, 80 s of 48 kHz stereo - is the attract screen's
+  music. **`src/audio/track.js`** is the whole feature: fetch → `decodeAudioData` → a looping
+  `AudioBufferSourceNode` on the **music bus**, so the music slider moves it, the master mute out-mutes
+  it, and the player-hit muffle reaches it without this file knowing those exist. `patternFor` in
+  `audio/music.js` asks `menuTrackIsUp()` and drops the generated title pad while it plays. Both ends
+  glide on the track's own gain (in over a second - the sequencer keeps half a second of pad already
+  scheduled, so a song that arrives over a second rises out from under the pad's tail instead of cutting
+  across it; out over 0.3 s, because it is crossing under a run that has already begun).
+- **The design is about not spending it.** Asked only when all three are true: an `AudioContext` exists,
+  the visit is not muted, and the attract screen is the screen being looked at. Once, ever. The decoded
+  samples are about 31 MB and the ordinary visit never pays either number, because the usual first press
+  is the launch and the menu is gone by then. That is a test (`test/menu-track-cheap.test.mjs`), not a
+  comment.
+- **Which is the thing to know about hearing it**: no browser allows sound before a press, so a first
+  visit is silent on the menu whatever the game does. The song is heard by anyone who unlocks audio
+  without launching - `H`, `C`, `O`, `M` all call `initAudio` and all leave the title up - and after that
+  it plays under the hangar, the codex, the settings, and whatever else they read. If the owner wants
+  every visitor to hear it, the follow-up is a way back to the attract screen from the death's card
+  (there is none today: the launch key is a new run). That is an interface decision and it is written in
+  the archive entry as the honest limit, not as a defect.
+- **Every failure is silent and written down**: `waiting / loading / ready / playing / missing / broken`,
+  each with a `reason`, in `menuTrackLedger()` and `STARFALL.stats().menuTrack`. No network, no file, a
+  browser with no FLAC decoder, a machine with no `decodeAudioData` at all - all of them leave the title
+  playing the pad it played before, which is what the three extra test files prove.
+- **The stub browser grew two things**: `network: { url: bytes }` (and no `network` means every request is
+  refused, which is the shape of a missing file), and a `decodeAudioData` that refuses anything that does
+  not begin with `fLaC`/`OggS`/`RIFF`/`ID3` and is absent entirely on `audio: 'raw'`. Both calling styles
+  are honoured, because browsers have both.
+- Sixteen tests in four files: `test/menu-track.test.mjs` (a visit that sits on the menu: asked once and
+  once only, sequencer stood down, the run taking the bus back over a fade rather than a cut, and the
+  song coming back on a *new* source via `resetToTitle` - a stopped source cannot be restarted), plus the
+  cheap / missing / broken files above. `test/menu-track.test.mjs` also holds the two checks that keep a
+  release from shipping silently songless: the file really is a FLAC, and `release.sh`'s copy list really
+  names `assets` (it already did - the folder simply had never existed).
+
+### Things that bit, and are worth remembering
+- **A FLAC's declared length is in a 36-bit field and I read 24 of it.** The first parse said the owner's
+  8.7 MB file was 0.31 s long; the STREAMINFO total-sample count runs from the low nibble of byte 21
+  through four bytes, not three. The real answer is 3,839,488 samples at 48 kHz = 79.99 s, and every
+  number in the docs above comes from that. Check a container header twice before quoting its numbers.
+- **A rejected promise nobody watches can take a test process down.** `decodeAudioData` both takes
+  callbacks and returns a promise; the track uses the callbacks and `.catch(() => {})` the promise, and
+  `load(actx).catch(...)` has a net under it too - a song must not be able to take the frame loop with it.
+- **"The menu is only seen before the first press" is not a bug you can fix from inside the page.** Every
+  alternative (a media element, a gesture on mousemove, an autoplay ask) is either the same browser rule
+  with more code or a rule the browser will enforce anyway. The honest move was to make the bytes cheap
+  enough that the silent case costs nothing, and to say so plainly in the archive entry and the CHANGELOG.
+- **A release is a good forcing function for "is it actually there".** `release.sh` copies `assets`
+  (it had been in the list since before `assets/` existed), the test file asserts the list names it, and
+  `releases/v0.10.7/assets/` is 8.7 MB as it should be. Old releases are untouched and still playable.
+- No `git` history was rewritten; `git status` before anything else is now a habit with three saves to
+  its name.
+
+### What should come next
+1. **The crowd's 31 bytes a body.** The rule in PLAN section 2 is ratcheted and not met, and the ablation
+   has already named the three places: `updateEnemies` (3.5 KB of the schedule's 3.9 KB a step),
+   `updateBullets` (1.2 KB), `updateAwards` (0.9 KB, still, after its table walk went). The method that
+   finds them is ablation - copy the tree, switch one system's update off, weigh the step - and the trap
+   is escape analysis: a line can allocate a lot cold and nothing at all warm, and only the warm number
+   is paid for in a fight nine minutes old.
+2. The shot-speed line is still a weak card on every gun that can spend it (session 97's item): re-measure
+   with twelve or sixteen seeds before touching a number - `tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`.
+3. The difficulty band, which `tools/difficulty-arc.js` still fails, and the browser reading of the F3
+   plate's `draw ms` that is the only thing that can re-open `bodiesCeil`.
+4. `tools/gun-tune.js`, still owed from session 96.
+5. If the owner wants the menu song heard by *every* visitor: a key back to the attract screen from the
+   death's card. It is a real feature (the card already offers the hangar, the codex and the ship pick)
+   and it is the only way the song reaches a visit that pressed Space first.
