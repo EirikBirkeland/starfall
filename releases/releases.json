@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.10.2",
+    "date": "2026-10-11",
+    "summary": "The soundtrack gets a tune, a floor, and eight bars of harmony instead of four",
+    "added": 4228,
+    "removed": 197,
+    "logBytes": 31957173
+  },
+  {
     "version": "0.10.1",
     "date": "2026-10-10",
     "summary": "VACUUM: every 10,000 points the arena empties itself into the ship",
