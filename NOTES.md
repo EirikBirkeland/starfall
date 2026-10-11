@@ -12142,3 +12142,95 @@ reference run (`--seed 20261006 --trace`) is byte for byte session 101's (10m00s
    considered and left out: *the dash into bodies* (a habit, not a control), *the reroll and the banish*
    (the chips on the card table name both), *the vacuum* (it announces itself with a fanfare). Do not
    add a fourth prompt to teach something the arena already teaches.
+
+## Session 104 — A writing pass over every line the game says. Released **0.10.11**
+
+Milestone 10/11's item *read every line of text in the game and make it short, clear, and consistent*.
+It turned out to be an instrument problem before it was a writing problem: **half the game's sentences do
+not exist until they are painted** (`'RANK ' + held + ' OF ' + max`), so a grep reads parts and not prose.
+What shipped is a harvest, a reader, a gate, and the four drifts the reading found. Suite **1851 → 1862**;
+the reference run (`--seed 20261006 --trace`) is byte for byte session 101's (10m00s / 73,982 / level 57 /
+3,934 kills / 4,934 shards, 7 vacuums, 2036 in), which is what a text-only pass has to look like.
+
+### What landed
+- **`tools/headless/text.js`** — `harvestVisit()` boots the game in the stub browser and plays a whole
+  visit: title, hangar, codex, settings, mixer readout, a run flying, the level-up table, the pause, the
+  wreck's card, the win's card (reached the honest way — park `world.elapsed` at the last fight and put
+  the fight down). At each stop it takes back the canvas words the frames asked for and every word the
+  page's elements hold, and files them one stop per screen. It also reads **`index.html`** itself, per
+  screen, entities decoded, because most interface sentences are markup the code never touches and the
+  stub browser has no HTML at all. The visit arrives as a returning player (every ship and perk bought,
+  the codex met, four awards won, two runs in the log) on purpose: a filled rack is the rack that prints
+  its sentences.
+- **`tools/text-survey.js`** — that harvest printed for a human, longest line first, `--counts` for the
+  shape of it. 293 lines over ten stops. This is the thing that made the pass possible; read it after any
+  large UI change.
+- **`test/words.test.mjs`** — the same harvest with the rules on. **The three voices** are what "consistent"
+  turned out to mean, and they are written out in that file's header: the interface in caps
+  (`HANGAR · BUY SHIPS AND PERKS`), the catalogue in lower case with no full stop (`too heavy to turn, and
+  comes apart in two`), a card's copy a sentence that ends like one (`A shot goes through one more body,
+  and on to the next.`). Eleven tests: caps everywhere else a player reads (a line is judged *after* the
+  catalogue phrases and the clock's `2s`/`15m02s` units are taken out of it), the names all caps, no full
+  stop outside a card, the catalogue's 60-character ceiling, the card's 130 (game/upgrades.js's own budget,
+  made enforceable; the longest today is 119), the 22 for a card's `what`, a middle dot with room, one bus
+  one name, no `1 KILLS`, one wording for the run clock, and a coverage test so the rules cannot quietly
+  stop covering anything.
+- **The four fixes.** (1) The mixer readout called the effects bus `SOUND` and the settings panel called it
+  `SOUNDS` — one machine, two names, now `SOUND` in both with a test that reads the bus names off both
+  surfaces. (2) The readout's keys line was the only lower-case sentence on the glass (`M mute    [ ]
+  music…`); it is caps like the rows above it, and the stale comment over it that claimed "there is no
+  settings page yet" is gone. (3) **`1 KILLS`**: both end cards joined a count to a fixed plural, so the
+  win the harvest reached read `1 KILLS · 0 SHARDS · 1 BOSS`; `countWords(count, one, many)` in
+  ui/screens.js fixes it and `bossWords` went through it too. (4) The HUD wrote `TIME 902s` while the card
+  under it wrote `15m02s` — the same number, two spellings, and `clockWords`'s own comment argued the HUD's
+  version was not good enough. It moved to **`core/words.js`** (the palette's argument again: the page and
+  the glass may not read each other, so a shared spelling lives in `core/`) and the HUD reads it now. Plus
+  two control rows whose comma no other row uses, and the codex's sniper `plants itself, draws a line,
+  then fires down it` instead of `bolted down; …`.
+
+### Things that bit, worth remembering
+- **`game.screen` answers the whole page**, hidden panels included, so a stop has to say which keys of that
+  answer are its own (`READS` in text.js). **A new DOM id is invisible to the harvest unless it is added
+  there** — same trap as session 102's note about the harness's own id list, and the coverage test is what
+  shouts.
+- **Markup lines are kept apart from live page lines.** The file holds templates before a number is put in
+  them (`AWARDS 0 OF 0`, a fragment like `· STARDUST`), and a browser collapses runs of spaces in a page
+  while the canvas keeps every one — so the middle-dot rule is applied to live lines only, and a template
+  fragment is not accused of bad grammar.
+- **A wrapped card flavour comes out as fragments** (`Drones circle the ship`, `and grind whatever they`,
+  `touch.`), because render/fit.js paints one row per `fillText`. The gate treats a piece of a sentence it
+  knows as that sentence; the first version drew the line at eight characters and judged `touch.` as a line
+  ending in a full stop. Five is the floor now.
+- **Nine mutations, all caught** (`.scratch/word-mutations.mjs`, the copy-sed-run-restore shape). One
+  "survived" at first and it was the mutation's fault, not the gate's: the injected flavour was 127
+  characters and the ceiling 130. Third time this project has been bitten by a mutation too small to test
+  what it claimed to — measure the mutation before believing a survivor.
+- The win stop is the only stop where two surfaces show the same fact at once, which is why the clock rule
+  is checked there and nowhere else.
+
+### Decisions
+- **The developer's plate is a fourth register and stays lower case**, like a terminal: `frame ms`,
+  `bodies / ceiling`. The test file says so in its header rather than leaving it as an unexplained hole,
+  and the harvest never presses F3.
+- **Length ceilings are the writing's, not the layout's.** render/fit.js still guarantees a card cannot
+  walk off its frame; the ceilings exist so every card prints at one size and every catalogue line fits a
+  column beside a name.
+- **`BUILT FROM · NO UPGRADES` was left alone.** A wreck that took no cards reads `WISP · PULSE · BUILT
+  FROM · NO UPGRADES`, which is telegraphic, but every better reading either splits one sentence across two
+  modules or drops the label the banished lines (`NO TETHER`) are said in the same breath as.
+- **`Enter` launches a run and is not mentioned anywhere.** The hint line has no room (session 102) and an
+  undiscovered convenience is not a lie; `test/controls.test.mjs` knows it works.
+
+### What should come next
+1. **Milestone 11 is one item from the end: release `1.0.0`.** The only other open item in PLAN is the
+   browser half of the performance pass, which needs a real GPU and an F3 plate.
+2. **If the survey is ever widened, do it as a second persona, not a second assertion.** The first-run
+   prompts (game/tutorial.js) need a visit that has never flown and the empty racks need a save that has
+   bought nothing; one game lives in a process, so it wants `--persona fresh|veteran` and a child process
+   each. The ungated surfaces today are the toast (render/toast.js — its own tests read its words) and the
+   F3 plate (by choice).
+3. **Any new line of text has to say which voice it speaks.** Caps for the interface, lower case for a
+   description of a thing, a full sentence on a card. If it is none of those, that is the moment to notice.
+4. Still open from session 103: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
+   owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`.
