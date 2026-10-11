@@ -1333,7 +1333,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       **The second question is still open and is now its own item below**, rather than being quietly
       folded into a number: three of the five primaries cannot spend `pierce`, and two of them cannot
       spend `ricochet` either, and nothing in the deck or the deal knows that yet.
-- [ ] Decide what the deck does with the lines a primary cannot spend. Session 96 priced the five
+- [x] Decide what the deck does with the lines a primary cannot spend. Session 96 priced the five
       primaries in bodies and left this behind: `pierce` buys nothing for a beam or for a shell that
       detonates on what it hits, and `ricochet` buys nothing for a beam, by design and on purpose
       (NOTES session 53) - so a LANCE run is offered two cards in ten that do literally nothing and a
@@ -1347,6 +1347,61 @@ When every item above is ticked, go back to the first unchecked item of mileston
       would have to be measured to be sure it is not just a buff); or **make them spendable** (a beam
       that reads `pierce` as something - a second body at the far end of the line, say - and a shell
       that reads it as passing through the first body to detonate at the second), which is a new
+      mechanic with a feel to it and is the only one of the three that makes the deck bigger.
+      Measure before choosing, and note that the tool for it is one flag short: `tools/line-ab.js`
+      prices a line against a batch (`--line pierce --seeds 24`) but cannot yet say which primary the
+      batch is flying, which `tools/simulate.js` and `tools/run-shape.js` both can. Add that flag as
+      part of the work. And none of the three ways out may be a nerf of the pulse, which can spend
+      every line in the deck and is the yardstick everything else is priced against.
+      **Measured, and then filtered: a line the run's gun cannot spend is no longer dealt to it.**
+      The flag came first (`tools/line-ab.js --line pierce --weapon lance`, which plays the whole
+      batch on that primary and says so in the header, because a table that does not name the gun it
+      measured is a number nobody can use; three tests in `test/line-ab.test.mjs`), and what it
+      printed was sharper than "cannot spend" - these lines are inert *to the point*, not weakly.
+      Five free ranks give the middle run the same score as a deck with the line taken out, and it is
+      the same number and not a near one (four seeds, a fifteen-minute window, the aware bot, the
+      `free` column against the `out` one). **pierce**: pulse 1.116x and scatter 1.030x - alive - and
+      then the arc 106,219 with the line and 106,219 without it, the lance 113,614 and 113,614, the
+      Swarm 126,877 and 126,877. **ricochet**: pulse 1.067x, scatter 0.999x, and the same three again
+      at exactly 1.000x. And the item had missed one: **bulletSpeed** is the same story on the arc and
+      the lance (111,680 and 111,680; 114,766 and 114,766) because a beam and a chain have no
+      projectile to speed up, while the Swarm's shells do travel and the line does move that run
+      (126,904 against 128,405) - weakly, and weak is not dead. So a LANCE or an ARC run had *three*
+      dead cards in eighteen and not two in ten, which is one card in six.
+      **Then the second question the item asked, which was whether filtering is secretly a buff, and
+      the answer is that the dead card was not a tax either.** With the line on the rack the bot took
+      3.5 to 4 of its five ranks and the middle run moved +0.1% on the lance, +7.3% on the arc and
+      -5.0% on the Swarm against the same batch with the line gone - inside the noise of four seeds,
+      in both directions, which is what it means for a level spent on nothing to buy nothing. The
+      three ways out, read against that: saying it on the card leaves a hole in a three-card rack and
+      asks the player to read a disclaimer to avoid a trap that was never a choice; making them
+      spendable would be inventing a mechanic to fill a slot - a beam has nothing travelling in it,
+      and "the second body at the far end of the line" is a length, which the row already has - and
+      the honest version of it (a Swarm shell that passes through the first body to detonate at the
+      second) is one gun's card bought with three guns' worth of new rules. So the deal asks the gun,
+      and the dead lines are simply not in its deck: `cannotSpend` on the three weapon rows in
+      `BALANCE.weapons` (the only place the lists are written), read by `spendableBy` in
+      `game/upgrades.js`, honoured by the draw *and* by the "at least one card must be new" promise,
+      which walks the whole table of lines rather than the deck and would have dealt them by the back
+      door. Eight tests in `test/deck-per-gun.test.mjs`: 400 hands on each of the three guns, with
+      the count of hands asserted so a silent empty loop cannot pass, and every line the gun *can*
+      spend demanded too; the pulse still being dealt all eighteen; the back door; the banish's
+      replacement; and a run whose live lines are all maxed being handed its level back and kept
+      flying instead of being offered a dead one - which is now reachable three lines sooner than it
+      was, and was already handled (`refreshOffer` never pauses on an empty rack). Take either filter
+      out and the tests fail, each one on its own.
+      **Nothing about the pulse moved, which was the condition on all three ways out.** Its deck is
+      untouched by construction, the reference run (`--seed 20261006 --trace`) is byte for byte the
+      run session 96 recorded (10m00s / 75,596 / level 58 / 4004 / 5162, every trace hash equal), and
+      the weapon ladder's pulse and scatter rows came out the same *numbers* they were: the sixteen
+      seeds now read SWARM 127,258, SCATTER 120,642, PULSE 118,867, ARC 117,729, LANCE 112,668 - the
+      same verdict, **1.13x against the 1.25x allowed, PASS** - with the three filtered guns up
+      +0.6%, +6.2% and +1.2% and the two untouched ones level to the point. The arc is the one that
+      gained, and it gained about what the dead card was worth on it, which is the whole of the
+      measurement loop closed: a card in six that bought nothing is gone, the band did not move. What
+      is *not* in the game for it: no card text and no hangar line explains a rule a player never
+      meets, and the codex still lists all nineteen cards, because it is the collection of what the
+      game has and not of what one ship is shown.
       mechanic with a feel to it and is the only one of the three that makes the deck bigger.
       Measure before choosing, and note that the tool for it is one flag short: `tools/line-ab.js`
       prices a line against a batch (`--line pierce --seeds 24`) but cannot yet say which primary the

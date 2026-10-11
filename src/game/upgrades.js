@@ -19,6 +19,10 @@
 // to a pull by game/weapons.js, the pierce and ricochet ones are spent by
 // game/bullets.js, and the two secondary systems read themselves.
 //
+// Part of the deck belongs to the gun rather than to the run: three of the five primaries cannot
+// spend some of the lines at all, and a line the ship's gun cannot spend is not dealt to it
+// (`spendableBy`, and a `cannotSpend` list on the weapon rows that need one).
+//
 // The offer is the only place in this file that spends the random stream, so a seed
 // decides which cards come up as surely as it decides who arrives in a wave.
 //
@@ -546,7 +550,37 @@ function isBanished(world, id) {
   return world.banished.indexOf(id) >= 0;
 }
 
-/** Lines with a rank still to give, and not banished out of the run. */
+/**
+ * Has the gun this run flies anything at all to do with this line?
+ *
+ * Three of the five primaries cannot spend part of the deck, and not as a weakness to be played
+ * around: a chain and a beam throw no travelling shot, and a micro-missile is spent on the body it
+ * detonates against, so the pierce line has no shot to keep passing and the ricochet line none to
+ * turn (game/arc.js, game/lance.js, game/missiles.js). The lists live on the weapon rows in
+ * `BALANCE.weapons` and each one is measured rather than read - `tools/line-ab.js --line pierce
+ * --weapon arc` gives the five free ranks the *same* median score, to the point, as taking the line
+ * out of the deck altogether: 1.000x, four seeds, a fifteen-minute window, and the same story for
+ * all six pairs (NOTES session 97).
+ *
+ * So such a line is not dealt. A card that can do nothing is not a small choice, it is no choice:
+ * the run pays a level to find that out and gives up the level the card would have been worth, and
+ * the bot's own appetite puts `ricochet` and `pierce` third and fourth (tools/headless/bot.js), so
+ * it paid them often. Filtering is not a buff either, and that was measured before it was agreed:
+ * with the bot taking four of those five ranks wherever they came up, `dealt` sat inside the noise
+ * of `out` on all three guns (+0.1%, +7.3% and -5.0% of a median score), and the weapon ladder
+ * (tools/weapon-ladder.js) says the same afterwards as it did before.
+ *
+ * A world flying a gun that is not in the table is a bug and says so, the same way `weaponOf` does:
+ * a deal dealt to no gun at all would be a deck quietly missing three cards.
+ */
+function spendableBy(world, id) {
+  const gun = BALANCE.weapons[world.weapon];
+  if (gun === undefined) throw new Error('no weapon is called ' + world.weapon);
+  const cannot = gun.cannotSpend;
+  return cannot === undefined || cannot.indexOf(id) < 0;
+}
+
+/** Lines with a rank still to give, not banished out of the run, and spendable by its gun. */
 function linesWithRoom(world) {
   const room = [];
   for (const line of LINES) {
@@ -557,6 +591,10 @@ function linesWithRoom(world) {
     if (isSynergy(line.id)) continue;
     if (rankOf(world, line.id) >= maxRanksOf(line.id)) continue;
     if (isBanished(world, line.id)) continue;
+    // The gun's own price for what it is: a line it cannot spend is not in its deck, so the three
+    // cards face up are three cards that would do something. The promise below about "something
+    // new" honours the same list, or a dead line would be dealt by the back door.
+    if (!spendableBy(world, line.id)) continue;
     room.push(line);
   }
   return room;
@@ -649,6 +687,7 @@ function guaranteeSomethingNew(world, offer, off) {
     // for one here would be a second hand dealing the same card.
     if (isSynergy(line.id)) continue;
     if (isBanished(world, line.id) || off.indexOf(line.id) >= 0) continue;
+    if (!spendableBy(world, line.id)) continue;
     fresh.push(line.id);
   }
   if (fresh.length === 0) return;

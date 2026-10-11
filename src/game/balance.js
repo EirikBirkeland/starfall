@@ -468,6 +468,16 @@ export const BALANCE = {
     },
     arc: {
       name: 'ARC',
+      // Lines of the deck this gun has nothing to do with, so the deal keeps them out of its sight
+      // (game/upgrades.js `spendableBy`). It is not a weakness to be worked around: the bolt is
+      // drawn between two bodies in the step it lands (game/arc.js), so there is no shot left over
+      // after a body for the pierce line to pass on with, nothing for the ricochet line to turn,
+      // and no projectile at all to give speed to. Measured, not read: five free ranks of each of
+      // the three, on runs that were otherwise the same game, medianed the same score to the point
+      // (`tools/line-ab.js --line pierce --weapon arc --seeds 4 --seconds 900`: 106,219 with the
+      // line and 106,219 without it; bullet speed 111,680 and 111,680; ricochet the same again).
+      // test/arc.test.mjs holds the mechanism, and this row is the only place the list is written.
+      cannotSpend: ['pierce', 'ricochet', 'bulletSpeed'],
       // PLAN's four pulls a second, and the one gun in the game that is not aimed: the bolt
       // finds the nearest body itself (game/arc.js), so what you point at is not what it
       // strikes. That is the gun and not an oversight - the pulse is the weapon you aim, the
@@ -566,6 +576,14 @@ export const BALANCE = {
     },
     lance: {
       name: 'LANCE',
+      // The same three lines the arc cannot spend, for the same reason one degree further on: this
+      // gun throws nothing at all (game/lance.js), so the pierce line has no shot to keep passing,
+      // the ricochet line no shot to turn, and the shot-speed line nothing to speed up. It is a
+      // line of light: what it covers is `beam.halfWidth` and the reach of the arena, and neither
+      // of those is a projectile's. Measured the same way as the arc's list, and inert to the point
+      // (`tools/line-ab.js --line pierce --weapon lance --seeds 4 --seconds 900`: 113,614 with the
+      // line, 113,614 without; bullet speed 114,766 and 114,766). See test/lance.test.mjs.
+      cannotSpend: ['pierce', 'ricochet', 'bulletSpeed'],
       // Pulls a second, and this is the number that was wrong about this gun (NOTES session 96).
       //
       // PLAN's 0.9 shipped for eight milestones, and it was a faithful reading of PLAN: one line of
@@ -720,6 +738,18 @@ export const BALANCE = {
     },
     swarm: {
       name: 'SWARM',
+      // The two of the three the Swarm really cannot spend - and the reason is narrower than the
+      // arc's and the lance's, because this gun *does* throw shots. A shell is spent on the body it
+      // finds: it detonates there (game/missiles.js), so there is never a shot left over to pass
+      // through to the next body and never a spent one to turn onto something else. The shot-speed
+      // line is not on the list, because a shell does travel and the line does move the run when it is
+      // raised (126,904 with five free ranks against 128,405 with none - `tools/line-ab.js --line
+      // bulletSpeed --weapon swarm --seeds 4 --seconds 900`). That is 0.988x, which is no claim that
+      // the card is worth anything - the shot-speed line is a weak card on every gun that *can*
+      // spend it - but the number moved, where the other two read exactly 1.000x, and the gap between
+      // a card worth little and a card that is not a card at all is exactly that. test/missiles.test.mjs
+      // holds the mechanism.
+      cannotSpend: ['pierce', 'ricochet'],
       // PLAN's three pulls a second, and it is the middle rate of the five: the pulse pulls four and
       // a half times a second, the arc four, the scatter two and a bit, the lance two and a half.
       // Three pulls a second, each one a pair of slow things that each find a body of their own -

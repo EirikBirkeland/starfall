@@ -10,6 +10,16 @@
 //                                                        the line's own fields (repeatable)
 //   node tools/line-ab.js --line turret --with burn=3      hold another line at a rank for the whole
 //                                                        run (repeatable; what a synergy needs)
+//   node tools/line-ab.js --line pierce --weapon lance     price the line on a run flying another
+//                                                        primary
+//
+// `--weapon` is there because a line's worth is not a property of the line alone. Three of the five
+// primaries cannot spend `pierce` or `ricochet` at all and two of them cannot spend `bulletSpeed`
+// either (the arc throws no shot, a beam goes through everything on its line by definition, and a
+// micro-missile is spent on the body it finds - game/arc.js, game/lance.js, game/missiles.js). A
+// number quoted for `pierce` on the pulse says nothing about what the card does to a lance run,
+// which is the question PLAN 10's dead-line item had to answer before it could be decided; the
+// answer it bought is in the `cannotSpend` lists in game/balance.js and in test/deck-per-gun.test.mjs.
 //
 // A synergy is measured with `--with`, because a synergy on its own does nothing: its own rank is
 // the thing under test and the two parents only have to be there. `--with burn=3 --with chill=3`
@@ -54,6 +64,7 @@
 // count attached, so that the next session can tell a measured number from an invented one.
 
 import { BALANCE } from '../src/game/balance.js';
+import { WEAPONS } from '../src/game/weapons.js';
 import { bootGame } from './headless/harness.js';
 import { playOneRun, dashEscape, POLICIES, DEFAULT_POLICY } from './headless/bot.js';
 import { median } from './simulate.js';
@@ -70,6 +81,7 @@ const DEFAULTS = {
   holds: [],
   policy: undefined,
   dash: false,
+  weapon: undefined,
 };
 
 function readArgs(argv) {
@@ -87,6 +99,7 @@ function readArgs(argv) {
     else if (arg === '--set') opts.sets.push(next());
     else if (arg === '--with') opts.holds.push(next());
     else if (arg === '--dash') opts.dash = true;
+    else if (arg === '--weapon') opts.weapon = next();
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
   if (opts.line === null || BALANCE.upgrades[opts.line] === undefined) {
@@ -99,6 +112,12 @@ function readArgs(argv) {
   }
   if (opts.policy !== undefined && !POLICIES[opts.policy]) {
     console.error('--bot wants one of: ' + Object.keys(POLICIES).join(', '));
+    process.exit(2);
+  }
+  // Checked against the list the game offers and not against BALANCE.weapons, which also holds a
+  // few meta keys beside the guns (game/weapons.js `setWeapon` asks the same question).
+  if (opts.weapon !== undefined && !WEAPONS.some((gun) => gun.id === opts.weapon)) {
+    console.error('--weapon wants one of: ' + WEAPONS.map((gun) => gun.id).join(', '));
     process.exit(2);
   }
   if (!(opts.seeds >= 1) || !(opts.seconds > 0)) {
@@ -186,6 +205,7 @@ async function measure(game, condition, id, opts) {
     summaries.push(playOneRun(game, {
       maxSeconds: opts.seconds,
       policy: opts.policy,
+      weapon: opts.weapon,
       onFrame: () => {
         // Handed after every step, which is how a rank that was never bought is felt by the very
         // next one - the same door a card taken between two frames goes through (game/upgrades.js).
@@ -256,6 +276,7 @@ const rows = results.map((row) => [
 console.log(table(
   'the ' + opts.line + ' line, measured on ' + opts.seeds + ' seeds at a ' + clock(opts.seconds)
     + ' window, ' + (opts.policy === undefined ? DEFAULT_POLICY : opts.policy) + ' bot'
+    + (opts.weapon === undefined ? '' : ' flying the ' + BALANCE.weapons[opts.weapon].name)
     + (opts.dash ? ' with the dash pressed' : ' that never dashes')
     + (opts.holds.length > 0 ? ', on a run that always had ' + opts.holds.join(', ') : '')
     + (changed.length > 0 ? ', with ' + changed.join(', ') : ''),
