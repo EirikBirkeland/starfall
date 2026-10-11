@@ -12433,3 +12433,93 @@ kills / 4,934 shards, 7 vacuums, 2036 in) with the whole feature in the tree.
    pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
    owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`. Then milestone 10's
    last item: the browser half of the performance pass, and `1.0.0`.
+
+## Session 107 — The keys are yours to move: a CONTROLS rack inside the settings. Released **0.10.14**
+
+Milestone 9's *Key rebinding*. Suite **1899 → 1928** (15 in `test/keymap.test.mjs`, 14 in
+`test/keys.test.mjs`); the reference run (`--seed 20261006 --trace`) is byte for byte session 106's again
+(10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in) with the whole feature in
+the tree - which is the check that mattered most here: a key table is not allowed to nudge a single die.
+
+### What landed
+- **`src/core/keymap.js`** (new) is the one table: `ACTIONS` (id, name, what it is, the shipped code, and
+  what the page writes for it), `KEY_CODES` (what may be taken, and why each one may), and four lookups -
+  `codeFor`, `actionFor`, `wordsOf`, `tableAsWords`. `rebind()` **swaps instead of stealing**: giving DASH
+  the key that HANGAR wore leaves hangar answering the key dash just left, so the table is always a
+  one-to-one map and a player can never end up with a control nothing answers. `restore(id)` puts one row
+  back, `changedCount()` says whether anything moved, `loadFromSave()`/`saveKeys()` keep it. A shipped key
+  writes nothing to the document - a save that has to remember the defaults is a save that has to be right
+  about them forever.
+- **Thirteen bindable controls**: up/down/left/right, dash, pause, give up, hangar, codex, settings, daily,
+  reroll, mute. **Fixed forever**: `Space`/`Enter` (the launch, and the aim-during-a-run), the numbers (they
+  name a card or a ship on every build), `[ ] - =` (the sliders are two rows on the settings panel, which is
+  the same number of arrow presses away on any keyboard), `F3`, the arrows, and **`Escape`**. The `Esc`
+  decision is the one worth keeping: a key that cancels a rebinding cannot be the key a rebinding takes,
+  so the PAUSE row prints `P` and the pause line says `ESC OR P` - two keys, one meaning, still.
+- **The four arrows are always movement as well** (`input/index.js`: `held('left') || keys.ArrowLeft`).
+  They are the pair a keyboard with no letters to spare still has, and no panel can be put up over a run
+  being flown, so a rack's cursor and the ship never want them on the same frame. This is what makes an
+  arrow-driven panel and arrow-driven flight coexist without a key ever meaning two things at once.
+- **`input/keyboard.js` hard-codes nothing that a panel can offer a row for.** One `actionFor(code)`
+  lookup, one `runAction` switch. It also grew `captureKeys(fn)`: one listener in front of everything for
+  exactly one keypress (no held state written, no handler told, `preventDefault` on everything it swallows).
+  The four arrows are **never** sent to the capture - they are the panel's own verbs and the table will not
+  accept one as a binding, so swallowing them would leave a player stuck in a waiting row.
+- **A CONTROLS rack behind one door on the settings panel** (`index.html` `#keysScreen`, wearing the
+  settings panel's CSS because a row there *is* a settings row whose value happens to be a key). `→` asks
+  the keyboard, `←` puts the shipped key back, the hint line changes while a row waits, and the waiting row
+  is amber **while keeping its cyan cursor** - the amber is the cursor lit differently, not a second light.
+  `main.js` owns the panel's furniture (`keysCursor`, `waitingRow`, `openKeysPanel`, `backToSettings`,
+  `moveKeysRow`, `changeKeysRow`, `takeCapturedKey`) and `ownsTheScreen()` is now `settingsIsUp() ||
+  keysIsUp()`, so the launch key and the number keys stand aside for both.
+- **Refused presses stay silent**: a modifier, a function key, a number or an arrow given to a waiting row
+  changes nothing and the row keeps waiting - the same bargain every refused press in this game strikes.
+  `Escape` is the way out of a row, and the only thing it does there (the pause keeps its meaning the moment
+  the rack stops asking; `takeCapturedKey` is the safety net for a rack taken down under a rebinding).
+- **Nothing is left holding an old key.** `ui/screens.js` `KEY_LABELS` lists every span `index.html`
+  carries for a movable key (18 of them: the title's list, both racks' hints, the pause's two lines, both
+  cards, the rack's own way-back line) and `paintKeyWords()` writes all of them from the table at boot and
+  after every move. `game/tutorial.js`'s lessons now name their *controls* (`keys: ['up','left',...]`) and
+  `saysOf()` spells the line out of the live table, so a hand that rebound its keys before its first run is
+  taught its own keys. `showPause` composes its own line the same way.
+- **Save**: a `keys` section with `binds` (control → code), a new `KINDS.mapping` validator beside
+  `counts`, and the same entry-by-entry bargains - one bad code drops that row and keeps its neighbours.
+- **Harness**: `game.text(id)` (a generic readout, so a test does not need a field per label), the
+  `keysRows` snapshot with `chosen` and `waiting`, and `keysHidden`/`keysNote`/`keysHint`. `tools/headless/text.js`
+  now walks through the door so the new rack is in the words survey and `test/words.test.mjs`.
+
+### Things that bit, worth remembering
+- **`KINDS.mapping` landed between `counts`' doc comment and `counts` itself** and left the table with an
+  orphaned doc block. When adding a validator, put it *before* the previous one's comment, then re-read the
+  whole object once.
+- **A panel that steals the keyboard has to give it back on every path**, not just its own. `Escape`, `←`,
+  `→` and moving the cursor all drop the ask, and `takeCapturedKey` starts with
+  `if (!keysIsUp()) { stopListening(); return; }` for the paths that take the rack down from somewhere else
+  (a blur, a pause, a hangar). Without the guard a swallowed keypress is lost and the player presses twice.
+- **`test/keys.test.mjs`'s `goTo` walks with `while`, and a rack that is not up answers no rows** - the
+  first draft hung the suite on a `while (chosenRow() < index)` over an empty rack. `goTo` asserts the rack
+  is up before it walks anything. (`node --test` with no timeout will sit on that forever; `timeout 200` is
+  worth it while a new driver test is being written.)
+- **Rebinding the settings key changes how the tests get anywhere.** `openRack()`/`closePanels()` in
+  `test/keys.test.mjs` read `codeFor('settings')` instead of pressing `KeyO`, and every test that leaves a
+  moved key must put it back (`shippedAgain()`), or a later test in the same process cannot find the door.
+- **Three markup tests read `index.html` as text** and broke the moment a key became a live span
+  (`test/daily.test.mjs`'s title hint, `test/victory-card.test.mjs`'s win hint, which captured `[^<]*`).
+  The win-hint one now strips tags before matching. Expect this again: any line that gets a live key is a
+  line a file-reading test has to be told about.
+- The settings panel grew a row, so four tests that print its row list by name had to grow too
+  (`settings`, `assists`, two in `volume`), including the cursor arithmetic in `volume` (`MUSIC` is row 5
+  now, `MUTE` row 7). A row inserted in the middle of a rack is not a middle-only change.
+
+### What should come next
+1. Milestone 9 has one item left: the **colour-blind palette** - a `settings.js` row with choices, plus the
+   harder half, which is "brightness and shape as well as hue" across the enemy kinds and the shards. That
+   is an art decision about ~20 bodies before it is a code change; `tools/palette-check.js` and session 101's
+   notes on contrast are the place to start, and `--paint` on `tools/alloc-probe.js` is still owed from 101.
+2. Milestone 9's last item is its release checklist, then milestone 10's browser half of the performance
+   pass and `1.0.0`. Still open from earlier: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed
+   --weapon pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, and
+   `tools/gun-tune.js` owed from session 96.
+3. Small things this session noticed and did not do: the rack's rows are all one line each and a very narrow
+   window leans on `fitKeys()` (it fits, but it is the tightest panel in the game now); and a pad has no way
+   into the racks (session 106's note 2 still stands - a selection per panel, not a glass cursor).
