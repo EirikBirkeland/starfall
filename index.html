@@ -315,9 +315,9 @@
   /* A short window. The title, ten rows of controls, what the visit has banked and the launch line
      are a tall column, and a centred column that does not fit is cut at both ends at once - which is
      the worst way to lose any of it. The breakpoint is where a 16:9 window of any useful size is
-     shorter than that column with its type at full size (the control list is ten rows now that the
-     pause has a key of its own), so a 1280x720 browser gets the tight layout and a tall one gets the
-     roomy one. */
+     shorter than that column with its type at full size (the control list is twelve rows now that
+     the developer's panel has a key of its own), so a 1280x720 browser gets the tight layout and a
+     tall one gets the roomy one. */
   @media (max-height: 760px) {
     .controls { margin-top: 16px; gap: 7px; }
     .standing { margin-top: 16px; gap: 8px; }
@@ -440,7 +440,7 @@
     color: #ffd8a8; text-shadow: 0 0 14px rgba(255,179,64,.4);
   }
   /* Two columns are tall on a short window: an ended run's card - the win's taller still than the
-     death's - and the title's control list, which is eleven rows now because every key the game
+     death's - and the title's control list, which is twelve rows now because every key the game
      answers to gets a row of its own. Not one of these lines is one the player came here *not* to
      read, so the space comes out of the gaps and never out of the words. */
   @media (max-height: 620px) {
@@ -485,6 +485,7 @@
     <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
     <div class="row"><span class="key">O</span><span>SETTINGS &#183; SHAKE, SOUND, AUTO-FIRE, AUTO-AIM</span></div>
     <div class="row"><span class="key">M &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
+    <div class="row"><span class="key">F3</span><span>FRAME COST, COUNTS AND POOLS</span></div>
   </div>
   <div class="standing rise">
     <div class="standing-line">BEST <span id="titleBest">0</span> &#183; STARDUST <span id="titleDust">0</span></div>

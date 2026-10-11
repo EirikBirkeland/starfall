@@ -1333,7 +1333,19 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the load meter really is reading the last bar of the form. Suite 1704. The reference run is
       byte for byte what it was - the simulation still does not know music exists.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
-      entity counts, and pool usage.
+      entity counts, and pool usage. (**the overlay is in, from 0.10.3** - `src/render/debug.js`,
+      `test/debug.test.mjs`, and `noteFrame` in the frame loop: F3 puts up a plate with the frame's
+      own clock (fps, frame ms, and the mean and worst of the last two seconds of stepping and
+      painting), the arena's counts (bodies against the crowd ceiling, shots, shards, sparks, grid
+      cells, packs, arena and view), the pool table (`live / built` for every pooled list that has
+      built anything) and the caches (glow sprites and what their pixels cost, device ratio). It is
+      frame state and not a screen - it cannot move a run, and the same seed plays byte-identically
+      with it on and off - and it is off at every page load and never stored. What is left is the pass
+      itself, and it cannot be run honestly before one question is answered by measurement: PLAN
+      section 2's target is 600 enemies, 1500 bullets and 4000 particles, and the shipped game stops
+      its crowd at 200 bodies (`waves.maxBodies`, and `endless.growth.bodiesCeil` past the schedule).
+      Either the target moves or the wall does, and the F3 plate is where the difference will be read
+      from.)
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read

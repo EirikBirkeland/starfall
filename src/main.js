@@ -46,15 +46,21 @@ import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLe
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
+import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, openHangar, openCodex, openPause, openSettings, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, panelIsUp, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
-// The readouts the debug hook reports: how fast the frames are arriving, and
-// where between the last step and the next one the frame just drawn sat.
-let lastFps = 60;
-let lastAlpha = 0;
+
+/**
+ * The readouts the debug hook and the developer's panel report: how fast the frames are arriving,
+ * where between the last step and the next one the frame just drawn sat, and what the frame spent
+ * stepping and painting. One object, written in place every frame, because "no allocation inside the
+ * per-frame loops" is a rule (PLAN section 2) and nothing outside the frame loop ever needs more than
+ * the newest frame's numbers.
+ */
+const perf = { fps: 60, frameMs: 1000 / 60, steps: 0, alpha: 0, stepMs: 0, drawMs: 0 };
 
 /** How many gold bodies are standing in the arena. For the F3 overlay (milestone 10). */
 function countElites(world) {
@@ -470,6 +476,19 @@ function onSettings() {
 }
 
 /**
+ * F3: the developer's panel, and the way back out of it (PLAN milestone 10).
+ *
+ * The one key that works everywhere - over the title, over a fight, over the cards and over a panel -
+ * because what it answers is a question about the frame and not about the screen: how is this frame
+ * going, and what is in the arena. It cannot change either (render/debug.js), which is why it needs
+ * none of the care every other panel takes about which screens may carry it.
+ */
+function onDebug() {
+  initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  uiTick(toggleDebugPanel() ? 'open' : 'close');
+}
+
+/**
  * Up and down: the cursor, and nothing else (input/keyboard.js binds the arrow keys and only the
  * arrow keys, so the ship's own WASD never mean two things on one screen).
  *
@@ -731,8 +750,6 @@ function frame(now) {
   // The simulation is stepped in whole fixed steps; whatever the clock still
   // owes is the moment in between them this frame is drawn at.
   const tick = clock.frame(now);
-  lastFps = tick.fps;
-  lastAlpha = tick.alpha;
   const input = readInput();
   // The controls speak in pixels on the glass and the simulation speaks in arena
   // coordinates, so the aim goes through the camera on its way in.
@@ -754,9 +771,11 @@ function frame(now) {
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.
   let heard = false;
+  const stepStart = performance.now();
   for (let i = 0; i < tick.steps; i++) {
     if (stepWorld(BALANCE.sim.step, input)) heard = true;
   }
+  const stepMs = performance.now() - stepStart;
   // Only a frame that actually simulated anything has handed the dash request to
   // the game. On a very quick display a frame can run no step at all, and a press
   // that landed on one of those stays pending rather than being swallowed.
@@ -807,7 +826,18 @@ function frame(now) {
   // ship has left - is a frame's question, and the simulation never learns music exists at
   // all (audio/music.js).
   updateMusic(world);
+  const drawStart = performance.now();
   renderFrame(tick, input, mouse);
+  // The frame is over, so all three of its numbers are known and the developer's panel is told about
+  // this one now - which means it paints the frame that just finished, never the one it is painting
+  // in, because a frame cannot have been drawn by the time it is being drawn (render/debug.js).
+  perf.fps = tick.fps;
+  perf.frameMs = tick.dt * 1000;
+  perf.steps = tick.steps;
+  perf.alpha = tick.alpha;
+  perf.stepMs = stepMs;
+  perf.drawMs = performance.now() - drawStart;
+  noteFrame(perf);
 
   requestAnimationFrame(frame);
 }
@@ -891,6 +921,7 @@ function boot() {
     onPause: onPauseKey,
     onGiveUp: onGiveUp,
     onSettings: onSettings,
+    onDebug: onDebug,
     onRowMove: onRowMove,
     onRowChange: onRowChange,
     onToggleMute: onMuteSwitch,
@@ -1038,6 +1069,9 @@ window.STARFALL = {
       musicLevel: musicLevel(),
       effectsLevel: effectsLevel(),
       muted: isMuted(),
+      // Is the developer's panel on the glass (render/debug.js)? A headless player cannot see it,
+      // and "did F3 do anything" is otherwise an unanswerable question without pixels.
+      debugUp: debugIsUp(),
       // How the save document answered when this visit opened (core/save.js), and whether this
       // visit is allowed to write to it. A headless run has no other way to see that storage was
       // nonsense, or that a newer build's document is sitting in front of it.
@@ -1163,8 +1197,8 @@ window.STARFALL = {
       shock: world.shock.blasts,
       shockCaught: world.shock.caught,
       shockDealt: world.shock.dealt,
-      fps: lastFps,
-      alpha: lastAlpha,
+      fps: perf.fps,
+      alpha: perf.alpha,
       steps: world.steps,
       xp: world.xp,
       xpNeed: world.xpNeed,

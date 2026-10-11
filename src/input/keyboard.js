@@ -4,7 +4,7 @@
 export const keys = Object.create(null);
 
 // Keys the browser would otherwise scroll or click for us.
-const SWALLOWED = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+const SWALLOWED = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3'];
 const CONFIRM = ['Space', 'Enter', 'NumpadEnter'];
 const DASH_KEYS = ['Space'];
 
@@ -71,6 +71,14 @@ const GIVEUP_KEYS = ['KeyG'];
 // card or ship number, the reroll, the mute, a slider, H, C, P or G.
 const SETTINGS_KEYS = ['KeyO'];
 
+// The developer's panel (PLAN milestone 10): what the frame costs, what the arena is holding, and
+// what the pools have built. F3 because it is the key every browser already means "the other screen"
+// and nothing else in this game is beside it - it is not a movement key, a launch, a dash, a number,
+// the mute, a slider or any of the letters - and the browser's own use for it is swallowed above so
+// that one press is one toggle. It is the only key in the game that works over every screen, panel
+// and card alike, which is the whole point of a tool you reach for in the middle of a fight.
+const DEBUG_KEYS = ['F3'];
+
 // Inside the settings panel, the arrow keys are the cursor and nothing else. WASD are deliberately
 // not bound here: they are how the ship flies, and a panel that also flew the ship one way and pointed
 // a row another would be the one screen in the game where a key means two things at once. The arrows
@@ -95,6 +103,7 @@ export const keyTaps = { dash: false };
  * handlers.onPause     - the run was asked to hold still, or to go on
  * handlers.onGiveUp    - the run was given up, from the pause screen and nowhere else
  * handlers.onSettings  - the settings panel was asked for, or asked to go away
+ * handlers.onDebug     - the developer's panel was asked for, or asked to go away (F3)
  * handlers.onRowMove   - the settings cursor was moved one row: +1 down the panel, -1 up
  * handlers.onRowChange - the row the settings cursor is on was changed: -1 down its travel, +1 up
  * handlers.onToggleMute
@@ -122,6 +131,7 @@ export function initKeyboard(handlers) {
       if (PAUSE_KEYS.indexOf(code) >= 0 && handlers.onPause) handlers.onPause();
       if (GIVEUP_KEYS.indexOf(code) >= 0 && handlers.onGiveUp) handlers.onGiveUp();
       if (SETTINGS_KEYS.indexOf(code) >= 0 && handlers.onSettings) handlers.onSettings();
+      if (DEBUG_KEYS.indexOf(code) >= 0 && handlers.onDebug) handlers.onDebug();
       const row = ROW_KEYS[code];
       if (row !== undefined && handlers.onRowMove) handlers.onRowMove(row);
       const change = CHANGE_KEYS[code];

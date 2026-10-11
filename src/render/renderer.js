@@ -19,6 +19,7 @@ import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
 import { drawVolumePanel } from './volume.js';
+import { drawDebug } from './debug.js';
 import { drawToasts } from './toast.js';
 import { drawLogo } from './logo.js';
 import { drawCards } from './cards.js';
@@ -186,4 +187,7 @@ export function renderFrame(tick, input, pointer) {
   // of the window rather than over the middle of it: the fight is still going on underneath them
   // and the eye is where the fight is.
   drawToasts(ctx);
+  // ...and last of the last, over everything including the cards: the developer's panel (F3) is
+  // read while the frame is going on, so nothing may be allowed to hide it (render/debug.js).
+  drawDebug(ctx);
 }
