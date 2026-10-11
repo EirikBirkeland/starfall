@@ -232,19 +232,33 @@ function killedOf(world, type) {
 
 /** How many ranks of cards this run has taken, synergies and all. */
 function ranksTaken(world) {
-  let ranks = 0;
-  for (const id of Object.keys(world.upgrades)) ranks += world.upgrades[id];
-  return ranks;
+  return countRanks(world).ranks;
 }
 
 /** How many *synergies* this run holds a rank of. They are not dealt on purpose (game/upgrades.js),
     which is the whole reason taking one is worth an award and a row in the codex. */
 function synergiesHeld(world) {
-  let held = 0;
-  for (const id of Object.keys(world.upgrades)) {
-    if (world.upgrades[id] > 0 && isSynergy(id)) held++;
+  return countRanks(world).synergies;
+}
+
+/**
+ * The one walk of the ranks table that answers both questions the awards ask of it, refilled in
+ * place and handed back. A live rule is asked once per rule per step, so this is inside the per-frame
+ * loop and it keeps no list while it runs - `Object.keys` here would build an array for every rule
+ * that asked (PLAN section 2; `tools/alloc-probe.js` is the ruler that would have noticed).
+ */
+const rankCount = { ranks: 0, synergies: 0 };
+
+function countRanks(world) {
+  rankCount.ranks = 0;
+  rankCount.synergies = 0;
+  for (const id in world.upgrades) {
+    const rank = world.upgrades[id];
+    if (rank <= 0) continue;
+    rankCount.ranks += rank;
+    if (isSynergy(id)) rankCount.synergies++;
   }
-  return held;
+  return rankCount;
 }
 
 // --- The two passes -------------------------------------------------------------------

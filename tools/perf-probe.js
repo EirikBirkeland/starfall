@@ -283,6 +283,17 @@ function onGlassSpan(world) {
 }
 
 /**
+ * Plant a whole scene - the crowd, the shots, the sparks. Shared with `tools/alloc-probe.js`, which
+ * measures the same loads in bytes instead of in milliseconds and in canvas operations, and which
+ * must not have its own copy of "what a scene is" or the two rulers would drift apart.
+ */
+export function plantScene(game, scene) {
+  plantBodies(game, scene.bodies, scene.onGlass, scene.mortal, scene.kind);
+  plantShots(game, scene.shots, scene.mortal, scene.onGlass);
+  plantSparks(game, scene.sparks);
+}
+
+/**
  * A run that will not end, will not spawn, and will not level: the scene is planted on top of it.
  * The launch goes through the title screen like a player's does, so the frame loop, the camera and
  * the HUD are all the real ones by the time anything is measured.
@@ -309,7 +320,7 @@ export async function openScene(game, seed) {
  * separately and takes it back out, because keeping a scene standing is this file's work and not the
  * game's.
  */
-function holdScene(game, scene) {
+export function holdScene(game, scene) {
   const world = game.world;
   if (world.enemies.length < scene.bodies) {
     plantBodies(game, scene.bodies - world.enemies.length, scene.onGlass, scene.mortal, scene.kind);
@@ -584,9 +595,7 @@ async function main() {
   const results = [];
   for (const scene of chosen) {
     await openScene(game, 20261011);
-    plantBodies(game, scene.bodies, scene.onGlass, scene.mortal, scene.kind);
-    plantShots(game, scene.shots, scene.mortal, scene.onGlass);
-    plantSparks(game, scene.sparks);
+    plantScene(game, scene);
     game.step(FRAME_MS);                    // let the camera look at where the ship now is
     const step = measureStep(game, scene);
     // The painter gets its own copy of the scene. A dying crowd is not steady (see `measurePaint`),
@@ -594,9 +603,7 @@ async function main() {
     // than one that starts at the planting - so the planting is done again and both halves of a scene
     // are read from the same starting frame, whatever `--seconds` was asked for.
     await openScene(game, 20261011);
-    plantBodies(game, scene.bodies, scene.onGlass, scene.mortal, scene.kind);
-    plantShots(game, scene.shots, scene.mortal, scene.onGlass);
-    plantSparks(game, scene.sparks);
+    plantScene(game, scene);
     game.step(FRAME_MS);
     const paint = measurePaint(game, scene);
     results.push({

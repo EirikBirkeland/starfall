@@ -1,0 +1,198 @@
+// The ruler that measures what a step throws away, and the budgets it enforces (PLAN section 2,
+// milestone 10).
+//
+// PLAN section 2's second performance rule is "no allocation inside the per-frame loops". Object pools
+// were bought for the first half of that and `tools/perf-probe.js` measures how long a step costs;
+// neither of them can see garbage, and garbage is what makes the collector come - which is the one
+// thing that explains a frame costing fifteen times what the crowd inside it is worth (the F3 plate
+// sees worst steps of 1.4-1.7 ms; a scavenge of this heap costs about a millisecond of that). So
+// `tools/alloc-probe.js` weighs a step in bytes, and this file keeps three things true about it:
+//
+//   - **the instrument notices the loads it claims to notice**: a crowd costs more than an empty arena,
+//     and the two lists that live in pools - sparks, and the shots that only ever fly - cost nothing
+//     more than the arena on its own. Those two are the promise `core/pool.js` and `core/grid.js` make,
+//     and if either is ever undone this fails instead of a hitch appearing at the busiest moment;
+//   - **the same load reads the same number twice**, which is the whole reason the tool measures each
+//     load in its own process: measured in one shared process, 60 shots threw away 479 bytes a step
+//     when they were the first load the process had seen and 3,145 when an empty arena had come first,
+//     and a ratchet that depends on which row came first is not a ratchet;
+//   - **the gated loads are inside both budgets**, which is the ratchet: a change that makes a step
+//     throw away more has to be argued about here, in bytes, and not discovered as a stutter.
+//
+// What is *not* in here is any claim about a browser. The young generation of a page is a different
+// size from the one this file asks node for, and how long a scavenge takes there is unknown from here;
+// the bytes are the only honest currency, and the plate (render/debug.js) is where a real machine is
+// read.
+//
+// Every measurement in here runs in a child process, because a window needs `--expose-gc` and a test
+// file cannot add a flag to the process it is already in. The tool adds it to itself; these tests just
+// ask it for short windows so the suite is not waiting on a full ladder.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { BALANCE } from '../src/game/balance.js';
+import {
+  bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs,
+  FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES,
+} from '../tools/alloc-probe.js';
+import { SCENES } from '../tools/perf-probe.js';
+
+const ROOT = path.resolve(import.meta.dirname, '..');
+const TOOL = path.join(ROOT, 'tools', 'alloc-probe.js');
+
+/** One run of the tool, with the short windows a test wants rather than the ladder a reader wants. */
+function probe(args) {
+  return spawnSync(process.execPath, [TOOL, ...args], { cwd: ROOT, encoding: 'utf8', timeout: 900000 });
+}
+
+/** The rows one `--json` run printed, plus the arena on its own. */
+function rows(args) {
+  const out = probe(args);
+  // A non-zero status is the verdict saying a load is over budget, which several tests below read out
+  // of the rows themselves; what must never happen is the tool dying without printing anything.
+  assert.ok(out.stdout.includes('ROWS '), 'the probe printed no rows: ' + out.stderr);
+  const line = out.stdout.split('\n').find((l) => l.startsWith('ROWS '));
+  const parts = line.slice('ROWS '.length).split(' floor ');
+  return { rows: JSON.parse(parts[0]), floor: Number(parts[1]) };
+}
+
+const QUICK = ['--json', '--steps', '150', '--windows', '3'];
+
+// --- the arithmetic in the tool ---------------------------------------------------
+
+test('a byte count reads like a person wrote it', () => {
+  assert.equal(bytes(843), '843 B');
+  assert.equal(bytes(1024), '1.0 KB');
+  assert.equal(bytes(10_240), '10.0 KB');
+  assert.equal(bytes(NaN), '-');
+});
+
+test('a young generation lasts as long as the rate says and no longer', () => {
+  // 1,024 B a step at 120 steps a second is 120 KB a second, so a megabyte is 8.something seconds.
+  assert.ok(secondsPerYoungGeneration(1024, TAB_YOUNG_BYTES) > 8);
+  assert.ok(secondsPerYoungGeneration(1024, TAB_YOUNG_BYTES) < 9);
+  assert.equal(secondsPerYoungGeneration(0, TAB_YOUNG_BYTES), Infinity, 'nothing to collect is forever');
+  // Halving what a step throws away doubles the time until the collector is called again. That is the
+  // whole argument for the file, in one line.
+  assert.ok(Math.abs(secondsPerYoungGeneration(512, TAB_YOUNG_BYTES)
+    - 2 * secondsPerYoungGeneration(1024, TAB_YOUNG_BYTES)) < 1e-9);
+});
+
+test('the verdict fails on the floor as well as on a load', () => {
+  const inside = [{ name: 'a wall', gated: true, bytesPerStep: 100, ok: true }];
+  assert.equal(verdictOf(inside, 100).pass, true);
+  assert.equal(verdictOf([{ name: 'a wall', gated: true, bytesPerStep: 1e6, ok: false }], 100).failed
+    .join(), 'a wall');
+  const overFloor = verdictOf(inside, 1e6);
+  assert.equal(overFloor.pass, false);
+  assert.ok(overFloor.failed.includes('the empty arena'));
+});
+
+test('every flag is refused with a sentence before a number can be printed', () => {
+  for (const args of [['--nonsense'], ['--scene', 'nowhere'], ['--kind', 'nowhere'],
+    ['--windows', '1'], ['--steps', '0'], ['--seconds', '-1']]) {
+    const out = probe(args);
+    assert.notEqual(out.status, 0, args.join(' ') + ' should not be accepted');
+    assert.match(out.stderr, /alloc-probe: /, args.join(' ') + ' printed no honest complaint');
+    assert.doesNotMatch(out.stdout, /ROWS |VERDICT/, args.join(' ') + ' printed a number anyway');
+  }
+});
+
+test('the loads are the walls the game has, read out of BALANCE', () => {
+  // Every gated scene's body count is a wall from balance.js and not a typed-in number, and the parts
+  // ladder is the spark cap and the schedule crowd - the same two the perf probe plants.
+  for (const scene of SCENES) {
+    if (!scene.gated) continue;
+    assert.ok(typeof scene.bodies === 'function', scene.id + ' asks for its crowd');
+  }
+  const parts = partLoads();
+  const sparks = parts.find((p) => p.name === 'the spark cap alone');
+  const crowd = parts.find((p) => p.name === 'the schedule crowd alone');
+  assert.equal(sparks.sparks, BALANCE.effects.particleCap);
+  assert.equal(crowd.bodies, BALANCE.waves.maxBodies);
+});
+
+test('--scene and --kind choose the loads they name', () => {
+  assert.deepEqual(chosenLoads(readArgs(['--scene', 'endless'])).map((l) => l.id), ['endless']);
+  const kinds = chosenLoads(readArgs(['--kinds']));
+  assert.equal(kinds.length, Object.keys(BALANCE.kinds).length);
+  for (const load of kinds) assert.ok(BALANCE.kinds[load.kind], 'a row per kind, named');
+});
+
+// --- what the loads actually weigh ------------------------------------------------
+
+const parts = rows(['--parts', ...QUICK]);
+
+test('a crowd costs the step something, and it is a fraction of what it used to be', () => {
+  const crowd = parts.rows.find((r) => r.name === 'the schedule crowd alone');
+  assert.ok(crowd.bytesPerStep > parts.floor * 2,
+    '100 bodies should be visible against an empty arena, and the ruler would be worthless if not');
+  assert.ok(crowd.perBody <= BODY_BYTES, 'a body costs ' + bytes(crowd.perBody)
+    + ' a step, over the ' + bytes(BODY_BYTES) + ' the budget allows');
+  // Before core/grid.js kept its cells and awards stopped listing the ranks table every step, the same
+  // crowd cost 94 bytes a body. The budget is half of that again, so a regression that put an object
+  // back in the walk trips this and a rounding error does not.
+  assert.ok(crowd.perBody < 94, 'a body used to cost 94 B a step; it now costs ' + crowd.perBody);
+});
+
+test('the two lists that live in pools throw away nothing extra', () => {
+  // This is `core/pool.js` and the grid's "a rebuild costs no allocation" made visible: 900 sparks and
+  // 60 shots are each their own rows, and neither may cost the step a slice of what a body costs.
+  const sparks = parts.rows.find((r) => r.name === 'the spark cap alone');
+  const shots = parts.rows.find((r) => r.name === "a gun's shots alone");
+  const slack = Math.max(96, parts.floor * 0.25);
+  assert.ok(sparks.bytesPerStep - parts.floor <= slack, '900 sparks threw away '
+    + bytes(sparks.bytesPerStep - parts.floor) + ' a step over an empty arena');
+  assert.ok(shots.bytesPerStep - parts.floor <= slack, '60 shots threw away '
+    + bytes(shots.bytesPerStep - parts.floor) + ' a step over an empty arena - a query that empties'
+    + ' its scratch array, or a broad phase that builds a list, is back');
+});
+
+test('all three together is the crowd, and not the crowd plus the two free lists', () => {
+  const crowd = parts.rows.find((r) => r.name === 'the schedule crowd alone');
+  const both = parts.rows.find((r) => r.name === 'all three together');
+  assert.ok(both.bytesPerStep < crowd.bytesPerStep * 1.35,
+    '900 sparks and 60 shots on top of the crowd cost '
+      + bytes(both.bytesPerStep - crowd.bytesPerStep) + ' a step, which is not nothing');
+});
+
+test('the same load reads the same number twice', () => {
+  // The reason the tool measures every load in its own process. Twice the same command, and the number
+  // has to come back within a quarter - enough for the box to breathe, tight enough that a real change
+  // in what a step throws away shows up.
+  const first = rows(['--scene', 'endless', ...QUICK]).rows.find((r) => r.id === 'endless');
+  const again = rows(['--scene', 'endless', ...QUICK]).rows.find((r) => r.id === 'endless');
+  const spread = Math.abs(first.bytesPerStep - again.bytesPerStep)
+    / Math.max(first.bytesPerStep, again.bytesPerStep);
+  assert.ok(spread < 0.25, 'the same load read ' + bytes(first.bytesPerStep) + ' and then '
+    + bytes(again.bytesPerStep));
+});
+
+test('the gated loads are inside the budgets - the ratchet', () => {
+  // One run of the four gated scenes, which is what `tools/release.sh` would want to run and does not,
+  // because a byte count is not a claim about a browser. Each row carries its own gate, and the tool's
+  // exit code is the verdict, so this test is the ratchet proper.
+  const out = probe([...QUICK]);
+  assert.equal(out.status, 0, 'a gated load is over budget:\n' + out.stdout + out.stderr);
+  const line = out.stdout.split('\n').find((l) => l.startsWith('ROWS '));
+  const parsed = JSON.parse(line.slice('ROWS '.length).split(' floor ')[0]);
+  for (const row of parsed.filter((r) => r.gated)) {
+    assert.ok(row.bytesPerStep <= STEP_BYTES, row.name + ' throws away '
+      + bytes(row.bytesPerStep) + ' a step, over the ' + bytes(STEP_BYTES) + ' allowed');
+    assert.ok(row.perBody <= BODY_BYTES, row.name + ': a body costs ' + bytes(row.perBody)
+      + ' a step, over the ' + bytes(BODY_BYTES) + ' allowed');
+  }
+  assert.match(out.stdout, /VERDICT PASS/);
+});
+
+test('the empty arena is inside its own budget', () => {
+  // The floor is the noisiest number in the file (it is small, and a short window has less of the step
+  // to hide in): measured 184 B a step over 300-step windows and 319-442 over 150-step ones. The budget
+  // is over the worst of those, because what it is for is a whole system's worth of per-step lookups
+  // turning up here, not a rounding error.
+  assert.ok(parts.floor <= FLOOR_BYTES, 'the arena on its own throws away ' + bytes(parts.floor)
+    + ' a step, over the ' + bytes(FLOOR_BYTES) + ' allowed - a lookup added to every step belongs in'
+    + ' a system that needs it, not in the frame');
+});

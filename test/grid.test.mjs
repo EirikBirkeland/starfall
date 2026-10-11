@@ -169,3 +169,39 @@ test('a query costs what is nearby, not what exists', () => {
   grid.queryCircle(4000, 4000, reach, nearby);
   assert.equal(nearby.length, 0, 'an empty neighbourhood really is empty');
 });
+
+test('queryInto answers the same question, and answers it with a count', () => {
+  // The hot door (game/bullets.js asks this question once per bullet per step). Same walk, same
+  // superset, same order - the exact test a caller makes depends on the order the candidates arrive in
+  // when two of them are hit in one step.
+  const grid = new Grid(64);
+  for (let i = 0; i < 40; i++) grid.insert(item(i * 40, 100 + (i % 5) * 12));
+  const scratch = [];
+  const n = grid.queryInto(200, 100, 90, scratch);
+  assert.deepEqual(scratch.slice(0, n), grid.queryCircle(200, 100, 90));
+  assert.ok(n > 1, 'the query found more than one body to look at');
+});
+
+test('a scratch array is never emptied, which is the whole point', () => {
+  // `out.length = 0` is what throws an array's element store away and makes the next write buy a new
+  // one, and a step that does that once per bullet per step is what tools/alloc-probe.js caught. So the
+  // scratch keeps whatever length the widest query ever needed, and the answer is the count.
+  const grid = new Grid(64);
+  for (let i = 0; i < 40; i++) grid.insert(item(i * 40, 100));
+  const scratch = [];
+  const wide = grid.queryInto(800, 100, 900, scratch);
+  assert.ok(wide > 1, 'the wide query filled it up');
+  grid.clear();
+  grid.insert(item(800, 100));
+  const narrow = grid.queryInto(800, 100, 8, scratch);
+  assert.equal(narrow, 1, 'the narrow query found the one body left');
+  assert.equal(scratch.length, wide, 'and the array kept the length the wide one needed');
+  assert.equal(scratch[0].x, 800, 'and the first `n` of it are this query\'s answer');
+});
+
+test('a query that was not given a scratch array says so', () => {
+  const grid = new Grid(64);
+  assert.throws(() => grid.queryInto(0, 0, 8), TypeError);
+  assert.throws(() => grid.queryInto(0, 0, 8, {}), TypeError);
+  assert.throws(() => grid.queryInto(0, 0, NaN, []), RangeError);
+});

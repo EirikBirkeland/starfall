@@ -207,12 +207,11 @@ function lockOn(world, turret, spec) {
   // The query is as wide as the widest skin it could be asked about, and the test is per body: a body's
   // skin is inside the sight when its centre is `reach + its own r` away, and the grid answers for
   // centres (game/tether.js argues the same argument for its band).
-  const found = world.grid.queryCircle(
-    turret.x, turret.y, spec.reach + widestBodyOn(world), lockScratch);
+  const found = world.grid.queryInto(turret.x, turret.y, spec.reach + widestBodyOn(world), lockScratch);
   let best = null;
   let nearest = Infinity;
-  for (let i = 0; i < found.length; i++) {
-    const body = found[i];
+  for (let i = 0; i < found; i++) {
+    const body = lockScratch[i];
     // A body brought down earlier this step is still filed in the grid, and it is not worth a shell.
     if (body.hp <= 0) continue;
     const reach = spec.reach + body.r;

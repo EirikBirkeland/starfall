@@ -114,7 +114,7 @@ function nextMoveFor(world, bullet, spec) {
   // The grid still holds this step's crowd - it is rebuilt once per step, above - and
   // asking it a question here is allowed only because the answer goes into a list of its
   // own. Nothing else may query while the hit loop is holding `nearby`.
-  world.grid.queryCircle(bullet.x, bullet.y, spec.reach, withinReach);
+  const found = world.grid.queryInto(bullet.x, bullet.y, spec.reach, withinReach);
 
   const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy) || 1;
   const hx = bullet.vx / speed;
@@ -123,7 +123,7 @@ function nextMoveFor(world, bullet, spec) {
   let nearestBy = Infinity;
   let ahead = false;
 
-  for (let i = 0; i < withinReach.length; i++) {
+  for (let i = 0; i < found; i++) {
     const other = withinReach[i];
     if (other.hp <= 0 || alreadyThrough(bullet, other)) continue;
     const dx = other.x - bullet.x;
@@ -230,7 +230,7 @@ export function updateBullets(world, dt) {
     // here: one boolean, read and thrown away.
     if (bullet.hunts) hunt(world, bullet, dt);
 
-    grid.queryCircle(bullet.x, bullet.y, broadPhase, nearby);
+    const found = grid.queryInto(bullet.x, bullet.y, broadPhase, nearby);
     // A shot with nothing left is spent by the first body it meets and the loop is done
     // with it. One that has a pass or a turn left keeps flying and may well find a second
     // body in the very same step, so the walk carries on over the candidates - which is
@@ -239,7 +239,7 @@ export function updateBullets(world, dt) {
     // the crowd directly, and it is the only thing a death goes on to do. `nextMoveFor`
     // asks the grid too, and it is the one exception, because it reads the answer into a
     // list of its own.)
-    for (let n = 0; n < nearby.length; n++) {
+    for (let n = 0; n < found; n++) {
       const enemy = nearby[n];
       // Something killed earlier in this step is still filed in the grid, and it
       // has already paid out its score, its shards and its split. Dead things

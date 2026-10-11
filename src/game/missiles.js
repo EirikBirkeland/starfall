@@ -96,11 +96,11 @@ export function hunt(world, bullet, dt) {
   const line = missileOf();
   // The grid is this step's (game/bullets.js rebuilt it above) and the radius has to cover the
   // widest thing the exact test below will measure (core/grid.js).
-  world.grid.queryCircle(bullet.x, bullet.y, line.reach + widestBodyOn(world), hunted);
+  const found = world.grid.queryInto(bullet.x, bullet.y, line.reach + widestBodyOn(world), hunted);
 
   let target = null;
   let nearestBy = Infinity;
-  for (let i = 0; i < hunted.length; i++) {
+  for (let i = 0; i < found; i++) {
     const body = hunted[i];
     if (body.hp <= 0) continue;          // dead things are not chased; they have already paid
     const dist = Math.hypot(body.x - bullet.x, body.y - bullet.y);

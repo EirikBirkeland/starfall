@@ -1481,6 +1481,41 @@ When every item above is ticked, go back to the first unchecked item of mileston
       can print a wrong number, and - for the 1500-shot sentence - that a real minute of a real run holds
       12 shots and never more than the spark cap. Suite 1772. What is left of this item is one reading
       and not a feature, and it is the item below.
+- [x] "No allocation inside the per-frame loops" (section 2), held to a ruler. `tools/alloc-probe.js`
+      weighs a step in **bytes thrown away**: one load per process (measuring two loads in one process
+      is a lie - a step that has only ever seen empty pools gets compiled for empty pools, and the same
+      60 shots threw away 479 B a step as the first load a process saw and 3,145 B a step when an empty
+      arena had been measured first); the best of twelve 300-step windows; and **every window the
+      collector came into is thrown away and retried**, because a window the collector interrupted reads
+      *low* and a plain best-of-N would keep the lies and call them the truth. It also runs with a 64 MB
+      young generation so a window cannot fill it, and it reads the heap twice (`heapUsed` and V8's own
+      new-space figure) and throws away a window where they disagree. The reading, on this box, with the
+      crowd at its two walls: **the empty arena 184 B a step, the schedule's 100 bodies 3.4 KB (33 B a
+      body), the endless wall of 200 6.1 KB (31 B), the same crowd dying 8.5 KB, PLAN's own impossible
+      scene 19.6 KB** - which at the game's 120 steps a second is a megabyte of garbage every 1.4 s of
+      play at the wall, and a scavenge of that heap measures **0.85-1.12 ms**: this is the answer to
+      session 97's question about the F3 plate's 1.4-1.7 ms worst steps. They are not the crowd, they
+      are the collector, and every byte above is a hitch a player waits through. Two real fixes came
+      out of it and both are in `src/`: **`core/grid.js`** stopped emptying its cells (`cell.length = 0`
+      throws the array's element store away and the next `push` buys a new one, so a cell is a count and
+      a store now, and the hot door is `queryInto`, which answers with a count and never touches the
+      caller's scratch array length - 94 B a body a step to 31 B), and **`game/awards.js`** stopped
+      listing the ranks table once per rule per step. Three budgets are the ratchet - 512 B a step for
+      the empty arena, 10 KB for a gated load, 52 B for a body - each about a quarter over what the
+      commit that wrote them measured, because a ratchet with no room in it gets raised the first time
+      anybody needs it. Thirteen tests in `test/alloc-probe.test.mjs`: that a crowd is visible against an
+      empty arena, that the two pooled lists still throw away nothing extra (900 sparks, 60 shots), that
+      the same load reads the same number twice in two processes, that every gated scene asks its body
+      count of `BALANCE`, that the young-generation arithmetic is the arithmetic of a megabyte, and that
+      every flag is refused before it can print a wrong number. Suite 1787. The reference run is byte
+      for byte what it was: a step that allocates less does the same work.
+- [ ] The crowd still throws away what it throws away. **The rule in section 2 is ratcheted, not met:**
+      a body costs the step **31 B** and the budget allows 52 B, so the game is inside a budget it is
+      not yet near. An ablation of one step (switch one system's update off, measure again) says where
+      they are: of the schedule load's 3.9 KB a step, **`updateEnemies` is 3.5 KB**, `updateBullets` is
+      1.2 KB and `updateAwards` is still 0.9 KB even after its table walk went. `tools/alloc-probe.js
+      --parts` is the ruler and `.scratch`-style ablation is the method; the escape-analysis trap in the
+      probe's header is why a cold measurement of a line can show nothing at all.
 - [ ] The browser half of the performance pass, which this project cannot take by itself: open the game,
       put up the F3 plate, fly the endless door until the plate reads `bodies 200 / 200`, and write down
       what `step ms` and `draw ms` say. `tools/perf-probe.js` knows the arena (0.11 ms a step at that
