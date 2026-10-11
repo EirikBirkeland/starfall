@@ -11108,6 +11108,11 @@ visit and then stops. `grewBetween` says what the rest of it is - rings built 12
 the baseline at minute 5 and the end, fires 104, shards 37, and the enemy array is holding 151 more
 bodies than it was. The arena was still filling toward its wall when the flight went down.
 
+Run again straight after, on the same code and the same seeds: the flight read 0.030 again and the
+wrecks 0.072 instead of 0.063. The per-run slope is the one number here with a run-to-run jitter in it
+(it is five heap readings of a heap that node is free to arrange as it likes); a factor of two between
+visits would mean something, 0.063 against 0.072 does not. Do not chase it.
+
 ### Things that surprised me
 
 - **A Pool never shrinks**, which is the design (session 78's high-water wall) and is most of the answer
@@ -11148,6 +11153,12 @@ bodies than it was. The arena was still filling toward its wall when the flight 
   (`Math.ceil(w * pixelRatio) * Math.ceil(h * pixelRatio) * 4` summed over baked holders), so the hunt
   can say something about the one cache the heap cannot see. 82 holders, 8.9 MB, bounded because
   `glowFor` is keyed on colour and a radius off a table, and the tables are finite.
+- **The per-run number jitters and the flight one does not.** Two visits, same code, same seeds: the
+  flight read 0.030 MB a minute both times, the wrecks read 0.063 and then 0.072 MB a run. Five heap
+  readings of a heap node arranges as it likes is a softer measurement than a slope over 23 minutes.
+  Nothing here is wrong - the budgets have four times of headroom in them for exactly this reason - but a
+  future session should not chase a per-run figure that moved by 0.01 MB, and should not tighten
+  `--per-run` below, say, 0.15 until the flight's own budget has been earned first.
 - **`node --test test/` lies.** With the path it reports one failing test called `test` on this Node;
   `node --test` (no argument) finds all 1718 and they all pass. AGENTS.md says `node --test`, and this
   time I know why.
