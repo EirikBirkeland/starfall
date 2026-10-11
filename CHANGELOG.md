@@ -1,5 +1,28 @@
 # Starfall — changelog
 
+## 0.10.9 — 2026-10-11
+There is one arena a day now, and everybody is flying it: press **T** and the run starts on a seed nobody
+chose - today's date - and whatever you score on it is today's best until you beat it yourself.
+- **The day is the seed.** The date written as a number (2026-10-11 is `20261011`) goes through the same
+  mixer the game scrambles successive seeds with, so consecutive days are unrelated arenas rather than
+  one arena with a drifter moved, and one date is one arena for everyone, everywhere, all day. Nobody can
+  re-roll it: there is no seed box to type into and no second deal.
+- **Nothing else about the run is different.** Same ship, same opening three, same cards, same purse, same
+  awards - a daily run banks all of it, because being on everybody's seed is a challenge and not a fine.
+  What it adds is the day's own best, banked as a fourth number on the title (`BEST · STARDUST · TODAY
+  4,321`), written in full on the card that ends the run with `NEW TODAY` when it beats the day, named on
+  the pause screen and marked beside the clock while you fly.
+- **Today is your machine's today, and the day rolls when you are standing in it.** A run launched at
+  23:59 belongs to the day it started on even if it is still flying after midnight. One day is kept, not
+  a history: yesterday's best is a number nothing can be compared against once today has begun.
+- **An ordinary visit does not change.** Every place the day is said is empty - takes up no room at all -
+  until the day has been flown, and `T` is a launch rather than a mode: press it again for another run
+  today, press `Space` for a run of your own, and the only thing a daily run leaves behind is the day
+  written into the run that was flown on it.
+- **One real bug came out of it**, three tests deep: the day's seed was being left in `world.seed`, so the
+  ordinary run after a daily one kept flying the day - and that field is how the address bar, the
+  simulator and the test harness hand a visit its seed.
+
 ## 0.10.8 — 2026-10-11
 A step of the game throws away four to seven times less than it did, and that answers the thing the debug
 plate has been reporting since the plate was built: the worst frames are the collector, and now it is
