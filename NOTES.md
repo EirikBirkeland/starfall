@@ -11578,3 +11578,137 @@ point* and the dead card turned out to tax nothing. Suite **1748 → 1759**; the
 4. If anybody wants the deck's shape on screen: the honest place is the hangar's ship row ("its deck has
    fifteen, not eighteen"), and it wants a number rather than a list of names - the card names are long
    and the row is one line already.
+
+## Session 98 — What a frame costs, measured; the wall stays and the plan's sentence gets a ruler
+
+Milestone 10's performance item. It started the way session 97's did: **`git status` showed another
+session's unfinished work in the tree** - an untracked `tools/perf-probe.js` of 600 lines and two
+throwaways in `.scratch/`, written five minutes before that session died. Reading it and running it took
+ten minutes and was worth more than rewriting it, and the third time is a habit: **run `git status`
+before anything else.** Suite **1759 → 1772**; the reference run (`--seed 20261006 --trace`) is byte for
+byte session 96's again (10m00s / 75,596 / level 58 / 4004 / 5162 / 7 vacuums, 2065 in), which it must
+be: nothing in here touches the simulation, and the one `src/` change is a comment.
+
+### What landed
+- **`tools/perf-probe.js`, finished.** It plants a load (bodies, shots, sparks - through the pool's
+  contract, every field written), keeps it standing between the steps because bodies walk off and shots
+  leave the glass, times `holdScene` separately and takes it back out, and reads the scene twice: one
+  `stepWorld` in **milliseconds** and one painted frame in **canvas operations** (the harness's canvas
+  is a stub that counts calls and holds no pixels, and the file says so out loud in its header and in
+  its printed budget line). Five scenes: the schedule's wall, the endless wall, the same crowd *dying*,
+  the same crowd spread thin, and PLAN section 2's own sentence - the last one measured and **not
+  gated**, because it is a distance to print and not a promise. `--scene`, `--kind`, `--bodies/--shots/
+  --sparks`, `--seconds`, `--reps`, `--peak`, `--quiet`.
+- **Two bugs in it, both about trust, and both found by running it twice.**
+  1. **The paint reading moved with `--seconds`.** The same dying crowd read 4,395 operations at the
+     default window and 3,046 at eight seconds, because a crowd dying in bursts is not one load: a
+     frame in which thirty bodies go down together asks for a different picture than the quiet one
+     before it. The window also started wherever the timing run had left the world, so changing the
+     timing window moved the paint number. Now the scene is **planted twice** - once for each half -
+     so both start from the same frame whatever `--seconds` says, and the painter is read as **two
+     numbers**: `total` (the mean over the window) and `worst` (the dearest single frame in it), each
+     with its own budget. The worst frame is the one a 60 fps budget is actually spent on; the mean is
+     kept because a change that makes every frame a little dearer need not move the worst at all. A
+     ratchet that reads a different number depending on which day you ran it is not a ratchet.
+  2. **The printed load depended on which timed pass won the race.** The milliseconds take the fastest
+     pass on purpose (a pre-empted pass reads slow and says nothing about the game), but the *counts*
+     were being taken from that same winning pass - and the world is further along by the third pass,
+     so the same commit printed 4,000 sparks and then 3,548 in two runs of itself. Now the counts are
+     summed over every pass and divided by the whole run, which is order-independent and therefore
+     reproducible; the milliseconds still take the best. There is a test named for exactly this.
+- **Thirteen tests in `test/perf-probe.test.mjs`**, and the file is the ratchet: that every gated scene
+  reads its body count out of `BALANCE` rather than a typed-in number (so the day a wall moves the
+  ruler moves with it); that a planted scene is still planted sixty frames later, having neither grown,
+  died, levelled or ended; that the step cost is the crowd's and not the harness's (400 bodies at three
+  times what 20 cost, and it measured **25x**, so the bar is safe); that culling is worth what the
+  camera claims and that nothing about culling reaches the simulation; that the load is the same number
+  twice in a row; that a scene over any one of the three budgets fails while PLAN's scene over all
+  three fails nothing; that every flag is refused with a sentence before a wrong number can print; that
+  `--kind` names the body it planted in its own row (the `--weapon` lesson again); and - for the
+  1500-shot sentence - that a real minute of a real run holds 12 shots and never once more than the
+  spark cap. Both filters are mutation-checked: `PAINT_OPS` down to 3,000 fails the budget test, and
+  planting half the bodies fails the instrument check.
+- **`endless.growth.bodiesCeil`'s note was wrong and is now right.** It quoted "about 870 strokes, 370
+  fills and 260 sprite stamps a frame" for 200 bodies; the painter has grown since that was typed. The
+  note now quotes the tool: this crowd on the glass is **2,947 operations a frame, 3,008 on its dearest
+  frame**, against **1,966** at the schedule's own wall - about **nine operations a body** measured over
+  an empty arena - and **3,403** dying. Being able to say "nine operations a body" at all came from a
+  five-line throwaway that planted 0, 20, 60, 100, 200 and 400 bodies: 226 operations on an empty arena
+  plus about 9 a body plus 1,212 for the 900-spark cap. That is the cheapest useful measurement in this
+  family and it is worth redoing whenever the art changes.
+
+### The decision the item asked for: the target moves, the wall stays
+The numbers, on this box (an Ryzen AI Max+, 32 cores, node 24), at the tool's own window:
+
+| scene | bodies / shots / sparks | step | ops mean | ops worst |
+| --- | --- | --- | --- | --- |
+| schedule's wall | 100 / 60 / 900 | 0.042 ms | 1,966 | 2,010 |
+| endless wall | 200 / 60 / 900 | 0.114 ms | 2,947 | 3,008 |
+| the same crowd dying | 200 / 59 / 900 | 0.099 ms | 3,403 | 3,638 |
+| the same crowd spread out | 200 / 60 / 900 | 0.121 ms | 1,341 | 1,394 |
+| PLAN section 2's sentence | 600 / 1,500 / 4,000 | 0.926 ms | 8,503 | 9,918 |
+
+and `--peak`: across five primaries the busiest real run was seen holding **12 shots** in the air and
+**900 sparks**, in a crowd that stopped at **100 bodies**. So the item's "either the target moves or the
+wall does" resolves like this. **The target moves**, in the sense that PLAN's literal 600/1500/4000 is
+not a budget the shipped game can be held to and never will be: the spark cap is 900 because the spawner
+trims to it, and no gun at any rank can hold 1,500 shots - it manages twelve. It stays in the tool as a
+measured, ungated row so the distance is a number and not an argument. **The wall stays at 200**, and
+the reason is the one thing the table cannot say: the simulation half is *nowhere near* its limit (the
+crowd at its wall spends a sixteenth of a 60 fps frame, and PLAN's own impossible load still only costs
+a tenth of one), and what is left is the painter's half, where the unit is canvas operations and what an
+operation costs a mid-range laptop is unknown and unknowable from here. Raising `bodiesCeil` on an
+operation count would trade a measured number for an unmeasured one - and it would be a difficulty
+change wearing a performance coat, with `tools/endless-gauge.js` and the difficulty arc waiting to be
+re-argued if it happened. The remainder is now its own PLAN item, and it is a reading and not a feature:
+somebody with a browser and the F3 plate has to look at `draw ms` once.
+
+### Things that bit, and are worth remembering
+- **Relative millisecond claims do not survive a loaded box.** "A dying crowd steps *cheaper* than a
+  standing one" (0.099 against 0.114 ms, and true every time on a quiet machine) failed once inside the
+  40-way suite, where either number can be five times what it was. The test now says "no dearer to step"
+  with a factor of two and says why in its comment. The rule this file now follows: **operations are
+  exact and may be gated tight; milliseconds are orders of magnitude and may not.** That is why the step
+  budget has 12x room over the game and the paint budgets have 18-21%.
+- **The best-of-N trick only works on the thing you are timing.** Session 96's ladder takes the median of
+  a batch for the same reason. The moment the same pass carries a second kind of number - what the scene
+  was *holding* - the selection rule leaks into it. Sum what is order-independent; take the best of what
+  is a wall clock; never both from one pass.
+- **A measurement whose phase depends on the code path that precedes it will be re-litigated forever.**
+  One extra `openScene` between the step and the paint is all it took to make the paint reading belong
+  to the scene instead of to the run that came before it.
+- **The F3 plate's worst step in a real run is 1.4-1.7 ms and it is not the crowd's fault.** That is
+  fifteen times the steady 0.08-0.12 ms and it looked like a hitch worth chasing, so it was chased, for
+  one scratch run: the record-setting frames do not line up with anything in the arena - deaths, wave
+  arrivals, the boss, level-ups all had their own column and none of them were there - and one of them
+  happened with **zero bodies on the glass**, where an empty arena steps in 0.004 ms. A pause from
+  somewhere else, then: garbage collection, or a first-call warm-up, credited to the step because that
+  is where the clock was standing. That is a different question from the one this session answered, and
+  it is the first item below.
+- **No release this session, on purpose.** Nothing a player can feel changed: the only `src/` edit is a
+  comment in `balance.js`, and a release would have copied 0.10.6's files into a new folder and called it
+  new. The tool and its tests are the deliverable; the next gameplay change releases.
+
+### What should come next
+1. **Find out what the 1.4-1.7 ms frames are, now that it is known they are not the crowd.** The question
+   is per-frame *churn*, not growth: `tools/memory-hunt.js` proved the heap does not climb, so whatever
+   those pauses are, it is short-lived. Two ways in, both cheap: run a probe scene under
+   `node --trace-gc` and see whether the spikes are collections, and grep `src/game` for what a step
+   allocates on purpose (`.sort(`, `.filter(`, `.map(`, array spreads, string building for labels and
+   colours) - PLAN section 2 says "no allocation inside the per-frame loops" and nobody has ever checked
+   that sentence with an instrument. If they are GC, the fix is a handful of reused arrays, not a rewrite;
+   if they are not, the F3 plate's `worst` column is telling us something else and we should know what.
+2. **Give the tool the other half of a real run: `--peak` in operations.** `peakOfRealRuns` already walks
+   a real run frame by frame and reads the plate's milliseconds; handing the same hook through
+   `makeFrameCost` would say what a real fight asks the canvas for (with the interface taken back out,
+   as always) instead of only what a planted scene does. That is the number the art changes, and it is
+   the number that would settle whether the two-second mean or the dearest frame is the right gate.
+3. **The shot-speed line is still a weak card on every gun that can spend it** (session 97's item 1:
+   1.009x / 0.979x / 0.988x on four seeds against 1.116x for pierce). Four seeds cannot tell 0.98 from
+   1.02, so the first move is a re-measure with twelve or sixteen:
+   `tools/line-ab.js --line bulletSpeed --weapon pulse --seeds 1-16`.
+4. Still the two big ones: **the difficulty band**, which `tools/difficulty-arc.js` still fails, and the
+   browser reading that is now PLAN's own item (one look at the F3 plate's `draw ms` on the owner's
+   laptop, which is the only thing that can re-open `bodiesCeil`).
+5. `tools/gun-tune.js`, still owed from session 96: patch one `BALANCE` row from the command line and
+   play N seeds, as a real tool. `line-ab.js --set` is nearly enough for it now.
