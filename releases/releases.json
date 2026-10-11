@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.15",
+    "date": "2026-10-11",
+    "released": "2026-10-11T21:01:50.582Z",
+    "summary": "The menu announces itself: the title's song starts as the page opens, wherever the browser allows it",
+    "added": 341,
+    "removed": 41,
+    "logBytes": 37758731
+  },
+  {
     "version": "0.10.14",
     "date": "2026-10-11",
     "released": "2026-10-11T19:47:16.704Z",
