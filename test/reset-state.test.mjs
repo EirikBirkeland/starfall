@@ -15,8 +15,9 @@
 //     which after the run is over means a body that no longer exists was still being held by the world
 //     the next run is played in.
 //
-// What is *not* here on purpose: the eight pieces of state that outlive a run by design - the seed, the
-// session clock, the screen, the best, the purse, the awards, the codex and the log. They are named and
+// What is *not* here on purpose: the ten pieces of state that outlive a run by design - the seed, the
+// session clock, the screen, the best, the purse, the awards, the codex, the log, what the three
+// prompts have taught this save and the one reading of that the prompt board keeps. They are named and
 // argued in `OUTLIVES_A_RUN`, and the sweep is only as good as that list being honest.
 
 import test from 'node:test';
@@ -92,19 +93,21 @@ test('a run leaves the world it was given', () => {
   const leaks = diffSnapshots(before, after, skippedByDesign());
   assert.deepEqual(leaks, [], 'still holding: ' + leaks.map((l) => l.path).join(', '));
 
-  // And the sweep really did have something to skip: four of the eight are what the flown run left
-  // behind, and a world that changed nothing at all would pass this test for no reason at all.
+  // And the sweep really did have something to skip: most of the rows on the list are what the flown
+  // run left behind, and a world that changed nothing at all would pass this test for no reason at all.
   assert.ok(world.best > 0, 'the run banked a best score');
   assert.ok(world.dust > 0, 'and paid for it');
   assert.ok(world.pastRuns.length > 0, 'and wrote itself in the log');
   assert.ok(world.found.hosts.length > 0, 'and taught the codex what it met');
+  assert.ok(world.tips.length > 0, 'and learned how to fly, shoot and get out on the way');
 });
 
-test('the eight things a run is allowed to keep are still the eight it is allowed to keep', () => {
-  // The sweep is only as honest as this list, so it gets read rather than trusted: a ninth would have
+test('the things a run is allowed to keep are still the things it is allowed to keep', () => {
+  // The sweep is only as honest as this list, so it gets read rather than trusted: one more would have
   // to be argued for here, and every row has to say for itself.
   const names = OUTLIVES_A_RUN.map((row) => row.path);
-  assert.deepEqual(names, ['seed', 'time', 'state', 'best', 'dust', 'awards', 'found', 'pastRuns']);
+  assert.deepEqual(names, ['seed', 'time', 'state', 'best', 'dust', 'awards', 'found', 'pastRuns',
+    'tips', 'prompt.teaching']);
   for (const row of OUTLIVES_A_RUN) assert.ok(row.why.length > 0, row.path + ' has to say why it stays');
 });
 

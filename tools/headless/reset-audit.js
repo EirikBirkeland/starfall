@@ -33,6 +33,8 @@ export const OUTLIVES_A_RUN = [
   { path: 'awards', why: 'what the save has won (game/awards.js)' },
   { path: 'found', why: 'what the codex has met (game/codex.js)' },
   { path: 'pastRuns', why: 'the log of runs that ended (game/history.js)' },
+  { path: 'tips', why: 'which of the three prompts this save has been through (game/tutorial.js), kept in the document' },
+  { path: 'prompt.teaching', why: 'the prompt board\'s one reading of `tips` above - whether the next run has anything left to be taught; the board itself is rebuilt by resetRun and stays under the sweep' },
 ];
 
 /** Is this a body? A held body is a fact about a crowd, so it is a leaf and not a subtree to walk. */
@@ -102,7 +104,7 @@ function skipped(path, skip) {
  * What is different between two snapshots, minus the paths in `skip`.
  *
  * A skipped name covers everything under it, so `awards` skips `awards.length` and `awards[0]` too -
- * which is what makes the table above a list of eight decisions rather than a list of every field name
+ * which is what makes the table above a list of decisions rather than a list of every field name
  * under each of them.
  *
  * Answers `[{ path, was, now }]`, sorted by path, so a failure reads as a list of leaks and not as a

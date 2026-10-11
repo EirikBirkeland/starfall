@@ -1263,7 +1263,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       it, which is a feature and not a dial and belongs after the weapon ladder. Nothing here made the
       bot worse: its rungs are untouched and every number above is the middle of a batch of them, 48
       seeds where a single reading would have been a coin flip.
-- [ ] Tune every weapon so that none is over 25% better than the others in the balance report. One
+- [x] Tune every weapon so that none is over 25% better than the others in the balance report. One
       warning the item above leaves behind: raising the whole ladder is not how the difficulty arc gets
       fixed, because a stronger gun was measured to leave a careless batch's middle of deaths exactly
       where it was and turn more of its runs immortal instead. Tune this ladder for parity and for the
@@ -1304,6 +1304,13 @@ When every item above is ticked, go back to the first unchecked item of mileston
       the five rows are priced as hull a pull times pulls a second, and the game pays per body.
       The item under this one is what closes it. Also `tools/run-shape.js` takes `--weapon` now, so
       a shape table can be read for the gun a ship actually carries.
+      **Closed and re-measured in session 103**, on the tree that shipped the first-run tutorial, because
+      the item under it had made this one true without this box being ticked: `--seeds 1-16 --shards 10`,
+      the same sixteen seeds and the same fifteen-minute window as session 97, reads **SWARM 126,460 over
+      LANCE 112,979 = 1.12x against the 1.25x allowed - PASS**, all five guns outlasting the window and
+      `bodies/s` between 6.39 and 7.23 (session 97's reading was 1.13x, and the rows it tuned have not
+      been touched since). Nothing in PLAN's sentence is left open: the five primaries are priced in
+      bodies, they are inside the band, and the deck no longer deals a card a ship's own gun cannot spend.
 - [x] Price the five primaries in **bodies a second**, not hull a second, and re-tune them against
       `tools/weapon-ladder.js` until its verdict reads PASS. The measurement above is the argument:
       a run's income is the body (a shard drops per kill, XP is the shard, levels are the build), so
@@ -1653,7 +1660,69 @@ When every item above is ticked, go back to the first unchecked item of mileston
       rules), one in `test/rng.test.mjs` for `seedFor`, and the clock guard - ten mutations checked, all
       ten caught. The reference run (`--seed 20261006 --trace`) is byte for byte what it was: a day is a
       label, and the simulation never learns what date it is.
-- [ ] A short first-run tutorial: three prompts that appear in play and vanish once done.
+- [x] A short first-run tutorial: three prompts that appear in play and vanish once done. **Shipped as
+      `src/game/tutorial.js` (what is said, when, and what makes it stop) and `src/render/tutorial.js`
+      (the plate it is said on).** Three lines and no more: `W A S D TO FLY`,
+      `MOUSE TO AIM · HOLD LEFT TO FIRE`, `SPACE TO DASH` - the three physical acts of the game, in the
+      order a run asks for them, on one plate at the bottom of the glass, gone the moment the run has
+      proved it does not need them. **There is no tutorial screen and there is not going to be one**: a
+      screen between a new visitor and the arena is a wall built out of the thing they came to look at,
+      and everything in `BALANCE.tutorial` is therefore about being in the way - nine seconds on the
+      glass, six before it will try again, two attempts per lesson per run, and a plate that dims out
+      over half a second instead of blinking off.
+      **The load-bearing decision is that a lesson is a latch and not a reading.** Every one of the three
+      is checked every step - whether or not anything was ever put up for it - against something the run
+      can see the ship doing: the hull has covered 260 px of arena (the *path* walked, so flying out and
+      back counts), there is a shot in the air, the run's own tally has been granted a dash (game/`tally`
+      `noteDash`, the same number an ending is asked about, and a dash *granted* rather than a finger
+      pressed). A visit that arrives already knowing how to dash is never shown the dash, and a visit
+      that flies and shoots inside its first three seconds sees nothing at all - which includes the very
+      common case of launching with a click, because a held left button launches the run *and* fires it,
+      so that visitor had shot before the game could tell them they could. That is the whole difference
+      between a tutorial and a hint nobody asked for.
+      **One lesson is on the glass at a time, and each arrives at the moment it is about**: flying from
+      the first step, the gun once there is a body in the arena at all (deliberately not "within range of
+      the gun" - the five primaries' reaches run from the arc's 260 px to the pulse's 700 and one number
+      would be wrong for four of them), the dash when a body is standing inside `close` = 220 px, which
+      is the dash's own distance (`player.dash.distance`) so the hint appears at exactly the range one
+      dash can cover, and only while the dash is ready, because a hint about a move the ship cannot make
+      yet is a hint about nothing.
+      **The fourth lesson the game does not need is the cards**, and that is why there are three and not
+      four: `render/cards.js` already prints `CHOOSE ONE · 1 2 3 OR CLICK` over the table with a number
+      chip in every card's corner, and the level-up *is* the teaching - it stops the run, in front of
+      three things with prices on them, until an answer is given. The shard-XP-level loop is taught by
+      its own bar filling.
+      **Offered for the first three runs of a save, and never after**, gated on how many rows the run log
+      holds (game/history.js) rather than on a "have I shown the tutorial" flag - because that number is
+      in the document already and it is the honest answer to *is this visitor new*: a save that arrived
+      from an older build, twenty runs old and never taught, is a save that learned to play without these
+      three lines and will not be taught now. What was learned is kept beside it as a set of lesson ids
+      (`tutorial.learned`, and `names` is the kind a lesson is: learned once, no second rank of knowing
+      how to dash), banked at an ending exactly like the codex, the awards and the log - a mirror, and
+      written with the game's own ids only, so a document that picked up a name from somewhere else is
+      tidied on the way out rather than carried.
+      **The place on the glass is the design.** The top belongs to the score, the hull and the boss's bar,
+      the top-centre to the award plates, the left edge to the build rail and the very bottom to the XP
+      bar; the strip above the XP bar's caption is the only part of this window nothing else ever asks
+      for, so that is where a lesson goes - and it is refused outright over the three screens that have
+      taken the window (the cards, the pause rack, an ending), because a hint about the dash floating
+      above a card that says the run died of not using it is a bad joke. Cool edge, no gold: gold is
+      what pays you and a lesson pays nothing.
+      **Verified as a watcher and not a system.** Suite 1837 to **1851**: 14 tests in
+      `test/tutorial.test.mjs` - the three lines and the keys the title screen prints beside them, each
+      lesson's words measured inside the plate that painted them, the plate's place and its fade out, the
+      gun never shown to a run that had already fired, the dash waiting for a body inside one dash, a
+      prompt stepping back and giving up after two asks, the three screens it keeps off, what an ending
+      banks and what the next run then refuses to say, a document holding nonsense, and the one that
+      matters most: **the same seed flown twice, once with all three lessons in front of it and once with
+      nothing left to teach, ending on the same fingerprint** - this module reads the run and must not be
+      able to move it. Sixteen mutations of the gates were run against the file and all sixteen were
+      caught, including the four latches (a plate that never steps back, a lesson that is never learned,
+      a veteran save taught anyway, a plate painted over the cards). The reference run
+      (`--seed 20261006 --trace`) is byte for byte what it was - 10m00s / 73,982 / level 57 / 3,934
+      kills / 4,934 shards - which it has to be, and `tools/reset-audit.js`'s list of what a run is
+      allowed to keep grew by two rows with a reason next to each (`tips`, and the board's one reading
+      of it) rather than by one silently.
 - [ ] Read every line of text in the game and make it short, clear, and consistent.
 - [ ] Release `1.0.0`.
 

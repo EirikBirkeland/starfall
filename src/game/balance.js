@@ -3857,6 +3857,48 @@ export const BALANCE = {
     buy: { freq: 520, dur: 0.13, wave: 'triangle', vol: 0.06, slide: 1170 },
   },
 
+  // The three prompts that teach the hand (game/tutorial.js, PLAN milestone 10). There is no tutorial
+  // screen in this game and there is not going to be one: the arena is running underneath a prompt and
+  // the eye is supposed to be on the arena, so every number here is about being in the way as little
+  // as possible - how often a lesson is offered at all, how long its plate is allowed to stay, and how
+  // far away from the middle of the glass it is put.
+  tutorial: {
+    // How many runs of one save the lessons are offered across. The gate is the run log's own length
+    // (game/history.js), which is what makes this the answer to "is this visitor new" rather than to
+    // "has this build ever said hello": a save that has flown three runs has either learned these or
+    // decided not to, and a save that arrived from an older build - twenty runs, none of them taught -
+    // already knows how to play and will not be taught now.
+    runs: 3,
+    // px of arena the hull has to have covered before "fly" counts as learned. It is the *path*
+    // walked and not the distance from where the run started, so flying out and back counts: what the
+    // lesson asks is whether the keys do something. At the Wisp's 320 px/s, and 0.13 s to get there
+    // (`player.accel`), this is about a second of holding any direction at all.
+    travel: 260,
+    // px: a body standing this close is something to get away from, which is when the dash's prompt
+    // arrives. It is the dash's own distance (`player.dash.distance`, 220 px) on purpose - the prompt
+    // appears at exactly the range one dash can cover, neither before it is true nor after it is too
+    // late. The firing lesson needs no number like this and has none: its moment is simply that a body
+    // is in the arena, because the five primaries' own reaches are between them 260 px and 700 px and
+    // a single distance would be wrong for four of the five.
+    close: 220,
+    // s a prompt stays on the glass unanswered before it steps back, and the s it then waits before it
+    // is willing to try again. Nine seconds is about how long it takes a person to finish reading a
+    // line they have already read once and looked back at the crowd for; the six after it is what keeps
+    // an unanswered lesson off the glass for most of the time it is left on screen.
+    hold: 9,
+    back: 6,
+    // How many times one lesson may fill the plate in a run before it leaves it alone until the next
+    // one. Twice. A hint that has been ignored twice is not going to be read a third time, and a plate
+    // that came back a third time would be the game admitting it had become furniture.
+    asks: 2,
+    // s the plate takes coming in, and s it spends going out when the lesson it was telling you about
+    // is learned. The way out is the longer of the two because it is the one that has to be noticed as
+    // deliberate: a plate that is simply gone the instant you dash reads as a glitch, and one that
+    // dims as it goes reads as "yes, that one. That was the one."
+    arrive: 0.3,
+    away: 0.5,
+  },
+
   effects: {
     particleCap: 900,
     particleSpeedFloor: 0.25,   // a spray keeps at least this share of the burst speed

@@ -11,6 +11,7 @@ import { recordRun } from './codex.js';
 import { bankAwards, resetAwards } from './awards.js';
 import { logRun } from './history.js';
 import { bankDaily } from './daily.js';
+import { bankTutorial, resetTutorial } from './tutorial.js';
 import { burst, ring, addText, shakeIt, wreck } from './effects.js';
 import { cueChord, cueNoise, clearCues } from './cues.js';
 import { newTally, noteVictory, noteEndless } from './tally.js';
@@ -195,6 +196,11 @@ export function resetRun(world) {
   // ...and this run has not written its line in the log yet (game/history.js). The log itself is
   // above, in `world.pastRuns`, and is none of this run's to forget.
   world.runLogged = false;
+  // ...and the three prompts start again from no plate up (game/tutorial.js). What the *save* has
+  // learned is above, in `world.tips`, and is none of this run's to forget either - which is what lets
+  // a lesson learned in the first run of a save stay learned through every one after it, and is also
+  // why a run that has been restarted is not taught something it already did.
+  resetTutorial(world);
   // ...and it is not being held: a run that was walked away from mid-pause - given up, or left for
   // the title some other way - does not hand the next one a frozen arena (game/run.js `pauseRun`).
   world.paused = false;
@@ -262,6 +268,10 @@ function bankRun(world) {
   recordRun(world);
   bankAwards(world);
   logRun(world);
+  // ...and which of the three prompts this run taught (game/tutorial.js) - the sixth and same reason:
+  // "this visitor knows how to dash" is a sentence about a run that has stopped, and the save is asked
+  // at most three times in a whole life about it.
+  bankTutorial(world);
 }
 
 /**

@@ -43,6 +43,7 @@ import { defaultShip, shipBody } from './ships.js';
 import { newPerkRanks } from './perks.js';
 import { emptyFound } from './codex.js';
 import { emptyLog } from './history.js';
+import { newPrompt, updateTutorial } from './tutorial.js';
 import { updateAwards } from './awards.js';
 
 function createWorld() {
@@ -143,6 +144,12 @@ function createWorld() {
     // back, and finally buried - one row in the log rather than two.
     pastRuns: emptyLog(),
     runLogged: false,
+    // Which of the three prompts this save has been through (game/tutorial.js). Read out of the save
+    // when the visit opens like everything else above that a run may spend but not lose, and an empty
+    // list is a first visit - the only visit those three lines were written for. `prompt` is the run's
+    // own board: which lesson is on the glass and how long it has been there.
+    tips: [],
+    prompt: newPrompt(),
     score: 0,
     xp: 0,
     xpNeed: firstLevelXp(),
@@ -484,4 +491,9 @@ function stepRun(dt, input) {
   // watching a run cannot be confused with changing one: this queues ids for the frame and is
   // never read back by anything in the step.
   updateAwards(world);
+  // ...and after that one, the three prompts that teach the hand (game/tutorial.js), for the same
+  // two reasons: it sees the step as completely as anything can, and everything it writes is its own
+  // board - no seed, no hull, no wave - so a run plays exactly the run it would have played with the
+  // tutorial never written at all.
+  updateTutorial(world, dt);
 }

@@ -21,6 +21,7 @@ import { drawHUD } from './hud.js';
 import { drawVolumePanel } from './volume.js';
 import { drawDebug } from './debug.js';
 import { drawToasts } from './toast.js';
+import { drawTutorial } from './tutorial.js';
 import { drawLogo } from './logo.js';
 import { drawCards } from './cards.js';
 
@@ -187,6 +188,11 @@ export function renderFrame(tick, input, pointer) {
   // of the window rather than over the middle of it: the fight is still going on underneath them
   // and the eye is where the fight is.
   drawToasts(ctx);
+  // ...and at the other end of the glass, the one thing the run may still be trying to tell a new
+  // visitor (game/tutorial.js). Last of the interface and above the XP bar: it is a note about the
+  // controls and it must never be the thing standing between the eye and the crowd, which is why it is
+  // painted where nothing else is and refused outright over a screen that has taken the window.
+  drawTutorial(ctx);
   // ...and last of the last, over everything including the cards: the developer's panel (F3) is
   // read while the frame is going on, so nothing may be allowed to hide it (render/debug.js).
   drawDebug(ctx);

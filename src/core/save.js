@@ -285,6 +285,13 @@ const SCHEMA = {
     fire: KINDS.flag,
     aim: KINDS.flag,
   },
+  // Which of the three prompts a save has already been through (game/tutorial.js, PLAN milestone 10):
+  // a set of lesson ids and nothing else, because a lesson is learned once - there is no second rank of
+  // knowing how to dash. `names` is the right kind for exactly that reason, and its ceiling (thirty-two
+  // against the three the game can name) is why a set and not a tally is kept.
+  tutorial: {
+    learned: KINDS.names(MAX_NAMES),
+  },
 };
 
 /** A document with nothing remembered in it at all: the version, and an empty section each. */

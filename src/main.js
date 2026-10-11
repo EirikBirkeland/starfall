@@ -12,6 +12,7 @@ import { perkAt, perkLedger } from './game/perks.js';
 import { foundFromSave, foundLedger } from './game/codex.js';
 import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './game/awards.js';
 import { loggedFromSave, runLedger } from './game/history.js';
+import { promptWords, tipsFromSave } from './game/tutorial.js';
 import { beginDailyRun, endDailyRun, pauseWords } from './game/daily.js';
 import { windOf } from './game/lance.js';
 import {
@@ -957,6 +958,10 @@ function boot() {
   // ...and the runs this save has flown (game/history.js), read the same once for the same reason. An
   // empty log is a first visit, and the panel has one line to say about that.
   world.pastRuns = loggedFromSave();
+  // ...and which of the three prompts this save has already been through (game/tutorial.js), read the
+  // same once for the same reason. An empty list is a first visit, and a full one is a visit that
+  // knows how to fly, shoot and get out - which is the only thing the three lessons are for.
+  world.tips = tipsFromSave();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust, wonShare(world));
   showRack(world.ownedShips);
@@ -1100,6 +1105,12 @@ window.STARFALL = {
       // it has no other way to ask.
       runs: world.pastRuns.length,
       runLog: runLedger(world),
+      // What the three prompts have to say right now, in the words on the plate ('' when the plate is
+      // empty), and which of them this save has already been through (game/tutorial.js). A headless run
+      // cannot see the plate, and "did the tutorial notice I can dash" is otherwise a question with no
+      // way to ask it.
+      tip: promptWords(world),
+      tipsLearned: world.tips.slice(),
       level: world.player.level,
       hull: world.player.hull,
       maxHull: world.player.maxHull,

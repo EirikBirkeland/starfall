@@ -12012,3 +12012,133 @@ ways.
    *arena*, not about the scores. If that ever needs closing, the shape is a shareable line (day, seed,
    score) that a player can paste somewhere, and `tools/agent-bridge.js` is nearer to it than anything in
    the game is. Do not build a fake leaderboard.
+
+
+
+## Session 103 — Three prompts that teach the hand. Released **0.10.10**
+
+Milestone 10's next unchecked item: *a short first-run tutorial: three prompts that appear in play and
+vanish once done*. It is **`src/game/tutorial.js` + `src/render/tutorial.js`**, three sentences on one
+plate, and the whole of the design is in making them able to shut up. Suite **1837 → 1851**; the
+reference run (`--seed 20261006 --trace`) is byte for byte session 101's (10m00s / 73,982 / level 57 /
+3,934 kills / 4,934 shards, 7 vacuums, 2036 in), which is the proof a watcher watches.
+
+### What landed
+- **The three lines**: `W A S D TO FLY`, `MOUSE TO AIM · HOLD LEFT TO FIRE`, `SPACE TO DASH` - the three
+  physical acts, in that order, one on the glass at a time. No fourth: **the cards already teach
+  themselves** (`render/cards.js` prints `CHOOSE ONE · 1 2 3 OR CLICK` and puts a number chip in every
+  corner, and a level-up that stops the run in front of three priced offers is the teaching), and the
+  shard → XP → level loop is taught by its own bar filling under the ship.
+- **A lesson is a latch, not a reading.** Each is checked every step - whether or not a plate was ever up
+  for it - against something the run can be *seen* doing: 260 px of arena flown (the path walked, not
+  the distance from the start, so out-and-back counts), a bullet in the air, `world.tally.dashes > 0`.
+  The dash one borrows the tally's own definition, which is dashes *granted* and not fingers pressed, so
+  the lesson means the same thing the ending's card means.
+- **Each arrives at the moment it is about**: fly from the first step; fire when there is a body in the
+  arena; dash when a body is inside `close` px **and the dash is ready**. `close` is 220 =
+  `player.dash.distance`, so the hint lands at exactly the range one dash covers. The firing lesson has
+  no distance at all, and that was a decision: the primaries' reaches run from the arc's 260 px to the
+  pulse's 700, so any single number would be wrong for four of the five ships.
+- **`BALANCE.tutorial`**: `runs` 3, `travel` 260 px, `close` 220 px, `hold` 9 s, `back` 6 s, `asks` 2,
+  `arrive` 0.3 s, `away` 0.5 s. The last five are the unobtrusiveness budget - nine seconds on the
+  glass, six before it will try again, **two attempts per lesson per run and then it is not put up
+  again**, and a way out that takes half a second because a plate that is simply *gone* the instant you
+  dash reads as a glitch and one that dims reads as "yes, that one".
+- **The gate is the run log, not a flag**: lessons are offered while `world.pastRuns.length < 3`. A
+  counter of its own ("has this save been shown the tutorial") would have taught every veteran whose save
+  predates this file - twenty runs old, never shown anything - because their save has no such flag and
+  the honest reading of "new" is the number of runs the document already holds.
+- **The save keeps a set of lesson ids** (`tutorial.learned`, kind `names`: a lesson is learned once,
+  there is no second rank of knowing how to dash), read once at boot into `world.tips` beside the purse
+  and the codex and written at an ending like theirs - a mirror and never a cause, and never during a
+  step. It is written as the game's whole set, so a document holding a name the game does not know is
+  tidied rather than carried.
+- **The place on the glass.** Bottom centre, above the XP bar's caption, because that is the one strip of
+  this window nothing else ever asks for: score block top-left, hull top-right, boss bar and award plates
+  top-centre, build rail down the left, XP bar at the very bottom. Cool edge (`cardEdge`), no gold -
+  gold is what pays you and a lesson pays nothing - and refused outright over the cards, the pause rack
+  and an ending, all three tested. `tutorialLayout(W, H)` is the `toastLayout` bargain again, so a test
+  with no pixels can measure the plate and read the words that landed in it.
+- **Fourteen tests in `test/tutorial.test.mjs`**, and the most important one is not about the plate at
+  all: the same seed flown twice, once with all three lessons in front of it and once with nothing left
+  to teach, **ends on the same `fingerprint`**. A module that reads the run must not be able to move it,
+  and now there is an instrument that says so rather than a comment. Sixteen mutations were run against
+  the file and all sixteen were caught (see below for the two that surprised me).
+- Two existing files had to be told the truth, not patched around: `test/save.test.mjs`'s expected
+  document and schema-order list now name the `tutorial` section, and `tools/headless/reset-audit.js`'s
+  `OUTLIVES_A_RUN` grew **two** rows with a reason beside each - `tips`, and `prompt.teaching`, which is
+  not itself kept but is the board's one reading of `tips` and so differs between two snapshots for a
+  reason the run did not cause. `test/reset-state.test.mjs` caught this on the first run and it is a
+  better test than the one I wrote: it sweeps the whole world for anything a run left behind.
+
+### Decisions that will be asked about again
+- **No settings row.** Nine rows is what fits the panel and a switch needs a tenth; more to the point,
+  the prompts self-extinguish - three runs for a lesson nobody learns, and a save that has learned all
+  three never sees one again. A hint that cannot outstay its welcome by more than three runs does not
+  earn an off switch. If that is ever wrong, the switch is a row in `settingsIsUp`'s family and the whole
+  mechanism hangs off `resetTutorial`'s `teaching`, which is one line.
+- **Nothing tells the player the tutorial exists**: no title line, no codex row, no hangar note. A rule a
+  player can never meet needs no disclaimer (the same call the deck filter made in session 97), and the
+  only player these three lines can reach is one who has never seen the title screen's own control list,
+  which is printed on the screen they arrive on.
+- **The daily run is taught like any other run.** It is a launch and not a mode (session 102), and a
+  daily flown at 00:05 by a visitor on their first visit is a first visit.
+- `stats()` grew `tip` (the sentence on the plate, `''` when it is empty) and `tipsLearned`. A headless
+  run cannot see the plate and "did the tutorial notice I can dash" was otherwise unaskable.
+
+### Things that bit, and are worth remembering
+- **`resetTutorial` must not ask whether a lesson's moment has come.** First version set `teaching` from
+  `nextLesson(world) !== null`, and `nextLesson` asks `momentIsNow` - which at the instant a run is put
+  together is *false for two of the three*, because the arena has just been emptied. Result: a save that
+  already knew `fly` was never taught anything at all, silently. The gate asks whether a lesson is *left*,
+  never whether its moment has arrived, and the comment says so, because "compute the state at setup from
+  a predicate that is only true later" is a trap I would have set again.
+- **A launch that clicks also fires.** `beginRun` spends the press so the launch is not also a dash, but
+  firing is a *held* state and not an event, so a click-and-hold on the title has the ship firing on the
+  first step and the gun's lesson is learned before it could be shown. That is the correct behaviour -
+  they pressed the button - but it arrived as a surprise in a smoke test (`learned fire` at t=0.03) and
+  the reason is worth writing down before somebody "fixes" it.
+- **A timing test has to watch during the thing, not after it.** "Flying learns it, and the plate fades"
+  first flew the ship for two seconds and *then* looked for the fade; the lesson was learned a second in
+  and the fade was half a second, so the test found an empty glass and called it a cut. Same bug class as
+  session 98's "the same commit printed two different load counts": an instrument that reads a window
+  whose start depends on when you got round to reading it.
+- **An unanswered prompt does not stay - it yields the plate.** My own test for "it never asks a third
+  time" failed the first time it ran, and correctly: when `fly` runs out of asks, `fire` takes the plate
+  (a body was standing in the arena). The test now isolates the mechanism by planting a save that has
+  learned the other two. Worth knowing: **the plate is a queue with one slot, not a per-lesson timer.**
+- **Sixteen mutations, all caught**, in `.scratch/mutation-check{,2}.mjs` - the copy-the-tree-then-sed-a-
+  copy shape, which is now the third time it has been the right instrument (session 101's ablation,
+  session 102's ten). The two I expected to be interesting: taking the `isKnown` skip out of `nextLesson`
+  (a learned lesson comes back) fails **eight** tests, and deleting the `drawTutorial(ctx)` line from the
+  renderer fails the painted-words test, which is the only reason that test exists in that shape.
+- **The tick that was owed.** PLAN's *tune every weapon so that none is over 25% better* was left unticked
+  although the item under it closed it and session 97 measured the ladder at PASS (1.13x). It was re-run
+  on this tree before being ticked - `tools/weapon-ladder.js --seeds 1-16 --shards 10`, nine minutes of
+  32 cores: **SWARM 126,460 over LANCE 112,979 = 1.12x against the 1.25x allowed, PASS**, with every gun
+  still outlasting the window and `bodies/s` between 6.39 and 7.23. "The tutorial cannot move a run" is a
+  claim the fingerprint test and the byte-identical reference trace back up, but a tick that buys its
+  verdict wants its own measurement, not an inference.
+- **Running the ladder and the suite at the same time is how you find your own flake.** One `perf-probe`
+  millisecond test failed while the ladder's ten shards were eating the box and passed on its own -
+  exactly what session 98's note predicts ("operations are exact and may be gated tight; milliseconds are
+  orders of magnitude and may not"). That test is already on a factor of two for the same reason; under a
+  loaded box even a factor of two is a coin toss. Worth knowing before blaming a change for it.
+
+### What should come next
+1. **The milestone-10 item that this project cannot do by itself** (line 1587): somebody with a browser
+   and an F3 plate has to look at `draw ms` on the owner's laptop. It is the only reading that can
+   re-open `bodiesCeil` = 200.
+2. **Milestone 11** is now the tail of PLAN: the tutorial (done today), *read every line of text in the
+   game and make it short, clear, and consistent*, and `1.0.0`. The text pass should look at
+   `tutorial.js`'s three sentences in the same breath as the title's - they are the first words a new
+   visitor reads that are not a control list - and at `daily.js`'s four (session 102's note).
+3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   `tools/line-ab.js --line bulletSpeed --weapon pulse --seeds 1-16`), the **difficulty band**
+   `tools/difficulty-arc.js` still fails, `tools/gun-tune.js` owed from session 96, and session 101's
+   unfinished thought that **nothing weighs a painted frame** (a `--paint` door on `tools/alloc-probe.js`).
+4. If anyone wants to grow the tutorial, the honest shape is **one more lesson, not a system**: a fourth
+   row in `LESSONS`, its latch in `noteLearned`, its moment in `momentIsNow`. Candidates that were
+   considered and left out: *the dash into bodies* (a habit, not a control), *the reroll and the banish*
+   (the chips on the card table name both), *the vacuum* (it announces itself with a fanfare). Do not
+   add a fourth prompt to teach something the arena already teaches.
