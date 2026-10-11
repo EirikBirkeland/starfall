@@ -3746,14 +3746,23 @@ export const BALANCE = {
     //   bodiesPerMinute  how far the ceiling on standing bodies lifts with it - the crowd cannot
     //                    actually get bigger if the count of bodies says it may not.
     //   bodiesCeil       the wall over that. A frame budget and not a difficulty knob, like
-    //                    `waves.maxBodies`: measured at 0.10 ms for a simulation step with this
-    //                    many bodies standing, against 0.05 ms at the schedule's 100 - two of them
-    //                    to a 60 fps frame is a fifth of a millisecond, and the rest of the frame
-    //                    belongs to the painter. The painter was counted in draw calls and not in
-    //                    milliseconds, because that is all there is to count here: 200 bodies is
-    //                    about 870 strokes, 370 fills and 260 sprite stamps a frame, against about
-    //                    360 / 285 / 140 at the schedule's own wall. PLAN section 2's target is 600
-    //                    enemies, so this ceiling is well inside what the game is built for.
+    //                    `waves.maxBodies`: 0.11 ms for a simulation step with this many bodies
+    //                    standing on the glass, against 0.04 ms at the schedule's 100 - two of them to
+    //                    a 60 fps frame is a fifth of a millisecond, and the rest of the frame belongs
+    //                    to the painter. The painter is counted in draw calls and not in milliseconds,
+    //                    because that is all there is to count without a browser (`tools/perf-probe.js`,
+    //                    re-measured by `test/perf-probe.test.mjs`): this crowd, on the glass with the
+    //                    spark cap on, is 2,947 operations a frame and 3,008 on its dearest frame,
+    //                    against 1,966 at the schedule's own wall - about nine operations a body over
+    //                    an empty arena - and the same bodies *dying* is 3,403, because a death is a
+    //                    ring, a fire and a floating number. PLAN section 2's target is 600 enemies,
+    //                    and planted that load costs 1.0 ms a step and 8,503 operations - an order of
+    //                    magnitude more on the step and about three times as much on the painter.
+    //                    So read this the honest way round: the simulation half of the frame is
+    //                    not what the wall protects, and the painter's half is what cannot be measured
+    //                    here at all - operations are not milliseconds on any machine, and a mid-range
+    //                    laptop is the one thing this file cannot weigh. Raising the wall is a browser
+    //                    reading away (the F3 plate), not a number away.
     //
     // The crowd and the body count are tuned to reach their walls together: an endless crowd averages
     // about 4.5 points a body, so the 200-body wall is worth about 900 points, which is 500 past

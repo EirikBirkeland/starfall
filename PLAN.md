@@ -1433,7 +1433,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       and the sparkle; the fanfare spends the melody slot or the sparkle's; and a mutation test that
       the load meter really is reading the last bar of the form. Suite 1704. The reference run is
       byte for byte what it was - the simulation still does not know music exists.
-- [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
+- [x] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage. (**the overlay is in, from 0.10.3** - `src/render/debug.js`,
       `test/debug.test.mjs`, and `noteFrame` in the frame loop: F3 puts up a plate with the frame's
       own clock (fps, frame ms, and the mean and worst of the last two seconds of stepping and
@@ -1447,6 +1447,46 @@ When every item above is ticked, go back to the first unchecked item of mileston
       its crowd at 200 bodies (`waves.maxBodies`, and `endless.growth.bodiesCeil` past the schedule).
       Either the target moves or the wall does, and the F3 plate is where the difference will be read
       from.)
+      **Measured, and the answer is that the target moves and the wall does not.**
+      `tools/perf-probe.js` is the pass: it plants a load, holds it standing (bodies walk off and shots
+      leave the glass, so a scene has to be topped up, and the topping-up is timed separately and taken
+      back out), and reads it twice - one `stepWorld` in **milliseconds** on this box, and one painted
+      frame in **canvas operations**, because the harness's canvas is a stub that counts calls and holds
+      no pixels and nothing in the tool pretends an operation is a millisecond. Five scenes, four of
+      them gated and the fifth PLAN's own sentence planted for the record: the schedule's 100 bodies on
+      the glass with the spark cap is **0.04 ms a step and 1,966 operations a frame**, the endless wall
+      of 200 is **0.11 ms and 2,947** (dearest frame 3,008), the same crowd *dying* is **0.11 ms and
+      3,403** (dearest frame 3,638 - a death is a ring, a fire and a floating number, and a dead body
+      stops walking, so it is cheaper to simulate and dearer to look at), the same crowd spread over the
+      arena is **1,341** (the camera is worth more than half the painter), and PLAN's literal
+      600/1500/4000 is **1.0 ms and 8,503** - measured, printed, gated against nothing, because the game
+      cannot be told to hold 4,000 sparks (the spawner trims to `effects.particleCap`, 900) and no gun
+      can hold 1,500 shots: `--peak` plays a real run per primary and the busiest was seen holding
+      **12 shots and 900 sparks**, which is what turns that sentence from a comment into a reading.
+      So the walls the game does have are nowhere near the end of what a *step* can afford - the crowd at
+      its wall spends a sixteenth of a 60 fps frame - and what decides them is the half of the frame
+      that cannot be weighed here at all, which is what a canvas operation costs a mid-range laptop.
+      **The wall stays at 200** on the strength of that: moving it on an operation count would trade a
+      measured number for an unmeasured one, and `endless.growth.bodiesCeil`'s own note now says so in
+      those terms and quotes the new measurements instead of the draw-call guess it was written with.
+      The gate is three numbers - a step <= 1.5 ms, a mean frame <= 4,000 operations, a dearest frame
+      <= 4,400, each about a fifth over the busiest gated scene - and `test/perf-probe.test.mjs` is the
+      ratchet: thirteen tests that the scenes read their body counts out of `BALANCE` and not out of a
+      typed-in number, that a planted scene is still planted sixty frames later, that the step cost is
+      the crowd's and not the harness's (20 bodies against 400), that dying is dearer to paint and no
+      dearer to step and that culling is worth what the camera claims, that the load a scene was holding
+      is the same number twice in a row (it was not: the counts came from whichever timed pass won the
+      race, which is a fact about the box and not about the game), that a scene over any of the three
+      budgets fails while PLAN's scene over all three fails nothing, that every flag is refused before it
+      can print a wrong number, and - for the 1500-shot sentence - that a real minute of a real run holds
+      12 shots and never more than the spark cap. Suite 1772. What is left of this item is one reading
+      and not a feature, and it is the item below.
+- [ ] The browser half of the performance pass, which this project cannot take by itself: open the game,
+      put up the F3 plate, fly the endless door until the plate reads `bodies 200 / 200`, and write down
+      what `step ms` and `draw ms` say. `tools/perf-probe.js` knows the arena (0.11 ms a step at that
+      crowd, 2,947 canvas operations a frame) and the plate is the only thing in here that can say what
+      a real canvas asks of a real machine. Until that is read, `endless.growth.bodiesCeil` stays at 200
+      and PLAN section 2's 600-enemy sentence stays printed and ungated.
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read
