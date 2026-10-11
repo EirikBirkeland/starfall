@@ -15,7 +15,7 @@ I call them pachinko clones. I cannot make up my mind: Are they dopamine-drainin
 I am not sure of the neurobiology to be honest. Perhaps your neurobiological reaction to these games depends on whether you've yet attained a high level of Hedonic Adaptation.
 While it's rather likely these games are potentially addictive, the way real-life pachinko and gambling can be to some people, I think they are rather innocuous as long as you don't keep playing them forever.
 
-I'd rate this game a 3/10. It is kind of like a ... Feature sandbox. And it's still highly generic.
+I'd rate this game a 3/10, but in terms of feeling fun and addictive due to the pachinko-esque bullet heaven aspect, it's even a 6/10. It is kind of like a ... Feature sandbox. And it's still highly generic.
 However, it's getting quite detailed and nuanced!
 
 It's like a very elaborate mediocre game. currently, the bosses are particularly uninspired.
