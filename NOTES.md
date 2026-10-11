@@ -11366,3 +11366,111 @@ vacuums, 2065 in).
 3. `test/structure.test.mjs`'s new export check counts prose, so a function that is only ever *talked
    about* passes. If that ever bites, the fix is to count only mentions outside comments - do not delete
    the check.
+
+## Session 96 — The two slow primaries are priced in bodies now. Released **0.10.5**
+
+Milestone 10's biggest open item: *price the five primaries in bodies a second, not hull a second, and
+re-tune them until `tools/weapon-ladder.js` reads PASS.* It said **FAIL at 21.32x** (scatter 120,642
+over lance 5,658) for eight milestones. It now says **PASS at 1.13x**: same sixteen seeds, same fifteen
+minute window - SCATTER 120,642, SWARM 125,756, PULSE 118,867, LANCE 111,963, ARC 110,868, all five
+outlasting the window, every middle run between level 63 and 66 (the lance's was level 7, dead at
+3m40s). Two rows moved; the three inside the band are byte for byte the runs they were, and so is the
+reference run (`--seed 20261006 --trace`), which is the proof the change stayed inside the two rows it
+claims to have touched. Suite **1747 → 1748**.
+
+### What landed
+
+- **`BALANCE.weapons.lance`: `fireRate` 0.9 → 2.6, `damage` 5 → 3, `recoil` 220 → 90,
+  `beam.hitStop` 0.03 → 0.018.** The rate is the whole of the gun's 6,736 → 111,963. The damage is the
+  *denomination* decision the item asked for instead of a skate past it: a body costs three hull once
+  the crowd's ramp has spent itself, so a pull now costs three, and the ladder's `cost/kill` column
+  came down from 5.00 to 3.00 to sit with the other four guns' 3.00-3.25. The kick and the freeze came
+  down because **a kick and a freeze are felt per second and not per pull**: the old 220 at 2.6 pulls a
+  second is 572 px/s of backwards shove, more than the ship's top speed, aimed straight into the press
+  the gun now exists to clear, and the old 30 ms stop would have held the world 78 ms in every second,
+  which is a stutter and reads as input lag (pillar 1). 90 keeps the lance the heaviest-kicking gun in
+  the game (234 px/s against the scatter's 121) and 18 ms holds it 47 ms a second.
+- **`BALANCE.weapons.swarm`: `pellets` 1 → 2, `gap` 0 → 0.25.** It keeps PLAN's three pulls a second -
+  its problem was never the rate, it was that a pull touched one body - so a pull is a pair now and is
+  paid for two shells. The bigger blast was the other candidate and it *works* (radius 90 with the rate
+  untouched medianed 68,678) and was refused because "micro" is in the name and a 180 px circle going
+  off three times a second is a nova you have to aim. The gap is a look and not an income, measured as
+  one: 0 / 0.12 / 0.25 rad medianed 75,533 / 76,984 / 75,996.
+- **The ladder prints `bodies/s`** in the run table (`standingOf.bodies`, from the median kills over the
+  median seconds, so it is the same middle run the rest of the row is) and says it in the header: 6.09
+  to 7.04 across the five, 1.16x. That is the first column this game has had where a shotgun and a beam
+  can be read against each other at all, and it is what the rows are priced on now. The verdict's
+  ungated line reads `kills`, `bodies` and `level`.
+- **Tests, honestly rewritten rather than re-tuned to pass.** `test/weapon-ladder.test.mjs`'s "a heavy
+  gun pays for a body in whole beams" was the *tax* as a promise; it is now "the heaviest line in the
+  game costs a body exactly what a body is worth", and it also walks the other four rows and refuses any
+  of them paying more than about a body for one - the check that keeps the denomination decision made.
+  `test/lance.test.mjs` had three assertions that remembered the old row (a band of seconds for 30 hull,
+  "10 beams in four seconds", exact float products off `damage × share`); they are derived from the row
+  now, or compared with a tolerance where the equality was float dust and never the promise.
+  `test/missiles.test.mjs` gained a `fireOne()` helper (a pull is a pair now, and most of that file is
+  about one shell) and a test for the pair itself. Suite 1747 → 1748.
+- **`tools/weapon-ladder.js`'s header** tells the new truth, including what did not work, so nobody
+  re-measures the dead ends: a beam twice as wide (5,025), three beams a pull (4,891 at 20% more hull a
+  pull; 7,592 at 80% more), a longer-reach missile (18,050) - against 6,736 shipped and 57,852 at
+  1.8 pulls a second.
+
+### Things that bit, and are worth remembering
+
+- **The measuring tape was the bug.** Both knot tables said the lance was *above* the pack on hull a
+  second (30 on a column against the scatter's 13) and that reading was used to argue the gun was fine
+  and the bot was the problem. It was above on hull and two-and-a-half times *below* on bodies, and a
+  run spends bodies. The ladder's own felled column had the number the whole time; nobody read `cost/kill`
+  as "this row's income is being thrown away" until it was also the run column's story.
+- **A probe that "does not fix it" has to say how far it probed.** NOTES 91 recorded "`damage` 5→3 with
+  `fireRate` 0.9→1.4 gives 5,508 - no better" and the file concluded the rate was not the lever. It was.
+  1.4 was not far enough; the run's response to the rate is a cliff and not a slope, because what the
+  rate buys is whether the press round the ship is thinned at all (8 seeds at the old rate: six dead
+  before the window; at 1.8: two dead; from 2.6: zero). When a probe comes back flat, print the axis you
+  moved next to it before you conclude anything.
+- **Three of the five "did not work" ideas were good ideas.** Wider beam, a fork of beams, longer reach:
+  all of them buy *coverage*, and coverage is not the shortage. Bodies a second is. Worth re-reading
+  before tuning any row that looks weak: check what it touches a second, not what it costs a pull.
+- **Feel numbers ride on a rate.** `recoil`, `hitStop`, `light.life`, the muzzle count, the one-per-pull
+  sound: any of them is a per-pull quantity in a table whose rows have different rates, so moving a rate
+  silently moves all of them. The lance's own comment now says which ones were re-priced and why; do the
+  same next time a `fireRate` moves.
+- **A test that fires a gun at a body can now out-level it.** `test/shake-policy.test.mjs`'s "firing every
+  primary" plants a tank and fires three seconds of each gun at it; the pair of shells killed it, the
+  shards came in, the run dealt a card, `state` went to LEVEL, and the *next* test's boss "never arrived"
+  because a paused arena spawns nothing. `cleared()` shuts `xpNeed` now, with the reason written in. Any
+  test that shoots something it does not intend to be collected should do the same.
+- **`assert.equal` on a product of balance numbers is a test that breaks on a retune, not on a bug.**
+  5 × 1.6 and 3 × 1.6 are both inexact and were equal to the shipped row by luck. Where the promise *is*
+  the exactness (a share is a share), compare with a tolerance and say so; where the promise is the
+  relation (a beam's worth of hull takes N beams at the row's cycle), derive it from the row.
+- **The pair is not "two bodies".** First draft of the new Swarm test promised that a pair splits to two
+  bodies; measured, both shells chase the nearest one and a tough body pays both (test/missiles.test.mjs
+  now asserts exactly that: `pellets × damage` off one body). The pair's income in a real crowd comes
+  from finishing chipped bodies and detonating twice as often, not from target-spreading - and the gap
+  between them does not buy it either (0 rad measured the same as 0.25). The comment in `balance.js`
+  says the honest version so nobody re-claims the clever one.
+- **How I iterated, because it is worth keeping.** A throwaway that plays one gun with `BALANCE` patched
+  from the command line (`--set fireRate=2.6 --set damage=3`), N seeds and a T-second window, and prints
+  one median line: ~90 s a config at 8 seeds × 600 s, and thirty of them in parallel on this box's 32
+  cores in the time of one ladder run. That is how "what did not work" got measured at all. Promote it
+  to `tools/gun-tune.js` next time a row needs pricing - it belongs in the repo, and `tools/line-ab.js`
+  needs the same `--weapon` flag for the item below.
+- The reference pulse run surviving untouched is the cheapest regression test in the game for a balance
+  change: if you only moved the Lance, `--seed 20261006 --trace` must not blink.
+
+### What should come next
+
+1. **The item PLAN 10 gained today**: what the deck does with the lines a primary cannot spend
+   (`pierce` and `ricochet` are dead for the lance, `pierce` is dead for the lance and the swarm). Three
+   ways out are written out in the item - say it on the card, filter the deal, or make them spendable -
+   and choosing needs a number, which needs `--weapon` on `tools/line-ab.js` first.
+2. **`tools/gun-tune.js`**: the throwaway above, as a real tool with the header and tests the other
+   measuring tools have. It is the difference between tuning a row in an afternoon and in a week.
+3. Watch the **Swarm**: it came in at the top of the band (125,756, 7.04 bodies/s, 9.0 kills/s on the ring
+   knot). It is inside the 25% and the knots are ungated by design, but if it becomes the obvious pick in
+   the hangar, trim the pair's damage or the blast's share - and do not touch the three guns that were
+   already in the band.
+4. Still unfixed and unhurried: **the performance pass**, and the **difficulty band**, which `tools/
+   difficulty-arc.js` still fails (7 of 48 careless runs died between 4m and 9m against the 50% "usually"
+   needs). The arc is measured with the default pulse and was not touched by this session's work.
