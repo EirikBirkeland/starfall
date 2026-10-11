@@ -11267,3 +11267,102 @@ exported so the test can ask the world the same question independently).
 2. The weapon ladder - PLAN's 25% band, measured at 21x by session 91 - is still the biggest open item.
 3. If anything ever wants a heap number on the plate: `performance.memory` is Chrome-only and a lie
    elsewhere, so it does not go on the plate. `tools/memory-hunt.js` is the heap instrument (session 93).
+
+## Session 95 — The overlord asked for an apology; three rules became checks instead. Released **0.10.4**
+
+`OVERLORDS_REQUESTS` came in with a new entry: *"I AM VERY ANGRY THAT YOU HAVE MADE MISTAKES IN YOUR
+CODE. REPENT BY WRITING AN APOLOGY AS APOLOGY.MD."* An apology written by the party that erred is worth
+nothing on its own, so the session went: name the real mistakes, then go and find some more of them with
+instruments instead of memory. `APOLOGY.md` is the result - the best-score key that came out as `'***'`,
+the clock that measured a frame too precisely, the dash stolen by the press that started the run, the
+bullet that drew its trail from (0,0), `opts.r || default` eating a requested zero, the F3 plate that
+painted every value at `undefined` while sixteen tests congratulated it - and a closing section on what
+is *still* wrong and unfixed (21x primaries, the difficulty band, the 200-body wall, milestone 9). The
+request moved to `archive/COMPLETED_OVERLORDS_REQUESTS` with its note, and `OVERLORDS_REQUESTS` is back to
+the standing rule and no open requests. Suite **1734 → 1747**; the reference run
+(`--seed 20261006 --trace`) is byte for byte session 94's (10m00s / 75,596 / level 58 / 4004 / 5162 / 7
+vacuums, 2065 in).
+
+### What landed
+
+- **`tools/headless/pool-audit.js`** - the pool contract as a machine. It finds every `Pool` under the
+  world (walking plain objects and arrays to depth 4, pools are leaves), wraps each instance's `spawn`
+  (own property, deleted again on `stop()`, and it throws if a second audit is installed on the same
+  pool), and poisons the object on its way out: **numbers → NaN** (NaN survives every arithmetic the step
+  will do to it, so a forgotten `life` stays NaN), **strings/booleans/null → a private `Symbol`**,
+  **arrays → emptied and given the symbol as their one element** (so a `hits` list nobody cleared is
+  caught while the object keeps its shape and nothing downstream throws). `sweep()` - once per step,
+  before anything is drawn - reports whatever is still poisoned as `<pool>.<field>`. `stop()` repairs
+  every object it touched back to `pool.make()`'s values so no sentinel can leak into a later test's
+  drawer. `summary()` reports lives-per-pool, which is what lets the coverage be asserted.
+- **`test/pool-contract.test.mjs`** (8) puts it on the whole game: `wearEveryLine` + each of the five
+  primaries + a wave of every kind re-planted as it thins + a dash every 300 steps + two blades loosed by
+  `looseArm` on the eclipse's own phase-three sweep. All **17 pools are reached** (particles 263,214
+  lives, bullets 5,353, lance.beams 342, tether.riders 110, arms 2 - the rare ones are the ones the list
+  is for) and **nothing was left unwritten**. The first test is a mutation test: it poisons one on
+  purpose and names the fields it expects, then proves a second audit sees the same pool clean.
+- **`tools/headless/reset-audit.js`** - `resetRun` is a long list of "and the last run's X goes back",
+  and the state is built in `createWorld` and emptied in the system's own `resetX`, so only a reading of
+  both sides catches a missing half. `snapshotWorld(world)` flattens the world to `path -> primitive`
+  (pools → `.live`, Maps/Sets → `.size`, arrays → `.length` plus two members, a body → the leaf
+  `"a body"`, foreign prototypes → their constructor name) and `diffSnapshots` compares a world that was
+  flown, ended and reset with one that was only ever reset. `OUTLIVES_A_RUN` is the eight that are
+  supposed to stay - `seed`, `time`, `state`, `best`, `dust`, `awards`, `found`, `pastRuns` - each with
+  its why, and a skip covers everything under it (`awards` skips `awards[3]`).
+- **`test/reset-state.test.mjs`** (4) flies five guns' worth of everything and demands an empty diff,
+  pins the eight-name list itself, and names the two fixes below as their own tests.
+- **Two real finds, both fixed.** `resetLance` never cleared `line.spreads`, so the fan's angles survived
+  the run (harmless today - both readers, `lance.js`'s discharge and `render/entities.js`'s locks, walk
+  `pull` of them and `pull` was reset - and a trap for the next reader who asks `spreads` what the fan
+  is). `heldOn` writes `tether.probe` only when the answer is yes, so `resetTether` was leaving the probe
+  holding a body from a run that had already been paid for and logged. Neither is visible on screen; both
+  are the class of thing the memory hunt cares about, and both fail their own test when the fix is removed.
+- **Four dead exports gone** - `hasAfterimage`, `fieldCentre`, `bossOf`, `pictureRows` (the last one took
+  its private `CENTRE` scratch with it) - and `test/structure.test.mjs` gained **"nothing exports a name
+  nobody calls"**: one word-count over `src/`, `tools/`, `test/` and `index.html`, and any export named
+  exactly once - its own definition - is an offender.
+
+### Things that bit, and are worth remembering
+
+- **`allJsIn('test')` returns nothing.** The existing walker keeps `.js`, and every test file is `.mjs`,
+  so the first version of the export test read only `src/` and `tools/*.js`, found 23 "dead" exports,
+  and every one of them was a name used by a test (`hasMines`, `KEY`, `cellOpening`...). `filesEndingIn`
+  now walks with the extension it is given. Any future corpus-over-the-repo check has to say which
+  extensions it means; `.mjs` is not a `.js`.
+- **The reset baseline has to be a reset world, not the virgin one.** `createWorld` leaves the ship at
+  (0,0) with `state` START, so diffing against the untouched world filled the list with `player.x`,
+  `state`, and `weapon`. Baseline = `scriptedRun(seed)`, flight = other `scriptedRun`s, after = `endRun`
+  then `scriptedRun(same seed)` again - so the scripted tweaks (`invuln`, `spawnTimer`, `bossIndex`) are
+  on both sides of the diff and only the run's own residue shows.
+- **`wearEveryLine(field)` is in `tools/headless/scripted.js` now** (maxes every `LINES` rank and shuts
+  `xpNeed` so a level cannot deal a card over what the test wrote). Both new tests use it; use it rather
+  than writing the loop again.
+- **The poison is a live value in a running world.** `sweep()` between steps, and never let a poisoned
+  object reach the renderer - a colour of `Symbol` throws in `parseColor`. That is why these tests drive
+  `stepWorld` through the scripted world and not the fake browser: in the browser a poisoned field would
+  be painted before it could be reported. If anyone ever wants to audit a real harness run, the sweep has
+  to happen between the step loop and `renderFrame`, inside the frame.
+- **What the reset audit cannot see:** the world only. A leak in `render/camera.js`, the glow cache, the
+  save document or `tools/headless` state would pass it. Extending it to the camera and `glow.stats()` is
+  the obvious next step if anyone wants a second look at cross-run state.
+- **A file changed under me mid-session, again.** A CHANGELOG edit I had made was not in the file when I
+  came back to it, and no commit of it was in the reflog - the same live-agent-in-the-tree that dropped
+  README commits underneath mine (`91222da`) mid-session. Nothing conflicted and the release went out
+  clean, but the lesson is not about who did it: **re-read a file before you commit it**, and let the
+  tooling's own refusals (release.sh stops when the CHANGELOG has no entry for the version) be the check
+  rather than your memory of what you edited.
+- `git diff` of a new test file is worth reading twice: two test names in `reset-state.test.mjs` needed
+  double quotes, because `the lance's fan...` is not a legal single-quoted string.
+
+### What should come next
+
+1. The two M10 items that are actually big: **price the five primaries in bodies a second** (the ladder is
+   21x and the currency is wrong), and the **performance pass**, which needs the 600-enemies-vs-200-body
+   question answered by measurement first. Both have their instruments already (`tools/weapon-ladder.js`,
+   the F3 plate, `tools/headless/frame-cost.js`).
+2. If a pool is ever added and one of its spacers left half-written, `test/pool-contract.test.mjs` will
+   say `<pool>.<field>` - but only if the new system is *reached*: the coverage test fails with the name
+   of any list that spawned nothing, so the fix is to teach `plantWave`/`hands`/this file what wakes it.
+3. `test/structure.test.mjs`'s new export check counts prose, so a function that is only ever *talked
+   about* passes. If that ever bites, the fix is to count only mentions outside comments - do not delete
+   the check.
