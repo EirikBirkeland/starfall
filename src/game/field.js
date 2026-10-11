@@ -70,12 +70,3 @@ export function holdInField(world, body, r) {
   body.y = y;
   return true;
 }
-
-/** The middle of the live box. Fills and returns `CENTRE`; do not keep it. */
-const CENTRE = { x: 0, y: 0 };
-export function fieldCentre(world) {
-  const box = world.field;
-  CENTRE.x = (box.x0 + box.x1) / 2;
-  CENTRE.y = (box.y0 + box.y1) / 2;
-  return CENTRE;
-}

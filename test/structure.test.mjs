@@ -29,6 +29,17 @@ function allJsIn(relativeFolder) {
   return out;
 }
 
+/** Every file with this extension under a folder, walked the same way. */
+function filesEndingIn(relativeFolder, extension) {
+  const out = [];
+  for (const entry of fs.readdirSync(path.join(ROOT, relativeFolder), { withFileTypes: true })) {
+    const name = relativeFolder + '/' + entry.name;
+    if (entry.isDirectory()) out.push(...filesEndingIn(name, extension));
+    else if (entry.name.endsWith(extension)) out.push(name);
+  }
+  return out;
+}
+
 test('the game folders import nothing from render, audio, ui, or input', () => {
   const offenders = [];
   for (const folder of LOGIC_FOLDERS) {
@@ -122,6 +133,46 @@ test('only the seed chooser reaches for Math.random', () => {
     if (allowed.includes(file)) continue;
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
     if (/\bMath\.random\b/.test(source)) offenders.push(file + ' calls Math.random');
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('nothing exports a name nobody calls', () => {
+  // An export nothing calls is a piece of the game nothing can test and nothing dares to delete, and it
+  // accumulates quietly: a line is written for a caller that never arrives, or the caller is rewritten
+  // a month later and nobody comes back for the line. Four had piled up by the time this was first run
+  // (`hasAfterimage`, `fieldCentre`, `bossOf`, `pictureRows` - all of them accessors whose caller ended
+  // up reading the field or the other accessor instead).
+  //
+  // It is a word count and not an import graph, and it counts the whole tree - the game, the tools, the
+  // tests and the page - because a function only the harness calls is used, and one nothing anywhere
+  // mentions is not. A mention in a sentence about the function counts too, which is the one way this
+  // check is soft: a name that is only ever *talked about* passes. That is the right way to be wrong -
+  // a false alarm here costs a deleted function somebody needed, and a soft pass costs one more grep.
+  const sources = new Map();
+  for (const file of [...allJsIn('src'), ...filesEndingIn('tools', '.js'),
+    ...filesEndingIn('tools', '.mjs'), ...filesEndingIn('test', '.mjs'), 'index.html']) {
+    sources.set(file, fs.readFileSync(path.join(ROOT, file), 'utf8'));
+  }
+
+  const mentions = new Map();
+  for (const source of sources.values()) {
+    for (const word of source.match(/[A-Za-z_$][\w$]*/g) || []) {
+      mentions.set(word, (mentions.get(word) || 0) + 1);
+    }
+  }
+
+  const exported = /^export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)|^export\s*\{([^}]*)\}/gm;
+  const offenders = [];
+  for (const [file, source] of sources) {
+    if (!file.startsWith('src/')) continue;
+    for (const match of source.matchAll(exported)) {
+      const names = match[1] !== undefined ? [match[1]] : match[2].split(',').map((part) => part.trim());
+      for (const name of names) {
+        if (name === '' || name === 'default') continue;
+        if ((mentions.get(name) || 0) <= 1) offenders.push(file + ' exports ' + name + ', which nothing calls');
+      }
+    }
   }
   assert.deepEqual(offenders, []);
 });

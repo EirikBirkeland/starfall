@@ -224,11 +224,6 @@ export function stepIdOf(id) {
   return stepOf(id).id;
 }
 
-/** The rows themselves, in the order the panel prints them. */
-export function pictureRows() {
-  return ROWS;
-}
-
 // --- what the eye and the cosmetics read ---------------------------------------
 // Four small functions rather than the raw choices, because every reader wants the number of *its*
 // thing and nothing else, and a painter that could read a stranger's row could quietly start

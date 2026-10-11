@@ -1712,11 +1712,6 @@ export function darknessOf(world) {
 // rather than reading a field, so the number can move and only one file has to know.
 // ---------------------------------------------------------------------------------------
 
-/** The fight in the arena, or null. */
-export function bossOf(world) {
-  return world.boss;
-}
-
 /**
  * Is this body one of the bodies the boss is made of? Which is how the frame knows to draw a ring
  * or a mass instead of a drifter, and how a fight of three hives gets three of them drawn.

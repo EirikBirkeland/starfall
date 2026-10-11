@@ -50,7 +50,7 @@ import { Pool } from '../core/pool.js';
 import { dist2 } from '../core/math.js';
 import { ring } from './effects.js';
 import { cueBeep } from './cues.js';
-import { imagesOf, rankOf } from './upgrades.js';
+import { imagesOf } from './upgrades.js';
 
 /**
  * The shape of one image. It does not move - it is the ship as it was, left standing where it
@@ -78,11 +78,6 @@ export function resetAfterimage(world) {
   world.afterimage.gap = 0;
   world.afterimage.due = 0;
   world.afterimage.left = 0;
-}
-
-/** Has this run taken the line at all. Nothing is asked or painted until it has. */
-export function hasAfterimage(world) {
-  return rankOf(world, 'afterimage') > 0;
 }
 
 /**
