@@ -12623,3 +12623,125 @@ level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in), and `--audio` still 
    visit (a release without `assets/`), the title now plays the pad where it used to be silent until the
    first press. That is the right sound, and it is worth one line in the palette-of-sounds sense: the pad
    is 0.02 per voice and it is what the sequencer has always played there.
+
+## Session 109 — The palette was measured: Oklab, five eyes, and the shipped colours held
+
+Suite **1936 → 1957** (10 in `test/colour-lab.test.mjs`, 11 in `test/palette-read.test.mjs`). The
+reference run (`--seed 20261006 --trace`) is byte for byte session 108's again (10m00s / 73,982 /
+level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in) - and it had better be, because **nothing
+in `src/` changed at all**. That is the outcome of this session, not a near-miss: the milestone item
+is "colour-blind palette", four sessions said "measure it first", and the measurement said the game
+as shipped is already sound. Nothing released: the player can see nothing here (yet).
+
+### What landed
+- **`tools/colour-lab.js`** - pulled back out of `.scratch/` (where session 108 parked it) into the
+  `tools/` it was written for. Oklab: linear-light channels → three cone-like responses → cube root
+  → `{L, a, b}`, plus `oklch`, CIE `L*`, `over()` (compositing a translucent colour onto the sky it
+  is drawn on), and the colour-vision half: `VISIONS` (five eyes, each named by the axes it *keeps*),
+  `separation()` (the largest axis gap, in steps), and `worstVision()`. **It had a real bug**:
+  tritanopia was wired to keep `['L','b']`, the same pair as the two red-green eyes, when the whole
+  point of a blue-blind eye is that it keeps `a` and loses `b` - the file's own prose said so two
+  lines above. Fixed, and `test/colour-lab.test.mjs` now asserts each eye's `keeps` against its name
+  and shows a hand-built colour going *to zero* along the axis that eye has lost.
+- **`tools/sights.js`** - the question, which is the half that actually matters. A palette cannot be
+  audited as a list of colours; "is `#ff4d6d` far enough from `#ff2d55`" has no answer until you say
+  what each is *for*, how big a thing it is painted on, and what shape the eye gets. So: 19 sights
+  (nine bodies read out of `BALANCE.kinds`, an enemy shot, the sniper's beam, a bomber's blast, the
+  ship's mine, the ship, its shot, a shard small and large, the wall, a boss's cage), each with a
+  **meaning** (`harm` / `help` / `self` / `place`), a **form** (the silhouette the renderer really
+  draws, not the balance table's `sides`), and a **size**. Plus `promiseOf(a, b)`, the promise
+  matrix, and `auditSights()` / `auditSky()` - which the report and the tests both call, so they
+  cannot disagree.
+- **`tools/palette-check.js`** - the report: what the eye is handed, every *promised* pair against
+  its bar, every pair with nothing at stake under its own heading, every sight against the sky it sits
+  on. `--all` for the whole matrix, `--only shard` for one corner of it, `--strict` to exit non-zero.
+- **Twenty-one tests.** The ruler's (`the extremes of brightness are the extremes`, `each eye is
+  blind along exactly the axis its name says`, `a translucent colour is measured where it lands, not
+  as written`, `an eye nobody measured is an error, not a free pass`) and the palette's
+  (`nothing that can hurt you is the colour of nothing that can help you`, `a shard is never mistaken
+  for a threat`, `their shot is not your shot`, `every sight can be seen at all`,
+  `what is promised, and what is not`). Three of them are guards on the audit itself:
+  **`every enemy the game can spawn is in the table`** (asks `BALANCE.kinds` who is in the crowd, so a
+  new kind cannot be quietly unmeasured), **`the sizes the table measures are the sizes the renderer
+  draws`** (reads `SHARD_BODY`/`BIG_SHARD_BODY`/`MINE_BODY`/`MINE_SPIKE` out of `render/entities.js`,
+  because `tools/` may not import it), and **`the promise can fail - it is a guard and not a
+  formality`** (paints a shard in an enemy shot's colour and asserts the audit shouts).
+
+### The promise, as it ended up - and why each cut is where it is
+PLAN section 6's line is "a colour-blind palette that separates harmful and helpful by brightness and
+shape as well as hue". Turned into something that can fail, in `tools/sights.js`:
+
+- **A pair with no harm in it is reported, not promised.** The confusion that costs a run is
+  harm-vs-help, harm-vs-self (their shot is not your shot) and harm-vs-boundary (an edge that looks
+  like a hazard, or a hazard that looks like an edge). Two harms that share a colour cost a wrong
+  gun choice; a help and a self cost a walk over nothing. That is the whole reason the audit reports
+  84 of its 171 pairs instead of demanding nine bodies be a step apart from each other in nine
+  unrelated colours.
+- **Where shape cannot tell a pair apart, colour must** - a full step on every axis an eye keeps.
+  "Alike" means the same form, or sizes within 1.3× of each other. Where the forms differ (a band of
+  light and a five-pixel diamond) colour has to do most of it (0.55) and *nothing* is promised about
+  brightness: PLAN's phrase read the other way round - brightness is what has to be there when the
+  shape is not enough.
+- **A boundary is promised hue and not brightness.** The wall and a boss's cage are drawn where no
+  body can be, and they are cool because they are the world stopping; a wall is where the wall is.
+- **The strict bar is a red-green eye's.** ~1 man in 12 is red-green colour blind and keeps the
+  blue-yellow axis and brightness - that is what `RED_GREEN_EYES` measures. The no-hue eye (achromatopsia,
+  about 1 in 30,000) is promised a whole step of brightness only where a pair is *alike in shape*, and
+  nothing otherwise: a mint diamond and a cyan bolt of the same brightness are two objects to anyone
+  who can see that a diamond is not a bolt. Bent further, this rule would repaint the arena for one
+  visitor in thirty thousand and take the game's colour language away from them to do it - which is
+  the sort of thing a settings row must not do either.
+
+### Why no colour moved, with the numbers so nobody relitigates it
+The shipped palette **passes all 84 promised pairs**, and the two thinnest are exactly the pairs you
+would guess matter most: `enemyShot / shard` at **1.12** (protanopia, both axes) and
+`enemyShot / playerShot` at **1.20** (greyscale). Deepening the enemy shot was the obvious candidate
+- it is the palest warm thing in the game - and it is a trap: at `#ff8a45` that pair does go up to
+1.41, but the shot lands **0.25** from the spitter's own body (it is 0.53 today) and 0.48 from a
+bomber's blast, because "deeper warm" is where all the crowd's colours already live. The shot's
+paleness is not an oversight; it is the one warm that no body wears, and its near-white core is what
+makes it read as hot. Left alone on purpose, and the audit is the reason anybody can say so.
+
+### What the audit did find, and left for a later session
+Four pairs of *bodies* are under a step apart even for an eye with every cone: `darter / swarmling`
+**0.35**, `swarmling / sniper` 0.76, `bomber / swarmling` 0.87, `spitter / bomber` 0.92. They are
+tolerated because the three smallest bodies in the game (`weaver`, `darter`, `swarmling`) all get a
+**dart silhouette** from `render/entities.js` while their sizes are 10/11/7 px and their colours are
+three reds - so it is *shape* that is short here, which is precisely the other word in PLAN's
+sentence. `test/palette-read.test.mjs` pins that list of four in `the crowd shares colours, and says
+which pairs do`: it cannot get worse unnoticed, and the day somebody gives the swarmling its own
+silhouette the list shortens and that is a better game.
+
+### Things that bit, worth remembering
+- **`node --test test` is not `node --test`.** The former looks for a *file* called `test` and dies
+  with MODULE_NOT_FOUND; the suite is run from the root with no argument (that is what
+  `package.json` and `tools/release.sh` both do).
+- `core/palette.js`'s `parseColor` takes a *string* - `'#58ffa1'` or `'rgb(94,247,255)'` - and throws
+  on anything else, loudly. It does not accept an already-parsed triple: a test that hands it `SKY`
+  gets `not a colour this can read: 5,12,30`, which is the parser being exactly as strict as it
+  should be. `tools/sights.js`'s `measure()` is the one that takes a sight and returns Oklab.
+- The eyes are a **projection**, so "this eye is blind to this axis" means *zero*, not *small*: two
+  colours that differ only along a lost axis score 0.00, not 0.05. That is why the STEP-based bars are
+  per-axis maxima rather than a Euclidean distance - and why a wrongly wired eye is a silent pass
+  rather than a loud fail, which is why it got a test.
+- The report sorts by *margin*, so a clean run prints only the pairs within 0.45 of their bar; asking
+  for `--all` when everything passes looks alarming and is not.
+
+### What should come next
+1. **The settings row** is the rest of milestone 9's colour-blind item. Decide first what a second
+   step would *do*, because a row with one choice is a stub and the audit says the shipped palette
+   does not need rescuing: the honest shapes are (a) a `MARKS` row that adds a shape or brightness
+   signature to harm and help on top of the palette (which the audit's "shown, not promised" column is
+   begging for, and which cannot break warm/cool because it does not touch hue), or (b) a full second
+   scheme - ~30 colours, cards included, every one of them measured with `tools/palette-check.js`
+   before it ships. (a) is the one that fits a session; (b) fits a milestone.
+2. Then milestone 9's release checklist. Then still owed from earlier sessions: the **shot-speed
+   line** (`tools/line-ab.js --line bulletSpeed --weapon pulse --seeds 1-16`), the **difficulty band**
+   `tools/difficulty-arc.js` still fails, `tools/gun-tune.js` from session 96, session 101's
+   **`--paint` door** on `tools/alloc-probe.js`, and milestone 10's browser half of the performance
+   pass - then `1.0.0`.
+3. Small things this session noticed and did not do: `cageWall` is so desaturated (`C` 0.053) that a
+   protanope sees it **0.13** from the ship itself - harmless, because a cage cannot be mistaken for
+   the ship you are piloting, and that is exactly the pair the promise matrix declines to judge, but
+   it is a thin wall. And the audit has no opinion on the interface (cards, HUD, codex); a
+   `tools/contrast-check.js` for text-on-panel would be the same ruler pointed at `render/cards.js`.
