@@ -39,7 +39,7 @@ While it's rather likely these games are potentially addictive, the way real-lif
 I'd rate this game a 3/10, but in terms of feeling fun and addictive due to the pachinko-esque bullet heaven aspect, it's even a 6/10. It is kind of like a ... Feature sandbox. And it's still highly generic.
 However, it's getting quite detailed and nuanced!
 
-It's like a very elaborate mediocre game. currently, the bosses are particularly uninspired.
+It's like a very elaborate mediocre game. Currently, the bosses are particularly uninspired.
 
 Nonetheless, the current goal is for Flash Next to continue the entire `PLAN.md`, and I expect to reach completion within a few days.
 As of the time of writing this, v0.10.2 has been published.
