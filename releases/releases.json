@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.8",
+    "date": "2026-10-11",
+    "released": "2026-10-11T12:39:21.916Z",
+    "summary": "A step throws away four to seven times less: it was Math.hypot listing its arguments on the heap, 38 ways a step",
+    "added": 183,
+    "removed": 63,
+    "logBytes": 35013443
+  },
+  {
     "version": "0.10.7",
     "date": "2026-10-11",
     "released": "2026-10-11T11:42:10.409Z",
