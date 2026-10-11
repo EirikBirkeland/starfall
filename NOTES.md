@@ -12336,3 +12336,100 @@ is the whole point of the "a mouse visit is the visit it always was" half of the
    pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
    owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`. Then milestone 10's
    last item: the browser half of the performance pass, and `1.0.0`.
+
+## Session 106 — A pad: two sticks and a shoulder. Released **0.10.13**
+
+Milestone 9's *Gamepad support*. Done out of PLAN's order (key rebinding was the item above it) for a
+reason worth keeping: the two remaining M9 items are a key-table and a palette, and this was the second
+of the three **device** items, which wants the same shape the thumb got - a descriptor field, one honest
+answer to "which hand is speaking", and a test that a visit that never met the device is unchanged.
+Suite **1884 → 1899** (14 in `test/gamepad.test.mjs`, 1 in `test/debug.test.mjs`); the reference run
+(`--seed 20261006 --trace`) is byte for byte session 105's again (10m00s / 73,982 / level 57 / 3,934
+kills / 4,934 shards, 7 vacuums, 2036 in) with the whole feature in the tree.
+
+### What landed
+- **`src/input/gamepad.js`** (new). Polled once a frame from `readInput()`, not listened for:
+  `gamepadconnected` says a device arrived and no event says a button moved, so a poll finds a pad the
+  frame it is plugged in and stops flying the ship the frame it is taken away, with no listener and no
+  unsubscribe. `navigator.getGamepads()` is guarded for absence (it is absent in Node, and in a browser
+  without the API) and for a sparse list. Two dead zones (`MOVE_DEAD 0.2`, `AIM_DEAD 0.32` - the aim's
+  is also the trigger's, so it gets the roomier one) and a push **remeasured from the zone**, so just
+  clearing the line is a crawl and not a jump to a third of top speed (a test measures it: <20% of
+  maxSpeed at 0.26 of a stick's travel, then 4x that at full).
+- **Two families of pad, told apart by axis count** (`FOUR_AXIS` / `SIX_AXIS`): under five axes the
+  right trigger is button 7 and Start is 9; five or more and the trigger is axis 5 and Start is 7.
+  Everything they agree on (axes 0-3, A at 0, RB at 5) is read unconditionally, so a pad that fits
+  neither still flies; the worst a mis-guessed Start does is hold the run on a stick click. Buttons are
+  read as object, number or boolean because browsers have used all three.
+- **The right stick is the trigger** (PLAN's wording, kept literal): `pad.firing` is "the stick is
+  leaned", a hold and not a press. `input.firing = mouse.down || pad.firing`.
+- **A stick is a direction, not a place on the glass**, which is the one thing that stopped the pad
+  being "just another pointer". The descriptor gained `stickAim` + `aimDirX/aimDirY`; `main.js` either
+  calls `resolveAim` (pointer → arena, through the camera) or `pointFromStick` (arena point
+  `STICK_AIM_REACH = 500` px in front of the ship). From `world.player.x/y` and **not** the interpolated
+  position: the step reads the aim too, and an interpolating ship would shiver the angle every gun is
+  fired along; the camera lean is the only other reader and it smooths the ~3 px difference away. The
+  reach is a rendering number - `player.js` takes an arctangent of the gap, so any reach aims the same.
+- **Which hand owns the nose** is one variable in `input/index.js` (`aimHand`, plus a remembered
+  `pointerCount`): the stick owns it while leaned and keeps it when it comes home (the nose stays where
+  that hand left it); a changed `mouse.moves` takes it back. `input/mouse.js` grew that counter, bumped
+  by `mousemove` **and** by `noteGlass`, so a thumb's tap counts as the pointer having spoken. First
+  cut was two counters compared (`aimPushes > moves`), which was not "last" at all - one deliberate
+  mouse move lost to five stick pushes and the pointer could not take the aim back.
+- **A is the launch key and Start is the pause**, answered from the poll straight into the same handlers
+  a keydown answers (`onConfirm`, `onPause`), not queued: a frame that ran no step is still a frame in
+  which a press expects an answer. Nothing else on a pad is bound - see the decisions below.
+- `pad.name` is the id cut at the first `(` (a browser's id is "Wireless Controller (STANDARD GAMEPAD
+  Vendor: 0x045d...)") and is `''` whenever no pad is being read, so an unplugged pad cannot be reported
+  as a plugged one. It is in `STARFALL.stats().pad` and in the F3 panel's new **HANDS** row
+  (`gamepad  none` / the name, and `thumb  on/off`) - the only place the game admits to watching for a
+  pad. `index.html`'s controls list gained a GAMEPAD row.
+- **Harness**: `setPad(state|null)`, `padAxis(i, v)`, `padButton(i, down)`. Node's `globalThis.navigator`
+  is a **getter** and cannot be assigned (TypeError in strict mode), so the stub uses
+  `Object.defineProperty`. `{}` is a four-axis pad at rest; `{ axes: [0,0,0,0,0,-1] }` is a six-axis one
+  with its triggers parked at -1. `padAxis`/`padButton` throw with no pad in, so a test that leans a
+  stick that is not there fails instead of silently measuring nothing.
+
+### Decisions that will be asked about again
+- **Only the three controls PLAN asks for, plus A and Start.** The cards, hangar, codex and settings stay
+  keyboard/mouse racks: a pad in a browser is never the only device (it arrives beside a keyboard and is
+  polled beside it), and a fake cursor on the glass is a whole second interface - which card is lit, what
+  moves it, what clicks it, what happens over nothing - bigger than the one plan line it would serve. Same
+  reasoning the thumb's note records for the same racks.
+- **The pad does not switch the assists on.** The thumb had to (a finger has no cursor and no trigger); a
+  pad's right stick *is* the cursor and *is* the trigger. If a save has AUTO-AIM on it wins, exactly as it
+  wins over a mouse - that is what the switch is for.
+- **`aimHand` is not reset by `clearInput()`/blur.** Losing focus does not change who spoke last; the pad
+  lets go of its sticks by being polled anyway. Consequence to know: a second run on the same page starts
+  with whichever hand last pointed the nose (the pointer behaves the same way, keeping its own last place).
+- The move ordering is keys → pad → thumb, thumb last ("a finger on the glass is the most recent thing a
+  hand did"), stated in a comment and pinned by a test that leans all three at once.
+
+### Things that bit, worth remembering
+- **`Pool.stats().spawned` is a lifetime count, not a per-run one** - `resetRun` clears a pool but does not
+  wind the counter back. A snapshot that puts `bullets.stats().spawned` in it and compares two runs will
+  differ by the shots the first run fired. Take the delta from the start of the run.
+- **A thumb is never picked back up** (session 105's decision), so any test that puts one down leaves
+  AUTO-FIRE and AUTO-AIM switched on for the rest of the process - `driveAssists` sets `thumbVisit` and
+  nothing clears it. It made a "the guns stop when the stick comes home" assertion fail 2 shots out of 38,
+  and it would have made the aim tests lie. **The thumb test is last in `test/gamepad.test.mjs` on purpose**
+  and says so in a comment; anything that measures a hand holding its own gun must come before it.
+- A test that checks the pointer takes the aim back must remember `moveMouse` is one bump of the counter.
+- Auto-fire makes "is it firing" unmeasurable by counting shots; with the assists off (the ordinary case)
+  `world.bullets.stats().spawned` is the honest instrument.
+
+### What should come next
+1. Milestone 9 is down to **key rebinding** and the **colour-blind palette**, then its release item.
+   Rebinding is the bigger of the two and wants a decision first about scope: the game has ~20 keys, but
+   four movement keys + dash + the panel letters are the set a non-QWERTY hand actually needs, and the
+   settings rack is arrow-driven, so a rebind row needs a "listening" state that Esc does not cancel
+   (Esc is the pause and does not close panels here). The palette is a `settings.js` row with choices plus
+   the "brightness and shape as well as hue" half, which is an art decision about enemy kinds and shards.
+2. If a pad ever gets the racks, the honest shape is a *selection* per panel (D-pad moves a cursor, A
+   takes it) rather than a glass cursor - the settings and the hangar already have a row cursor; the cards
+   do not, and `render/cards.js` already paints one card `hovered`, so a card cursor is cheaper than it
+   looks.
+3. Still open from session 103: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
+   owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`. Then milestone 10's
+   last item: the browser half of the performance pass, and `1.0.0`.
