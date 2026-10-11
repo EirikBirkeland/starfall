@@ -364,6 +364,9 @@ test('the key that flies the day is said where the launch keys are said', () => 
   // the column is already exactly as tall as the window it was designed for. So the hint line - which
   // is where the launch key itself is written, and is the only other place a first visit looks for a
   // key - has to carry it, or the key does not exist.
-  assert.match(markup, /PRESS SPACE OR CLICK TO LAUNCH &#183; T FOR TODAY&#39;S ARENA/);
+  assert.match(
+    markup,
+    /PRESS SPACE OR CLICK TO LAUNCH &#183; <span id="titleKeysToday">T<\/span> FOR TODAY&#39;S ARENA/,
+    'the day\'s key is written where the launch keys are, and written as a live one');
   assert.ok(markup.indexOf('id="titleToday"') > 0, 'and the day has somewhere on the title to be banked');
 });

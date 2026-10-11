@@ -26,7 +26,7 @@ import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { levelUp } from '../src/game/progress.js';
-import { LESSONS, tipsFromSave } from '../src/game/tutorial.js';
+import { LESSONS, saysOf, tipsFromSave } from '../src/game/tutorial.js';
 import { tutorialLayout } from '../src/render/tutorial.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -37,15 +37,15 @@ const SEED = 51;
 const game = await bootGame({ root: ROOT, seed: SEED, width: 1280, height: 720 });
 const world = game.world;
 
-/** The words a lesson is painted with. */
-function saysOf(id) {
-  for (const lesson of LESSONS) if (lesson.id === id) return lesson.says;
+/** The words a lesson is painted with - the keys as this visit has them, and the words after them. */
+function lineOf(id) {
+  for (const lesson of LESSONS) if (lesson.id === id) return saysOf(lesson);
   return null;
 }
 
 /** Which lesson, if any, is on the glass right now. */
 function tipIs(id) {
-  return game.stats().tip === saysOf(id);
+  return game.stats().tip === lineOf(id);
 }
 
 function frames(n) {
@@ -133,10 +133,10 @@ test('there are three lessons, in the order they are taught, and each names a ke
   assert.equal(new Set(ids).size, ids.length, 'no lesson twice');
   for (const lesson of LESSONS) {
     // The id is what the save remembers, so it has to be a name the document will hold (core/save.js).
-    assert.match(lesson.id, /^[a-z][a-z0-9_-]{0,31}$/, lesson.says + ' has a memorable id');
-    assert.equal(lesson.says, lesson.says.toUpperCase(),
-      lesson.says + ' is written in caps like every other word in the game');
-    assert.ok(lesson.says.length <= 34, lesson.says + ' is short enough for one plate');
+    assert.match(lesson.id, /^[a-z][a-z0-9_-]{0,31}$/, lineOf(lesson.id) + ' has a memorable id');
+    assert.equal(lineOf(lesson.id), lineOf(lesson.id).toUpperCase(),
+      lineOf(lesson.id) + ' is written in caps like every other word in the game');
+    assert.ok(lineOf(lesson.id).length <= 34, lineOf(lesson.id) + ' is short enough for one plate');
   }
 });
 
@@ -147,7 +147,7 @@ test('every key a lesson names is a key the title screen already prints', () => 
   const named = { fly: 'W A S D', fire: 'MOUSE', dash: 'SPACE' };
   for (const lesson of LESSONS) {
     const key = named[lesson.id];
-    assert.ok(lesson.says.indexOf(key) === 0, lesson.says + ' starts with the key it is about');
+    assert.ok(lineOf(lesson.id).indexOf(key) === 0, lineOf(lesson.id) + ' starts with the key it is about');
     assert.ok(page.indexOf(key) >= 0, 'and the title screen prints ' + key + ' too');
   }
 });
@@ -163,12 +163,12 @@ test('each lesson, put on the glass, is painted inside its plate', async () => {
     frames(3);
     const plate = tutorialLayout(1280, 720);
     assert.notEqual(plate, null, lesson.id + ' got the plate');
-    assert.equal(plate.text, saysOf(lesson.id), 'and it is the lesson it was supposed to be');
-    const words = game.texts().filter((word) => word.text === lesson.says);
-    assert.ok(words.length > 0, '"' + lesson.says + '" was actually painted');
+    assert.equal(plate.text, lineOf(lesson.id), 'and it is the lesson it was supposed to be');
+    const words = game.texts().filter((word) => word.text === lineOf(lesson.id));
+    assert.ok(words.length > 0, '"' + lineOf(lesson.id) + '" was actually painted');
     for (const word of words) {
       assert.ok(word.w <= plate.textW,
-        '"' + lesson.says + '" fits its plate: ' + word.w + ' in ' + plate.textW);
+        '"' + lineOf(lesson.id) + '" fits its plate: ' + word.w + ' in ' + plate.textW);
       assert.equal(word.size, 15, 'and none of it had to be shrunk');
       assert.ok(word.y > plate.y && word.y < plate.y + plate.h, 'the words sit inside the box');
       assert.equal(word.x, plate.textX, 'and are centred on it');
@@ -227,8 +227,8 @@ test('a run that has already fired is never shown the gun', async () => {
   }
   game.key('KeyD', false);
   game.releaseMouse(0);
-  assert.ok(!seen.has(saysOf('fire')), 'the gun was never said out loud: ' + Array.from(seen));
-  assert.ok(seen.has(saysOf('fly')), 'the fly lesson still came, because nothing had been flown');
+  assert.ok(!seen.has(lineOf('fire')), 'the gun was never said out loud: ' + Array.from(seen));
+  assert.ok(seen.has(lineOf('fly')), 'the fly lesson still came, because nothing had been flown');
 });
 
 test('the dash waits for a body inside one dash, then the dash itself learns it', async () => {

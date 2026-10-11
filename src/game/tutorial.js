@@ -39,17 +39,29 @@
 import { BALANCE } from './balance.js';
 import { hypot } from '../core/math.js';
 import { remember, section } from '../core/save.js';
+import { wordsOf } from '../core/keymap.js';
 
 /**
  * The three lessons, in the order they are taught: fly, then shoot, then leave. The words are the
  * title screen's own vocabulary (index.html prints the same keys beside the same words), and the `id`
  * of each one is what the save remembers, so it is a name and not a number.
+ *
+ * The keys are not written into the line. A plate that named the keys a game ships with would be a
+ * plate lying to exactly the one visitor who needs it: a hand on a keyboard that is not QWERTY rebinds
+ * its keys before it has flown anything, and is then taught `W A S D` (core/keymap.js). So a lesson
+ * names the *controls* its line is about and `saysOf` spells them out of the table the game actually
+ * hears, which is the same rule that makes the pause say whatever key the pause is on today.
  */
 export const LESSONS = [
-  { id: 'fly', says: 'W A S D TO FLY' },
+  { id: 'fly', keys: ['up', 'left', 'down', 'right'], says: 'TO FLY' },
   { id: 'fire', says: 'MOUSE TO AIM \u00b7 HOLD LEFT TO FIRE' },
-  { id: 'dash', says: 'SPACE TO DASH' },
+  { id: 'dash', keys: ['dash'], says: 'TO DASH' },
 ];
+
+/** The whole line for one lesson, keys spelled out. What the plate is painted with. */
+export function saysOf(lesson) {
+  return lesson.keys === undefined ? lesson.says : wordsOf(lesson.keys) + ' ' + lesson.says;
+}
 
 /** The board: which lesson is on the glass, and how long it has been there. One per run. */
 export function newPrompt() {
@@ -264,7 +276,7 @@ function learn(world, id) {
 export function promptWords(world) {
   const id = world.prompt.id;
   for (const lesson of LESSONS) {
-    if (lesson.id === id) return lesson.says;
+    if (lesson.id === id) return saysOf(lesson);
   }
   return '';
 }

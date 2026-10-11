@@ -307,6 +307,18 @@
     box-shadow: 0 0 16px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.12);
   }
   .setting.chosen .name { color: #d8fbff; }
+  /* The row on the controls panel that is being asked for a key (core/keymap.js, main.js
+     `startListening`). It is the cursor's own row, wearing amber instead of the cyan every other panel
+     lights its cursor with, because on this one the next arrow press does not change the row - it hands
+     the row a key, or takes the key back. The border is there and transparent every other time, so
+     lighting it cannot move anything. */
+  .setting.waiting {
+    border-color: rgba(255,196,110,.65);
+    background: rgba(255,196,110,.09);
+    box-shadow: 0 0 16px rgba(255,196,110,.2) inset, 0 0 12px rgba(255,196,110,.14);
+  }
+  .setting.waiting .name { color: #ffe2b8; }
+  .setting.waiting .value { color: #ffe2b8; }
   /* The keys that cost something, said once and steadily under the pulsing line above it: these are
      the two the player has to read before pressing them, so they do not blink. */
   .keys {
@@ -485,18 +497,22 @@
   <h1 class="logo" id="logoBox"><span class="sr">STARFALL</span></h1>
   <p class="subtitle rise">NEON ARENA SURVIVAL</p>
   <div class="controls rise">
-    <div class="row"><span class="key">W A S D / &#8593;&#8592;&#8595;&#8594;</span><span>FLY</span></div>
+    <!-- The keys a hand can move are written by ui/screens.js (`paintKeyWords`) out of the table the
+         game actually hears (core/keymap.js), so a visit that rebound its keys is not handed a manual
+         that describes somebody else's keyboard. The words in here are what the game ships with, which
+         is what a page with no JavaScript says and what a first visit finds. -->
+    <div class="row"><span class="key"><span id="titleKeysFly">W A S D</span> / &#8593;&#8592;&#8595;&#8594;</span><span>FLY</span></div>
     <div class="row"><span class="key">MOUSE</span><span>AIM</span></div>
     <div class="row"><span class="key">HOLD LMB</span><span>FIRE</span></div>
-    <div class="row"><span class="key">SPACE / RMB</span><span>DASH</span></div>
+    <div class="row"><span class="key"><span id="titleKeysDash">SPACE</span> / RMB</span><span>DASH</span></div>
     <div class="row"><span class="key">GAMEPAD</span><span>LEFT STICK FLY &#183; RIGHT STICK AIM AND FIRE &#183; RB DASH</span></div>
     <div class="row"><span class="key">1 2 3</span><span>PICK A CARD WHEN IT IS DEALT</span></div>
-    <div class="row"><span class="key">ESC / P</span><span>PAUSE &#183; THE RUN&#39;S STATS</span></div>
-    <div class="row"><span class="key">G</span><span>GIVE THE RUN UP WHILE PAUSED</span></div>
-    <div class="row"><span class="key">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
-    <div class="row"><span class="key">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
-    <div class="row"><span class="key">O</span><span>SETTINGS &#183; SHAKE, SOUND, AUTO-FIRE, AUTO-AIM</span></div>
-    <div class="row"><span class="key">M &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
+    <div class="row"><span class="key">ESC / <span id="titleKeysPause">P</span></span><span>PAUSE &#183; THE RUN&#39;S STATS</span></div>
+    <div class="row"><span class="key" id="titleKeysGiveUp">G</span><span>GIVE THE RUN UP WHILE PAUSED</span></div>
+    <div class="row"><span class="key" id="titleKeysHangar">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
+    <div class="row"><span class="key" id="titleKeysCodex">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
+    <div class="row"><span class="key" id="titleKeysSettings">O</span><span>SETTINGS &#183; SHAKE, SOUND, KEYS, AUTO-FIRE, AUTO-AIM</span></div>
+    <div class="row"><span class="key"><span id="titleKeysMute">M</span> &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
     <div class="row"><span class="key">F3</span><span>FRAME COST, COUNTS AND POOLS</span></div>
   </div>
   <div class="standing rise">
@@ -514,7 +530,7 @@
   </div>
   <!-- The day's key is written where the other launch keys are, because it is one: one press and the
        run is flying the arena everybody else is flying today (game/daily.js). -->
-  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH &#183; T FOR TODAY&#39;S ARENA</div>
+  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH &#183; <span id="titleKeysToday">T</span> FOR TODAY&#39;S ARENA</div>
 </div>
 
 <!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.
@@ -544,8 +560,8 @@
     <div class="award-list" id="awardRow"></div>
    </div>
   </div>
-  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; H TO GO BACK</div>
-  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK &#183; O SETTINGS</div>
+  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; <span id="hangarKeysBack">H</span> TO GO BACK</div>
+  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK &#183; <span id="hangarKeysSettings">O</span> SETTINGS</div>
  </div>
 </div>
 
@@ -578,7 +594,7 @@
     <div class="entry-list" id="logRow"></div>
    </div>
   </div>
-  <div class="hint">SPACE TO LAUNCH &#183; C TO GO BACK &#183; O SETTINGS</div>
+  <div class="hint">SPACE TO LAUNCH &#183; <span id="codexKeysBack">C</span> TO GO BACK &#183; <span id="codexKeysSettings">O</span> SETTINGS</div>
  </div>
 </div>
 
@@ -602,7 +618,7 @@
    </div>
   </div>
   <div class="hint" id="pauseHint">ESC OR P TO GO BACK TO THE RUN</div>
-  <div class="keys">G GIVES THE RUN UP &#183; O SETTINGS &#183; THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
+  <div class="keys"><span id="pauseKeysGiveUp">G</span> GIVES THE RUN UP &#183; <span id="pauseKeysSettings">O</span> SETTINGS &#183; THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
  </div>
 </div>
 
@@ -618,7 +634,25 @@
   <div class="settings-note" id="settingsNote">EVERY ROW IS KEPT FOR THE NEXT VISIT</div>
   <div class="setting-list" id="settingRow"></div>
   <div class="hint">&#8593; &#8595; PICK A ROW &#183; &#8592; &#8594; CHANGE IT</div>
-  <div class="keys">O CLOSES THIS PANEL &#183; ESC LETS A HELD RUN GO &#183; M AND [ ] - = WORK ANYWHERE</div>
+  <div class="keys"><span id="settingsKeysClose">O</span> CLOSES THIS PANEL &#183; ESC LETS A HELD RUN GO &#183; M AND [ ] - = WORK ANYWHERE</div>
+ </div>
+</div>
+
+<!-- The controls (PLAN section 6): every key a hand can move, and the key it is moving today. It is a
+     second page of the settings panel rather than thirteen more rows on it - one door, on that panel,
+     and one key back through it - and it wears the settings panel's CSS for the same reason: a row here
+     is a settings row whose value happens to be a key. A row is changed by pressing the key: pick the row
+     with the arrows, press the arrow that means "take a key", and press whatever is under that finger.
+     A key can only be in one place, so the control that had it takes the one just left, and the arrow
+     that means "put it back" returns the shipped key whenever a table has been arranged into a knot
+     (core/keymap.js). -->
+<div id="keysScreen" class="screen settings hidden">
+ <div class="settings-body" id="keysBody">
+  <h2 class="settings-title">CONTROLS</h2>
+  <div class="settings-note" id="keysNote">EVERY KEY IS KEPT FOR THE NEXT VISIT</div>
+  <div class="setting-list" id="keyRow"></div>
+  <div class="hint" id="keysHint">&#8593; &#8595; PICK A ROW &#183; &#8594; TAKE A KEY &#183; &#8592; PUT THE SHIPPED KEY BACK</div>
+  <div class="keys"><span id="keysKeysBack">O</span> GOES BACK TO THE SETTINGS &#183; THE ARROW KEYS ALWAYS FLY THE SHIP TOO</div>
  </div>
 </div>
 <div id="overScreen" class="screen hidden">
@@ -640,7 +674,7 @@
   <div class="hull-list" id="finalHulls"></div>
   <div class="build" id="finalBuild"></div>
   <div class="next-line" id="nextShip"></div>
-  <div class="hint">PRESS SPACE OR CLICK TO RESTART &#183; O SETTINGS</div>
+  <div class="hint">PRESS SPACE OR CLICK TO RESTART &#183; <span id="overKeysSettings">O</span> SETTINGS</div>
 </div>
 
 <div id="winScreen" class="screen hidden">
@@ -665,7 +699,7 @@
        rest of the guard unreadable-but-visible (game/run.js `victoryCardIsAnswerable`), and a line
        saying "press" while the game is refusing every press would be the one thing the guard was
        asked to stop. -->
-  <div class="hint hidden" id="winHint">PRESS SPACE TO KEEP FLYING &#183; R FOR A NEW RUN</div>
+  <div class="hint hidden" id="winHint">PRESS SPACE TO KEEP FLYING &#183; <span id="winKeysReroll">R</span> FOR A NEW RUN</div>
 </div>
 
 <script type="module" src="src/main.js"></script>

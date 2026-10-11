@@ -36,7 +36,8 @@ import { CARDS, HOSTS, SYNERGIES } from '../src/game/codex.js';
 import { ROWS as PICTURE_ROWS } from '../src/game/settings.js';
 import { PERKS } from '../src/game/perks.js';
 import { SHIPS } from '../src/game/ships.js';
-import { LESSONS } from '../src/game/tutorial.js';
+import { LESSONS, saysOf } from '../src/game/tutorial.js';
+import { ACTIONS as KEY_ROWS } from '../src/core/keymap.js';
 import { LINES } from '../src/game/upgrades.js';
 import { WEAPONS } from '../src/game/weapons.js';
 
@@ -91,7 +92,11 @@ const NAMES = []
 const INTERFACE = []
   .concat(PICTURE_ROWS.map((row) => row.name).concat(PICTURE_ROWS.map((row) => row.says)))
   .concat(ASSIST_ROWS.map((row) => row.name).concat(ASSIST_ROWS.map((row) => row.says)))
-  .concat(LESSONS.map((lesson) => lesson.says))
+  // ...and the controls rack's rows (core/keymap.js), which are the same shape: a name, and one plain
+  // line about what the thing is.
+  .concat(KEY_ROWS.map((row) => row.name).concat(KEY_ROWS.map((row) => row.says)))
+  // The three lesson plates, spelled out of the table as the plate spells them out (game/tutorial.js).
+  .concat(LESSONS.map(saysOf))
   .concat([BALANCE.endless.word]);
 
 /** Every sentence the game owns: the catalogue's descriptions and the cards' copy. */
@@ -255,7 +260,7 @@ test('the visit actually read the whole game', () => {
   // assumed: every stop arrived, and the stops that hold the biggest bodies of text hold their size.
   const stops = harvest.stops.map((stop) => stop.name);
   assert.deepEqual(stops, [
-    'title', 'hangar', 'codex', 'settings', 'mixer', 'run', 'cards', 'pause', 'wreck', 'win',
+    'title', 'hangar', 'codex', 'settings', 'keys', 'mixer', 'run', 'cards', 'pause', 'wreck', 'win',
   ], 'the visit walked somewhere new, or stopped walking somewhere it used to');
   const read = (name) => {
     const stop = harvest.stops.find((one) => one.name === name);
@@ -263,7 +268,8 @@ test('the visit actually read the whole game', () => {
   };
   assert.ok(read('hangar') > 60, 'the hangar has ships, perks and thirty awards to say');
   assert.ok(read('codex') > 50, 'the codex has the whole crowd and every card line in it');
-  assert.ok(read('settings') > 20, 'the settings panel has nine rows and a line about each');
+  assert.ok(read('settings') > 20, 'the settings panel has ten rows and a line about each');
+  assert.ok(read('keys') > 20, 'the controls rack has a row and a line for every movable key');
   assert.ok(read('wreck') > 4, 'the wreck names what took the run');
   assert.ok(read('win') > 4, 'the win names what the run cleared');
 });

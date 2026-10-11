@@ -301,9 +301,11 @@ test('the card says what its keys do', () => {
   const markup = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const card = markup.slice(markup.indexOf('id="winScreen"'), markup.indexOf('<script'));
   assert.ok(card.length > 0, 'the win card is in the markup');
-  const hint = /class="hint hidden" id="winHint">([^<]*)</.exec(card);
+  const hint = /class="hint hidden" id="winHint">([\s\S]*?)<\/div>/.exec(card);
   assert.ok(hint, 'and it has a line saying what its keys do, starting hidden');
-  const words = hint[1].toUpperCase();
+  // The reroll key inside that line is a live one (ui/screens.js `paintKeyWords`), so the words are read
+  // with the markup taken out and the key names left in.
+  const words = hint[1].replace(/<[^>]*>/g, ' ').toUpperCase();
   assert.match(words, /SPACE/, 'the key that keeps the run flying');
   assert.match(words, /\bR\b/, 'and the one that asks for a new run');
   assert.doesNotMatch(card, /FINAL SCORE/, 'the score is not final while the run can be kept');

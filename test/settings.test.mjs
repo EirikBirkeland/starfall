@@ -251,19 +251,20 @@ test('the cursor walks the panel and the rows step under it', async () => {
   frames(4);
   press('KeyO');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'KEYS', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
-  ], 'four things it does to the eyes, three it does to the ears, and the two it does to the hand');
+  ], 'four things it does to the eyes, the door onto the keys, three it does to the ears, and the two '
+    + 'it does to the hand');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.chosen),
-    [true, false, false, false, false, false, false, false, false], 'one cursor, on the first row');
+    [true, false, false, false, false, false, false, false, false, false], 'one cursor, on the first row');
   for (const row of game.screen.settingsRows) {
     assert.ok(row.says.length > 0, row.name + ' says what it does');
   }
 
-  // Up and down move the cursor and nothing else; twelve presses each way and it has not left.
-  for (let i = 0; i < 12; i++) press('ArrowDown');
-  assert.equal(cursorOn(), 8, 'the bottom row is the last one');
-  for (let i = 0; i < 12; i++) press('ArrowUp');
+  // Up and down move the cursor and nothing else; twenty presses each way and it has not left.
+  for (let i = 0; i < 20; i++) press('ArrowDown');
+  assert.equal(cursorOn(), 9, 'the bottom row is the last one');
+  for (let i = 0; i < 20; i++) press('ArrowUp');
   assert.equal(cursorOn(), 0);
   assert.deepEqual(game.stats().settings, { shake: 'full', flash: 'full', numbers: 'on',
     particles: 'all' }, 'walking the cursor changed no row');

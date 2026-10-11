@@ -555,24 +555,24 @@ test('the settings panel shows the mixer, and steps it through the same door', a
   tap('KeyO');
   assert.equal(game.stats().settingsUp, true, 'O puts the settings up over the title');
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'KEYS', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
-  ], 'four things the game does to the eyes, then three it does to the ears');
+  ], 'four things the game does to the eyes, the door onto the keys, then three it does to the ears');
 
   // Down to MUSIC, two steps down it, and read the same number off both places it is written: the row
   // on the panel and the mixer the bracket keys move (the canvas plate is drawn, so it is measured in
   // the tests above rather than read here).
-  for (let i = 0; i < 4; i++) tap('ArrowDown');
+  for (let i = 0; i < 5; i++) tap('ArrowDown');
   tap('ArrowLeft');
   tap('ArrowLeft');
-  assert.equal(game.screen.settingsRows[4].value, '8 OF 10');
+  assert.equal(game.screen.settingsRows[5].value, '8 OF 10');
   assert.equal(musicLevel(), 8, 'one slider, one number, two ways of standing on it');
 
   // A slider key while the panel is up: the plate and the row move together, because they are one press
   // answering one key through one door (main.js `onVolume`).
   tap('BracketRight');
   assert.equal(musicLevel(), 9);
-  assert.equal(game.screen.settingsRows[4].value, '9 OF 10');
+  assert.equal(game.screen.settingsRows[5].value, '9 OF 10');
   assert.equal(panelIsUp(), true, 'the readout lit over the panel');
   assert.equal(game.stats().settingsUp, true, 'and the readout is not a panel, so the panel stayed up');
 
@@ -580,12 +580,12 @@ test('the settings panel shows the mixer, and steps it through the same door', a
   // step, because a switch has two places and no ends.
   tap('ArrowDown');
   tap('ArrowDown');
-  assert.equal(game.screen.settingsRows[6].chosen, true, 'the mute is the last of the three the mixer owns');
+  assert.equal(game.screen.settingsRows[7].chosen, true, 'the mute is the last of the three the mixer owns');
   tap('ArrowLeft');
-  assert.equal(game.screen.settingsRows[6].value, 'ON');
+  assert.equal(game.screen.settingsRows[7].value, 'ON');
   assert.equal(isMuted(), true);
   tap('ArrowLeft');
-  assert.equal(game.screen.settingsRows[6].value, 'OFF', 'one switch, and either way is a step');
+  assert.equal(game.screen.settingsRows[7].value, 'OFF', 'one switch, and either way is a step');
   assert.equal(isMuted(), false);
 
   // And the cursor cannot be walked off the panel: nine ups from the bottom is the top row, and a row

@@ -370,6 +370,17 @@ const ELEMENT_IDS = [
   // audio/engine.js). One rack, and a row on it has three parts instead of two - the value is the
   // bright middle of the line, which is the part a press changes.
   'settingsScreen', 'settingsBody', 'settingsNote', 'settingRow',
+  // ...and the rack of keys behind the door that panel has (index.html, core/keymap.js). Same row
+  // shape, and a row can be `waiting` for a key as well as chosen.
+  'keysScreen', 'keysBody', 'keysNote', 'keysHint', 'keyRow',
+  // Every place the page prints a key a hand can move (index.html, ui/screens.js `paintKeyWords`).
+  // They are the readouts a rebinding has to leave no one of behind, so a test has to be able to read
+  // all of them.
+  'titleKeysFly', 'titleKeysDash', 'titleKeysPause', 'titleKeysGiveUp', 'titleKeysHangar',
+  'titleKeysCodex', 'titleKeysSettings', 'titleKeysMute', 'titleKeysToday',
+  'hangarKeysBack', 'hangarKeysSettings', 'codexKeysBack', 'codexKeysSettings',
+  'settingsKeysClose', 'keysKeysBack',
+  'pauseKeysGiveUp', 'pauseKeysSettings', 'overKeysSettings', 'winKeysReroll',
 ];
 
 /**
@@ -451,8 +462,8 @@ function awardRow(row) {
 }
 
 /**
- * One row of the settings rack (game/settings.js, audio/engine.js): what the row is, what it is set
- * to, the one line about what it does, and whether the cursor is on it (ui/screens.js `showSettings`).
+ * One row of the settings rack as the stub DOM is holding it: the three parts of the line and whether
+ * the cursor is on it (game/settings.js, audio/engine.js).
  */
 function settingRow(row) {
   return {
@@ -460,6 +471,21 @@ function settingRow(row) {
     value: row.children[1].textContent,
     says: row.children[2].textContent,
     chosen: row.classList.contains('chosen'),
+  };
+}
+
+/**
+ * One row of the controls rack: the same three parts, and the two lights a row of that rack can wear -
+ * the cyan cursor and the amber "press the key you mean" (core/keymap.js, main.js `startListening`).
+ * Both are read rather than assumed, because the pair of them is the whole of what that panel says.
+ */
+function keyRow(row) {
+  return {
+    name: row.children[0].textContent,
+    value: row.children[1].textContent,
+    says: row.children[2].textContent,
+    chosen: row.classList.contains('chosen'),
+    waiting: row.classList.contains('waiting'),
   };
 }
 
@@ -537,7 +563,7 @@ export async function bootGame(options) {
     // and so are the four panels, each of which is put up by a key.
     const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
       || id === 'hangarScreen' || id === 'codexScreen' || id === 'pauseScreen'
-      || id === 'settingsScreen';
+      || id === 'settingsScreen' || id === 'keysScreen';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
@@ -873,6 +899,12 @@ export async function bootGame(options) {
     /** Choose the ship it flies, and take the primary that ship brings with it. */
     chooseShip: (id) => game.chooseShip(id),
     stats() { return game.stats(); },
+    /**
+     * What one element of the stub page says right now, by id. The generic version of the `screen`
+     * snapshot: for the one-off readouts a test wants - every place the page prints a key, for
+     * instance (ui/screens.js `paintKeyWords`) - a field per readout would be a field per test.
+     */
+    text(id) { return elements[id] === undefined ? '' : elements[id].textContent; },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
     get player() { return game.player; },
@@ -970,6 +1002,14 @@ export async function bootGame(options) {
         settingsScale: elements.settingsBody.style.transform || '',
         settingsNote: elements.settingsNote.textContent,
         settingsRows: elements.settingRow.children.map(settingRow),
+        // The controls rack behind the settings panel: whether it is up, how it was fitted, its two
+        // lines of its own, and every row - the control, the key it is on, and which of the two lights
+        // it wears (core/keymap.js, main.js).
+        keysHidden: elements.keysScreen.classList.contains('hidden'),
+        keysScale: elements.keysBody.style.transform || '',
+        keysNote: elements.keysNote.textContent,
+        keysHint: elements.keysHint.textContent,
+        keysRows: elements.keyRow.children.map(keyRow),
         // The hangar's third rack: every award there is, and which of them this save has (its title
         // carries the count) - game/awards.js, ui/screens.js `showAwards`.
         awardTitle: elements.awardTitle.textContent,

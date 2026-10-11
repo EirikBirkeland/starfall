@@ -83,6 +83,12 @@ const MAX_COUNT = 1000;
 // numbers.
 const MAX_RUNS = 64;
 
+// What a `KeyboardEvent.code` is allowed to look like (core/keymap.js): a capital to start, letters
+// and digits after it, and nothing else - `KeyW`, `Space`, `BracketLeft`. A code is a name from the
+// browser rather than one the game made, so it is not the lower-case `NAME` shape every other name in
+// this document is, and it is checked against the small table of codes the game will accept anyway.
+const KEYCODE = /^[A-Z][A-Za-z0-9]{1,15}$/;
+
 // A seed is a uint32 (core/rng.js), which is the widest number this field can legitimately hold.
 const MAX_SEED = 4294967295;
 
@@ -134,6 +140,31 @@ const KINDS = {
     if (value.length > 0 && kept.length === 0) return null;
     if (kept.length > max) return null;
     return kept.sort();
+  },
+  /**
+   * A map of one name to another: which key answers each of the controls a player can move
+   * (core/keymap.js, PLAN section 6). It is `counts` with the numbers replaced by key codes, and it
+   * keeps the same bargains entry by entry - an entry that is not the right kind of pair is dropped and
+   * its neighbours are kept, a map bigger than the game could fill is dropped whole, keys come out
+   * sorted so the same table always writes the same text.
+   *
+   * An empty map is the most common answer of all and is kept as one: every control on its shipped
+   * key writes nothing, because a document that remembers the defaults is a document that has to be
+   * right about them forever.
+   */
+  mapping: (maxNames) => (value) => {
+    if (!isPlainObject(value)) return null;
+    const kept = {};
+    const names = Object.keys(value).sort();
+    for (const name of names) {
+      if (!NAME.test(name)) continue;
+      const code = value[name];
+      if (typeof code !== 'string' || !KEYCODE.test(code)) continue;
+      kept[name] = code;
+    }
+    if (names.length > 0 && Object.keys(kept).length === 0) return null;
+    if (Object.keys(kept).length > maxNames) return null;
+    return kept;
   },
   /**
    * A tally of short names to whole numbers: how many ranks of each permanent perk the purse has
@@ -291,6 +322,12 @@ const SCHEMA = {
   // against the three the game can name) is why a set and not a tally is kept.
   tutorial: {
     learned: KINDS.names(MAX_NAMES),
+  },
+  // Which key answers which control (core/keymap.js, PLAN section 6). Control id -> key code, and
+  // only for the rows that are not on their shipped key - the shipped table is in the build, not in
+  // the document, so a control this build has never heard of is simply not bound by the save.
+  keys: {
+    binds: KINDS.mapping(MAX_NAMES),
   },
 };
 

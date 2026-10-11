@@ -1068,7 +1068,23 @@ When every item above is ticked, go back to the first unchecked item of mileston
       nose where the hand left it: the switch does not make a target out of empty sky. The body held is
       `world.aimLock`, derived state like the grid and the packs - it goes with the crowd, with the run,
       and with the switch that asked for it.)
-- [ ] Key rebinding.
+- [x] Key rebinding. (**Thirteen controls** on a rack of their own one press inside the settings panel:
+      the four that fly the ship, the dash, the pause, giving the run up, the hangar, the codex, the
+      settings, today's arena, the reroll and the mute. `core/keymap.js` is the one table - it answers
+      "which key" and "which control", both ways, and it is the only thing the input layer, the page and
+      the save ask. `input/keyboard.js` hard-codes nothing but what no panel can offer a row for: the
+      launch, the numbers that pick a card or a ship, the two volume pairs, `F3`, the arrows, and `Esc`
+      (a key that cancels a rebinding cannot be the key a rebinding takes). **The four arrows are always
+      movement as well**, whatever the rows say, because they are the pair a keyboard with no letters to
+      spare still has - and no panel can be put up over a run being flown, so a cursor and a ship can
+      share them without a key ever meaning two things at once. A row is changed by pressing the key:
+      `\u2192` asks the keyboard for one (one listener in front of everything for exactly one keypress,
+      and a key that cannot be taken is refused in silence), `\u2190` puts the shipped one back, and a
+      key that is already somebody else's trades instead of being stolen. **Nothing is left holding an
+      old key**: the title's list, the racks' hints, the two cards, the pause's line and the lesson plate
+      in play are all written from the table (`ui/screens.js` `paintKeyWords`, `game/tutorial.js`
+      `saysOf`), so a visit that rebound its keys is never handed a manual about somebody else's
+      keyboard.)
 - [x] Gamepad support. (PLAN section 6's three controls, and deliberately nothing else: **left stick
       to fly, right stick to aim and to fire, a right shoulder to dash**, plus the two presses every
       screen already means - A is the launch key and Start holds the run. `input/gamepad.js` is polled

@@ -26,6 +26,7 @@ import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades
 import { endingWords, hullLedger } from '../game/tally.js';
 import { cardWords, titleWords } from '../game/daily.js';
 import { clockWords } from '../core/words.js';
+import { wordsOf } from '../core/keymap.js';
 import { uiTick } from '../audio/sfx.js';
 
 let el = null;
@@ -43,12 +44,12 @@ let perkRows = [];
 let perkNumbers = [];
 let perkPrices = [];
 
-// Whether a panel is up right now, and which one: '' for neither, and the four keys that open them
+// Whether a panel is up right now, and which one: '' for neither, and the five keys that open them
 // are the only things that can write anything else. `hideScreens` clears it with the screens
 // themselves, so there is no path where a run is flying and this still says open.
 let panelUp = '';
 
-// The four panels, in the one list everything that is true of "a panel" walks: taking them all
+// The five panels, in the one list everything that is true of "a panel" walks: taking them all
 // down, and fitting whichever one is up. Built once in `initScreens`, beside the elements themselves.
 let panels = [];
 // The codex's three panels, in the same shape the racks are kept in: the rows, and the two parts of
@@ -76,6 +77,10 @@ let buildRows = [];
 // painted from what those owners answer, so the rack grows and trims like the log's rather than being
 // assumed.
 let settingRows = [];
+
+// The controls panel's rack (core/keymap.js): one row per key a hand can move. Same shape and the
+// same reason as the settings above - the table is fixed for a visit, the words on it are not.
+let keyRows = [];
 
 // The two ending cards' hull racks (game/tally.js `hullLedger`): what each hull of the run went to,
 // one row apiece. Both cards grow and trim theirs the way the log and the pause's racks do, because
@@ -287,6 +292,62 @@ function buildSettingRow() {
   return buildRow(el.settingRow, 'setting', ['name', 'value', 'says']);
 }
 
+/**
+ * One row of the controls panel: the control, the key that answers it, and one line on what it is.
+ *
+ * It is the setting row's shape - same three spans, same classes, same CSS - because it *is* a setting
+ * row, one where the value happens to be a key. What a row is set to is again the bright part, and on
+ * this panel it is the only part a press changes.
+ */
+function buildKeyRow() {
+  return buildRow(el.keyRow, 'setting', ['name', 'value', 'says']);
+}
+
+/**
+ * Every place the page prints a key a hand can move, and the control it prints it for
+ * (core/keymap.js). index.html carries these ids and `paintKeyWords` writes them, so a rebound key
+ * cannot be stale in one place and fresh in another: the title's list, the line on the pause, the
+ * hints on the racks and on the two ending cards all say what the game currently hears.
+ *
+ * The fixed keys are deliberately not in here - `MOUSE`, the numbers, `F3`, the arrows - because a
+ * line about a key that cannot move cannot go stale.
+ */
+export const KEY_LABELS = [
+  ['titleKeysFly', ['up', 'left', 'down', 'right']],
+  ['titleKeysDash', 'dash'],
+  ['titleKeysPause', 'pause'],
+  ['titleKeysGiveUp', 'giveup'],
+  ['titleKeysHangar', 'hangar'],
+  ['titleKeysCodex', 'codex'],
+  ['titleKeysSettings', 'settings'],
+  ['titleKeysMute', 'mute'],
+  ['titleKeysToday', 'daily'],
+  ['hangarKeysBack', 'hangar'],
+  ['hangarKeysSettings', 'settings'],
+  ['codexKeysBack', 'codex'],
+  ['codexKeysSettings', 'settings'],
+  ['settingsKeysClose', 'settings'],
+  ['keysKeysBack', 'settings'],
+  ['pauseKeysGiveUp', 'giveup'],
+  ['pauseKeysSettings', 'settings'],
+  ['overKeysSettings', 'settings'],
+  ['winKeysReroll', 'reroll'],
+];
+
+/**
+ * Write every key the page prints, from the table that says what the game hears. Called once at boot
+ * and after any row has been moved (main.js) - which is the whole of keeping the page honest.
+ */
+export function paintKeyWords() {
+  for (const entry of KEY_LABELS) {
+    const node = document.getElementById(entry[0]);
+    if (node === null) {
+      throw new Error('the page has no ' + entry[0] + ' element to write a key into');
+    }
+    node.textContent = wordsOf(entry[1]);
+  }
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -334,6 +395,13 @@ export function initScreens() {
     settingsBody: document.getElementById('settingsBody'),
     settingsNote: document.getElementById('settingsNote'),
     settingRow: document.getElementById('settingRow'),
+    // The controls: the one door off that settings panel, and the rack of keys behind it
+    // (core/keymap.js, PLAN section 6).
+    keys: document.getElementById('keysScreen'),
+    keysBody: document.getElementById('keysBody'),
+    keysNote: document.getElementById('keysNote'),
+    keysHint: document.getElementById('keysHint'),
+    keyRow: document.getElementById('keyRow'),
     titleBest: document.getElementById('titleBest'),
     titleDust: document.getElementById('titleDust'),
     titleToday: document.getElementById('titleToday'),
@@ -358,7 +426,7 @@ export function initScreens() {
   cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
   awardRows = AWARDS.map(buildAwardRow);
-  // The four panels, in the one list everything that is true of "a panel" walks: taking them all
+  // The five panels, in the one list everything that is true of "a panel" walks: taking them all
   // down, and fitting whichever one is up. Built here, beside the elements themselves, because
   // `initScreens` is the first thing the boot does.
   panels = [
@@ -366,7 +434,13 @@ export function initScreens() {
     { which: 'codex', screen: el.codex, body: el.codexBody },
     { which: 'pause', screen: el.pause, body: el.pauseBody },
     { which: 'settings', screen: el.settings, body: el.settingsBody },
+    { which: 'keys', screen: el.keys, body: el.keysBody },
   ];
+  keyRows = [];
+  // Every key the page prints, written from the table (see `paintKeyWords`). The page ships the
+  // shipped words so that a page read without any JavaScript at all still reads like the game, and
+  // this is the moment the visit's own bindings take over.
+  paintKeyWords();
 }
 
 /** Is the hangar up right now? main.js routes the number keys and the launch around the answer. */
@@ -468,6 +542,21 @@ export function settingsIsUp() {
 /** ...and the settings, over the title, over the death's card, or over a run that is being held. */
 export function openSettings() {
   raisePanel('settings', el.settings, el.settingsBody);
+}
+
+/**
+ * Is the controls panel up? It is a settings panel in every way that matters - a rack of rows, an
+ * arrow cursor, nothing on it that can move a run - and it is only ever reached from the settings
+ * panel itself, which is why the launch key and the ship numbers stand aside for it exactly as they
+ * do for its parent (main.js).
+ */
+export function keysIsUp() {
+  return panelUp === 'keys';
+}
+
+/** ...and the rack of keys behind the door the settings panel has for it. */
+export function openKeys() {
+  raisePanel('keys', el.keys, el.keysBody);
 }
 
 /**
@@ -832,7 +921,7 @@ function buildLines(ranks, cut) {
 export function showPause(run, onGlass) {
   el.pauseHint.textContent = onGlass
     ? 'TAP TO GO BACK TO THE RUN'
-    : 'ESC OR P TO GO BACK TO THE RUN';
+    : 'ESC OR ' + wordsOf('pause') + ' TO GO BACK TO THE RUN';
   el.pauseHead.textContent = 'SCORE '
     + run.score.toLocaleString('en-US') + '   \u00b7   ' + clockWords(run.seconds);
   paintRows(factRows, el.factRow, factLines(run), buildFactRow);
@@ -868,9 +957,40 @@ export function showSettings(panel) {
   }
 }
 
+/**
+ * Paint the controls panel: the note, the hint under it, and one row per control a hand can move
+ * (core/keymap.js `ACTIONS`, which main.js hands over in its own words).
+ *
+ * It is `showSettings` with the parts turned around: there, the value is what a press changes and the
+ * line under it is fixed; here, the name and the line under it are the table's and the value is what
+ * the player has moved. The one extra thing a row can be is `waiting` - this row is the one a hand is
+ * being asked for a key on (main.js `startListening`) - and it keeps its cursor with it, because the
+ * amber is the cursor's other state and not a second light somewhere else on the rack.
+ */
+export function showKeys(panel) {
+  el.keysNote.textContent = panel.note;
+  el.keysHint.textContent = panel.hint;
+  while (keyRows.length > panel.rows.length) el.keyRow.removeChild(keyRows.pop().row);
+  while (keyRows.length < panel.rows.length) keyRows.push(buildKeyRow());
+  for (let i = 0; i < panel.rows.length; i++) {
+    const row = keyRows[i];
+    const line = panel.rows[i];
+    row.name.textContent = line.name;
+    row.value.textContent = line.value;
+    row.says.textContent = line.says;
+    row.row.classList.toggle('chosen', line.chosen === true);
+    row.row.classList.toggle('waiting', line.waiting === true);
+  }
+}
+
 /** Fit the settings panel to the window (see `fitPanel`). */
 export function fitSettings() {
   fitPanel(el.settingsBody, el.settings);
+}
+
+/** ...and the controls panel, which wears the settings panel's CSS and so needs the same fitting. */
+export function fitKeys() {
+  fitPanel(el.keysBody, el.keys);
 }
 
 /** What the visit has to show for itself, in both places it is read: the best score, the purse, and

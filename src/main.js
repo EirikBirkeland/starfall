@@ -36,6 +36,11 @@ import {
   ROWS as ASSIST_ROWS, loadFromSave as loadAssists, stepRow as stepAssistRow,
   wordsOf as assistWords, stepIdOf as assistStep,
 } from './game/assists.js';
+import {
+  ACTIONS as KEY_ACTIONS, loadFromSave as loadKeys, tableAsWords as keyTable,
+  wordsOf as keyWords, bindable as keyIsBindable, rebind as rebindKey, restore as restoreKey,
+  changedCount as keysChangedCount,
+} from './core/keymap.js';
 import { initCanvas, resizeCanvas, view, calmMotion } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
 import { buildStars, updateStars } from './render/background.js';
@@ -43,7 +48,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse, thumb, pad } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys } from './input/index.js';
 import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -52,7 +57,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, openHangar, openCodex, openPause, openSettings, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, panelIsUp, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -169,9 +174,9 @@ function beginRun(whichDay) {
  * are for, and the card says so.
  */
 function pressAction() {
-  // The settings panel owns the screen it is put up on, launch key included: a press that is meant
-  // for the row the cursor is on is not also a press that starts a run out from under it.
-  if (settingsIsUp()) return;
+  // A rack that changes things owns the screen it is put up on, launch key included: a press that is
+  // meant for the row the cursor is on is not also a press that starts a run out from under it.
+  if (ownsTheScreen()) return;
   if (continueRun(world)) {
     // The same bargain `beginRun` strikes with the launch key: Space is the dash as well, and a run
     // resumed out of the hush owes no free dash on the step it comes back on.
@@ -192,7 +197,7 @@ function onCanvasPressed() {
   // because the pause *is* one of the panels, and the pause rack says so in its own line
   // (ui/screens.js `showPause`). The settings rack over a held run still owns the screen: a tap that
   // is meant for a row is not a tap that goes back into the fight.
-  if (world.paused && thumb.used && !settingsIsUp()) {
+  if (world.paused && thumb.used && !ownsTheScreen()) {
     resumeRun(world);
     return;
   }
@@ -264,10 +269,10 @@ function onPickCard(number, withShift) {
   // audio is not disturbed by the ask, and `uiTick` on its own never starts a context: only a
   // handler that is answering a press is allowed to.
   initAudio();
-  // The numbers name a row of whatever panel is on the glass, and the settings panel has no numbered
-  // rows - so they are refused here rather than left to quietly change the ship behind the panel a
-  // player is looking at (ui/screens.js `settingsIsUp`).
-  if (settingsIsUp()) return;
+  // The numbers name a row of whatever panel is on the glass, and neither of the two racks that
+  // change things has numbered rows - so they are refused here rather than left to quietly change the
+  // ship behind a panel a player is looking at (see `ownsTheScreen`).
+  if (ownsTheScreen()) return;
   if (world.state === STATE.LEVEL) {
     // Shift turns the same number into the other thing a card can be answered with: it
     // cuts that line out of the run instead of taking it.
@@ -448,6 +453,17 @@ function settingRows() {
       },
     });
   }
+  // The door to the keys. It is not a setting - nothing it steps through changes a number, it puts up
+  // another rack - so it carries an `opens` instead of a `step` and `onRowChange` sends it a different
+  // way (see that function). Its value says whether this save has moved anything at all, which is the
+  // one thing about the keymap a player can be told without opening it.
+  const moved = keysChangedCount();
+  rows.push({
+    name: 'KEYS',
+    says: 'EVERY KEY THE SHIP ANSWERS \u00b7 PRESS LEFT OR RIGHT',
+    value: moved === 0 ? 'ALL SHIPPED' : moved + ' CHANGED',
+    opens: openKeysPanel,
+  });
   rows.push({
     name: 'MUSIC', says: 'THE SEQUENCER UNDER THE ARENA',
     value: sliderWords(musicLevel()),
@@ -523,6 +539,12 @@ function settingsMayOpen() {
  */
 function onSettings() {
   initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
+  // The controls rack is a page of this panel, and O is the way back off it - the same key that got
+  // there, because a rack reached from the settings belongs to them.
+  if (keysIsUp()) {
+    backToSettings();
+    return;
+  }
   if (settingsIsUp()) {
     closePanels();
     if (world.paused) raisePause();
@@ -534,6 +556,170 @@ function onSettings() {
   paintSettings();
   openSettings();
   uiTick('open');
+}
+
+/**
+ * Is a rack that *changes* things on the glass?
+ *
+ * The settings panel and the controls rack behind it are one family: both are arrow-driven, both keep
+ * nothing about the run they are sitting over, and both therefore stand between the launch key and the
+ * run it would otherwise start, and between a number key and the ship behind the panel. The hangar and
+ * the codex only read, so a launch over them is still a launch and a number is still a pick.
+ */
+function ownsTheScreen() {
+  return settingsIsUp() || keysIsUp();
+}
+
+// --- the controls panel ---------------------------------------------------------
+// The keys a hand can move (core/keymap.js), on a rack of their own one press off the settings panel.
+// What lives here is the panel's furniture - which row the cursor is on, and whether one of them is
+// waiting for a key - and none of it is a fact about a run or a save: the bindings are the keymap's,
+// and the keymap writes them to the save the moment one moves.
+
+/** The cursor on the controls rack, counted from the top. Back to the top every time it goes up. */
+let keysCursor = 0;
+
+/** Which row is waiting for a key, or -1 when none is. One at a time: there is one keyboard. */
+let waitingRow = -1;
+
+/** What the rack says under its own heading, beside the settings panel's own line. */
+const KEYS_NOTE = 'EVERY KEY IS KEPT FOR THE NEXT VISIT';
+
+/** The line under the rack. It changes while a row is waiting, because the keys have changed meaning.
+ * Both lines are caps and neither ends on a full stop, like everything else on a panel (test/words). */
+const KEYS_HINT = '\u2191 \u2193 PICK A ROW \u00b7 \u2192 TAKE A KEY \u00b7 \u2190 PUT THE SHIPPED KEY BACK';
+const WAITING_HINT = 'PRESS THE KEY YOU MEAN \u00b7 ESC LEAVES THE ROW AS IT IS';
+
+/**
+ * The rack's rows, straight out of the table (core/keymap.js `ACTIONS`): the control, the key that
+ * answers it *now*, and the table's own line about what the control is.
+ *
+ * `waiting` is the row a hand is being asked about, and it is the only row lit in amber - a cyan cursor
+ * means "this row, next arrow changes it" and amber means "this row, next key is it", and one row can
+ * only be one of those at a time (ui/screens.js `showKeys`).
+ */
+function keyRows() {
+  const rows = [];
+  for (let i = 0; i < KEY_ACTIONS.length; i++) {
+    const action = KEY_ACTIONS[i];
+    rows.push({
+      name: action.name,
+      says: action.says,
+      value: keyWords(action.id),
+      chosen: i === keysCursor,
+      waiting: i === waitingRow,
+    });
+  }
+  return rows;
+}
+
+/** Paint the rack from the table, and fit it to the window like every other panel. */
+function paintKeys() {
+  showKeys({
+    note: KEYS_NOTE,
+    hint: waitingRow < 0 ? KEYS_HINT : WAITING_HINT,
+    rows: keyRows(),
+  });
+  fitKeys();
+}
+
+/** Stop asking the keyboard for a key, whoever was asking. */
+function stopListening() {
+  waitingRow = -1;
+  captureKeys(null);
+}
+
+/** Put the row the cursor is on into "press the key you mean" (input/keyboard.js hands it over). */
+function startListening() {
+  waitingRow = keysCursor;
+  captureKeys(takeCapturedKey);
+  paintKeys();
+}
+
+/**
+ * The next keypress, given to the row that asked for it.
+ *
+ * Three answers, and the first is the safety net: the rack may have been taken down under the
+ * rebinding - a held run let go of with `Esc`, a hangar opened with a stray letter - and a request made
+ * by a panel nobody can see is a request to cancel rather than one to honour.
+ *
+ * A key the game cannot name (a function key, a modifier, one of the numbers a card is answered with)
+ * is refused in silence and the row keeps waiting, which is the same bargain every refused press in this
+ * game strikes: the panel does not light for a key that did nothing. `Escape` is the way out of the row,
+ * and the only thing it does while the row is waiting - the pause keeps its meaning the moment the rack
+ * stops asking.
+ */
+function takeCapturedKey(code) {
+  if (!keysIsUp()) { stopListening(); return; }
+  if (code === 'Escape') {
+    stopListening();
+    paintKeys();
+    uiTick('close');
+    return;
+  }
+  if (!keyIsBindable(code)) return;
+  const moved = rebindKey(KEY_ACTIONS[waitingRow].id, code);
+  if (moved === null) return;       // the key this row already wears: nothing moved, nothing to say
+  stopListening();
+  paintKeys();
+  // ...and every other place the game prints a key says the new one too - the title's list, the racks'
+  // hints, the pause's line, and the lesson plate in play (ui/screens.js `paintKeyWords`).
+  paintKeyWords();
+  uiTick('confirm');
+}
+
+/** The settings panel's door into this one (see `settingRows`, where the KEYS row lives). */
+function openKeysPanel() {
+  stopListening();
+  keysCursor = 0;
+  paintKeys();
+  openKeys();
+  uiTick('open');
+}
+
+/** ...and the way back: repaint the settings panel from its owners and put it up again, which is what
+ * taking this rack down leaves looking wrong (ui/screens.js `raisePanel` takes it down on its way up). */
+function backToSettings() {
+  stopListening();
+  paintSettings();
+  openSettings();
+  uiTick('close');
+}
+
+/** Up and down on the controls rack: the cursor, and nothing else. No wrapping, same rule as the
+ * settings panel - the end of the rack is a place to be. Moving the cursor while a row is waiting
+ * cancels the wait: a hand that has moved the cursor has stopped asking for that key. */
+function moveKeysRow(delta) {
+  if (waitingRow >= 0) stopListening();
+  const last = KEY_ACTIONS.length - 1;
+  const next = Math.max(0, Math.min(last, keysCursor + delta));
+  if (next === keysCursor) {
+    if (waitingRow < 0) return;      // nothing moved and nothing was waiting: a silent press
+    paintKeys();
+    return;
+  }
+  keysCursor = next;
+  paintKeys();
+  uiTick('pick');
+}
+
+/**
+ * Left and right on the controls rack: right asks the keyboard for a new key for the row, left puts the
+ * shipped one back.
+ *
+ * Left is the arrow that means "back", which is why it gets the undo, and it is silent when the row is
+ * already shipped - a press that changed nothing is not allowed to look as though it had (BALANCE.ui).
+ */
+function changeKeysRow(delta) {
+  // Any arrow on this rack ends the asking first: a hand that has gone back to the arrows has stopped
+  // answering the question the row asked. Then the arrow does its own verb - right asks again, left puts
+  // the shipped key back (and a row that is already shipped is put back by nothing).
+  stopListening();
+  if (delta > 0) { startListening(); return; }
+  if (!restoreKey(KEY_ACTIONS[keysCursor].id)) return;
+  paintKeys();
+  paintKeyWords();
+  uiTick('down');
 }
 
 /**
@@ -557,6 +743,7 @@ function onDebug() {
  * would put the shake back under a hand that was trying to take it off.
  */
 function onRowMove(delta) {
+  if (keysIsUp()) { moveKeysRow(delta); return; }
   if (!settingsIsUp()) return;
   const last = settingRows().length - 1;
   const next = Math.max(0, Math.min(last, settingCursor + delta));
@@ -580,8 +767,13 @@ function onRowMove(delta) {
  * press prints the same panel twice over rather than anything worse.
  */
 function onRowChange(delta) {
+  if (keysIsUp()) { changeKeysRow(delta); return; }
   if (!settingsIsUp()) return;
-  if (!settingRows()[settingCursor].step(delta)) return;
+  const row = settingRows()[settingCursor];
+  // One row on that panel is not a setting at all: it is a door onto the rack below it, and a door is
+  // opened the same way whichever arrow is pressed (see `settingRows`, where the row lives).
+  if (row.opens !== undefined) { row.opens(); return; }
+  if (!row.step(delta)) return;
   paintSettings();
 }
 
@@ -942,6 +1134,9 @@ function frame(now) {
 }
 
 function boot() {
+  // The keys first, before anything can print one: the rack of them, the title's list and the lesson
+  // plate in play all read the table this fills (core/keymap.js).
+  loadKeys();
   initScreens();
   initCanvas(document.getElementById('game'));
   logoBox = document.getElementById('logoBox');
@@ -1111,6 +1306,12 @@ window.STARFALL = {
       // two rows on it that change what a run does rather than what it looks like - which is exactly why
       // a tool wants to be able to see them.
       assists: assistSteps(),
+      // ...and whether the controls rack is on the glass, and where every movable key is bound
+      // (core/keymap.js). A headless tool presses keys by name, so it has to be able to ask what the
+      // game is hearing - and a test that rebound something has to be able to say it landed.
+      keysUp: keysIsUp(),
+      keysWaiting: waitingRow,
+      keys: keyTable(),
       // Has this visit flown on a finger (input/touch.js)? It is the third way to hold the two
       // switches above - a thumb means the trigger is held and the gun aims itself - and a headless
       // tool cannot tell it from the two switches, because a visit that turned them on by hand and a

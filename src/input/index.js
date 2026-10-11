@@ -14,6 +14,7 @@
 // into the arena in front of the ship instead.
 
 import { keys, keyTaps, initKeyboard, clearKeys } from './keyboard.js';
+import { codeFor } from '../core/keymap.js';
 import { mouse, mouseTaps, initMouse, releaseMouse } from './mouse.js';
 import { thumb, touchTaps, initTouch, clearThumb } from './touch.js';
 import { pad, padTaps, initGamepad, readPads, clearPad } from './gamepad.js';
@@ -52,6 +53,11 @@ export function initInput(canvas, handlers) {
 let aimHand = 'pointer';
 let pointerCount = 0;
 
+/** Is the key one of the four movement controls is bound to held down? (core/keymap.js) */
+function held(id) {
+  return keys[codeFor(id)] === true;
+}
+
 /** Fold the devices this build supports into `input`. */
 export function readInput() {
   // The pad is read here and not from an event because a pad has no event worth waiting for: the one
@@ -59,8 +65,12 @@ export function readInput() {
   // call a frame and finds a pad the frame it was plugged in.
   readPads();
 
-  const dx = ((keys.KeyD || keys.ArrowRight) ? 1 : 0) - ((keys.KeyA || keys.ArrowLeft) ? 1 : 0);
-  const dy = ((keys.KeyS || keys.ArrowDown) ? 1 : 0) - ((keys.KeyW || keys.ArrowUp) ? 1 : 0);
+  // The four movement keys are wherever this player put them (core/keymap.js), and the arrows are
+  // movement as well always - the shipped second pair, which no panel can take away and which is what
+  // a keyboard with no letters to spare still has. A panel may use the arrows for its cursor and the
+  // ship can still use them because the two never happen on one screen (input/keyboard.js).
+  const dx = (held('right') || keys.ArrowRight ? 1 : 0) - (held('left') || keys.ArrowLeft ? 1 : 0);
+  const dy = (held('down') || keys.ArrowDown ? 1 : 0) - (held('up') || keys.ArrowUp ? 1 : 0);
 
   input.moving = dx !== 0 || dy !== 0;
   if (input.moving) {
@@ -129,3 +139,6 @@ export function clearInput() {
 }
 
 export { keys, mouse, thumb, pad };
+// A panel that is being given a key needs the keyboard for one press (core/keymap.js, main.js), and
+// the input layer is the only door anything has to it.
+export { captureKeys } from './keyboard.js';

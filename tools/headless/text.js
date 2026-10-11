@@ -9,8 +9,9 @@
 // own elements are holding.
 //
 // What it covers, in the order it visits it: the title, the hangar (ships, perks, awards), the codex,
-// the settings, the mixer readout, a run flying (the HUD, the level-up table), the pause, the wreck's
-// card, and the win's card. What it does *not* reach, and why the test says so as well:
+// the settings, the rack of keys behind them, the mixer readout, a run flying (the HUD, the level-up
+// table), the pause, the wreck's card, and the win's card. What it does *not* reach, and why the test
+// says so as well:
 //
 //   * the first-run prompts (game/tutorial.js), which need a visit that has never flown before and so
 //     need a page of their own - one game lives in a process (tools/headless/harness.js);
@@ -45,6 +46,7 @@ const MARKED_SCREENS = [
   { id: 'codexScreen', stop: 'codex' },
   { id: 'pauseScreen', stop: 'pause' },
   { id: 'settingsScreen', stop: 'settings' },
+  { id: 'keysScreen', stop: 'keys' },
   { id: 'overScreen', stop: 'wreck' },
   { id: 'winScreen', stop: 'win' },
 ];
@@ -156,6 +158,7 @@ const READS = {
   hangar: ['hangar', 'ships', 'perks', 'award'],
   codex: ['codex', 'pastRuns'],
   settings: ['settings'],
+  keys: ['keys'],
   pause: ['pause'],
   wreck: ['final', 'hulls', 'newBest', 'stats'],
   win: ['win', 'newBest'],
@@ -238,7 +241,13 @@ export async function harvestVisit(options) {
 
   tap(game, 'KeyO');
   stops.push(look(game, 'settings'));
-  tap(game, 'KeyO');
+  // The rack of keys behind the door on that panel. The cursor is walked down to the door rather than
+  // guessed at, because the door is wherever the panel prints it (main.js `settingRows`).
+  for (let i = 0; i < 4; i++) tap(game, 'ArrowDown');
+  tap(game, 'ArrowRight');
+  stops.push(look(game, 'keys'));
+  tap(game, 'KeyO');                                    // back to the settings it came from
+  tap(game, 'KeyO');                                    // and away
 
   // The mixer readout, which is the one panel that goes up over a run and outlives nothing.
   tap(game, 'BracketLeft');

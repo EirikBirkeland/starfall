@@ -308,21 +308,21 @@ test('the panel asks for the two switches last, and keeps them in the save', asy
   // Last, and that is a decision: everything above them is the game's report about a run and cannot
   // change one; these two are the hand (main.js `settingRows`).
   assert.deepEqual(game.screen.settingsRows.map((row) => row.name), [
-    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'MUSIC', 'SOUND', 'MUTE',
+    'SCREEN SHAKE', 'HIT FLASH', 'SCORE NUMBERS', 'PARTICLES', 'KEYS', 'MUSIC', 'SOUND', 'MUTE',
     'AUTO-FIRE', 'AUTO-AIM',
-  ], 'four to the eyes, three to the ears, then the two to the hand');
-  assert.deepEqual(game.screen.settingsRows.slice(7).map((row) => row.value), ['OFF', 'OFF'],
+  ], 'four to the eyes, the door onto the keys, three to the ears, then the two to the hand');
+  assert.deepEqual(game.screen.settingsRows.slice(8).map((row) => row.value), ['OFF', 'OFF'],
     'and the panel prints where they stand, which is off');
-  for (const row of game.screen.settingsRows.slice(7)) {
+  for (const row of game.screen.settingsRows.slice(8)) {
     assert.ok(row.says.length > 0, row.name + ' says what it does');
   }
 
   // Down the whole panel to AUTO-FIRE, and step it: the row on the glass and the game agree.
-  for (let i = 0; i < 7; i++) press('ArrowDown');
-  assert.equal(game.screen.settingsRows[7].chosen, true, 'the cursor reaches the last two rows');
+  for (let i = 0; i < 8; i++) press('ArrowDown');
+  assert.equal(game.screen.settingsRows[8].chosen, true, 'the cursor reaches the last two rows');
   press('ArrowRight');
   assert.equal(game.stats().assists.fire, 'on');
-  assert.equal(game.screen.settingsRows[7].value, 'ON');
+  assert.equal(game.screen.settingsRows[8].value, 'ON');
   press('ArrowRight');
   assert.equal(game.stats().assists.fire, 'on', 'refused at the end of the row, in silence');
 
