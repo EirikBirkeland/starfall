@@ -24,14 +24,19 @@
 //   node tools/run-shape.js                        48 seeds, the person-shaped bot, cards by die
 //   node tools/run-shape.js --seeds 1-200 --shards 8
 //   node tools/run-shape.js --bot aware --picks wise --runs 12
+//   node tools/run-shape.js --ship bulwark --weapon lance   fly something other than the default
 //   node tools/run-shape.js --out /tmp/a.jsonl     one JSON row per run, kept for re-reading
 //   node tools/run-shape.js --in /tmp/a.jsonl --in /tmp/b.jsonl    pool rows already played
 //   node tools/run-shape.js --every 30 --seconds 300 --quiet       coarser, shorter, verdict only
 //
 // The flags are `--seed N` `--runs M` `--seeds 1-24` or `--seeds 1,3,5` `--bot naive|aware|human`
-// `--picks wise|random` `--ship stock|bulwark|skiff` `--seconds N` `--every N` `--shards K`
-// `--out FILE` `--in FILE` `--quiet`. The exit code is the difficulty arc's verdict, same as
-// `tools/difficulty-arc.js`, so either one can gate a release.
+// `--picks wise|random` `--ship stock|bulwark|skiff` `--weapon pulse|scatter|arc|lance|swarm`
+// `--seconds N` `--every N` `--shards K` `--out FILE` `--in FILE` `--quiet`. The exit code is the
+// difficulty arc's verdict, same as `tools/difficulty-arc.js`, so either one can gate a release.
+// The ship and the weapon go through the same doors the title screen uses (game/ships.js,
+// game/weapons.js), so a shape table measured on the Bulwark flying the lance is the run a player
+// who bought that ship actually has - which is how a hangar item gets arc-tested rather than
+// assumed.
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -163,7 +168,8 @@ export function writeRows(file, rows) {
 /** Read the command line into plain values, and throw on anything it does not understand. */
 export function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS, {
-    seeds: null, infiles: [], outfile: '', ship: undefined, quiet: false, playOnly: false,
+    seeds: null, infiles: [], outfile: '', ship: undefined, weapon: undefined, quiet: false,
+    playOnly: false,
   });
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -178,6 +184,7 @@ export function readArgs(argv) {
     else if (flag === '--bot') opts.policy = value();
     else if (flag === '--picks') opts.picks = value();
     else if (flag === '--ship') opts.ship = value();
+    else if (flag === '--weapon') opts.weapon = value();
     else if (flag === '--seconds') opts.seconds = Number(value());
     else if (flag === '--every') opts.every = Number(value());
     else if (flag === '--shards') opts.shards = Number(value());
@@ -205,6 +212,7 @@ async function play(seeds, opts) {
     policy: opts.policy,
     picks: opts.picks,
     ship: opts.ship,
+    weapon: opts.weapon,
     // Called on every frame, including the one the run ends on. Only the *first* frame of each
     // slice is kept, which is what makes a 15-minute run cost fifteen numbers and not fifty-four
     // thousand - and it is why a row of the table can say "as it stood at 3m00s" and mean it.
@@ -232,6 +240,7 @@ async function playSharded(seeds, opts) {
   const pass = ['--seconds', String(opts.seconds), '--every', String(opts.every),
     '--bot', opts.policy, '--picks', opts.picks];
   if (opts.ship !== undefined) pass.push('--ship', opts.ship);
+  if (opts.weapon !== undefined) pass.push('--weapon', opts.weapon);
   const { spawn } = await import('node:child_process');
   const kids = chunks.map((chunk, k) => new Promise((resolve, reject) => {
     const kid = spawn(process.execPath, [fileURLToPath(import.meta.url),

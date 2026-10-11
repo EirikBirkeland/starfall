@@ -10727,3 +10727,120 @@ PLAN 3.3 and is right anyway (the tank's 0:10 is the first).
   itself, say. That is a feature and it belongs after the weapon ladder, and PLAN's answer says so.
 - Any balance change from now on deserves `node tools/run-shape.js --seeds 1-48 --shards 8` after it.
   It is a minute of wall clock and it is the only way to tell "moved the middle" from "moved the tails".
+
+---
+
+## Session 91 — the weapon ladder: PLAN's 25% band, measured at 21x, and the currency it is priced in
+
+Milestone 10's weapon-parity item. **Nothing in `src/` changed**, so there is no release and the
+reference run is byte for byte what it was (`--seed 20261006` is still 10m00s / 75,596 / level 58 /
+kills 4004 / shards 5162 / vacuums 7 (2065 in)). Suite is **1697 tests** (was 1678): 19 new in
+`test/weapon-ladder.test.mjs`, one line added to `test/run-shape.test.mjs`.
+
+### What was built
+
+**`tools/weapon-ladder.js`** - a check, not a report: it exits non-zero, so it can gate a release
+the way `tools/difficulty-arc.js` does. `tools/balance-report.js` cannot see the primary at all (a
+gun is not an upgrade line), so PLAN's "no weapon over 25% better" sentence had no number anywhere.
+It prices every primary three ways on the same seeds and gates only the third:
+
+- **the knots, chipped** - hull a second off `tools/power-ladder.js`'s three knots with bodies that
+  cannot die. What a gun's geometry buys, bot-free.
+- **the knots, felled** - the same knots planted with `bodyHull()` (3: the hull a body carries once
+  `enemies.hpScaleWindow x hpScaleMax` has gone by, asked of `game/kinds.js` rather than written
+  in), a body that comes apart wound up and put back and counted. So: **bodies a second**, plus
+  `cost/kill` - what a body costs the gun in damage.
+- **the run** - the bot plays N seeds a gun; the middle run's score is the yardstick, with level,
+  kills and hull/s beside it. This is the only gated column. A knot is a geometry and a shotgun is
+  *supposed* to own a press (the scatter's 3x on a ring is its identity, session 33), so the knot
+  spreads are printed and never gated.
+
+`--seeds 1-24 --shards 8` splits seeds over child processes (one game per process, session 89's
+lesson); `--out`/`--in` keep and pool rows; `--guns a,b`, `--knots-only`, `--quiet`. Sixteen seeds a
+gun at the 15-minute cap took 7 minutes over 10 shards instead of about 35 in one process.
+
+**`tools/power-ladder.js` was refactored, not duplicated**: it now exports `KNOTS`, `marked`, `pin`
+and a new `revive`, its knot builders take an `hp`, and its CLI sits behind an `isMain` guard - so
+one file owns the knot geometry and its own printed table came out byte-identical to before
+(`--line damage --seconds 6` prints, character for character, what it printed before the
+refactor - checked by running the old file from git alongside the new one).
+`revive` throws if a body was never `marked`: a knot wound back up to `undefined` hull measures as
+nothing at all and would have said so quietly. `tools/run-shape.js` gained `--weapon` next to
+`--ship`, so a shape table can be read for the gun a ship actually carries.
+
+### The reading (16 seeds a gun, aware bot, careful build, a 15-minute window)
+
+| gun | alive | middle run | middle score | vs best | level | kills | hull/s |
+|---|---|---|---|---|---|---|---|
+| scatter | 16/16 | 15m00s | 120,642 | 1.00x | 66.0 | 6,009 | 64.7 |
+| pulse | 16/16 | 15m00s | 118,867 | 0.99x | 64.0 | 5,867 | 61.4 |
+| arc | 16/16 | 15m00s | 110,868 | 0.92x | 63.5 | 5,486 | 46.3 |
+| swarm | 9/16 | 15m00s | 35,960 | 0.30x | 32.5 | 1,876 | 28.7 |
+| lance | 2/16 | 3m40s | 5,658 | 0.05x | 7.5 | 405 | 19.0 |
+
+**SCATTER over LANCE = 21.32x against the 1.25x allowed - FAIL.** The pack of three is inside the
+band and inside 1.09x of each other; the two slow guns are out of it, and the middle lance run does
+not survive to the fourth minute. `tools/weapon-ladder.js --in <rows>` re-prints this in two seconds
+without replaying anything.
+
+Knots, chipped (hull/s, ring / column / near): pulse 4.3 4.2 4.3, scatter 12.2 13.0 6.1, arc 11.8
+11.8 7.2, lance **15.0 30.0** 5.0, swarm 13.9 11.7 4.5. Felled (kills/s): pulse 1.3 1.3 1.3,
+scatter 4.0 3.6 2.0, arc 3.7 3.3 2.3, lance 3.0 6.0 1.0, swarm 4.5 3.0 1.5, and `cost/kill` on the
+near knot 3.25 / 3.13 / 3.09 / **5.00** / 3.00.
+
+### What it means, and why the item is not ticked
+
+The two weak guns are not weak on damage - the lance is the strongest of the five on two of the
+three knots - so the tool's own rule says do not buff them blind. What a run actually buys is
+**bodies a second**: XP is paid per body, levels are the build, and the runs' kill rates rank the
+guns exactly as their scores do (6.7 / 6.5 / 6.1 / 2.1 / 1.8). Two measured numbers say where the
+heavy guns lose that race: the lance's own scorecard (`game/lance.js`: `pulls`, `fired`, `caught`,
+`dealt` - already in the game, already free to read) says it catches **1.9 bodies a beam in a live
+crowd** where the column knot plants it six; and its `cost/kill` is 5.00 against the pack's ~3.1, so
+it pays a whole 5-hull beam for a body worth 3 and the hull past the body buys nothing at all.
+
+Four probes at 6 seeds / a 10-minute window, against the shipped lance's 5,418 median - three of
+them are refusals of ideas NOTES asked for, which is why they are written down:
+
+| probe | middle score |
+|---|---|
+| a lane-finding aim for the bot (4.8 bodies on the lane per aim) | **4,554 - no better** |
+| `beam.halfWidth` 16 to 34 | 4,915 |
+| `damage` 5 to 3 with `fireRate` 0.9 to 1.4 | 5,508 |
+| all three together | 8,069 (+49%, still 7x short) |
+
+So session 53's standing note - "a line-up policy for the bot is the measurement that would actually
+price this gun" - is **not** the explanation: giving the bot a lane aim made the lance no better.
+The item stays unticked and PLAN now carries the follow-up: price the primaries in bodies a second
+rather than hull a second, and decide on the way what a heavy gun should cost a body and what to do
+with the two deck lines (`pierce`, `ricochet`) that a beam cannot use at all.
+
+### Things that surprised me
+
+- **The knot columns and the run column disagree by 21x on the same gun.** Chipped, the lance is
+  1.16x the pulse on the knot that looks most like a real fight; in runs it is 0.05x. Every number
+  quoted off a knot in NOTES sessions 30-53 is a statement about geometry, not about a fight.
+- **`cost/kill` is exactly `damage` per pull on the near knot** (5.00 for the beam, and the pulse
+  lands at the body's own 3 + the boundary), which is a cheaper way to see the overkill tax than
+  anything I tried first.
+- Widening the beam made it *worse* (4,915 < 5,418). A beam shoves 220 px/s: a wide one clears its
+  own line for the next pull, 1.1 s later. Nobody should tune that number without this note.
+- A knot that dies is not a rate: an early draft of the felled column emptied the column knot in two
+  seconds and reported a nonsense number. `revive` (put it back where it stood, with its hull) is
+  what makes the second column a second-rate measurement instead of a stopwatch reading.
+- The hull that comes off a *mortal* body is clipped at what the body had, while the hull chipped off
+  an immortal one is the whole hit. Same knot, two different "hull" columns; the table says which is
+  which (`cost/kill` divides chipped hull by felled kills on purpose).
+- `OVERLORDS_REQUESTS` is not empty again: the owner asked (2026-10-11) for the music to have more
+  oomph and be less repetitive. It is filed as the first open item of milestone 10 and it is what
+  the next session should do first - it is the owner's, and music is feel.
+
+### What should come next
+
+1. **The owner's music request** (PLAN, milestone 10, first unchecked): elaborate the tune, more low
+   end and less repetition. `node tools/simulate.js --audio` is the harness for it.
+2. Then the weapon re-tune, priced in bodies a second, with `tools/weapon-ladder.js --seeds 1-16
+   --shards 10` as the instrument (7 minutes a reading, and it says PASS or FAIL).
+3. Any weapon change also wants `node tools/run-shape.js --weapon <gun>` once, because two of the
+   five primaries now die before the fourth minute and the arc items are measured on a batch that
+   mostly flies the pulse.

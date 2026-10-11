@@ -72,6 +72,7 @@
 // point: a knot of bodies standing still cannot price a trap, and the line's instrument is the run
 // itself (`tools/line-ab.js --line mines`), as it was for magnetar above.
 
+import { pathToFileURL } from 'node:url';
 import { BALANCE } from '../src/game/balance.js';
 import { isSynergy } from '../src/game/upgrades.js';
 import { TAU } from '../src/core/math.js';
@@ -97,9 +98,10 @@ function readArgs(argv) {
   return opts;
 }
 
-function marked(bodies) {
+export function marked(bodies) {
   for (const body of bodies) {
     body.hpBefore = body.hp;
+    body.hull0 = body.hp;
     body.homeX = body.x;
     body.homeY = body.y;
   }
@@ -116,7 +118,7 @@ function marked(bodies) {
  * knot be measured over any window: it is a crowd that happens to stand still, which is
  * what a knot is for.
  */
-function pin(bodies) {
+export function pin(bodies) {
   for (const body of bodies) {
     body.ix = 0;
     body.iy = 0;
@@ -127,46 +129,90 @@ function pin(bodies) {
   }
 }
 
-function hullGone(bodies) {
+/**
+ * Bring back whatever came apart since the last step, and answer how many did.
+ *
+ * This is what lets a *mortal* knot be read as a rate at all: a knot that is allowed to empty is a
+ * stopwatch reading and not a number a second (tools/weapon-ladder.js measures what a gun can
+ * *kill*, and a gun that cleared the column in a second would otherwise spend the rest of the
+ * window shooting at an empty arena). `hull0` is what `marked` remembered the body's own hull
+ * being, so a revived body comes back the kind it was planted as.
+ *
+ * Call it between steps, after whatever hurt the knot has been stepped: every body it finds with
+ * no hull left died in the step that just went by, which is what makes the count it answers the
+ * number of kills and not the number of corpses.
+ */
+export function revive(field, bodies) {
+  let kills = 0;
+  for (const body of bodies) {
+    if (body.hp <= 0) {
+      // `hull0` is what `marked` remembered. A caller that plants its own bodies and never marks
+      // them would otherwise wind the body up to `undefined` and never notice, which is the sort of
+      // silence this file exists to keep out of a measurement.
+      if (body.hull0 === undefined) {
+        throw new Error('revive needs marked bodies: nothing remembered what this one was worth');
+      }
+      kills++;
+      body.hp = body.hull0;
+      // A kill takes the body out of the crowd (game/enemies.js `removeEnemy` splices it), so a
+      // revived one has to be put back in as well as wound up: this is the whole reason the knot
+      // geometry is not enough to bring one back.
+      if (field.enemies.indexOf(body) === -1) field.enemies.push(body);
+    }
+  }
+  return kills;
+}
+
+export function hullGone(bodies) {
   return bodies.reduce((sum, body) => sum + (body.hpBefore - body.hp), 0);
 }
 
-/** `per` bodies on each of the radii in `radii`, evenly spaced, one of them due north. */
-function ringKnot(field) {
+/**
+ * `per` bodies on each of the radii in `radii`, evenly spaced, one of them due north.
+ *
+ * `hp` is how much hull the knot stands with: the ladder measures a knot that cannot die, which is
+ * what makes a rank of a line measurable (the rules at the top of this file), and
+ * `tools/weapon-ladder.js` plants the same knot with the kind's own hull so it can count what
+ * comes *down* rather than only what is chipped off.
+ */
+function ringKnot(field, hp) {
   const ship = field.player;
   const bodies = [];
   for (const radius of [50, 64, 78]) {
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI / 2 + (i / 10) * TAU;
       bodies.push(enemyAt('swarmling',
-        ship.x + Math.cos(a) * radius, ship.y + Math.sin(a) * radius, IMMORTAL));
+        ship.x + Math.cos(a) * radius, ship.y + Math.sin(a) * radius,
+        hp === undefined ? IMMORTAL : hp));
     }
   }
   return marked(bodies);
 }
 
 /** A block of bodies in the air the gun is pointing: six deep, seven across. */
-function columnKnot(field) {
+function columnKnot(field, hp) {
   const ship = field.player;
   const bodies = [];
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 7; col++) {
       bodies.push(enemyAt('swarmling',
-        ship.x + 150 + row * 26, ship.y - 78 + col * 26, IMMORTAL));
+        ship.x + 150 + row * 26, ship.y - 78 + col * 26,
+        hp === undefined ? IMMORTAL : hp));
     }
   }
   return marked(bodies);
 }
 
 /** Three bodies at the distances a real press keeps, one of them due north. */
-function nearKnot(field) {
+function nearKnot(field, hp) {
   const ship = field.player;
   return marked([90, 150, 200].map((radius, i) => enemyAt('swarmling',
     ship.x + Math.cos(-Math.PI / 2 + i * 2.1) * radius,
-    ship.y + Math.sin(-Math.PI / 2 + i * 2.1) * radius, IMMORTAL)));
+    ship.y + Math.sin(-Math.PI / 2 + i * 2.1) * radius,
+    hp === undefined ? IMMORTAL : hp)));
 }
 
-const KNOTS = [
+export const KNOTS = [
   // The aim is part of the knot: a gun that is pointed at the sky measures the sky.
   { name: 'the ring', build: ringKnot, aim: (ship) => ({ x: ship.x, y: ship.y - 200 }) },
   { name: 'the column', build: columnKnot, aim: (ship) => ({ x: ship.x + 200, y: ship.y }) },
@@ -188,53 +234,60 @@ function measure(field, bodies, seconds, aim) {
 }
 
 /** A run wearing `rank` ranks of `id` and nothing else, with the knot planted in it. */
-function setUp(id, rank, knotAt, seed) {
+function setUp(id, rank, knotAt, seed, weapon) {
   const field = scriptedRun(seed);
   field.xpNeed = Infinity;
-  if (opts.weapon !== null) setWeapon(field, opts.weapon);
+  if (weapon !== null) setWeapon(field, weapon);
   if (rank > 0) field.upgrades[id] = rank;
   const knot = KNOTS[knotAt];
   return { field, bodies: knot.build(field), aim: knot.aim };
 }
 
 /** Hull a second taken off the knot by `rank` ranks of `id`. */
-function rateFor(id, rank, knotAt, seconds) {
+function rateFor(id, rank, knotAt, seconds, weapon) {
   let total = 0;
   for (const seed of SEEDS) {
-    const run = setUp(id, rank, knotAt, seed);
+    const run = setUp(id, rank, knotAt, seed, weapon);
     total += measure(run.field, run.bodies, seconds, run.aim);
   }
   return total / SEEDS.length;
 }
 
-const opts = readArgs(process.argv.slice(2));
-const lines = Object.keys(BALANCE.upgrades)
-  // A synergy is not in this list, and not because the arithmetic would not run: one rank of a
-  // synergy *is* the whole card, and a card that needs two other lines at three each measures as
-  // nothing at all on a run that has not taken them. The question a synergy can answer is "what is
-  // it worth on a run that did": tools/line-ab.js --line thermalShock --with burn=3 --with chill=3.
-  .filter((id) => !isSynergy(id))
-  .filter((id) => BALANCE.upgrades[id].ranks > 0)
-  .filter((id) => opts.line === null || id === opts.line);
+/** Only run when called as a command, so tools/weapon-ladder.js can borrow the knots. */
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-// What a rank of the damage line buys, in hull a second, is the yardstick every other line
-// below is quoted against - and the reason the orbital ring and the nova are both built to
-// be worth exactly this much per rank on a plain gun (BALANCE.upgrades).
-console.log('a maxed line against the plain gun, ' + opts.seconds + 's of trigger, mean of '
-  + SEEDS.length + ' seeds, flying ' + (opts.weapon === null ? 'the pulse' : opts.weapon));
+function main() {
+  const opts = readArgs(process.argv.slice(2));
+  const lines = Object.keys(BALANCE.upgrades)
+    // A synergy is not in this list, and not because the arithmetic would not run: one rank of a
+    // synergy *is* the whole card, and a card that needs two other lines at three each measures as
+    // nothing at all on a run that has not taken them. The question a synergy can answer is "what is
+    // it worth on a run that did": tools/line-ab.js --line thermalShock --with burn=3 --with chill=3.
+    .filter((id) => !isSynergy(id))
+    .filter((id) => BALANCE.upgrades[id].ranks > 0)
+    .filter((id) => opts.line === null || id === opts.line);
 
-for (let k = 0; k < KNOTS.length; k++) {
-  const plain = rateFor('damage', 0, k, opts.seconds);
-  const rankOfDamage = rateFor('damage', 1, k, opts.seconds) - plain;
-  console.log('\n' + KNOTS[k].name + ': plain gun ' + plain.toFixed(1)
-    + ' hull/s, one rank of the damage line ' + rankOfDamage.toFixed(1) + ' hull/s');
-  for (const id of lines) {
-    const maxed = rateFor(id, BALANCE.upgrades[id].ranks, k, opts.seconds);
-    const one = rateFor(id, 1, k, opts.seconds);
-    console.log('  ' + (id + ' ' + BALANCE.upgrades[id].ranks).padEnd(16)
-      + (maxed / plain).toFixed(2) + 'x'
-      + '  ' + maxed.toFixed(1).padStart(8) + ' hull/s'
-      + '   one rank = ' + ((one - plain) / rankOfDamage).toFixed(2)
-      + ' ranks of the damage line');
+  // What a rank of the damage line buys, in hull a second, is the yardstick every other line
+  // below is quoted against - and the reason the orbital ring and the nova are both built to
+  // be worth exactly this much per rank on a plain gun (BALANCE.upgrades).
+  console.log('a maxed line against the plain gun, ' + opts.seconds + 's of trigger, mean of '
+    + SEEDS.length + ' seeds, flying ' + (opts.weapon === null ? 'the pulse' : opts.weapon));
+
+  for (let k = 0; k < KNOTS.length; k++) {
+    const plain = rateFor('damage', 0, k, opts.seconds, opts.weapon);
+    const rankOfDamage = rateFor('damage', 1, k, opts.seconds, opts.weapon) - plain;
+    console.log('\n' + KNOTS[k].name + ': plain gun ' + plain.toFixed(1)
+      + ' hull/s, one rank of the damage line ' + rankOfDamage.toFixed(1) + ' hull/s');
+    for (const id of lines) {
+      const maxed = rateFor(id, BALANCE.upgrades[id].ranks, k, opts.seconds, opts.weapon);
+      const one = rateFor(id, 1, k, opts.seconds, opts.weapon);
+      console.log('  ' + (id + ' ' + BALANCE.upgrades[id].ranks).padEnd(16)
+        + (maxed / plain).toFixed(2) + 'x'
+        + '  ' + maxed.toFixed(1).padStart(8) + ' hull/s'
+        + '   one rank = ' + ((one - plain) / rankOfDamage).toFixed(2)
+        + ' ranks of the damage line');
+    }
   }
 }
+
+if (isMain) main();

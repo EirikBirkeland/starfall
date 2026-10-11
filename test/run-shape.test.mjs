@@ -80,6 +80,8 @@ test('the flags mean what they say, and the ones that contradict each other are 
   assert.deepEqual(readArgs(['--in', 'a.jsonl', '--in', 'b.jsonl']).infiles, ['a.jsonl', 'b.jsonl']);
   assert.equal(readArgs(['--quiet']).quiet, true);
   assert.equal(readArgs(['--ship', 'bulwark']).ship, 'bulwark');
+  assert.equal(readArgs(['--weapon', 'lance']).weapon, 'lance');
+  assert.equal(readArgs([]).weapon, undefined, 'and a plain batch flies the default gun');
   assert.throws(() => readArgs(['--nope']), /unknown flag: --nope/);
   assert.throws(() => readArgs(['--every']), /--every needs a value/);
   assert.throws(() => readArgs(['--every', '0']), /above 0/);

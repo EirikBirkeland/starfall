@@ -2,8 +2,9 @@
 //
 // PLAN section 5 asks for music that is *generated* - a step grid at 110 BPM in a minor
 // key with layers laid over it - and not a song on a loop. This file is the grid and the
-// layers over it (pad, bass, arpeggio, drums); which of them are sounding on a given frame
-// is the run itself answering, because the simulation must not learn that music exists.
+// layers over it (pad, sub, bass, arpeggio, lead, drums); which of them are sounding on a
+// given frame is the run itself answering, because the simulation must not learn that music
+// exists.
 // main.js hands the whole world over here next to where it drains the sound-effect queue,
 // and that is the whole seam: audio reads the run, never the other way round.
 //
@@ -18,9 +19,30 @@
 // writes sixteenths where the run writes eighths, and gives its pad the scale's second to
 // rub on.
 //
-// **The one time the music plays a tune is the vacuum's.** Every pattern above is layers, not a
-// melody - until the point vacuum opens (game/vacuum.js) and the run's own pattern gets its
-// arpeggio's slot spent on a fanfare for ten seconds. It is a *layer swap* and not a new pattern of
+// **A pattern is a form, not a bar.** Nothing here repeats every bar and little of it repeats
+// every four: a pattern carries `bars` (how long its arrangement is, in bars) and each of its
+// parts carries a *list* of bar figures, one per bar of that loop, so the bass can answer the
+// bar it just played, the drum kit can leave a fill at the end of a phrase, and the tune can be
+// sixteen bars long instead of four. The chord phrase is eight bars (see `CHORDS`), so every
+// figure list's length has to divide the form and the form has to be a whole number of chord
+// phrases - `checked` refuses anything else, because a figure list that does not line up with
+// the harmony is a wrong note waiting to happen rather than a wrong note you can hear. `title`
+// and `last` still have one figure each: they are a pad and a drone, and the eight-bar harmony
+// moving under them is their variation.
+//
+// **Every line is written as sixteen characters.** A pitched figure is a bar of sixteenths in
+// the same shape the drum figures always were (`figure`), and a note in it is an interval in
+// semitones from that bar's own chord root - so a figure is a shape that can be handed to any
+// chord and stay in key, which is how a four-bar phrase becomes an eight-bar one without a
+// single note being rewritten. `test/music.test.mjs` proves it: every note of every figure,
+// against the chord it can actually land on, is a note of the key, and every note on a strong
+// beat is a note of that chord.
+//
+// **The tune is the vacuum's, and the drums' only.** Below the groove there is a chord and a
+// walking bass, above it a chip arpeggio, and when the kit arrives at two minutes so does the
+// lead - a line of long notes on the chord tones, which is the one place this soundtrack sings
+// rather than drives. When the point vacuum opens (game/vacuum.js) the run's own pattern spends
+// the melody's slot *and* the arpeggio's on a fanfare for ten seconds. It is a *layer swap* and not a new pattern of
 // its own so the reward is heard over the fight it happened in, and it is metered like every other
 // pattern (`patternPeak`, and the four `-fanfare` entries in `PATTERNS`) because "loud enough to be
 // the reward" is a number and the one that keeps this bus honest does not care which pattern is
@@ -30,8 +52,8 @@
 // **How loud the music is allowed to be is measured, not hoped.** The sequencer sits
 // outside the voice budget (see the last paragraph of this header and audio/mix.js), so the
 // one thing standing between it and a wall of sound is the arithmetic in `patternPeak`,
-// which lays every voice of a pattern's bar end to end on its own grid and answers the
-// loudest instant. It reads the same tables the scheduler plays from, so it cannot drift
+// which lays every voice of a pattern's whole form end to end on its own grid and answers
+// the loudest instant of any bar in it. It reads the same tables the scheduler plays from, so it cannot drift
 // out of date, and `test/music.test.mjs` refuses any pattern whose loudest bar asks for
 // more than `MUSIC.peakLoad`. Every price below is written against that number, which is
 // what lets a fourth drum or a fifth pad voice be added without repricing the bus.

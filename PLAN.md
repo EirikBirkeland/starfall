@@ -1259,7 +1259,67 @@ When every item above is ticked, go back to the first unchecked item of mileston
       fixed, because a stronger gun was measured to leave a careless batch's middle of deaths exactly
       where it was and turn more of its runs immortal instead. Tune this ladder for parity and for the
       feel of firing, and not against `tools/difficulty-arc.js`.
-- [ ] Tune every weapon so that none is over 25% better than the others in the balance report.
+      **Measured first, and it fails by a wide margin.** `tools/balance-report.js` cannot see the
+      primary at all - the gun is not an upgrade line - so the sentence needed its own instrument:
+      `tools/weapon-ladder.js`, a check and not a report, exiting non-zero the way the arc's tool
+      does. It prices every primary three ways on the same seeds: **the knots, chipped** (hull a
+      second off `tools/power-ladder.js`'s three knots, which that file now exports so one knot
+      geometry is shared and its own printed table came out byte-identical to before); **the knots,
+      felled** (the same knots planted with the hull a body carries once the crowd's ramp is spent -
+      3, asked of `game/kinds.js` - and a body that comes apart wound up and put back, so the answer
+      is *bodies a second* plus a `cost/kill`); and **the run** (the bot, N seeds a gun, the middle
+      run's score). Only the run column is gated: a knot is a geometry and a shotgun is supposed to
+      own a press, so the scatter's 3x on a ring (NOTES session 33) is the gun's identity and not a
+      failure. Sixteen seeds a gun, the aware bot with the careful build, a fifteen minute window:
+      **SCATTER 120,642 over LANCE 5,658 = 21.32x against the 1.25x allowed - FAIL**, with the pack
+      of three inside the band and of each other (scatter 120,642, pulse 118,867, arc 110,868,
+      1.09x best over worst) and the two slow guns out of it (swarm 35,960, lance 5,658; the middle
+      lance run dies at 3m40s where the other three are still flying at the cap).
+      The knot columns say neither outlier is short of damage - the lance is the strongest of the
+      five on the ring (15.0 hull/s) and on the column (30.0) and mid-pack on the near field (5.0
+      against the pulse's 4.3) - so on the tool's own reading it is *above* the knots and below the
+      run, which is the case where buffing the row would be a nerf of every player who can line a
+      beam up. What the run is buying is bodies, not hull: XP is paid per body, levels are what a
+      build is made of, and kills a second in those runs rank the guns exactly as the scores do
+      (scatter 6.7, pulse 6.5, arc 6.1, swarm 2.1, lance 1.8). Two numbers say why the heavy guns
+      are behind on it: the lance's own scorecard (`game/lance.js`: `pulls`, `fired`, `caught`,
+      `dealt`) reads **1.9 bodies a beam in a live crowd** where the column knot plants it six, and
+      its `cost/kill` on the near knot is **5.00 against the pack's 3.00-3.25** - it pays a whole
+      5-hull beam for a body worth 3, and the hull past the body buys no XP at all.
+      Four probes at six seeds and a ten minute window, against the shipped lance's 5,418, and all
+      four are worth recording because three of them are refusals of good ideas: aim the bot down the
+      fullest lane it can find (4.8 bodies on the lane per aim, which is what NOTES session 53 asked
+      for) gives **4,554 - no better**, so the bot's aim is not the deficit; `beam.halfWidth` 16 to
+      34 gives 4,915; `damage` 5 to 3 with `fireRate` 0.9 to 1.4 gives 5,508; all three together
+      give 8,069, the only move of the four and still seven times short. So the item is not a dial:
+      the five rows are priced as hull a pull times pulls a second, and the game pays per body.
+      The item under this one is what closes it. Also `tools/run-shape.js` takes `--weapon` now, so
+      a shape table can be read for the gun a ship actually carries.
+- [ ] Price the five primaries in **bodies a second**, not hull a second, and re-tune them against
+      `tools/weapon-ladder.js` until its verdict reads PASS. The measurement above is the argument:
+      a run's income is the body (a shard drops per kill, XP is the shard, levels are the build), so
+      a gun that costs 5 hull to remove a 3-hull body is taxed a fifth of its income on every pull,
+      and a gun that pulls its trigger 0.9 times a second cannot spend more than about two bodies a
+      second however wide its line is. While this is open, decide the two questions it uncovers
+      rather than skating over them: what a heavy gun should cost a body (the near knot says `damage`
+      is bought at the wrong denomination above about 3), and what to do with the deck lines a beam
+      cannot use - `pierce` and `ricochet` buy nothing for a beam by design (NOTES session 53), so a
+      lance run spends two of its card slots on cards that do nothing, and a run that is already
+      short of levels is short twice over. Nothing in this item is a nerf of the three guns inside
+      the band; they are 1.09x apart and that is parity.
+- [ ] The music is monotonous (**the owner's request of 2026-10-11, in `OVERLORDS_REQUESTS`**: "the
+      basic song should have more oomph, and it should be less repetitive. Expand-elaborate-develop
+      the tune."). Filed the same day and put first, because it is the owner's and because music is
+      feel, which is the first pillar. What is there to develop: `audio/music.js` keeps a chord, a
+      drum bed and an arpeggio, swaps layers by the run's intensity, and spent its latest elaboration
+      on the vacuum's fanfare (0.10.1) - which is to say the tune that plays over the other nine and a
+      half minutes of a run is the plain one. The two halves of the request are different work: *less
+      repetitive* is about variation inside a section (bars that answer each other, a phrase that
+      turns, a rest where there is none now) and *more oomph* is about weight (the low end, the drum
+      bed, the bus headroom `audio/mix.js` already keeps books on). It wants its own session, an ear
+      on the harness rather than a dial: `node tools/simulate.js --audio` prints what the mix did and
+      how long each pattern was heard, and `audio/noise.js` and `audio/mix.js` are where "oomph"
+      becomes a number that can be checked rather than hoped for.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.
 - [ ] Hunt for memory growth over a 30-minute simulated run.
