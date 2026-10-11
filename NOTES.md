@@ -11921,3 +11921,94 @@ unchanged for the same reason - `bodiesCeil` stays at 200 by session 99's decisi
 4. If another allocation hunt happens, start from the two instruments above rather than from grep. Two more
    variadic-builtin suspects were measured and are clean on this box: `Math.max(a, b, c)` and `Math.atan2` are
    free; `Math.hypot` is the odd one out.
+
+## Session 102 — One arena a day: the daily run, seeded by the date
+
+Milestone 10's next unchecked item: *a seed taken from the date, the same for everyone that day, with its
+own best score*. It is **`src/game/daily.js` and one key, `T`**, and it is the whole of the feature - suite
+1809 to **1837**, released as **v0.10.9**.
+
+### What it is, in code
+`todayDay()` reads the machine's date and returns it as a spoken number (`20261011`); `seedForDay(day)` in
+`core/rng.js`'s new `seedFor` puts that number through the same `scramble` the mixer uses for successive
+seeds, so consecutive days are unrelated arenas. `beginDailyRun(world)` writes `world.dailyDay` and the
+day's seed into the world and `startRun` does the rest - a daily run is *not* a second mode, it is a run
+launched from a different place. At the ending, `bankRun` (game/run.js) asks `bankDaily(world)`, which
+compares the score against `bestOnDay(world.dailyDay)` and remembers `{ day, best }` in the save if the run
+beat it. Four surfaces say it and all four say nothing for an ordinary run: `TODAY 4,321` as a fourth banked
+number on the title, `TODAY 2026-10-11 · NEW BEST TODAY` on the card that ends a run, a `TODAY` row on the
+pause rack beside `SEED`, and `TODAY 10-12` beside the HUD clock.
+
+### The four decisions, and why
+- **Local day, not UTC.** A shared UTC day is the more globally consistent answer and the less honest one:
+  it calls yesterday's arena "today" for half the planet for a few hours and rolls a player's best over at
+  four in the afternoon. Two people comparing scores are almost always in the same day already.
+- **One day kept, not a history.** The save holds the latest day it saw and the best on it. Once today has
+  begun, yesterday's best is a number nothing in the game can be compared against, and a stored field
+  nobody reads is a field that quietly rots. `bestOnDay(day)` answers 0 for every other day, which is how a
+  turned calendar says "nobody has flown today yet" without a single line of date arithmetic.
+- **A daily banks everything an ordinary run banks** - all-time best, purse, codex, awards, log. A run that
+  paid half as much for being on everybody's seed would be a punishment for taking the challenge. The day's
+  best is an extra line on top.
+- **`T` is a launch, not a mode.** One press flies today; the next `Space` flies a run of your own. Nothing
+  is remembered about "being on the daily" except the day written into the run that was flown on it, so
+  `Space` never changes meaning and there is no state to get stuck in.
+
+### The bug, which was in `main.js` and nowhere else
+The day's seed went into `world.seed` and stayed there, so the ordinary run after a daily one kept flying
+the day. That field is load-bearing far beyond the game: it is how the address bar's `?seed=`,
+`tools/simulate.js --seed`, the agent bridge and the test harness all hand a visit its arena, so three
+existing tests failed loudly (`test/seed.test.mjs`, `test/history.test.mjs`, `test/agent-session.test.mjs`)
+before anything was finished. The fix is a `visitSeed` in `main.js`: the seed an ordinary launch comes back
+to, remembered on the way past the day's, and - the part that took a second thought - written only by the
+run that first leaves the visit's own arena, or a second daily in a row would save the *day's* seed as the
+ordinary one and the visit would never come back at all. `test/daily.test.mjs` pins the coming-back both
+ways.
+
+### Things worth remembering for the next session
+1. **`new Date` is now banned in `src/game` except `daily.js`**, by a guard in `test/structure.test.mjs`.
+   It is not pedantry: a run launched at 23:59 has to belong to the day it started on even if it is still
+   flying after midnight, so the clock may be asked when a run is *launched* and never during a `step`. If a
+   feature wants the date mid-step (waves that know it is Sunday), it passes the day in from the outside.
+2. **A new DOM id has to be added to `tools/headless/harness.js`** or no test can see it; the harness throws
+   on a missing id, which is the loud version of the mistake and worth having. `finalDaily`, `winDaily`,
+   `titleToday` and `daily` in `stats()` are this session's additions.
+3. **`remember()` is strict, `section()` is forgiving**, and that asymmetry is the whole save story: a bad
+   value cannot be written (it throws, and `MAX_DAY = 99999999` is only enforced *there* - the day-equality
+   check is what protects the read), and a bad value that arrives from an old or edited file reads as no
+   value at all. `test/daily.test.mjs` checks both halves on purpose.
+4. **No test freezes the clock.** Every daily test asks `todayDay()` and `seedForDay()` for its own numbers,
+   so the suite passes whatever day it wakes up on. Freezing a date would have tested the arithmetic and not
+   the contract, and the contract is "the day you are in".
+5. **`Number.isSafeInteger`, not `Number.isInteger`,** for anything fed to the mixer - session 101's lesson,
+   reused here: `1e21 >>> 0` is `0`, and a "whole number" that is too big to be one is how a seed silently
+   becomes a constant.
+6. **The title's control list is full.** It is not a style preference: index.html says the column is exactly
+   as tall as the window it was designed for, and the type adds up to it. That is why the daily's key is
+   written on the launch line (`... TO LAUNCH · T FOR TODAY'S ARENA`) instead of as a thirteenth row, and a
+   test pins that sentence so nobody "tidies" the key out of the game.
+7. **`tools/agent-bridge.js` grew `start { today: true }`** and `run_result` answers `daily`. The brief text
+   in `agent-bridge.js` is what the model reads, so a new tool door has to be said there as well as
+   implemented; `test/agent-session.test.mjs` checks the brief still describes what the game can do.
+8. Ten mutations were run against the new tests (never bank, day-blind best, no seed coming back, month off
+   by one, flag not cleared per run, card line not painted, HUD mark dropped, pause row dropped, `seedFor`
+   made the identity, save ceiling widened, summary drops the day, a step asking the date) - **all caught**.
+   Two of the first batch "survived" only because the sed could not express them; when a mutation script
+   reports a survivor, check it actually applied before believing the gate is fine.
+
+### What should come next
+1. **Milestone 10 has one item left**: the browser half of the performance pass (line 1587), which this
+   project cannot take by itself - it needs somebody with a real GPU and a devtools tab. Everything that can
+   be measured headless has been measured and is under a budget.
+2. Then **milestone 11**: a short first-run tutorial, the pass over every line of text in the game, and
+   `1.0.0`. The daily's wording is the first thing a new player will now see that is not a control, so the
+   text pass should look at `daily.js`'s four strings in the same breath as the title's.
+3. Still open from earlier sessions: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
+   owed from session 96, and session 101's unfinished thought that **nothing weighs a painted frame** (a
+   `--paint` door on `tools/alloc-probe.js`).
+4. **One honest gap in the daily, left on purpose:** nothing compares your day against anybody else's,
+   because there is no server and the save is local - "the same for everyone that day" is a promise about the
+   *arena*, not about the scores. If that ever needs closing, the shape is a shareable line (day, seed,
+   score) that a player can paste somewhere, and `tools/agent-bridge.js` is nearer to it than anything in
+   the game is. Do not build a fake leaderboard.
