@@ -16,7 +16,8 @@
 // What they ship at is off, which is the game as it was built and balanced: a switch has two places and
 // off is the one that asks for nothing. Neither of them draws a number, spends the run's luck or costs
 // a step of anything, so with both of them off a run is the same run it always was - the reference run
-// traces the same bytes with this file in the tree as without it.
+// traces the same bytes with this file in the tree as without it. The one hand that gets them on
+// without asking is a thumb, which has no cursor and no trigger to have left behind (see `thumbVisit`).
 //
 // Where they are applied: game/world.js `stepRun` asks `driveAssists` for the step's controls, just
 // before the ship is moved. Not in the frame loop, because a frame can hold no steps at all or three
@@ -40,7 +41,8 @@ const KEEP_SLACK = 1.4;
  * table of steps to walk - and both of them ship off, because there is no switch in the game that has
  * a reason to be on before anybody has asked for it. `default` is said per switch rather than once for
  * both so that a row added later has to say its own place, the same way every row in
- * game/settings.js carries its own.
+ * game/settings.js carries its own. It is the place a row ships at for a hand that came with a cursor
+ * and a keyboard; a run flown on a thumb ships both of these on, which is `thumbVisit` below.
  */
 export const ROWS = [
   { id: 'fire', name: 'AUTO-FIRE', says: 'THE TRIGGER IS ALREADY HELD', default: false },
@@ -49,9 +51,54 @@ export const ROWS = [
 
 const WORDS = { on: 'ON', off: 'OFF' };
 
-// The switches as this visit has them: row id -> whether it is on. Written by `loadFromSave` and by
-// `stepRow`, and read by everything else through `on` and the two getters at the bottom.
+// The switches as this visit has them, in two maps because "nobody has ever moved this row" is an
+// answer the game has to be able to give. `moved` says whether a hand ever said a value for a row and
+// `switches` holds the value it said; a row nobody moved is not off, it is undecided, and what decides
+// it is the hand the run is being flown on - which is what `thumbVisit` below is for.
 const switches = {};
+const moved = {};
+
+// A run flown on a finger has no cursor to point with and no trigger to hold, so for a visit that has
+// put a thumb on the glass both of these ship on instead of off (PLAN section 6). It is a default and
+// not a force: a row a hand has moved keeps what it was moved to, in whichever direction, which is
+// what keeps the two of them usable as the accessibility switches PLAN wants them to be - a thumb run
+// can have the held trigger taken back. `driveAssists` is told about the thumb through the controls
+// descriptor rather than reaching into the input layer for it, so that nothing in game/ has to know
+// where a hand came from.
+let thumbVisit = false;
+
+/**
+ * Whether one switch is on, which is the only question a switch can be asked.
+ *
+ * A row a hand moved stands where it was moved. A row nobody moved stands where its row ships - which
+ * is off, except under a thumb, where the two of them are what a finger cannot do for itself.
+ */
+function on(id) {
+  const row = rowOf(id);
+  if (row === null) throw new Error('the game has no assist called ' + id);
+  if (moved[id] === true) return switches[id] === true;
+  return thumbVisit === true || row.default === true;
+}
+
+/** Where every switch stands, in the field names `stats()` and the panel print. */
+function standing() {
+  const out = {};
+  for (const row of ROWS) out[row.id] = on(row.id);
+  return out;
+}
+
+/**
+ * Only the rows a hand moved, which is all the save has to keep: a row nobody moved has no answer of
+ * its own to remember, and writing down where it happened to be standing would freeze a default that
+ * the hand it is flying on is supposed to be allowed to choose.
+ */
+function written() {
+  const out = {};
+  for (const row of ROWS) {
+    if (moved[row.id] === true) out[row.id] = switches[row.id] === true;
+  }
+  return out;
+}
 
 /** The switch a setting id names, or null when nobody has heard of it. */
 function rowOf(id) {
@@ -59,19 +106,6 @@ function rowOf(id) {
     if (row.id === id) return row;
   }
   return null;
-}
-
-/** Whether one switch is on, which is the only question a switch can be asked. */
-function on(id) {
-  if (rowOf(id) === null) throw new Error('the game has no assist called ' + id);
-  return switches[id] === undefined ? false : switches[id] === true;
-}
-
-/** Where every switch stands, in the save document's own field names: read, or written straight back. */
-function stateAsStored() {
-  const out = {};
-  for (const row of ROWS) out[row.id] = on(row.id);
-  return out;
 }
 
 /**
@@ -82,15 +116,22 @@ function stateAsStored() {
  * or says something that is not a yes or a no, which the store drops on the way in - is a visit that
  * never asked, and the switch ships at off. That is deliberate: the default is each row's own and not
  * wherever the switch happens to be standing, so reading the save is a fresh answer and not a nudge.
+ *
+ * One thing the store cannot answer is being asked quietly. `section` fills every default in, so a
+ * stored answer that is the place the row ships at cannot be told apart from nobody having said
+ * anything, and it is treated as nobody having said anything: the only reading that leaves a thumb run
+ * the defaults a thumb needs, and a row moved to where it already stood is a row that was not moved.
  */
 export function loadFromSave() {
   const defaults = {};
   for (const row of ROWS) defaults[row.id] = row.default;
   const stored = section('assists', defaults);
   for (const row of ROWS) {
-    switches[row.id] = typeof stored[row.id] === 'boolean' ? stored[row.id] : row.default;
+    const said = typeof stored[row.id] === 'boolean' ? stored[row.id] : row.default;
+    moved[row.id] = said !== row.default;
+    switches[row.id] = said;
   }
-  return stateAsStored();
+  return standing();
 }
 
 /**
@@ -108,8 +149,9 @@ export function stepRow(id, delta) {
   const now = on(id);
   const next = where > 0;
   if (next === now) return null;
+  moved[id] = true;
   switches[id] = next;
-  remember('assists', stateAsStored());
+  remember('assists', written());
   return { id: next ? 'on' : 'off', words: WORDS[next ? 'on' : 'off'] };
 }
 
@@ -196,14 +238,20 @@ export function takeAim(world) {
  *
  * Written into the caller's descriptor on purpose: every system downstream sees one set of controls
  * and cannot tell which hand moved them, which is the only way an auto-fired shot and a shot the
- * player fired are the same shot. With both switches off it does nothing at all - it neither reads the
+ * player fired are the same shot. With both of them off it does nothing at all - it neither reads the
  * crowd nor writes a field - which is the whole of why a run that has never heard of these switches
  * plays exactly as it always did.
  *
  * The aim is left alone when there is nothing to aim at, so the ship keeps the pointing the hand left
- * it rather than swinging round to face an empty corner of the arena.
+ * it rather than swinging round to face an empty corner of the arena. A lock left behind by a switch
+ * that has just been turned off is not a lock any more and does not wait around for the next time.
+ *
+ * `input.thumb` is how a thumb gets in. It is not a third control and not a force: it says this visit
+ * is being flown on a finger, which makes the two rows above ship on for it (see `thumbVisit`), and a
+ * visit that has never touched the glass never says it.
  */
 export function driveAssists(world, input) {
+  if (input.thumb === true) thumbVisit = true;
   if (autoAimOn()) {
     const target = takeAim(world);
     if (target !== null) {
@@ -211,8 +259,6 @@ export function driveAssists(world, input) {
       input.aimY = target.y;
     }
   } else if (world.aimLock !== null) {
-    // A lock from a switch that has just been turned off is not a lock any more, and it should not be
-    // waiting there for the next time the switch comes on.
     world.aimLock = null;
   }
   if (autoFireOn()) input.firing = true;

@@ -325,6 +325,7 @@ export function initScreens() {
     pause: document.getElementById('pauseScreen'),
     pauseBody: document.getElementById('pauseBody'),
     pauseHead: document.getElementById('pauseHead'),
+    pauseHint: document.getElementById('pauseHint'),
     factRow: document.getElementById('factRow'),
     buildRow: document.getElementById('buildRow'),
     // The settings: what this visit asked the game to do to its own picture and sound
@@ -819,7 +820,19 @@ function buildLines(ranks, cut) {
  * other two panels are painted and raised in - and the order matters, because raising is what measures
  * the rows this has just written.
  */
-export function showPause(run) {
+/**
+ * Paint the pause rack.
+ *
+ * `onGlass` says whether this visit steers with a thumb (input/touch.js). It changes exactly one
+ * line: how the run is let go of again. A keyboard has Esc and P, and a thumb has neither - which is
+ * why main.js lets a tap back into a run that a click is refused (its own comment there says what a
+ * click would have fired) - and a panel that names a key the visitor does not own is a panel that has
+ * stopped being any use.
+ */
+export function showPause(run, onGlass) {
+  el.pauseHint.textContent = onGlass
+    ? 'TAP TO GO BACK TO THE RUN'
+    : 'ESC OR P TO GO BACK TO THE RUN';
   el.pauseHead.textContent = 'SCORE '
     + run.score.toLocaleString('en-US') + '   \u00b7   ' + clockWords(run.seconds);
   paintRows(factRows, el.factRow, factLines(run), buildFactRow);

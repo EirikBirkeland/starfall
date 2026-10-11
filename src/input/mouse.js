@@ -25,6 +25,19 @@ function track(canvas, event) {
   mouse.y = event.clientY - rect.top;
 }
 
+/**
+ * Put the pointer on the glass without a mouse (input/touch.js).
+ *
+ * The point is where the glass was last touched, whoever touched it: the upgrade table answers a
+ * press by looking up where the pointer is, so a thumb that taps a card has to leave its point in
+ * the same place a cursor would have. It is the position and not the button - a thumb has no button
+ * to hold, and what a thumb does instead is the thumb's own business.
+ */
+export function noteGlass(x, y) {
+  mouse.x = x;
+  mouse.y = y;
+}
+
 /** handlers.onPress - a button went down, whatever the screen means by it. */
 export function initMouse(canvas, handlers) {
   window.addEventListener('mousemove', function (event) {

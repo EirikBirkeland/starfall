@@ -1070,7 +1070,35 @@ When every item above is ticked, go back to the first unchecked item of mileston
       and with the switch that asked for it.)
 - [ ] Key rebinding.
 - [ ] Gamepad support.
-- [ ] Touch support.
+- [x] Touch support. (PLAN section 6's three halves, split three ways, because each one belongs to a
+      different layer. `input/touch.js` knows where a thumb has to land for it to *mean* something and
+      keeps the one fact everybody else reads, which is where the thumbs are; the stick is written into
+      the same descriptor the keyboard writes into, so a thumb lean and a WASD lean are one lean and
+      `game/player.js` cannot tell them apart - a half lean is a half-speed ship and the far end of the
+      stick is the ship's own top speed, because `steer` clamps the target speed and a vector of half
+      the length is half the ship. The stick is put down wherever the thumb lands rather than painted at
+      a fixed spot, because every pair of hands holds a phone differently. And the aiming and the trigger
+      are `game/assists.js`, because "point at the nearest body" is a question about the crowd and not
+      about the glass, and those two switches were already written. **A thumb is those switches, on** -
+      not a force and not a third control: they ship on for a visit that has claimed a control and off
+      for one that has not, which is the only way the same two rows keep working as the accessibility
+      rows they are, since a thumb run can have the held trigger handed back and a save that has moved a
+      row outvotes the thumb in whichever direction it was moved. **What a touch means depends on the
+      screen**, and the input layer does not know what screen the game is on, so the wiring answers
+      `flying()` for it: while a run is being flown the left half is a stick and the button on the right
+      is the dash, and every other touch is the press a click already was - the title launches, a card is
+      answered, the wreck's card restarts, and not one screen had to learn the word "finger". A thumb has
+      no Esc on it and no gun to fire with, so a tap is allowed back into a held run where a click is
+      refused, and the pause rack says which of the two this visit owns (`TAP TO GO BACK TO THE RUN`).
+      The button and the ring are painted from the input layer's own numbers (render/touch.js), which is
+      the only way the ring an eye sees and a thumb presses are one ring by construction rather than by
+      luck, and neither is shown to a visit that never put a thumb on anything. Touch is never simulated:
+      `thumb.used` is set when a control *claims* a touch and not when a screen is tapped, so a laptop
+      with a touchscreen that caught one accidental brush is not a visit that asked for auto-aim, and the
+      reference run traces the same bytes with the whole feature in the tree. The hangar, the codex and
+      the settings stay keyboard racks - section 6 asks that screens work with keyboard alone and with a
+      gamepad, and 22 tests hold what a thumb was promised: `test/touch.test.mjs` for the driving and
+      `test/touch-art.test.mjs` for the picture and for the promise that a mouse visit is untouched.)
 - [ ] Colour-blind palette.
 - [ ] Release.
 

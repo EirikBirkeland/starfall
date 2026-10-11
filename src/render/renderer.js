@@ -22,6 +22,7 @@ import { drawVolumePanel } from './volume.js';
 import { drawDebug } from './debug.js';
 import { drawToasts } from './toast.js';
 import { drawTutorial } from './tutorial.js';
+import { drawTouch } from './touch.js';
 import { drawLogo } from './logo.js';
 import { drawCards } from './cards.js';
 
@@ -174,6 +175,10 @@ export function renderFrame(tick, input, pointer) {
   // dim the one warning that has to be seen in a corner.
   if (world.state === STATE.PLAY) drawIndicators(ctx, tick.dt, tick.alpha);
   if (world.state !== STATE.START) drawHUD(ctx, tick.fps);
+  // The thumb's own controls, over the interface they sit beside and under anything that has taken
+  // the whole window. Only while a run is actually being flown: a paused run is a screen of its own,
+  // and a control painted behind a screen is a control nobody asked to see (input/touch.js).
+  if (world.state === STATE.PLAY && !world.paused) drawTouch(ctx, W, H);
   // The mark, while the world is on its title screen. Out here - past the vignette and the shake -
   // it belongs to the glass and not to the arena, so nothing it says can wobble or dim just because
   // something over the crowd just went off (render/logo.js).

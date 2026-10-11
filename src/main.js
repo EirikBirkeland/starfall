@@ -43,7 +43,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb } from './input/index.js';
 import { initAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -186,6 +186,16 @@ function pressAction() {
 
 function onCanvasPressed() {
   initAudio();
+  // A thumb is the one hand with no Esc on it, and its tap carries no gun - a run flown on a finger
+  // holds its own trigger (game/assists.js) - so the reason a click may not resume a paused run is
+  // precisely the reason a tap is allowed to. It has to be asked before the panel rule below,
+  // because the pause *is* one of the panels, and the pause rack says so in its own line
+  // (ui/screens.js `showPause`). The settings rack over a held run still owns the screen: a tap that
+  // is meant for a row is not a tap that goes back into the fight.
+  if (world.paused && thumb.used && !settingsIsUp()) {
+    resumeRun(world);
+    return;
+  }
   // Over a panel a click is not a launch. The title's click-to-go is worth having and the
   // death's card's is worth having, but a panel you are meant to be able to look round is not a
   // screen that throws you into a run because you aimed at a ship and missed - and there are two of
@@ -201,7 +211,8 @@ function onCanvasPressed() {
   // Over a paused run a click is nothing at all. The pause is not a screen to be clicked through on
   // the way back into the fight: the left button is the gun, so a click that resumed the run would
   // also fire it, and a player who meant to dismiss a panel and missed would be shot off before they
-  // were even looking. Esc and P are the way out, and they mean one thing.
+  // were even looking. Esc and P are the way out, and they mean one thing - and a thumb, which has
+  // neither key and no gun either, was answered above.
   if (world.paused) return;
   if (world.state !== STATE.PLAY) pressAction();
 }
@@ -668,7 +679,7 @@ function describePause() {
  * for one.
  */
 function raisePause() {
-  showPause(describePause());
+  showPause(describePause(), thumb.used);
   openPause();
 }
 
@@ -980,6 +991,10 @@ function boot() {
   initInput(view.canvas, {
     onConfirm: pressAction,
     onPress: onCanvasPressed,
+    // A thumb needs to know whether a run is being flown, because that is what decides whether a
+    // finger on the glass is a control or a tap on a screen (input/touch.js). This is the one
+    // question the input layer asks the game, and the world is the only place that knows the answer.
+    flying: () => world.state === STATE.PLAY && !world.paused,
     onPickCard: onPickCard,
     onReroll: onReroll,
     onHangar: onHangar,
@@ -1069,6 +1084,11 @@ window.STARFALL = {
       // two rows on it that change what a run does rather than what it looks like - which is exactly why
       // a tool wants to be able to see them.
       assists: assistSteps(),
+      // Has this visit flown on a finger (input/touch.js)? It is the third way to hold the two
+      // switches above - a thumb means the trigger is held and the gun aims itself - and a headless
+      // tool cannot tell it from the two switches, because a visit that turned them on by hand and a
+      // visit whose thumb has been on the stick look the same from inside the run.
+      thumbUsed: thumb.used,
       seed: world.seed,
       // Which day this run was flown on, and whether its last ending beat that day's best
       // (game/daily.js). A headless run cannot read a card, and "did the day get banked" is the whole

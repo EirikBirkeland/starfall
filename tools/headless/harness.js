@@ -356,6 +356,9 @@ const ELEMENT_IDS = [
   // on the page that is not a screen: an empty heading whose rectangle in the flex column is where
   // the drawn word belongs.
   'logoBox',
+  // The line on the pause rack that says how the run is let go of again - which is a key or a tap,
+  // depending on which hands this visit arrived with (ui/screens.js `showPause`, input/touch.js).
+  'pauseHint',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',
@@ -588,6 +591,19 @@ export async function bootGame(options) {
   let rafQueue = [];
   let clock = 0;
   let held = Object.create(null);
+  // Every touch event the game was handed, and how many times it asked the page not to do its own
+  // thing with one (input/touch.js). A browser left to scroll is a browser that eats the gesture a
+  // stick is made of, so "it prevented the default" is a promise worth a test.
+  let touchPrevented = 0;
+
+  /** One finger, in the shape input/touch.js reads. */
+  function touchEvent(id, x, y) {
+    return {
+      cancelable: true,
+      preventDefault() { touchPrevented++; },
+      changedTouches: [{ identifier: id === undefined ? 0 : id, clientX: x, clientY: y }],
+    };
+  }
 
   const windowObj = {
     get innerWidth() { return width; },
@@ -675,6 +691,22 @@ export async function bootGame(options) {
     releaseMouse(button) {
       controller.fire('mouseup', { button: button === undefined ? 0 : button });
     },
+    /**
+     * A finger on the glass (input/touch.js). `id` is the touch's own, so a test can put a second
+     * thumb down beside the first and know which of the two moved. The game asks every touch event
+     * to `preventDefault`, so the event handed over says it was cancelable and has somewhere to say
+     * it - and `touched` counts the asks, which is how a test can be sure the page was told not to
+     * scroll out from under a stick.
+     */
+    touchDown(x, y, id) {
+      controller.fire('touchstart', touchEvent(id, x, y));
+    },
+    touchMove(x, y, id) {
+      controller.fire('touchmove', touchEvent(id, x, y));
+    },
+    touchUp(x, y, id) {
+      controller.fire('touchend', touchEvent(id, x, y));
+    },
     setViewport(w, h) {
       width = w;
       height = h;
@@ -683,6 +715,8 @@ export async function bootGame(options) {
     },
     /** Draw counters, so a test can tell that something was actually painted. */
     drawCalls() { return Object.assign({}, counters); },
+    /** How many times a touch event was told to stop the page doing its own thing (see `touchDown`). */
+    get touchPrevented() { return touchPrevented; },
     /**
      * Paint something on a canvas of its own and say what it cost: `{ fills, strokes, images,
      * texts, gradients, shadows }`, and where it drew them: `widths`, `points`, `circles`, `rects`
@@ -860,6 +894,7 @@ export async function bootGame(options) {
         // of score and clock, and its two racks - the run's numbers, and the lines it was built from
         // (game/run.js `pauseRun`, ui/screens.js `showPause`).
         pauseHidden: elements.pauseScreen.classList.contains('hidden'),
+        pauseHint: elements.pauseHint.textContent,
         pauseScale: elements.pauseBody.style.transform || '',
         pauseHead: elements.pauseHead.textContent,
         pauseFacts: elements.factRow.children.map(plainRow),

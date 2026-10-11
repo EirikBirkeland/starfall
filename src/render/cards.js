@@ -19,6 +19,7 @@ import { drawIcon, tintOf } from './icons.js';
 import { glowFor, paintGlow } from './glow.js';
 import { haloText } from './hud.js';
 import { fitOneLine, fitParagraph, shrinkToFit, widthOf } from './fit.js';
+import { thumbUsed } from '../input/touch.js';
 import { view } from './canvas.js';
 
 const GAP = 26;             // px of air between two cards
@@ -278,7 +279,11 @@ function drawHeading(ctx, W, layout, age) {
   haloText(ctx, 'LEVEL ' + world.player.level, W / 2, top - 46, PALETTE.uiText, GLOW_KEY);
 
   ctx.font = FONT_ASK;
-  haloText(ctx, 'CHOOSE ONE   \u00b7   1 2 3 OR CLICK', W / 2, top - 24, PALETTE.uiDim, GLOW_KEY);
+  // The keys are worth the same to a thumb run and the cards answer a tap the same way they answer a
+  // click (main.js `onPickCard`), so the only thing that changes is the word - and a line that named a
+  // mouse to a hand that owns no mouse would be the one line on this screen not to act on.
+  haloText(ctx, 'CHOOSE ONE   \u00b7   1 2 3 OR ' + (thumbUsed() ? 'TAP' : 'CLICK'),
+    W / 2, top - 24, PALETTE.uiDim, GLOW_KEY);
   ctx.globalAlpha = 1;
 }
 

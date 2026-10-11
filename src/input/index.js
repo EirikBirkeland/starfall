@@ -1,5 +1,6 @@
 // The input layer's single output: one small descriptor the simulation reads
-// once per frame. Gamepad and touch will join it here later.
+// once per frame. A thumb is in it too now (input/touch.js); a gamepad would join
+// it here.
 //
 // Two kinds of thing come through. Held state (which way the ship is being
 // driven, whether the fire button is down) is read fresh every frame. One-shot
@@ -13,13 +14,22 @@
 
 import { keys, keyTaps, initKeyboard, clearKeys } from './keyboard.js';
 import { mouse, mouseTaps, initMouse, releaseMouse } from './mouse.js';
+import { thumb, touchTaps, initTouch, clearThumb } from './touch.js';
 
 // Reused every frame; the simulation only reads it during the step.
-const input = { moveX: 0, moveY: 0, moving: false, aimX: 0, aimY: 0, firing: false, dash: false };
+const input = {
+  moveX: 0, moveY: 0, moving: false, aimX: 0, aimY: 0, firing: false, dash: false,
+  // Is this visit flying on a thumb? One boolean, and game/assists.js is the whole of what it
+  // means: the trigger is held and the gun finds its own body, which is the other half of PLAN
+  // section 6's touch line and is those two switches already implemented. A keyboard or mouse visit
+  // leaves it false and is the visit it always was.
+  thumb: false,
+};
 
 export function initInput(canvas, handlers) {
   initKeyboard(handlers);
   initMouse(canvas, handlers);
+  initTouch(canvas, handlers);
   window.addEventListener('blur', clearInput);
 }
 
@@ -38,10 +48,20 @@ export function readInput() {
     input.moveY = 0;
   }
 
+  // A thumb on the stick drives the ship the way the keys do, and is the last word: whichever hand
+  // is on the glass right now is the one the game listens to. The stick's push is already a vector
+  // of at most 1, so a half lean is a half-speed ship and a full one is the ship's own top speed.
+  if (thumb.onStick) {
+    input.moving = true;
+    input.moveX = thumb.pushX;
+    input.moveY = thumb.pushY;
+  }
+
   input.aimX = mouse.x;
   input.aimY = mouse.y;
   input.firing = mouse.down;
-  input.dash = keyTaps.dash || mouseTaps.dash;
+  input.dash = keyTaps.dash || mouseTaps.dash || touchTaps.dash;
+  input.thumb = thumb.used;
   return input;
 }
 
@@ -49,11 +69,13 @@ export function readInput() {
 export function consumeInput() {
   keyTaps.dash = false;
   mouseTaps.dash = false;
+  touchTaps.dash = false;
 }
 
 export function clearInput() {
   clearKeys();
   releaseMouse();
+  clearThumb();
 }
 
-export { keys, mouse };
+export { keys, mouse, thumb };
