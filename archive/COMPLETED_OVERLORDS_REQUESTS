@@ -64,3 +64,49 @@ are still blank, and nothing the tool does ever rewrites a number that is alread
 safe to run it any time, including after anyone has edited the file by hand. Counting is metadata for
 the menu, so a counting failure warns and steps over rather than losing you a release.
 (edit this)
+
+------------------------------------------------------------
+
+Hail!
+Hrmph, the supreme overlord finds the music rather monotonous.
+The basic song should have more oomph, and it should be less repetitive.
+Expand-elaborate-develop the tune.
+
+Finished? YES
+Shipped the day it arrived, as `0.10.2`, in four moves - and every one of them a number, because
+"less repetitive" and "more oomph" are the sort of request that gets answered by turning things
+up until somebody stops complaining.
+
+**The harmony is eight bars and not four.** Am - F - C - G, then Am - F - Dm - G: the second four
+turn back over the tonic and take the subdominant in the seventh bar instead of the mediant, so
+the phrase ends by leaning home rather than by repeating its beginning. Every line in the game is
+written as intervals from its own bar's chord, so this alone made every existing figure mean
+something new in bars five to eight without one note of them being rewritten.
+
+**A pattern is a form now, not a bar.** Each part carries a list of bar figures - four bars of
+bass that answer one another, two of arpeggio, a drum kit whose eighth bar is a fill - and
+`checked` refuses a pattern whose figures do not divide its form or whose form is not a whole
+number of chord phrases. The meter that keeps the bus honest had to follow: `patternPeak` used to
+measure one bar and call it the pattern, which with a form would have meant the fill at the end of
+the phrase was free to ask for whatever it liked. It walks the whole form now, plus the bar that
+starts the loop again so the last bar is measured with its own tail.
+
+**There is a tune.** `LEAD`: eight bars of long notes on the chord tones, in the one register
+nothing else in the arrangement occupies, arriving with the kit at two minutes - which is the
+whole point of the request as heard. Before this the only melody the game owned was the vacuum's
+fanfare, ten seconds in a fifteen minute run; now the tune is going for most of a run, and the
+fanfare spends whichever slot was carrying it instead of being the song.
+
+**The oomph is a sine.** `SUB` holds the bar's own root for most of the bar, which is the octave
+where a saw bass has no fundamental and a laptop speaker has no answer. It is not free: the bus
+ceiling is a sum and the harshest fight was sitting at 0.497 of its 0.5, so the pad went from 0.03
+to 0.02 a voice, the saw bass from 0.16 to 0.105, and every drum a little lighter - and the result
+is heavier at the end of it and not any louder, which is the only kind of oomph that survives
+being mixed under an explosion. The loudest bar of the loudest pattern is now 0.457 of the ceiling
+it was at 0.497, and the simulation is byte for byte the game it was, because the simulation still
+does not know music exists.
+
+Seven new tests in `test/music.test.mjs`, including the one the header had been promising for two
+releases - every note of every figure, against every chord it can actually be played over, is a
+note of A natural minor, and every note on a beat is a tone of that chord - plus a mutation test
+that proves the load meter is reading the last bar of the form and not the first. Suite 1704.

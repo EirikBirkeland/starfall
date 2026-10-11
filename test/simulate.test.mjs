@@ -92,7 +92,7 @@ test('the sound cannot move a run', () => {
   const loud = simulate(args.concat('--audio'));
 
   assert.match(loud, /mix: [\d,]+ voices asked/, 'the loud one had an audio device and used it');
-  assert.match(loud, /of them drums \| \w+ \d+m\d+s/, 'and it names the patterns it played');
+  assert.match(loud, /of them drums and \d+ the tune \| \w+ \d+m\d+s/, 'and it names the patterns it played');
   assert.equal(dark, loud.replace(/^mix: .*\n/m, ''), 'hearing the game changed the game');
 });
 

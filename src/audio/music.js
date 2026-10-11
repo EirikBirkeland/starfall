@@ -23,7 +23,7 @@
 // every four: a pattern carries `bars` (how long its arrangement is, in bars) and each of its
 // parts carries a *list* of bar figures, one per bar of that loop, so the bass can answer the
 // bar it just played, the drum kit can leave a fill at the end of a phrase, and the tune can be
-// sixteen bars long instead of four. The chord phrase is eight bars (see `CHORDS`), so every
+// eight bars long instead of one. The chord phrase is eight bars (see `CHORDS`), so every
 // figure list's length has to divide the form and the form has to be a whole number of chord
 // phrases - `checked` refuses anything else, because a figure list that does not line up with
 // the harmony is a wrong note waiting to happen rather than a wrong note you can hear. `title`
@@ -32,22 +32,30 @@
 //
 // **Every line is written as sixteen characters.** A pitched figure is a bar of sixteenths in
 // the same shape the drum figures always were (`figure`), and a note in it is an interval in
-// semitones from that bar's own chord root - so a figure is a shape that can be handed to any
-// chord and stay in key, which is how a four-bar phrase becomes an eight-bar one without a
-// single note being rewritten. `test/music.test.mjs` proves it: every note of every figure,
-// against the chord it can actually land on, is a note of the key, and every note on a strong
-// beat is a note of that chord.
+// semitones from that bar's own chord root - `t` being the chord's own third, since this phrase
+// has a minor and a major third in it - so a figure is a shape that can be handed to any chord
+// and stay in key, which is how a four-bar phrase becomes an eight-bar one without a single note
+// being rewritten. `test/music.test.mjs` proves it: every note of every figure, against the
+// chord it can actually land on, is a note of the key, and every note on a strong beat is a note
+// of that chord.
 //
-// **The tune is the vacuum's, and the drums' only.** Below the groove there is a chord and a
-// walking bass, above it a chip arpeggio, and when the kit arrives at two minutes so does the
-// lead - a line of long notes on the chord tones, which is the one place this soundtrack sings
-// rather than drives. When the point vacuum opens (game/vacuum.js) the run's own pattern spends
-// the melody's slot *and* the arpeggio's on a fanfare for ten seconds. It is a *layer swap* and not a new pattern of
-// its own so the reward is heard over the fight it happened in, and it is metered like every other
-// pattern (`patternPeak`, and the four `-fanfare` entries in `PATTERNS`) because "loud enough to be
-// the reward" is a number and the one that keeps this bus honest does not care which pattern is
-// spending it. Its ceiling is the loudest pattern's headroom, which is why the fanfare is no louder
-// than the arpeggio it replaces and makes itself known by register and rhythm instead.
+// **Below the groove is a floor and above it is a tune.** A sine on the bar's root holds the
+// octave the saw bass only brightens, which is the half of "oomph" that a laptop speaker is
+// physically able to admit; and when the kit arrives at two minutes so does the lead - eight bars
+// of long notes on the chord tones, in the one register nothing else in the arrangement occupies,
+// which is the place this soundtrack sings instead of driving. Both are paid for out of the other
+// layers, because the ceiling below is a sum: the pad is a third quieter than it was and the saw
+// bass a fifth, and the music is fuller at the end of it and no louder.
+//
+// **The other tune is the vacuum's.** When the point vacuum opens (game/vacuum.js) the pattern the
+// run is playing spends one of its two melodic slots on a fanfare for ten seconds: the melody's
+// slot where there is a melody, or the arpeggio's in the first two minutes where there is not.
+// It is a *layer swap* and not a new pattern of its own so the reward is heard over the fight it
+// happened in, and it is metered like every other pattern (`patternPeak`, and the four `-fanfare`
+// entries in `PATTERNS`) because "loud enough to be the reward" is a number and the one that keeps
+// this bus honest does not care which pattern is spending it. Its ceiling is the loudest pattern's
+// headroom, which is why the fanfare is no louder than the line it replaces and makes itself known
+// by register and rhythm instead.
 //
 // **How loud the music is allowed to be is measured, not hoped.** The sequencer sits
 // outside the voice budget (see the last paragraph of this header and audio/mix.js), so the
@@ -133,75 +141,131 @@ function hz(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-// A natural-minor progression, one chord per bar, four bars to a loop: Am - F - C - G,
-// the tonic, the submediant, the mediant and the subtonic - every note of every chord in
-// the key, and the minor third of the tonic is the only minor third in it, which is what
-// makes it sound sad-and-driving instead of merely sad. Roots are MIDI numbers in the
-// bass register (A2 is 110 Hz - the same number as the BPM, which is a happy accident
-// worth having): each bar's chord is [root, third, fifth] and the layers below take it
-// apart.
-const CHORDS = [
+// A natural-minor progression, one chord per bar, and **eight bars to a phrase**: Am - F - C - G,
+// then Am - F - Dm - G. The first four are the tonic, submediant, mediant and subtonic - the
+// loop this soundtrack was built on - and the second four turn back over the tonic and take the
+// subdominant instead of the mediant in the seventh bar, so the end of the phrase leans home
+// rather than repeating the beginning. Eight bars of harmony is the smallest phrase that can
+// say something and come back: at four bars the ear hears a loop, at eight it hears a sentence.
+//
+// Every note of every chord is in A natural minor, and the tonic's minor third is the only
+// minor third in it, which is what makes it sound sad-and-driving instead of merely sad. Roots
+// are MIDI numbers in the bass register (A2 is 110 Hz - the same number as the BPM, which is a
+// happy accident worth having): each bar's chord is [root, third, fifth] and the layers below
+// take it apart. `third` is 3 for the two minor chords and 4 for the major ones, and it is
+// part of the chord and not of the key: the figure notation spells it `t` so one line can be
+// handed either.
+/** A natural minor as pitch classes: the only notes any figure in this file may ask for. */
+export const KEY = [9, 11, 0, 2, 4, 5, 7];
+
+export const CHORDS = [
   { root: 45, third: 3 },  // A minor - i
   { root: 41, third: 4 },  // F       - VI
   { root: 48, third: 4 },  // C       - III
   { root: 43, third: 4 },  // G       - VII
+  { root: 45, third: 3 },  // A minor - i     (the phrase turns back over the tonic)
+  { root: 41, third: 4 },  // F       - VI
+  { root: 50, third: 3 },  // D minor - iv
+  { root: 43, third: 4 },  // G       - VII
 ];
+
 
 // The pad: the whole triad, an octave above the root, both of its oscillators of each note
 // nudged a comma apart so the chord breathes instead of standing still. Slow on, slow off,
 // one chord per bar with a tail over the bar line - the layer a title screen is made of.
-const PAD = { wave: 'sawtooth', vol: 0.03, attack: 0.6, dur: 2.5, spread: 1.004 };
+const PAD = { wave: 'sawtooth', vol: 0.02, attack: 0.6, dur: 2.5, spread: 1.004 };
 // The same pad read harsher, for a boss: detuned twice as far apart, so the chord does not
 // so much breathe as swim, and voiced with the scale's second against the root (see
 // `harshTones`). It is quieter than the plain one for exactly that reason - eight voices of
 // a grinding pair cost more of the bar than six of a soft one, and the ceiling is a sum.
-const PAD_BOSS = { wave: 'sawtooth', vol: 0.018, attack: 0.35, dur: 2.3, spread: 1.009 };
+const PAD_BOSS = { wave: 'sawtooth', vol: 0.013, attack: 0.35, dur: 2.3, spread: 1.009 };
 // The bass: sawtooth for grit at a low level, six steps to a bar on the driving offbeats,
 // walking to the fifth and up an octave at the end of the bar so the loop leans into the
-// next one instead of starting square.
-const BASS = { wave: 'sawtooth', vol: 0.16, attack: 0.008, dur: 0.24 };
-const BASS_STEPS = [0, null, null, 0, null, null, 0, null, 7, null, null, 0, null, null, 12, null];
+// next one instead of starting square. Four bars of it make a phrase: the statement, the same
+// shape with the fifth moved up a step, an answer that starts on the fifth, and a turnaround
+// that lands the octave early. Everything in them is a chord tone - 0, the third, the fifth, the
+// octave - which is what lets one phrase be handed to any of the eight bars and stay home.
+const BASS = { wave: 'sawtooth', vol: 0.105, attack: 0.008, dur: 0.24 };
+const BASS_BARS = [
+  '0..0..0.7...0..c',   // the statement, as long as the groove has been this line
+  '0..0..7...0..c..',   // the same shape with the answer a step earlier
+  '0...7...0..0..c.',   // the answer, from the fifth down
+  '0..0..7.0...c...',  // and the turnaround, landing the octave on the way out
+];
+// Under it, the sub: a clean sine on the bar's own root, held most of the bar. This is the
+// oomph - the saw's own fundamental is a bright, filtered thing and on laptop speakers most of
+// what was low about it never arrives, so the weight of the music now sits on a waveform that
+// puts all of its energy where the ear hears weight. One long note a bar, and always the root:
+// a moving sub walks into the wrong chord, and a held one is the floor everything else stands on.
+const SUB = { wave: 'sine', vol: 0.05, attack: 0.03, dur: 1.6 };
+const SUB_BARS = ['0...............'];
 // The boss's bass: the same idea on eighths instead of six offbeat steps - eight hits to a
 // bar, a shorter note so they stay apart at the faster grid, and a quarter of the level taken
 // off because there are a third more of them per second. Motion over the bar line stays
-// (the fifth, then the octave, then a walk home) so it still leans forward.
-const BASS_BOSS = { wave: 'sawtooth', vol: 0.12, attack: 0.006, dur: 0.17 };
-const BASS_BOSS_STEPS = [0, null, 0, null, 7, null, 0, null, 0, null, 0, null, 12, null, 7, null];
+// (the fifth, then the octave, then a walk home) so it still leans forward, and two bars of it
+// alternate so the eighth notes do not flatten into a drill.
+const BASS_BOSS = { wave: 'sawtooth', vol: 0.095, attack: 0.006, dur: 0.17 };
+const BASS_BOSS_BARS = ['0.0.7.0.0.0.c.7.', '0.0.7.0.c.0.7.0.'];
 // The stripped bass of the last hull: the root, twice a bar, held long enough to be a drone
 // rather than a note. This is the pulse the tension is built out of - the run's heartbeat
 // when everything else about it has been taken away.
-const BASS_LAST = { wave: 'sawtooth', vol: 0.11, attack: 0.03, dur: 0.85 };
-const BASS_LAST_STEPS = [0, null, null, null, null, null, null, null, 0, null, null, null, null, null, null, null];
+const BASS_LAST = { wave: 'sawtooth', vol: 0.095, attack: 0.03, dur: 0.85 };
+const BASS_LAST_BARS = ['0.......0.......'];
 // The arpeggio: a square-wave chip line two octaves up, one note per pair of sixteenths,
-// climbing the chord and back down. The quietest layer by far - it is sparkle, not tune.
-const ARP = { wave: 'square', vol: 0.05, attack: 0.004, dur: 0.13 };
-const ARP_STEPS = [null, null, 0, null, 1, null, 2, null, null, null, 3, null, 2, null, 1, null];
+// climbing the chord and back down. The quietest layer by far - it is sparkle, not tune. Two
+// bars of it, so the climb and the turn-around alternate and the figure never quite repeats.
+const ARP = { wave: 'square', vol: 0.042, attack: 0.004, dur: 0.13 };
+const ARP_BARS = ['..0.t.7...c.7.t.', '..0.t.7.0...7.t.'];
 // The boss's arpeggio: the same chip voice, but the gaps are filled in - eleven notes to a
 // bar instead of six, most of them sixteenths apart, and the figure turns back on itself
 // instead of climbing, which is what makes it read as urgent rather than as busier.
-const ARP_BOSS = { wave: 'square', vol: 0.045, attack: 0.003, dur: 0.1 };
-const ARP_BOSS_STEPS = [0, null, 2, 1, 3, null, 2, null, 0, null, 2, 1, 3, 2, 3, null];
+const ARP_BOSS = { wave: 'square', vol: 0.038, attack: 0.003, dur: 0.1 };
+const ARP_BOSS_BARS = ['0.7tc.7.0.7tc7c.', '0.7tc.7tc0.7t.c.'];
 // And the one note the stripped pattern keeps of the arpeggio: the chord's third, an octave
 // above where the arpeggio lives, once to a bar, long and alone. A run at one hull is not
 // quiet because the game stopped - it is quiet because it is listening to you.
 const PING = { wave: 'triangle', vol: 0.045, attack: 0.02, dur: 1.4 };
-const PING_STEPS = [1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null];
-// The fanfare (game/vacuum.js): what the music plays while the point vacuum is open. It takes the
-// arpeggio's slot and spends it on a tune - the arpeggio is sparkle, and a reward wants a tune - and
+const PING_BARS = ['t...............'];
+// The lead: the tune. Where every other line is a figure being handed to a chord, this one is a
+// melody - three long notes a bar, a breath apart, on the chord's own tones and an octave above
+// the root, which is the register nobody else in the arrangement occupies: the bass is under it,
+// the pad is the same chord slower, the arpeggio is sparkle two octaves up. It is the one place
+// the soundtrack sings instead of drives, and it is why the kit and the tune arrive together at
+// two minutes: a drum you can walk to and a line you can hum are the two things a run that has
+// settled into itself deserves.
+//
+// The eight bars are one sentence: the call goes up the chord (octave, third, fifth), the answer
+// comes down it, the middle of the phrase turns the same shape over the subdominant and the tonic
+// again, and the last bar leaves the fifth hanging into the loop. `test/music.test.mjs` proves
+// every note of it is in the key and every note on a beat is a tone of the chord it lands on.
+const LEAD = { wave: 'triangle', vol: 0.045, attack: 0.05, dur: 0.78 };
+const LEAD_BARS = [
+  'c...t...7.......',   // i     - up the chord: the call
+  '7.......c...t...',   // VI    - and back down
+  'c.......t...7...',   // III   - the call again, a bar earlier in the phrase
+  '7...t...c.......',   // VII   - the answer, landing on the octave
+  'c...t...c.......',   // i     - home, and holding it
+  't.......7...c...',   // VI    - the shape, stretched
+  '7...c...t.......',   // iv    - the subdominant, which is the new bar of the phrase
+  'c...........7...',   // VII   - and the fifth left hanging into the loop
+];
+// The fanfare (game/vacuum.js): what the music plays while the point vacuum is open. It takes
+// the arpeggio's slot *and* the lead's and spends both on one tune - the arpeggio is sparkle and
+// the lead is the run's own melody, and a reward wants the melody to itself - and
 // it is written the way every other line here is: intervals from the bar's own chord, so it is
-// consonant on all four chords of the progression and can begin on any bar the sequencer happens to
+// consonant on all eight bars of the progression and can begin on any bar the sequencer happens to
 // be standing in when the well opens.
 //
 // The shape is the oldest one in the book: four notes running up the chord, the octave held, an
 // answer coming back down, and a rest at the end of the bar so the next one lands on a clean beat.
 // It is one bar long for the same reason the arpeggio is - the sequencer never has to remember where
 // a figure started, which is what lets a reward interrupt a bar and still be music.
-const FANFARE = { wave: 'square', vol: 0.05, attack: 0.004, dur: 0.26 };
-const FANFARE_STEPS = [0, 1, 2, 3, null, 3, null, null, 3, null, 2, null, 1, null, null, null];
-// One note to say the music's slider moved. It is priced like a voice of the pad (0.03) on
+const FANFARE = { wave: 'square', vol: 0.038, attack: 0.004, dur: 0.26 };
+const FANFARE_BARS = ['0t7tc...c.7.t...'];
+// One note to say the music's slider moved. It is priced like a voice of the pad (0.02) on
 // purpose: it is the only thing this bus gets that `patternPeak` has not metered, and a pad's
 // price is the one number known to fit on top of any bar the sequencer can write.
-const AUDITION = { wave: 'triangle', vol: 0.03, attack: 0.006, dur: 0.16 };
+const AUDITION = { wave: 'triangle', vol: 0.02, attack: 0.006, dur: 0.16 };
 
 // The drums: three of them, all synthesis, none of them a loop. A kick is a chip kick - one
 // triangle falling through most of two octaves in a seventh of a second (`from` to `drop`),
@@ -211,17 +275,20 @@ const AUDITION = { wave: 'triangle', vol: 0.03, attack: 0.006, dur: 0.16 };
 // is what stops the kit sounding like three beeps. A tick is a closed hi-hat on the offbeats
 // and by far the quietest thing here, because a hat that can be heard on its own is a hat
 // that has eaten the mix.
-const KICK = { wave: 'triangle', from: 150, drop: 46, vol: 0.11, attack: 0.004, dur: 0.14 };
+const KICK = { wave: 'triangle', from: 150, drop: 46, vol: 0.095, attack: 0.004, dur: 0.14 };
 // The same instrument played as a heartbeat for the last hull: lower, softer, and taking a
 // twentieth of a second to arrive instead of a two-hundred-and-fiftieth, which is the
 // difference between a drum and a pulse you feel in your chest instead of one you hear.
-const THUMP = { wave: 'triangle', from: 118, drop: 41, vol: 0.09, attack: 0.05, dur: 0.34 };
-const CRACK = { dur: 0.17, cutoff: 2600, sweep: 700, q: 1.1, vol: 0.07 };
-const TICK = { dur: 0.05, cutoff: 9000, sweep: 5500, q: 0.9, vol: 0.035 };
+const THUMP = { wave: 'triangle', from: 118, drop: 41, vol: 0.08, attack: 0.05, dur: 0.34 };
+const CRACK = { dur: 0.17, cutoff: 2600, sweep: 700, q: 1.1, vol: 0.055 };
+const TICK = { dur: 0.05, cutoff: 9000, sweep: 5500, q: 0.9, vol: 0.028 };
 
-/** A drum: the voice it is, and the bar it plays on. */
-function drum(row, at) {
-  return { row, at };
+/**
+ * A drum: the voice it is, and the bars it plays on - one figure, or a list of them. A kit that
+ * plays one bar forever is a loop; a kit that answers the phrase it just played is a drummer.
+ */
+function drum(row, figures) {
+  return { row, bars: (Array.isArray(figures) ? figures : [figures]).map(hits) };
 }
 
 /**
@@ -237,35 +304,86 @@ function hits(figure) {
   return bar;
 }
 
-/** The four-on-the-floor the run earns at two minutes, on the offbeats for the hat. */
-const KIT_RUN = {
-  kick: drum(KICK, hits('x...x...x...x...')),
-  crack: drum(CRACK, hits('....x.......x...')),
-  tick: drum(TICK, hits('..x...x...x...x.')),
-};
+/**
+ * The same kit with a fill at the end of every phrase of `every` bars: the last bar of the kit's
+ * own loop is played `fill` instead. That is the whole of what a fill is in a sequencer that must
+ * not remember anything between steps - a bar that is different because of where it falls, and
+ * nothing more clever than that.
+ */
+function fills(kit, every, fill) {
+  const out = {};
+  for (const name of Object.keys(kit)) {
+    const bars = kit[name].bars.slice();
+    while (bars.length < every) bars.push(bars[0]);
+    const last = fill[name];
+    if (last) {
+      for (let at = every - 1; at < bars.length; at += every) bars[at] = hits(last);
+    }
+    out[name] = { row: kit[name].row, bars };
+  }
+  return out;
+}
+
+/**
+ * A pitched bar, written as the same sixteen characters a drum bar is: `.` is nothing, a hex
+ * digit is that many semitones above the bar's own chord root, and `t` is that chord's third -
+ * the one note a figure cannot spell as a number, because this progression has both a minor and
+ * a major third in it and one line has to be handable to either.
+ *
+ * Written against the chord and not against the key is what keeps a line in key wherever the
+ * sequencer happens to be standing when it starts: the notes that are safe on *every* bar of the
+ * phrase are 0, 2, 7, the octave, and the chord's own third, and `test/music.test.mjs` holds
+ * every figure in this file to being a chord tone on a beat and a note of A natural minor
+ * everywhere else.
+ */
+function figure(text) {
+  if (typeof text !== 'string' || text.length !== STEPS_PER_BAR) {
+    throw new Error('a figure is ' + STEPS_PER_BAR + ' characters: ' + text);
+  }
+  if (/[^.0-9a-f t]/.test(text)) throw new Error('a figure is rests, hex, and t: ' + text);
+  return text;
+}
+
+/** What one character of a figure owes: nothing, an interval, or the bar's own third. */
+function intervalAt(ch, chord) {
+  if (ch === '.') return null;
+  if (ch === 't') return chord.third;
+  return parseInt(ch, 16);
+}
+
+/**
+ * One line of the pattern book: a voice, the bars it plays (one figure per bar of its own loop,
+ * which has to divide the pattern's form), and the octave it lives in above the chord root. The
+ * octave is why the arpeggio and the bass can both be written `0..t..7.` and be nothing like the
+ * same line.
+ */
+function line(voice, figures, octave) {
+  const bars = (Array.isArray(figures) ? figures : [figures]).map(figure);
+  return { voice, bars, octave: octave || 0 };
+}
+
+/** The four-on-the-floor the run earns at two minutes, on the offbeats for the hat - and a fill
+ * to close every eight bars, so the kit is playing something else one bar in eight because the
+ * phrase is turning over. */
+const KIT_RUN = fills({
+  kick: drum(KICK, ['x...x...x...x...', 'x...x...x..x..x.']),
+  crack: drum(CRACK, ['....x.......x...', '....x.....x.x...']),
+  tick: drum(TICK, ['..x...x...x...x.', '..x.x.x...x...x.']),
+}, 8, { kick: 'x...x...x...x.x.', crack: '....x...x...x...' });
 // The boss's kit: the kick on every eighth, the hat on the eighths in between them, and the
 // crack on the backbeat with a ghost note in front of each of the next pair - a kit that
 // never lets the foot settle, which is most of what "harsher" means when it is heard. The
 // hat going *between* the kicks and not on top of them is the other half of it: two drums
 // landing together is one thud, and eight thuds a bar is a wall.
-const KIT_BOSS = {
-  kick: drum(KICK, hits('x.x.x...x.x.x...')),
-  crack: drum(CRACK, hits('....x..x....x..x')),
-  tick: drum(TICK, hits('.x.x.x.x.x.x.x.x')),
-};
+const KIT_BOSS = fills({
+  kick: drum(KICK, ['x.x.x...x.x.x...', 'x.x.x...x.x.x.x.']),
+  crack: drum(CRACK, ['....x..x....x..x', '....x..x..x.x.x.']),
+  tick: drum(TICK, ['.x.x.x.x.x.x.x.x', 'x.x.x.x.x.x.x.x.']),
+}, 8, { kick: 'x.x.x...x.x.xxx.', crack: '....x..x....x.xx' });
 // And the stripped one: the heartbeat, and nothing else. Two low pulses a bar, about the
 // speed of a real one at rest, over the drone - the whole kit reduced to the one thing
 // nobody mistakes for music when they are alone in the arena with one hull left.
-const KIT_LAST = { kick: drum(THUMP, hits('x.......x.......')) };
-
-/**
- * The bar's chord as four intervals from its root - tonic, third, fifth, octave -
- * starting `base` semitones up. The pad takes the first three an octave up; the
- * arpeggio takes all four two octaves up.
- */
-function chordTones(chord, base) {
-  return [base, base + chord.third, base + 7, base + 12];
-}
+const KIT_LAST = { kick: drum(THUMP, ['x.......x.......', 'x...............']) };
 
 /** The pad's own chord: the triad an octave above the root, and no octave on top of it -
  * the layer already doubles every note across two slightly detuned oscillators, and a third
@@ -289,8 +407,35 @@ function harshTones(chord) {
 }
 
 /** One line of the pattern book: a voice, and which step of the bar it plays on. */
-function line(voice, steps) {
-  return { voice, steps };
+
+/**
+ * The rules of the pattern book, applied as the book is built rather than remembered by a test:
+ *
+ * - the form is a whole number of eight-bar chord phrases, because a figure that lands on a
+ *   different chord the second time round is a wrong note you can hear;
+ * - every part's figure list divides the form, for the same reason the other way round: a bass
+ *   whose four bars do not fit the form would start its statement on the subdominant;
+ * - every pitched figure is sixteen characters of rests, hex and `t`, and every drum figure is
+ *   sixteen characters (`figure` and `hits` both refuse anything else on the way in).
+ */
+function checked(spec) {
+  if (spec.bars % CHORDS.length !== 0) {
+    throw new Error(spec.name + ' is ' + spec.bars + ' bars: the phrase is ' + CHORDS.length);
+  }
+  const parts = ['sub', 'bass', 'arp', 'lead'].map((key) => spec[key]).filter(Boolean);
+  const kits = spec.drums ? Object.values(spec.drums) : [];
+  for (const part of parts.concat(kits)) {
+    if (spec.bars % part.bars.length !== 0) {
+      throw new Error(spec.name + ' has a ' + part.bars.length + '-bar figure in a '
+        + spec.bars + '-bar form');
+    }
+  }
+  return spec;
+}
+
+/** A pattern, and the rules applied to it. */
+function pattern(spec) {
+  return checked(spec);
 }
 
 /**
@@ -299,29 +444,54 @@ function line(voice, steps) {
  * part of the music getting faster together, chord changes included, which is the only way
  * "a faster pattern" that does not sound like a stutter was ever going to work.
  *
+ * `bars` is the form: how long the arrangement is before it starts again, and every part's
+ * figure list has to divide it (`checked`). Eight bars is one turn of the harmony, which is the
+ * shortest form that can state something and come back for it.
+ *
  * `harsh` says whether the chord is voiced with the scale's second rubbing on its root. A
  * `null` in a slot means that part is not playing at all, which is what makes the last hull
  * *stripped* and not merely quiet.
  */
-const TITLE = { name: 'title', rate: 1, pad: PAD, harsh: false, bass: null, arp: null, drums: null };
-const RUN = { name: 'run', rate: 1, pad: PAD, harsh: false, bass: line(BASS, BASS_STEPS), arp: line(ARP, ARP_STEPS), drums: null };
-const DRIVING = { name: 'driving', rate: 1, pad: PAD, harsh: false, bass: line(BASS, BASS_STEPS), arp: line(ARP, ARP_STEPS), drums: KIT_RUN };
-const BOSS = { name: 'boss', rate: 4 / 3, pad: PAD_BOSS, harsh: true, bass: line(BASS_BOSS, BASS_BOSS_STEPS), arp: line(ARP_BOSS, ARP_BOSS_STEPS), drums: KIT_BOSS };
-const LAST = { name: 'last', rate: 1, pad: PAD, harsh: false, bass: line(BASS_LAST, BASS_LAST_STEPS), arp: line(PING, PING_STEPS), drums: KIT_LAST };
+const TITLE = pattern({
+  name: 'title', bars: 8, rate: 1, pad: PAD, harsh: false, bass: null, arp: null, drums: null,
+});
+const RUN = pattern({
+  name: 'run', bars: 8, rate: 1, pad: PAD, harsh: false,
+  sub: line(SUB, SUB_BARS), bass: line(BASS, BASS_BARS), arp: line(ARP, ARP_BARS, 24), drums: null,
+});
+// The run two minutes in: the same groove, and the two things a run that has settled into itself
+// has earned - a kit you can walk to and a tune you can hum.
+const DRIVING = pattern({
+  ...RUN, name: 'driving', drums: KIT_RUN, lead: line(LEAD, LEAD_BARS, 12),
+});
+// The fight: a third faster, with the scale's second rubbing on every chord. No tune - the boss
+// pattern is the loudest thing the bus is allowed to write and its arpeggio is already the busiest
+// line in the book, so the melody stays with the run that has to survive it.
+const BOSS = pattern({
+  name: 'boss', bars: 8, rate: 4 / 3, pad: PAD_BOSS, harsh: true,
+  sub: line(SUB, SUB_BARS), bass: line(BASS_BOSS, BASS_BOSS_BARS),
+  arp: line(ARP_BOSS, ARP_BOSS_BARS, 24), drums: KIT_BOSS,
+});
+const LAST = pattern({
+  name: 'last', bars: 8, rate: 1, pad: PAD, harsh: false,
+  bass: line(BASS_LAST, BASS_LAST_BARS), arp: line(PING, PING_BARS, 24), drums: KIT_LAST,
+});
 
 /**
- * One pattern with the fanfare over it: the same parts, the same tempo and the same chord, with the
- * arpeggio's slot spent on the tune instead of on sparkle. It is a whole pattern and not a switch
- * because that is what `patternPeak` can measure - "loud enough to be the reward" is a number, and
- * the number is held to the same ceiling as every other pattern by test/music.test.mjs.
+ * One pattern with the fanfare over it: the same parts, the same tempo and the same chord, with
+ * one slot spent on the reward's tune. Where the pattern has a melody line the fanfare takes
+ * that - the reward *is* the tune, and it would be a strange prize that arrived while the run's
+ * own melody kept singing - and where it has none, as the first two minutes have none, the
+ * fanfare takes the arpeggio's slot instead and the sparkle is what pays for it. It is a whole
+ * pattern and not a switch because that is what `patternPeak` can measure - "loud enough to be
+ * the reward" is a number, and the number is held to the same ceiling as every other pattern by
+ * `test/music.test.mjs`.
  */
-function fanfareOver(pattern) {
-  return {
-    ...pattern,
-    name: pattern.name + '-fanfare',
-    fanfare: true,
-    arp: line(FANFARE, FANFARE_STEPS),
-  };
+function fanfareOver(spec) {
+  const over = { ...spec, name: spec.name + '-fanfare', fanfare: true };
+  if (spec.lead) over.lead = line(FANFARE, FANFARE_BARS, 12);
+  else over.arp = line(FANFARE, FANFARE_BARS, 24);
+  return checked(over);
 }
 
 const RUN_FANFARE = fanfareOver(RUN);
@@ -387,7 +557,7 @@ function patternFor(world) {
 
 let stepIndex = 0;   // how far into the progression the schedule has reached
 let nextAt = -1;     // audio-clock time the next step is due; negative means "not started"
-const ledger = { steps: 0, notes: 0, drums: 0, anchors: 0, pattern: 'silent' };
+const ledger = { steps: 0, notes: 0, drums: 0, melody: 0, subs: 0, anchors: 0, pattern: 'silent' };
 // How long the run has spent in each pattern, in seconds of music actually scheduled. The
 // tests and `tools/simulate.js --audio` read this to check the intensity curve happened at
 // all instead of hoping a threshold was crossed somewhere.
@@ -395,16 +565,18 @@ const heard = {};
 
 /**
  * What the sequencer has done this page visit: steps scheduled, notes voiced (drums among
- * them), how many of those were drums, how many times the clock ran out from under it and
- * had to be re-anchored, where it stands in the progression, which pattern it is in right
- * now, and how long each pattern has been playing. A copy, and never reset, for the same
- * reason the mix ledger is neither (audio/mix.js).
+ * them), how many of those were drums, how many were the tune, how many were the sub, how many
+ * times the clock ran out from under it and had to be re-anchored, where it stands in the
+ * progression, which pattern it is in right now, and how long each pattern has been playing. A
+ * copy, and never reset, for the same reason the mix ledger is neither (audio/mix.js).
  */
 export function musicLedger() {
   return {
     steps: ledger.steps,
     notes: ledger.notes,
     drums: ledger.drums,
+    melody: ledger.melody,
+    subs: ledger.subs,
     anchors: ledger.anchors,
     position: stepIndex,
     pattern: ledger.pattern,
@@ -492,23 +664,30 @@ function padVoices(chord, pattern) {
  */
 function stepVoices(pattern, index) {
   const inBar = index % STEPS_PER_BAR;
-  const chord = CHORDS[Math.floor(index / STEPS_PER_BAR) % CHORDS.length];
+  const bar = Math.floor(index / STEPS_PER_BAR);
+  const chord = CHORDS[bar % CHORDS.length];
   const out = inBar === 0 ? padVoices(chord, pattern) : [];
 
-  if (pattern.bass) {
-    const interval = pattern.bass.steps[inBar];
-    if (interval !== null) out.push({ freq: hz(chord.root + interval), tone: pattern.bass.voice });
-  }
-  if (pattern.arp) {
-    const toneIndex = pattern.arp.steps[inBar];
-    if (toneIndex !== null) {
-      out.push({ freq: hz(chord.root + chordTones(chord, 24)[toneIndex]), tone: pattern.arp.voice });
+  // The four pitched lines are one loop: whichever parts this pattern has, their own bar of the
+  // figure list is resolved against this bar's chord and lifted into their own octave.
+  for (const key of ['sub', 'bass', 'arp', 'lead']) {
+    const part = pattern[key];
+    if (!part) continue;
+    const interval = intervalAt(part.bars[bar % part.bars.length][inBar], chord);
+    // `melody` and `sub` ride along on the note so the ledger can say how much of the music is
+    // the tune and how much is the floor: "did the run ever get a melody" is a question the
+    // tests and `tools/simulate.js --audio` ask, and neither can answer it off a bare note count.
+    if (interval !== null) {
+      out.push({
+        freq: hz(chord.root + part.octave + interval), tone: part.voice,
+        melody: key === 'lead', sub: key === 'sub',
+      });
     }
   }
   if (pattern.drums) {
     for (const name of ['kick', 'crack', 'tick']) {
       const hit = pattern.drums[name];
-      if (!hit || hit.at[inBar] !== 'x') continue;
+      if (!hit || hit.bars[bar % hit.bars.length][inBar] !== 'x') continue;
       // A drum with a wave is a pitch falling through itself; the rest are the noise buffer -
       // and either way it is a drum, which is what the ledger below is asked to count.
       if (hit.row.wave) out.push({ freq: hit.row.from, tone: hit.row, drum: true });
@@ -519,7 +698,7 @@ function stepVoices(pattern, index) {
 }
 
 /**
- * How loud one pattern can get: the loudest single instant of its second bar, counted by
+ * How loud one pattern can get: the loudest single instant of any bar of its form, counted by
  * laying every voice it owes end to end on its own grid and adding up what is sounding at
  * each point of it - through each voice's envelope, so a slow one is worth what it is worth
  * at that moment and not its full price for its whole length. Two bars are walked because
@@ -535,7 +714,7 @@ export function patternPeak(name) {
   const step = STEP_SECONDS / pattern.rate;
   const bar = STEPS_PER_BAR * step;
   const voices = [];
-  for (let index = 0; index < STEPS_PER_BAR * 2; index++) {
+  for (let index = 0; index < STEPS_PER_BAR * (pattern.bars + 1); index++) {
     const at = index * step;
     for (const v of stepVoices(pattern, index)) {
       const row = v.hiss || v.tone;
@@ -545,7 +724,11 @@ export function patternPeak(name) {
     }
   }
   let peak = 0;
-  for (let t = bar; t < bar * 2; t += 0.005) {
+  // The whole form, and one bar past it: a form is the point of a form, so the bar that is
+  // loudest - usually the fill at the end of the phrase - has to be in the picture, and the bar
+  // that starts the loop again is measured with the last bar's tail under it because that is
+  // what a loop is.
+  for (let t = bar; t < bar * (pattern.bars + 1); t += 0.005) {
     let sum = 0;
     for (const v of voices) sum += envelopeAt(v, t);
     if (sum > peak) peak = sum;
@@ -576,6 +759,8 @@ function scheduleStep(actx, index, when, pattern) {
     if (started) {
       ledger.notes++;
       if (v.drum) ledger.drums++;
+      if (v.melody) ledger.melody++;
+      if (v.sub) ledger.subs++;
     }
   }
 }
@@ -625,3 +810,4 @@ export function updateMusic(world) {
     nextAt += step;
   }
 }
+

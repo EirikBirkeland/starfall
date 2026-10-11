@@ -1307,19 +1307,31 @@ When every item above is ticked, go back to the first unchecked item of mileston
       lance run spends two of its card slots on cards that do nothing, and a run that is already
       short of levels is short twice over. Nothing in this item is a nerf of the three guns inside
       the band; they are 1.09x apart and that is parity.
-- [ ] The music is monotonous (**the owner's request of 2026-10-11, in `OVERLORDS_REQUESTS`**: "the
-      basic song should have more oomph, and it should be less repetitive. Expand-elaborate-develop
-      the tune."). Filed the same day and put first, because it is the owner's and because music is
-      feel, which is the first pillar. What is there to develop: `audio/music.js` keeps a chord, a
-      drum bed and an arpeggio, swaps layers by the run's intensity, and spent its latest elaboration
-      on the vacuum's fanfare (0.10.1) - which is to say the tune that plays over the other nine and a
-      half minutes of a run is the plain one. The two halves of the request are different work: *less
-      repetitive* is about variation inside a section (bars that answer each other, a phrase that
-      turns, a rest where there is none now) and *more oomph* is about weight (the low end, the drum
-      bed, the bus headroom `audio/mix.js` already keeps books on). It wants its own session, an ear
-      on the harness rather than a dial: `node tools/simulate.js --audio` prints what the mix did and
-      how long each pattern was heard, and `audio/noise.js` and `audio/mix.js` are where "oomph"
-      becomes a number that can be checked rather than hoped for.
+- [x] The music is monotonous (**the owner's request of 2026-10-11**: "the basic song should have
+      more oomph, and it should be less repetitive. Expand-elaborate-develop the tune."). Shipped in
+      four moves, each one a number and not a hope, and all of them inside the one bus ceiling the
+      music has always been held to (`MUSIC.peakLoad`, measured by `patternPeak`).
+      **The harmony is eight bars now, not four** (Am - F - C - G, then Am - F - Dm - G): a phrase
+      that states something and comes back for it, with the subdominant in the seventh bar leaning
+      home. **A pattern is a form, not a bar**: every part carries a list of bar figures - four bars
+      of bass that answer each other, two of arpeggio, a kit whose eighth bar is a fill - and
+      `checked` refuses any figure list that does not divide the form or any form that is not a
+      whole number of chord phrases. **There is a tune**: `LEAD`, eight bars of long notes on the
+      chord tones in the register nothing else occupies, arriving with the kit at two minutes, so
+      the melody is heard for most of a run and not only over a vacuum; the fanfare now spends
+      whichever slot was carrying the tune instead of being the only melody the game owns. **The
+      oomph is a sine**: `SUB`, the bar's own root held most of a bar, which is where a saw bass has
+      no fundamental and a laptop speaker has no answer - paid for out of the pad (0.03 to 0.02) and
+      the saw bass (0.16 to 0.105) and the drums, so that the heaviest pattern of the heaviest
+      fight still peaks at 0.457 of the 0.5 ceiling and the music is heavier at the end of it and
+      not any louder. `patternPeak` walks a pattern's whole form now, because a form measured on its
+      first bar would let the fill at the end of the phrase ask for what it liked. Seven new tests
+      in `test/music.test.mjs`: every note of every figure proved a note of the key and a chord tone
+      on every beat; the form arithmetic; "the basic song is not one bar on a loop"; the floor is a
+      sine and is the lowest thing playing; the tune is the longest line and sits between the bass
+      and the sparkle; the fanfare spends the melody slot or the sparkle's; and a mutation test that
+      the load meter really is reading the last bar of the form. Suite 1704. The reference run is
+      byte for byte what it was - the simulation still does not know music exists.
 - [ ] Performance pass against the target in section 2. Add a debug overlay (F3) with frame time,
       entity counts, and pool usage.
 - [ ] Hunt for memory growth over a 30-minute simulated run.

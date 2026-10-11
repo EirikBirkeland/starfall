@@ -10844,3 +10844,118 @@ with the two deck lines (`pierce`, `ricochet`) that a beam cannot use at all.
 3. Any weapon change also wants `node tools/run-shape.js --weapon <gun>` once, because two of the
    five primaries now die before the fourth minute and the arc items are measured on a batch that
    mostly flies the pulse.
+
+---
+
+## Session 92 — the owner's music request: eight bars of harmony, a form, a tune, and a sine for the floor
+
+Two things happened. The weapon-ladder session was finished and committed first (session 91, and its
+notes are above), and then `OVERLORDS_REQUESTS` turned out to have a live request in it: *the music
+is monotonous, the basic song should have more oomph and be less repetitive, expand-elaborate-develop
+the tune.* That is feel, which is the first pillar, so it went next. **`0.10.2`**, suite **1704**,
+reference run byte for byte unchanged.
+
+### First, a thing to know about this tree
+
+While session 91 was running, `src/audio/music.js` was edited by something outside this session and
+`git add -A` swept it into a commit that was not about it. It was comment-only - a header rewrite
+describing forms, per-bar figure lists, a `lead`, a `sub`, a `checked`, and a test that proves every
+note is in the key, none of which existed in the code. So **the header of this file may be a brief
+for work rather than a description of it.** Two readings of that: somebody wrote the design for the
+owner's request before the request landed, or the file describes an ambition that was never built
+either way, the code had a header claiming features it did not have, which is the sort of lie this
+project does not keep. I built what it promised. **Check `git status` before committing, and expect
+other hands in the tree.**
+
+### What shipped
+
+**Eight bars of harmony instead of four.** `CHORDS` is Am - F - C - G - Am - F - Dm - G. The second
+half turns back over the tonic and takes the subdominant (Dm, `third: 3`, root 50) in the seventh
+bar instead of the mediant, so the phrase ends leaning home instead of repeating its start. Because
+every line here is written as intervals from its own bar's root, this made every existing figure
+mean something new in bars five to eight without touching a note of them. `CHORDS` and `KEY` are
+exported now so the tests can ask what a figure is allowed to do.
+
+**Forms.** A pattern carries `bars` (its form, in bars) and each part carries a *list* of bar
+figures; `stepVoices` picks `figures[bar % figures.length]`. `checked` refuses a form that is not a
+whole number of chord phrases and a figure list that does not divide the form, and the pattern book
+runs it on the way past, so a bad table cannot load at all. `fills(kit, 8, {...})` gives a kit a
+fill on the eighth bar of every phrase, which is the whole of what a fill is in a sequencer that
+must not remember anything between steps. Forms are eight bars everywhere, not sixteen: one turn of
+the harmony, which is the shortest arrangement that can state something and come back for it, and
+every part's list divides it (bass 4, arp 2, lead 8, kit 8).
+
+**Pitched figures are sixteen characters now**, like the drum figures always were: `.` nothing, a
+hex digit that many semitones over the bar's chord root, and `t` the chord's own third - which is
+the one note the notation could not spell as a number once the phrase had both a minor and a major
+third in it. `'0..0..0.7...0..c'` is the shipped bass bar, and every old number array was converted
+(`BASS_STEPS` and friends are gone). `chordTones` survived only as the arithmetic the tests use.
+
+**A tune.** `LEAD`, eight bars of three long notes each, on the chord tones, at `octave: 12` -
+above the bass, in the pad's octave, under the sparkle: the one register that was not holding
+anything. It arrives with the kit at 2:00 (`DRIVING` has the lead, `RUN` does not), so the tune
+plays for most of a run instead of only over a vacuum. The fanfare now spends **the melody's slot
+where there is one and the arpeggio's where there is not** (`fanfareOver`), which keeps
+"the reward is more line than the slot it spent" true, and is why `run-fanfare` and
+`driving-fanfare` are not the same swap. The boss has no tune: it is the loudest thing the bus is
+allowed to write and its arpeggio is already the busiest line in the book.
+
+**A floor.** `SUB`: a sine on the bar's own root, one long note a bar, `dur: 1.6`. Deliberately at
+the bass's own octave and not an octave under it - the point is weight that survives laptop
+speakers, and 55 Hz survives nothing. A held root cannot walk into a wrong chord either, which is
+why it does not follow the bass's walking notes.
+
+### The ceiling, which is the part that took the time
+
+`MUSIC.peakLoad` is 0.5 and the boss pattern was sitting at **0.497**: there was no room for a sine
+and a melody, so the two new lines had to be paid for by the old ones. `peakDebug` (a throwaway
+version of `patternPeak` that answers *which voices are sounding at the loudest instant*) showed
+what the eye could not: the pad is six sawtooth oscillators and is the single biggest thing on the
+bus, the kick and the crack always land together in the run's kit, and three fanfare notes overlap
+at the boss's faster grid. The rebalance, with the peaks before and after:
+
+| | before | after |
+|---|---|---|
+| title / run / last | 0.18 / 0.362 / 0.333 | 0.12 / 0.288 / 0.267 |
+| driving / boss | 0.453 / 0.497 | 0.455 / 0.457 |
+| the loudest fanfare | 0.492 | 0.488 |
+
+pad 0.03 to 0.02 (and the boss's 0.018 to 0.013), saw bass 0.16 to 0.105, boss bass 0.12 to 0.095,
+arp 0.05 to 0.042, kick 0.11 to 0.095, crack 0.07 to 0.055, hat 0.035 to 0.028, fanfare 0.05 to
+0.038, `AUDITION` 0.03 to 0.02 because it is priced as one pad voice and said so. The loudness
+*ladder* the tests guard still holds, title < run < driving <= boss, last < run. **The bus gain and
+`peakLoad` were not touched**: raising the ceiling is raising the music over a fight, which is the
+one bargain in audio/engine.js that this request did not buy.
+
+Things the numbers taught, so nobody re-learns them: **a fill of consecutive kicks is not a fill**,
+it is two kicks 0.136 s apart with a 0.14 s decay, which the meter counts twice and the ear counts
+as one mess - put fills on the crack and the hat; and **a hat roll is free** (0.05 s decay at
+sixteenths never overlaps) which is why the fills are hat-heavy.
+
+### Tests
+
+Seven new in `test/music.test.mjs` (13 to 20, suite 1704): the key and chord-tone sweep the header
+had been promising since the release before (895 figure notes checked); the form arithmetic; "the
+basic song is not one bar on a loop" (a bass with more than one bar, an eight-bar through-composed
+tune, a kit that changes at the end of its phrase, a harmony whose two halves differ); the floor is
+a sine and is the lowest thing playing and is actually scheduled; the tune is the longest line and
+sits between bass and sparkle; the fanfare's slot; and a mutation test that the load meter really
+walks the last bar of the form. Two existing tests were rewritten honestly rather than loosened:
+what arrives at 2:00 is the kit **and** the tune (and the groove underneath is now proved by
+identity - `PATTERNS.driving.bass === PATTERNS.run.bass` - instead of by a note count that a form
+makes fuzzy), and "the kit never stopped for the fanfare" is a proportion now, because a kit with a
+fill in it is not the same number of hits in every ten seconds of it. `tools/simulate.js --audio`
+prints `... 2,474 of them drums and 777 the tune |` - the harness can see the tune arriving.
+
+### What should come next
+
+1. **The weapon re-tune** (PLAN, milestone 10): price the five primaries in bodies a second and
+   close the 21x with `tools/weapon-ladder.js`. That item is still the big open one.
+2. An ear, not a number: nobody has *heard* this. The mix ledger and `patternPeak` say it is
+   balanced and in key; whether the tune is a good tune is the one thing left that only a listen
+   can say. If it turns out thin, the next place to spend is a second lead voice in octaves (there
+   is now room in the ceiling) and not a louder pad.
+3. `run-fanfare` and `driving-fanfare` put the reward an octave apart (A3-A4 against A4-A5) because
+   they spend different slots. It is defensible - each sits in the register the pattern had free -
+   but if a player notices the reward "changes register" at two minutes, give the fanfare its own
+   octave and pay for it out of the arp.

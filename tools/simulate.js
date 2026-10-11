@@ -240,7 +240,8 @@ function mixLine() {
     + ') | peak ' + dec(ledger.peakLoad, 2) + ' of ' + MIX.headroom + ' at once, in '
     + int(ledger.peakVoices) + ' voices | ' + int(noiseVoices()) + ' noise voices | music '
     + int(music.notes) + ' notes over ' + int(music.steps) + ' steps, '
-    + int(music.drums) + ' of them drums | ' + patternsLine(music.heard);
+    + int(music.drums) + ' of them drums and ' + int(music.melody) + ' the tune | '
+    + patternsLine(music.heard);
 }
 
 /** Only run when called as a command, so the tests can import the parts above. */

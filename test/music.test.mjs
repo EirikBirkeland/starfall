@@ -12,7 +12,7 @@ import { STATE } from '../src/game/state.js';
 import { BALANCE } from '../src/game/balance.js';
 import { resetBosses } from '../src/game/bosses.js';
 import { initAudio } from '../src/audio/engine.js';
-import { MUSIC, PATTERNS, musicLedger, patternPeak } from '../src/audio/music.js';
+import { MUSIC, PATTERNS, CHORDS, KEY, musicLedger, patternPeak } from '../src/audio/music.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const game = await bootGame({ root: ROOT, seed: 5, audio: true });
@@ -51,6 +51,8 @@ function musicOver(frames) {
     steps: after.steps - before.steps,
     notes: after.notes - before.notes,
     drums: after.drums - before.drums,
+    melody: after.melody - before.melody,
+    subs: after.subs - before.subs,
     pattern: after.pattern,
   };
 }
@@ -161,21 +163,29 @@ test('a run walks the ladder: the groove, then the drums, then the nerves', () =
   assert.equal(musicOver(60).pattern, 'driving', 'and a hull bought back puts the groove back');
 });
 
-test('the drums are what arrives at 2:00, and nothing else is', () => {
-  // Not just "more notes": the kit has to be absent before the threshold and present after
-  // it - and the groove underneath it has to be the *same*, or what arrived at two minutes
-  // was a new pattern and not a drummer joining the one that was already playing.
+test('the drums and the tune are what arrives at 2:00, and nothing else is', () => {
+  // Not just "more notes": the kit and the melody both have to be absent before the threshold and
+  // present after it - the reward for two minutes of surviving is a drummer *and* a tune to hum -
+  // and the groove underneath has to be the *same* music, or what arrived at two minutes was a new
+  // pattern and not a band joining the one that was already playing (audio/music.js `patternFor`).
   game.world.elapsed = 20;
   const early = musicOver(600);
   assert.equal(early.pattern, 'run');
   assert.equal(early.drums, 0, 'nothing is beating before its time');
+  assert.equal(early.melody, 0, 'and nothing is singing either');
 
   game.world.elapsed = MUSIC.drumsAfter + 1;
   const late = musicOver(600);
   assert.ok(late.drums > 20, 'the kit is playing: ' + late.drums + ' drum voices in ' + late.seconds + 's');
-  const groove = late.notes - late.drums;
-  assert.ok(Math.abs(groove - early.notes) <= 8,
-    'and everything else is the same music it was: ' + groove + ' against ' + early.notes);
+  assert.ok(late.melody > 6, 'and so is the tune: ' + late.melody + ' notes of it');
+
+  // And the groove underneath them is literally the same music - not "about the same density in a
+  // ten second window", which a form makes a fuzzy number anyway: the two patterns share the same
+  // three lines, figure list for figure list, so what arrived at two minutes was a band joining
+  // the groove and not a new groove.
+  for (const key of ['sub', 'bass', 'arp']) {
+    assert.equal(PATTERNS.driving[key], PATTERNS.run[key], 'the ' + key + ' is the same line');
+  }
 });
 
 test('a boss walks in and the grid speeds up under it', () => {
@@ -258,9 +268,14 @@ test('the point vacuum buys the run a fanfare over the pattern it was already pl
   const warm = musicOver(600);
   assert.equal(warm.pattern, 'driving-fanfare', 'the same groove with the tune over it');
   assert.ok(warm.notes > plain.notes,
-    'and the tune is more line than the arpeggio it replaced: ' + warm.notes + ' against '
+    'and the reward has more line than the melody it replaced: ' + warm.notes + ' against '
       + plain.notes);
-  assert.ok(Math.abs(warm.drums - plain.drums) <= 2, 'the kit never stopped for it');
+  // The kit goes on playing through a fanfare - it never stopped for the reward - but a kit with a
+  // fill in it is not the same number of hits in every ten seconds of it, so this is a proportion
+  // and not a count: `fills` puts one extra kick in eight bars, and the two windows do not start
+  // in the same place in the phrase.
+  assert.ok(warm.drums > plain.drums * 0.8 && warm.drums < plain.drums * 1.25,
+    'the kit never stopped for it: ' + warm.drums + ' against ' + plain.drums);
 
   world.vacuum.left = 0;
   assert.equal(musicOver(60).pattern, 'driving',
@@ -284,6 +299,156 @@ test('the ledger says how long the run spent in every pattern', () => {
     assert.ok(heard[name] > 0, 'the sequencer spent time in ' + name + ': ' + heard[name]);
   }
   assert.ok(heard.boss < heard.run, 'and the numbers are durations, not a tally of frames');
+});
+
+const PARTS = ['sub', 'bass', 'arp', 'lead'];
+
+test('every note of every figure is in the key, and on a beat it is a tone of the chord', () => {
+  // The claim audio/music.js makes about its own notation, checked rather than trusted: a figure
+  // is written as intervals from the bar's own chord so it can be handed any chord in the phrase
+  // and stay in A natural minor - and the one thing that has to be true for that to be more than a
+  // nice idea is that every figure is only ever handed chords it was written against. Every note
+  // on a beat is a tone of the chord under it; a note off a beat may be any note of the key.
+  let checked = 0;
+  for (const [name, pattern] of Object.entries(PATTERNS)) {
+    for (const key of PARTS) {
+      const part = pattern[key];
+      if (!part) continue;
+      part.bars.forEach((bar, figureAt) => {
+        bar.split('').forEach((ch, step) => {
+          // Which chords this figure can ever be played over: the sequencer walks the form in
+          // order, so figure `i` of a `k`-figure list lands on bars i, i+k, i+2k of the form.
+          for (let barAt = figureAt; barAt < pattern.bars; barAt += part.bars.length) {
+            const chord = CHORDS[barAt % CHORDS.length];
+            const interval = ch === '.' ? null : (ch === 't' ? chord.third : parseInt(ch, 16));
+            if (interval === null) continue;
+            checked++;
+            const pitch = (chord.root + part.octave + interval) % 12;
+            assert.ok(KEY.includes(pitch), name + '.' + key + ' bar ' + barAt + ' step ' + step
+              + ' plays ' + pitch + ', which is not in the key: ' + bar);
+            if (step % 4 === 0) {
+              const tones = [0, chord.third, 7, 12].map((t) => t % 12);
+              assert.ok(tones.includes(interval % 12), name + '.' + key + ' bar ' + barAt
+                + ' puts ' + interval + ' on a beat and the chord is ' + JSON.stringify(chord));
+            }
+          }
+        });
+      });
+    }
+  }
+  assert.ok(checked > 400, 'the sweep actually looked at the music: ' + checked + ' notes');
+});
+
+test('a pattern is a form, and every figure list divides it', () => {
+  // The arithmetic that keeps a four-bar bass phrase from starting its statement on the
+  // subdominant once the loop comes round (audio/music.js `checked`, which the pattern book runs
+  // itself on the way past - this is the second opinion, and the one that notices if the two ever
+  // stop agreeing).
+  for (const [name, pattern] of Object.entries(PATTERNS)) {
+    assert.equal(pattern.bars % CHORDS.length, 0,
+      name + ' is ' + pattern.bars + ' bars, and the chord phrase is ' + CHORDS.length);
+    const lists = PARTS.map((key) => pattern[key]).filter(Boolean)
+      .concat(pattern.drums ? Object.values(pattern.drums) : []);
+    for (const part of lists) {
+      assert.equal(pattern.bars % part.bars.length, 0,
+        name + ' has a ' + part.bars.length + '-bar figure in a ' + pattern.bars + '-bar form');
+      for (const bar of part.bars) assert.equal(bar.length, MUSIC.stepsPerBar);
+    }
+  }
+});
+
+test('the basic song is not one bar on a loop', () => {
+  // The owner's complaint, made a number: "the basic song should be less repetitive". Every part
+  // of a running pattern has to have more than one bar of material, the harmony's second half has
+  // to differ from its first, and the kit has to do something different at the end of a phrase -
+  // a fill is the one thing in a loop that proves somebody is playing it rather than replaying it.
+  const phrase = CHORDS.slice(0, 4).map((c) => c.root).join(',');
+  assert.notEqual(phrase, CHORDS.slice(4).map((c) => c.root).join(','),
+    'the eight-bar phrase is two four-bar halves that are not the same');
+
+  for (const name of ['run', 'driving', 'boss']) {
+    const pattern = PATTERNS[name];
+    assert.ok(new Set(pattern.bass.bars).size > 1, name + ' plays more than one bar of bass');
+    assert.ok(new Set(pattern.arp.bars).size > 1, name + ' plays more than one bar of arpeggio');
+    assert.ok(new Set(pattern.sub.bars).size >= 1, name + ' holds the floor');
+  }
+  assert.equal(new Set(PATTERNS.driving.lead.bars).size, PATTERNS.driving.lead.bars.length,
+    'the tune is a through-composed line and not one bar repeated');
+
+  for (const name of ['driving', 'boss']) {
+    const kit = PATTERNS[name].drums;
+    const names = Object.keys(kit);
+    const filled = names.filter((drumName) => kit[drumName].bars.at(-1).join('') !== kit[drumName].bars[0].join(''));
+    assert.ok(filled.length > 0, name + '\'s kit plays something different at the end of the phrase');
+    assert.ok(filled.includes('kick') || filled.includes('crack'),
+      name + '\'s fill is on a drum you can hear: ' + filled.join(', '));
+  }
+});
+
+test('the oomph: a sine holds the floor under the saw', () => {
+  // "More oomph" bought where oomph lives - the octave the saw bass is brightest in and laptop
+  // speakers are weakest - and not by turning the music up (audio/engine.js keeps the bus gain
+  // fixed against MUSIC.peakLoad no matter what the arrangement does). Three things have to be
+  // true for that claim: the sub is a sine, it is the lowest thing playing, and it is actually
+  // being scheduled in a running game (which the ledger below is for).
+  for (const name of ['run', 'driving', 'boss']) {
+    const sub = PATTERNS[name].sub;
+    assert.equal(sub.voice.wave, 'sine', name + '\'s floor is a sine, not a second saw');
+    assert.ok(sub.voice.vol > 0);
+    assert.ok(sub.voice.dur > MUSIC.stepSeconds * 4,
+      name + '\'s sub holds long enough to be a floor and not a note');
+    for (const key of ['bass', 'arp', 'lead']) {
+      if (PATTERNS[name][key]) {
+        assert.ok(sub.octave <= PATTERNS[name][key].octave,
+          name + '.' + key + ' sits under the sub, which is not the arrangement this is');
+      }
+    }
+  }
+  assert.equal(PATTERNS.title.sub, undefined, 'the title is a pad and has no floor to hold');
+  const played = musicLedger();
+  assert.ok(played.subs > 0, 'and a real run heard it: ' + played.subs + ' notes of floor');
+});
+
+test('the tune sings in a register of its own', () => {
+  // The one line that is a melody rather than a figure handed to a chord: long notes (longer than
+  // anything else in the pattern), in the octave between the bass and the sparkle, arriving with
+  // the kit. Written any higher it would be a siren, any lower it would be a second bass.
+  const driving = PATTERNS.driving;
+  assert.ok(driving.lead.voice.dur > driving.arp.voice.dur, 'the tune is the long line');
+  assert.ok(driving.lead.voice.dur > driving.bass.voice.dur, 'and longer than the bass too');
+  assert.ok(driving.lead.octave > driving.bass.octave, 'above the bass');
+  assert.ok(driving.lead.octave < driving.arp.octave, 'below the arpeggio');
+  assert.equal(PATTERNS.run.lead, undefined, 'the first two minutes have no tune: that is what they are for');
+});
+
+test('the fanfare spends the melody slot, or the sparkle\u2019s if there is no melody', () => {
+  // The reward takes whichever line was carrying the tune. Where there is one it is the melody that
+  // steps aside (the run's own tune should not keep singing over the game paying it out) and the
+  // sparkle stays; in the first two minutes, where there is no tune, the arpeggio is what pays.
+  const over = PATTERNS['driving-fanfare'];
+  assert.equal(over.lead.bars.length, 1, 'the fanfare is one bar, so it can start anywhere');
+  assert.ok(PATTERNS.driving.lead.bars.length > 1, 'and it is the eight-bar tune that made room');
+  assert.equal(over.arp.bars, PATTERNS.driving.arp.bars, 'the arpeggio never stopped');
+  assert.equal(PATTERNS['run-fanfare'].arp.bars.length, 1,
+    'on a run too young to have a tune, the sparkle is what is spent');
+  assert.deepEqual(PATTERNS['run-fanfare'].arp.bars, PATTERNS['driving-fanfare'].lead.bars,
+    'and it is the same fanfare, spent on whichever slot the pattern had to give');
+});
+
+test('the load meter walks the whole form and not just its first bar', () => {
+  // The mutation the form made necessary: if `patternPeak` had quietly gone back to measuring one
+  // bar, every claim about the ceiling would be about bar one and the fill at the end of the phrase
+  // could ask for anything. So make the last bar of a phrase louder and watch the number move.
+  const name = 'driving';
+  const kit = PATTERNS[name].drums.kick;
+  const before = patternPeak(name);
+  const last = kit.bars[kit.bars.length - 1];
+  const was = last.slice();
+  for (let i = 0; i < last.length; i += 4) last[i] = 'x';
+  const filled = patternPeak(name);
+  kit.bars[kit.bars.length - 1] = was;
+  assert.ok(filled >= before, 'the last bar of the form is in the meter: ' + filled + ' against ' + before);
+  assert.equal(patternPeak(name), before, 'and the meter is back where the music is');
 });
 
 test('no pattern may ask the bus for more than its ceiling', () => {
