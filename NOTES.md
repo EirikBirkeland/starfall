@@ -11822,3 +11822,102 @@ v0.10.7**. Suite 1772 → **1803**; the reference run (`--seed 20261006 --trace`
 5. If the owner wants the menu song heard by *every* visitor: a key back to the attract screen from the
    death's card. It is a real feature (the card already offers the hangar, the codex and the ship pick)
    and it is the only way the song reaches a visit that pressed Space first.
+
+## Session 101 — The crowd's garbage was `Math.hypot`
+
+Session 100's item one: *the crowd still throws away what it throws away*, 31 B a body against a 52 B
+budget and an ablation that could only say "of a 3.9 KB step, `updateEnemies` is 3.5 KB". It was
+`Math.hypot`, all the way down: **3.4 KB a step on the schedule crowd is now 816 B, the endless wall 6.1 KB
+is 854 B, a body costs 3 B instead of 31**, and the budgets came down with the game (a load 10 KB to
+2.5 KB, a body 52 B to 16 B). Suite 1803 to **1809**; released as **v0.10.8**.
+
+### Why it was there
+V8's `Math.hypot` takes any number of arguments, so it lays them out in a list on the heap and throws that
+list away again on every call. The game called it **38 times over** - the stand-off band in `kinds.js`
+(twice a step for every spitter and every shielder), the line a darter commits to, the flock's three pulls,
+the bomber's circle, `blast`, `nova`, `missiles`, `turret`, `mines`, `tether`, `bosses`, the ship's own
+input normaliser in `player.js`, and six places in the renderer. Every one of them two-argument.
+`core/math.js` now exports a two-argument `hypot` - a multiply, an add, a square root - every call site
+calls that one, and `test/structure.test.mjs` refuses `Math.hypot` anywhere else in `src/`, in the same
+shape as the old `Math.random` guard. `test/math.test.mjs` is new and checks the swap is the same number:
+it sweeps 4000 random lines across the arena and the worst relative disagreement with `Math.hypot` is
+under 1e-12 (the helper's note says what it gives up - no overflow guard on the way in, which for a 3000 px
+arena is four orders of magnitude away from mattering).
+
+### What a byte is worth now, and what it means
+Same tool, same box, same windows: `the schedule at full crowd 3,522 B to 816 B`, `endless at the body wall
+6.1 KB to 854 B`, `the same crowd dying 8.5 KB to 1.2 KB`, `PLAN section 2's impossible scene 19.6 KB to
+2.8 KB`. A browser's small young generation is now about **ten seconds of play** wide rather than a second
+and a half, and since a scavenge of this heap costs a millisecond that is the F3 plate's 1.4-1.7 ms worst
+steps, seven times rarer. Step *time* did not move (0.107 to 0.116 ms at the endless wall, i.e. the same
+within the noise): this was never a speed win, it is a collector win.
+
+### How it was found, and the two instruments worth keeping in mind
+Both live in `.scratch` (gitignored) and are worth rebuilding rather than re-guessing:
+
+1. **`sample-alloc.mjs` - V8's own allocation sampler, through `node:inspector`.** `HeapProfiler.startSampling`
+   with `samplingInterval: 64`, `getSamplingProfile` after a few tens of thousands of steps, then walk the
+   tree and total `selfSize` by `callFrame` and by caller-into-callee. It named the walks in `kinds.js` and
+   then named `hypot @ ?:0` outright, which is what sent me looking there. **Its byte totals under-count by
+   something like a hundred times** - a sample records the object that tripped the interval, not the bytes
+   since the last one - so it is a naming instrument and never a ruler. `tools/alloc-probe.js` is the ruler.
+2. **`ablate-parts.mjs` - ablation one level finer than a system.** Copy `src` + `tools` + `index.html` into
+   `.scratch/abl`, replace one *part* of one function with nothing (the walk call, the separation loop, one
+   argument list), and run the copy's own `alloc-probe.js --json` on the copy. That is how "updateEnemies is
+   731 B of 816" became "the walk calls are 727 B of it" and then "the `glide` call inside `advance` is 334 B
+   of that". `ablate-systems.mjs` is the same thing at whole-system grain; `mutation-check.mjs` is the third
+   member and is the one that proves the gates still bite.
+
+### Three traps, each of which wasted a measurement
+- **Double boxing is not the story here.** The obvious theory for a few bytes a body was V8 storing a
+  HeapNumber for every `enemy.x = <double>`. Measured on **the real enemies of a planted scene**, in a hot
+  loop, one field at a time: `x`, `y`, `px`, `rot`, `timer`, `flash`, `hp`, `speed`, `ix`, `frost`, `spin`,
+  `phase` - **0.0-0.1 B a write, every one of them.** Write a double into a plain object once and `%DebugPrint`
+  it and you will see `@ Any`, which is what encouraged the theory; in optimised code it is not true. (Note
+  that node 24 has no `%HasDoubleField` any more, so the field-representation question has to be answered by
+  weighing writes, not by asking the map.)
+- **A `for..of` over the crowd costs an iterator nobody can see**: 0.32 B a step for 200 bodies against 0.16 B
+  for the indexed loop, i.e. nothing. Escape analysis eats it. I did not convert the loops.
+- **An isolated copy of a hot function lies about its own cost.** Stepping 200 real enemies through one kind's
+  `walk` in a standalone loop read **0.2-0.9 B a body**; the same walks inside the game are worth ~4 B a body
+  between them, because in the game they are reached through one polymorphic `enemy.kind.walk` call site
+  inside a step that is itself being optimised around everything else. Ablation inside the real scene is the
+  only honest way in. Related: **ablation double-counts** - the system-level shares summed to 1081 B against
+  an 816 B baseline, because switching one system off changes what the others do (`updatePlayer` came out at
+  **-136 B**). Rank with it. Do not add it up.
+
+### The ratchet, and why a ceiling has to move when the floor does
+All three budgets were mutation-checked by putting the allocation back into a copy of the tree and running the
+tool: `Math.hypot` back in the crowd reads **8.5 KB and fails**, a scratch object per `glide` reads **15 KB and
+fails**, `cell.length = 0` back in `core/grid.js` reads **11.8 KB and fails**. Under the old 10 KB budget the
+first of those three would have **passed** - the ceiling was the reason nobody had noticed. The test windows
+also moved from `--steps 150 --windows 3` to `--steps 300 --windows 6`, because at 150 the empty arena alone
+reads twice what it does at 300 and a budget set against a number that jangles with the window length is a
+budget somebody raises out of irritation. FLOOR_BYTES stayed at 512 for the same reason.
+
+### The reference run moved, on purpose
+`--seed 20261006 --trace` is byte-identical to session 100's until frame ~11,280 and a different run after:
+**10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards** (was 75,596 / 58 / 4,004 / 5,162). A rounding
+error is enough to move a darter's aim by a hair, and a hair is enough. The four-seed batch moved +16% median
+score, which is smaller than the gap between its own best and worst seed, so it is not a balance claim and no
+number in `balance.js` was touched. Every tool that quotes a byte or a canvas-operation count still passes
+unchanged: the perf probe's step and paint budgets were not touched by this, and `endless-gauge --check` is
+unchanged for the same reason - `bodiesCeil` stays at 200 by session 99's decision.
+
+### What should come next
+1. **Nobody has weighed a painted frame.** `tools/perf-probe.js` counts canvas operations and `tools/alloc-probe.js`
+   weighs the step; nothing in here weighs the garbage the *renderer* throws away at 60 fps, and the renderer had
+   six of the 38 `Math.hypot` calls in it. The sampler says the paint path is close to clean now, but that is a
+   name and not a budget. A `--paint` door on the alloc probe (the same window arithmetic, `renderFrame` instead
+   of `stepWorld`) is the honest next instrument.
+2. **What is left in the crowd is diffuse and probably not worth the price.** About 3-4 B a body, spread through
+   the walks' arithmetic and the separation pass; the way to zero is positions and velocities in typed arrays,
+   which is a rewrite of how the crowd is stored and not a sweep. Say so and leave it unless something else needs
+   the storage change anyway.
+3. Still open from before this session: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`), the **difficulty band** that `tools/difficulty-arc.js` still fails, the **browser
+   reading of the F3 plate** that is the only thing able to re-open `bodiesCeil`, and `tools/gun-tune.js` owed
+   from session 96.
+4. If another allocation hunt happens, start from the two instruments above rather than from grep. Two more
+   variadic-builtin suspects were measured and are clean on this box: `Math.max(a, b, c)` and `Math.atan2` are
+   free; `Math.hypot` is the odd one out.
