@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.5",
+    "date": "2026-10-11",
+    "released": "2026-10-11T05:59:13.823Z",
+    "summary": "The two slow primaries are priced in bodies now: the weapon ladder reads PASS at 1.13x",
+    "added": 251,
+    "removed": 68,
+    "logBytes": 33165042
+  },
+  {
     "version": "0.10.4",
     "date": "2026-10-11",
     "released": "2026-10-11T04:42:58.686Z",
