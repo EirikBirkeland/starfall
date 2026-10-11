@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.12",
+    "date": "2026-10-11",
+    "released": "2026-10-11T17:32:04.089Z",
+    "summary": "Touch support: a thumb flies the ship with a stick that appears where it lands, one button dashes, and the gun aims and fires itself for a run flown on a finger",
+    "added": 1086,
+    "removed": 33,
+    "logBytes": 36546072
+  },
+  {
     "version": "0.10.11",
     "date": "2026-10-11",
     "released": "2026-10-11T15:49:48.008Z",
