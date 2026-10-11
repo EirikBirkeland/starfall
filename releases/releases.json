@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.4",
+    "date": "2026-10-11",
+    "released": "2026-10-11T04:42:58.686Z",
+    "summary": "Two fixes to what a run takes with it, and three rules turned into checks",
+    "added": 742,
+    "removed": 25,
+    "logBytes": 32862186
+  },
+  {
     "version": "0.10.3",
     "date": "2026-10-11",
     "released": "2026-10-11T03:47:21.155Z",
