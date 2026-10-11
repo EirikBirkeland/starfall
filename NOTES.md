@@ -11474,3 +11474,107 @@ claims to have touched. Suite **1747 → 1748**.
 4. Still unfixed and unhurried: **the performance pass**, and the **difficulty band**, which `tools/
    difficulty-arc.js` still fails (7 of 48 careless runs died between 4m and 9m against the 50% "usually"
    needs). The arc is measured with the default pulse and was not touched by this session's work.
+
+## Session 97 — The cards three guns could not spend are out of their deck. Released **0.10.6**
+
+Milestone 10's other open item: *decide what the deck does with the lines a primary cannot spend*.
+It went the way the item told me to go: measure first, then choose. The answer was **filter the deal**
+- a line the ship's gun cannot spend is no longer dealt to that run - and the choosing turned out to be
+mostly a matter of reading the numbers out loud, because the inert lines turned out to be inert *to the
+point* and the dead card turned out to tax nothing. Suite **1748 → 1759**; the reference run
+(`--seed 20261006 --trace`) is byte for byte session 96's (10m00s / 75,596 / level 58 / 4004 / 5162 /
+7 vacuums, 2065 in), which is the proof the pulse - the yardstick - was not touched.
+
+### What landed
+- **`tools/line-ab.js` grew `--weapon`** (the item asked for the flag as part of the work). It plays the
+  whole batch on that primary through `playOneRun`'s existing `weapon` option and **names the gun in
+  the table's header**, because a printed number that does not say which gun it was measured on is the
+  exact mistake the flag exists to stop. Three tests in `test/line-ab.test.mjs`, one of which spawns a
+  real 1-seed/5-second measurement and asserts the header says `flying the LANCE`.
+- **The measurement.** Fifteen configs (`pierce`, `ricochet`, `bulletSpeed` × five primaries), four
+  seeds, a fifteen-minute window, all in parallel on this box's 32 cores in about six minutes wall.
+  The `free` column against the `out` one: **pierce** pulse 1.116x, scatter 1.030x - alive - and then
+  the arc **106,219 with it and 106,219 without**, the lance **113,614 and 113,614**, the Swarm
+  **126,877 and 126,877**. **ricochet**: pulse 1.067x, scatter 0.999x, the same three again at exactly
+  1.000x (identical medians, because neither line is read at all). **bulletSpeed**: the item had not
+  counted this one - the arc **111,680 and 111,680** and the lance **114,766 and 114,766** are inert
+  too (nothing travels to be sped up), while the Swarm's shells do travel and the line moves that run
+  (126,904 against 128,405). So the lance and the arc had **three** dead cards in eighteen, not two in
+  ten: one card in six.
+- **The filter.** `cannotSpend` on the three weapon rows in `BALANCE.weapons` - the only place the
+  lists are written, with the measurements next to them - read by a private `spendableBy(world, id)` in
+  `game/upgrades.js`, honoured in **two** places: `linesWithRoom` (the draw) and `guaranteeSomethingNew`
+  (the "at least one card must be new" promise, which walks `LINES` and not the deck and would have put
+  a dead card back through the back door). A gun missing from the table now throws, like `weaponOf`,
+  rather than silently being allowed to spend everything.
+- **Eight tests in `test/deck-per-gun.test.mjs`**: 400 hands on each filtered gun, with the *count* of
+  hands asserted and with every line the gun **can** spend demanded as well (a loop that dealt nothing,
+  or a deck filtered down to nothing, fails instead of agreeing); the pulse still being dealt all
+  eighteen ordinary lines; the back door; the banish's replacement; the lists naming real lines; no ship
+  beginning with a rank of a line its own gun cannot spend; and a run whose live lines are all maxed
+  being handed its level back and kept flying. **Both filters are on their own mutation-tested**: take
+  the draw's out and five tests fail, take the promise's out and exactly the back-door one fails.
+- **What is *not* in the game for it.** No card text, no hangar line, no codex change: a rule a player
+  can never meet needs no disclaimer, and the codex still lists all nineteen cards because it is what the
+  game has and not what one ship is shown. If a future screen ever wants to say it, `cannotSpend` is the
+  list - it would have to be exported, and the structure test will want a caller for it.
+
+### The decision, in the terms the item set
+- **Saying it on the card** leaves a hole in a three-card rack and asks the player to read a disclaimer
+  to step around a trap that was never a choice. **Making them spendable** would be inventing a mechanic
+  to fill a slot: a beam has nothing travelling in it and "a second body at the far end of the line" is
+  a length, which the row already has; the one honest version (a Swarm shell passing through the first
+  body to detonate at the second) is one gun's card bought with three guns' worth of new rules. **The
+  filter** was the one that could be checked against the item's own worry - "silently shrinks the deck
+  for three of the five ships... would have to be measured to be sure it is not just a buff" - and it
+  was: with the cards on the rack the bot spent 3.5-4 of 5 ranks on them and the middle run moved
+  **+0.1% (lance), +7.3% (arc), -5.0% (Swarm)** against the same batch with the line gone, i.e. noise in
+  both directions. Afterwards, the ladder's sixteen seeds read **SWARM 127,258, SCATTER 120,642, PULSE
+  118,867, ARC 117,729, LANCE 112,668: 1.13x, PASS**, where session 96's were 125,756 / 120,642 /
+  118,867 / 110,868 / 111,963. The two guns that can spend everything are level **to the point**; the
+  arc gained the most (+6.2%) and gained about what its dead cards were worth, which is the loop closed.
+
+### Things that bit, and are worth remembering
+- **A previous session died with the work in the tree.** `git status` at the start of this one showed
+  `tools/line-ab.js` modified and uncommitted (the loop log says a session started at 13:00 and the next
+  began at 13:23). Reading it, running it, and adding the tests it never got was cheaper than rewriting
+  it, and it is the second time the tree has had somebody else's half-finished work in it. **Run
+  `git status` before anything else.**
+- **An edit whose `oldText` ends inside a comment eats the rest of that comment.** Three of my four
+  balance.js insertions produced `cannotSpend: [...], and this is the number that was wrong about this
+  gun` - valid-looking, syntactically fatal, caught by `node --check`. If `oldText` stops mid-comment,
+  repeat the comment's opening in `newText`.
+- **Running 15 line-benchmarks in parallel is the right shape for a decision like this.** Each config is
+  ~5 minutes; fifteen of them at once is one coffee break, and it is what turned "which lines are dead"
+  from an argument about gun geometry into a table of numbers - including the one nobody had thought to
+  ask about, shot speed on a gun that throws nothing.
+- **`free == out` exactly is a stronger instrument than a ratio.** A line worth 0.98x and a line worth
+  1.00x are indistinguishable at four seeds; a line whose median score is the *same integer* as the run
+  that never had it is provably not read at all. Quote the equality, not the ratio, when you have it.
+  (And note what it does not say: `bulletSpeed` is weak on every gun that can spend it - 1.009x pulse,
+  0.979x scatter, 0.988x Swarm - which is a different problem, on a line rather than a gun, and is
+  untouched.)
+- **The empty-deck end state was already handled**, and it is worth knowing that my change makes it
+  reachable three lines sooner: a run that maxes every line its gun can spend now stops being dealt
+  cards at all. `refreshOffer` has always handed the owed level back and left the run flying
+  (`world.pendingLevels = 0; state = PLAY`) rather than pausing on an empty rack, so there was nothing to
+  fix - but the test pins it, because "the deck got smaller" is exactly how you find out that nobody had
+  ever maxed one out.
+- The weapon ladder takes about 9 minutes with `--shards 10` for 5 guns × 16 seeds × 15 minutes, and it
+  prints the pulse and scatter rows whether or not anything changed - which is what made "this is not a
+  nerf of the pulse" a checkable sentence instead of a promise.
+
+### What should come next
+1. **The shot-speed line is a weak card on every gun that can spend it** (1.009x / 0.979x / 0.988x on
+   four seeds, against 1.116x for pierce on the pulse). Four seeds cannot tell 0.98 from 1.02, so the
+   first move is a re-measure with twelve or sixteen, not a retune. If it is really ~1.0x it is the same
+   disease the lance's row had, one level down: a card that is not dead but not a choice either.
+   `tools/line-ab.js --line bulletSpeed --weapon pulse --seeds 1-16` is the whole instrument.
+2. Still the two big ones: **the performance pass** (the 600-enemy target against `bodiesCeil` = 200,
+   measured first) and the **difficulty band**, which `tools/difficulty-arc.js` still fails.
+3. `tools/gun-tune.js`, from session 96: the throwaway that patches one `BALANCE` row from the command
+   line and plays N seeds, as a real tool. This session used `--set` on `line-ab.js` for the same job and
+   it is nearly enough now.
+4. If anybody wants the deck's shape on screen: the honest place is the hangar's ship row ("its deck has
+   fifteen, not eighteen"), and it wants a number rather than a list of names - the card names are long
+   and the row is one line already.
