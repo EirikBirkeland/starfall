@@ -12234,3 +12234,105 @@ the reference run (`--seed 20261006 --trace`) is byte for byte session 101's (10
 4. Still open from session 103: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
    pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
    owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`.
+
+## Session 105 — A thumb: the stick appears where it lands, one button dashes, the gun runs itself. Released **0.10.12**
+
+Milestone 9's *Touch support*. PLAN section 6's sentence is three halves and they belong to three layers:
+`input/touch.js` knows where a thumb has to land to mean something, the stick lean is written into the
+same descriptor WASD writes into, and the aiming and the trigger are `game/assists.js` - the two switches
+that were already written. Suite **1862 → 1884** (13 driving tests in `test/touch.test.mjs`, 9 picture
+tests in `test/touch-art.test.mjs`); the reference run (`--seed 20261006 --trace`) is byte for byte
+session 101's again (10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in), which
+is the whole point of the "a mouse visit is the visit it always was" half of the test file.
+
+### What landed
+- **`src/input/touch.js`** (new). A floating stick: a touch that begins left of half the glass while a run
+  is being flown becomes the stick, wherever the thumb landed, with its reach a share of the shorter window
+  side (0.19, clamped 46-90 px) and a dead zone of 18% of that reach, so a resting thumb is not a lean. The
+  push is a vector of at most 1, so half the stick is half the ship and the end of it is the ship's own top
+  speed (`steer` clamps the target speed). A dash button bottom-right (radius 0.15 of the short side, clamped
+  44-76, inset 26 and lifted 46 px clear of the XP bar), one press = one `touchTaps.dash`. Every touch is
+  `preventDefault`ed (a browser allowed to scroll eats the gesture a stick is made of, and the synthesised
+  click after a tap would answer a card twice). `clearThumb()` runs on blur.
+- **`flying()` is the one question the input layer asks the game**, answered in `main.js`'s `initInput`.
+  While a run is being flown, the glass is a control surface; while it is not, a touch is exactly the press
+  a click already was - `noteGlass(x, y)` in `input/mouse.js` leaves the point where the cursor keeps its
+  own, then `onPress` runs, so the title launches, a card is answered and the wreck restarts without a
+  single screen learning the word "finger".
+- **`src/render/touch.js`** (new). Ring, knob, button and the word `DASH`, painted from `dashButton()` and
+  `stickReach()` - the input layer's own numbers - so the ring an eye sees and a thumb presses are one ring
+  by construction. Only while a run is flying and not paused, and only for a thumb visit.
+- **`game/assists.js` now has a default per hand.** Two maps instead of one: `moved` (has a hand ever said
+  a value for this row) and `switches` (what it said), plus `thumbVisit`. `on(id)` answers a moved row from
+  what it was moved to and an unmoved one from its row's `default` - or from `true` under a thumb. The save
+  writes only rows a hand moved (`written()`, used by `stepRow`) so a default cannot be frozen into the save
+  by a sibling row being moved; `standing()` is the unchanged "every row's place" that `stats()` reads. A
+  lock left behind by a switch that has just been turned off is dropped in `driveAssists`.
+- **`main.js`**: a tap is allowed back into a held run when the visit flies on a thumb (a click is still
+  refused - the left button is the gun), asked *before* the panel rule because the pause is a panel and the
+  settings rack over a held run still owns the screen. `stats().thumbUsed` for the tools.
+- **`ui/screens.js`**: `showPause(run, onGlass)` writes the rack's own line - `TAP TO GO BACK TO THE RUN`
+  or the `ESC OR P` one. New `#pauseHint` id, in `index.html` and in the harness's `ELEMENT_IDS`.
+- **`render/cards.js`**: the line under the cards is `1 2 3 OR TAP` for a thumb run.
+- **Harness**: `touchDown/touchMove/touchUp(x, y, id)` build real touch events with `changedTouches` and a
+  `preventDefault` that counts (`game.touchPrevented`), and `screen.pauseHint`.
+
+### Decisions that will be asked about again
+- **A thumb is the two assists, on - as a default, not as a force.** The first cut forced them inside
+  `driveAssists`, which meant a thumb run could not take the trigger back: a row it moved itself would be
+  overruled every frame. Now the thumb changes what an unmoved row ships at, and a row a hand moved wins in
+  whichever direction it was moved. That keeps PLAN's sentence ("auto-aim and auto-fire are on for touch
+  runs") and the two rows' reason to exist (accessibility, and they are the same two rows) both true.
+- **The thumb's flag belongs to the visit, not to the finger.** `thumb.used` is set when a control *claims*
+  a touch and never unset; lifting the thumb does not hand the trigger back, so a run keeps shooting while
+  the thumb is off the glass. `test/touch.test.mjs` states this on purpose with a second window after the
+  lift - a phone has no trigger to hold, and a run that stopped firing every time a thumb rested would read
+  as broken.
+- **A tap is not a control claim**, so a touchscreen laptop that caught one accidental brush is not a visit
+  that asked for auto-aim. This is why `used` is not set by `noteGlass`.
+- **The racks stay keyboard racks** (hangar, codex, settings). Section 6 asks that all screens work with
+  keyboard alone and with a gamepad; a touch on a rack row today is an unclaimed touch, which is nothing at
+  all - deliberate, and recorded here so it does not look like an oversight. Same for the static launch
+  lines in `index.html`, which still say `CLICK`; nothing in JS writes them (see below).
+
+### Things that bit, worth remembering
+- **`enemyAt` from `tools/headless/scripted.js` puts the body in the crowd; `makeEnemy` does not.** A test
+  that plants a body with `makeEnemy` aims at nothing and shoots nothing.
+- **An enemy's hull ceiling is `maxhp`, lower case** (`kinds.js` sets `enemy.maxhp = enemy.hp`). A test that
+  reads `body.maxHp` fails with `NaN worth`, which took a lap to read.
+- **Emptying `world.enemies` by hand leaves `world.aimLock` pointing at a body that has gone**, and
+  `takeAim` will keep holding it (`targetable` asks only `hp > 0 && immune <= 0`). Plant one body and watch
+  it twice instead of clearing the crowd between two halves of a test.
+- **`stats().bullets > 0` is a flaky proof of auto-fire** - shots land and die, and a single planted body
+  can drink a whole volley. The honest proof is hull lost on a body with enough hull to survive the window.
+- **A mashed dash is never "ready"** (session 9's trap again): the mash fires the instant the wait is paid,
+  so no frame ever has `dashCd === 0 && dashLeft === 0`. Count dash *starts* over a bounded window instead,
+  and bound the loop by construction rather than by waiting for a condition.
+- **`game.words()` keeps every space the painter wrote.** `haloText` lines are separated with three spaces
+  and one `·`; `words()[i]` is not whitespace-collapsed, so match a whole line exactly or use
+  `game.texts()` and `startsWith`/`endsWith`. `texts()` returns `{text,x,y,w,size,align,stroke}` and a
+  haloed word appears twice, once stroked and once filled.
+- **One boot per process means every test has to ask for its own run** (`await fly()`, `await running()`).
+  A run left sitting in a crowd dies eventually and then the next test fails for a reason that has nothing
+  to do with it; a filtered run (`--test-name-pattern`) also skips whatever launched it. Each test lifts
+  every thumb it puts down: one live thumb hides the next, because the stick belongs to the first finger
+  that claimed it.
+- `touchmove` is a per-event `changedTouches` list, so the harness hands over one finger per event; and the
+  browser's own touch→click synthesis is dead only because every handler calls `preventDefault`, which is
+  what `game.touchPrevented` exists to keep true.
+
+### What should come next
+1. **Milestone 9's three remaining items: key rebinding, gamepad support, colour-blind palette.** Each is
+   smaller than this one. Gamepad wants the same treatment the thumb got - a descriptor field, and painted
+   geometry read from the input layer's numbers.
+2. **If anyone wants the launch lines to speak to a thumb**: `#titleScreen`'s and `#overScreen`'s `.hint`
+   lines are static in `index.html` and no JS writes them, so it wants a `showStart`-shaped hook (the title
+   is what `hideScreens` leaves visible, not a screen anything raises). A tap already works on both.
+   Worth doing in the same breath as racks-by-touch, if that is ever wanted.
+3. Rack touch, if it is ever wanted, also wants the `preventDefault` on `touchstart` revisited for touches
+   that begin over the DOM panels - a panel is not a control surface, and today the glass is told not to
+   scroll everywhere.
+4. Still open from session 103: the **shot-speed line** (`tools/line-ab.js --line bulletSpeed --weapon
+   pulse --seeds 1-16`), the **difficulty band** `tools/difficulty-arc.js` still fails, `tools/gun-tune.js`
+   owed from session 96, and session 101's **`--paint` door** on `tools/alloc-probe.js`. Then milestone 10's
+   last item: the browser half of the performance pass, and `1.0.0`.
