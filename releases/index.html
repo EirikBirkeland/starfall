@@ -86,7 +86,7 @@
   <p class="tagline">Pick a version to play.</p>
 
   <h2>In development</h2>
-  <a class="version" href="../">
+  <a class="version" id="development" href="../">
     <div class="version-line">
       <span class="version-name">Development build</span>
     </div>
@@ -101,6 +101,11 @@
 // The version menu for visitors. It lives in releases/ and reads the releases.json beside it, so it works
 // wherever the repository is served from. Everything it shows is in that one file.
 const releasesElement = document.getElementById('releases');
+
+// In the repository this page sits in releases/, with the development build one folder up. On the published
+// site it is the front page and the development build is copied to dev/ (.github/workflows/pages.yml).
+const insideReleasesFolder = /\/releases\/(index\.html)?$/.test(location.pathname);
+document.getElementById('development').href = insideReleasesFolder ? '../' : 'dev/';
 
 function addText(parent, className, text) {
   const element = document.createElement('span');
