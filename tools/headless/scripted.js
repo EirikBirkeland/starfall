@@ -11,6 +11,7 @@ import { resetRun } from '../../src/game/run.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 import { defaultWeapon, setWeapon, weaponOf } from '../../src/game/weapons.js';
 import { defaultShip, setShip } from '../../src/game/ships.js';
+import { LINES, maxRanksOf } from '../../src/game/upgrades.js';
 import { setSeed } from '../../src/core/rng.js';
 
 /**
@@ -41,6 +42,20 @@ export function scriptedRun(seed) {
   // `bossOnTheField` below is the door for a test that does want the fight.
   world.bossIndex = BALANCE.bosses.schedule.length;
   return world;
+}
+
+/**
+ * A run wearing every upgrade line at its top rank, and nothing to level up for.
+ *
+ * The ranks are written instead of dealt out because a test that wants every system on the field cannot
+ * wait for a bot to be offered them, and `xpNeed` is shut so a level cannot arrive mid-test and deal a
+ * card over the top of what the test wrote. Nothing else about the run is touched: the ship, the gun and
+ * the crowd are the test's business.
+ */
+export function wearEveryLine(field) {
+  field.xpNeed = Infinity;
+  for (const line of LINES) field.upgrades[line.id] = maxRanksOf(line.id);
+  return field;
 }
 
 /** Put an enemy of `type` at (x, y), standing still. */
