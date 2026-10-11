@@ -11173,3 +11173,97 @@ visits would mean something, 0.063 against 0.072 does not. Do not chase it.
    600 enemies, 1500 bullets, 4000 particles, and the shipped game stops its crowd at 200 bodies
    (session 76). Either the target moves or the wall does. Measure before deciding.
 3. The weapon ladder - PLAN's 25% band, measured at 21x by session 91 - is still the big open item.
+
+## Session 94 — F3 puts up the developer's panel. Released **0.10.3**
+
+Milestone 10's `Performance pass against the target in section 2. Add a debug overlay (F3) with frame
+time, entity counts, and pool usage.` - the overlay half, done properly; the pass itself is still open
+and the item stays unticked with a note in `PLAN.md` saying what is left and why it cannot be run yet.
+One new module, `src/render/debug.js`, wired into `input/keyboard.js` (F3), `main.js` (the frame's own
+timings), `render/renderer.js` (painted last of everything) and `index.html` (a twelfth row on the
+title's control list). `test/debug.test.mjs` is 16 tests; suite 1718 → 1734. `tools/simulate.js
+--seed 20261006` is byte for byte what session 91 recorded (10m00s / 75,596 / level 58 / 4004 kills /
+5162 shards / 7 vacuums, 2065 in), which is the proof that a measuring instrument bolted to the frame
+loop measured nothing that the simulation can feel.
+
+### What it is
+
+Three sections, exactly PLAN's three nouns. **FRAMES**: fps, frame ms, then `step ms` and `draw ms`
+each as `avg / worst` over the last 120 frames (two seconds at 60), plus `steps` and `alpha`. **ARENA**:
+bodies against `waves.bodyCeiling`, our shots and theirs, shards, sparks, the grid's filled cells, the
+flocks, and the arena and view sizes. **POOLS**: `live / built` for every pooled list in the world that
+has ever built an object, in a table two rows wide. **CACHE**: the glow sprite count and what its pixels
+cost (session 93's `glow.stats().bytes`), and the device ratio. The plate's own heading names the screen,
+the run's clock, `HELD` if it is paused, and the seed - which is the only place a live run has ever shown
+its seed, and free for the doing.
+
+Nothing new is measured. Every number comes from `Pool.stats()`, `Grid.stats()`, `glow.stats()`,
+`waves.bodyCeiling`, `world.*` and the clock's own tick, read at paint time. That is the reason it is
+safe to leave reachable from a fight, and it is what the tests check: a row the world cannot back up is a
+failing test, and so is a missing row for a pool that has built something (the `POOLS` name table is
+exported so the test can ask the world the same question independently).
+
+### The decisions, so nobody relitigates them
+
+- **The frame measures itself, once, in `main.js`.** `const perf = {...}` is written in place every
+  frame (PLAN's "no allocation inside the per-frame loops"), `performance.now()` around the step loop
+  and around `renderFrame`, and `noteFrame(perf)` is called at the *end* of the frame so all three
+  numbers belong to the same frame. The consequence, said out loud in the module: **the plate lags one
+  frame**, because a frame cannot have been drawn by the time it is being drawn. That is also why the
+  averages are over two seconds and not over one frame - a single frame's cost is a coin flip.
+- **Two `Float64Array(120)` ring buffers**, not a pushed array, for the same no-allocation reason.
+  `resetCosts()` exists for a tool that wants a clean window (the tests use it; it is deliberately *not*
+  called by `resetToTitle` - a new run is not a new frame loop).
+- **Top right, 268 px.** The left column is the build rail, the bottom middle is the XP bar, the top
+  middle is the boss bar, the top left is the score and the top right is the only strip with room under
+  it: the plate starts at y=100, under the hull pips and the leech meter, and gives the bottom 34 px to
+  the XP bar. It is fitted to `view` - and `render/canvas.js` never treats the window as smaller than
+  320 px either way, which is the floor the "does it fit" test uses.
+- **A short window gets fewer lines, not smaller ones.** `debugLayout` builds the full plate; if the
+  rows would have to squeeze under 10 px it builds the compact one instead - same three sections, same
+  headline numbers, pools folded into a total. Never a plate that runs off the bottom.
+- **It is not a row on the settings panel.** Every settings row is *kept for the next visit*; a debug
+  tool that came back by itself would be a lie, and `test/debug.test.mjs` proves the panel never touches
+  `localStorage` and is off at every page load.
+- **F3 is the only key that answers over every screen**, panel and card, because the question it answers
+  is about the frame and not about the glass. It is in `SWALLOWED` so the browser's own find-again does
+  not fire behind it, and it is a key, so `uiTick('open'/'close')` answers the press like any other panel.
+
+### Things that bit me, and are worth remembering
+
+- **The painter had a `cell.baseline` that does not exist.** Baselines live on the *line*, not on the
+  cell, so every value was being drawn at `undefined` (the canvas turns that into nothing, and every
+  count-only test passed). The test that found it is the one worth copying: **"the painter puts every
+  word exactly where the layout said"**. It reads `game.texts()` - the harness logs text, x, y, size and
+  alignment for every `fillText` - and asserts each planned word landed at the planned column and height,
+  with the right alignment. Any module that splits layout from paint should have this test.
+- …but it has to **paint the plate a second time** (`drawDebug(game.context)`) right after reading
+  `debugLayout()`, because of the one-frame lag above: the frame costs are written *after* the draw, so
+  a layout read after a frame is not the layout that frame painted. The first version failed on
+  `step ms  avg / worst`, which is the only kind of value on the plate that moves between two reads with
+  the world standing still.
+- **`game.drawCalls()` is cumulative since boot**, so "this panel builds no gradients" must use
+  `game.measure((ctx) => ...)` - which paints on a canvas of its own and returns only what that paint
+  cost. There is already a page of reasoning about it in `tools/headless/harness.js`; I read past it.
+- `makeEnemy(world, type, x, y, opts)` is **positional**, and there is no `'chaser'`: the kinds are
+  drifter, weaver, darter, spitter, tank, bomber, shielder, swarmling, sniper.
+- The title's control list is **twelve rows** now; the two CSS comments that said ten and eleven are
+  updated. Nobody has ever measured that column in a real browser and it is already taller than its own
+  tightest breakpoints at eleven rows, so one more is not new damage - but the row count has now been
+  used twice as a proxy for "does the title fit", and it is not one.
+- **There was another live agent in the tree again** (the owner's GitHub Pages work landed a merge and
+  two commits underneath mine mid-session: `releases/index.html` is now the owner's menu - AGENTS says
+  leave it alone - and `releases.json` records an exact release time). Nothing conflicted; my commits sit
+  on top and the release went out clean. `git status` before you start, again, and it paid off.
+
+### What should come next
+
+1. **The performance pass**, which is what the plate exists for. The open question is stated in the PLAN
+   item: section 2's target is 600 enemies / 1500 bullets / 4000 particles and the shipped crowd stops
+   at `endless.growth.bodiesCeil` = 200 bodies. Measure first - a headless run can read `frameCosts()`
+   and the step time means something in node (the draw time does not: the stub paints nothing real), so
+   a `tools/` reader for `step ms` at the crowd's wall is the cheap next instrument. Then decide whether
+   the target moves or the wall does, and say which in NOTES.
+2. The weapon ladder - PLAN's 25% band, measured at 21x by session 91 - is still the biggest open item.
+3. If anything ever wants a heap number on the plate: `performance.memory` is Chrome-only and a lie
+   elsewhere, so it does not go on the plate. `tools/memory-hunt.js` is the heap instrument (session 93).
