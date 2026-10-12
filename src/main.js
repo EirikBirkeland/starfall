@@ -56,7 +56,7 @@ import { menuTrackLedger, updateMenuTrack } from './audio/track.js';
 import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
-import { advanceLogo, measureLogo, setCalmMotion } from './render/logo.js';
+import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -1055,6 +1055,11 @@ function frame(now) {
   // title screen (render/logo.js). Its clock runs whatever the world is doing: nothing about a run
   // can be waiting on it, and the alternative - winding it back up every time the title came back -
   // would be a reset the frame loop has no reason to own.
+  //
+  // The mark is asked on the frame and not on the way into a panel, because panels are opened and closed
+  // from half a dozen places and the mark only has to know the answer once per frame: whatever the glass
+  // is putting up, the title is behind it, and the mark is the largest thing on the title.
+  dimLogo(panelIsUp());
   advanceLogo(tick.dt);
   // A hit-stop step holds the run still and never hears the controls, so a frame
   // made entirely of frozen steps must leave a pending dash waiting for the thaw.

@@ -52,6 +52,10 @@ let panelUp = '';
 // The five panels, in the one list everything that is true of "a panel" walks: taking them all
 // down, and fitting whichever one is up. Built once in `initScreens`, beside the elements themselves.
 let panels = [];
+// The three screens a panel is raised *over* - the title, the wreck's card and the win's - as opposed
+// to the five panels themselves. Built beside `panels` for the same reason (`initScreens` is the only
+// place that knows where any of them are), and put to bed by `putScreensToBed`.
+let beds = [];
 // The codex's three panels, in the same shape the racks are kept in: the rows, and the two parts of
 // each row that say what the thing is (`showCodex` owns both of them, because both depend on whether
 // it has been met and neither is known when the panel is built).
@@ -436,6 +440,7 @@ export function initScreens() {
     { which: 'settings', screen: el.settings, body: el.settingsBody },
     { which: 'keys', screen: el.keys, body: el.keysBody },
   ];
+  beds = [el.start, el.over, el.win];
   keyRows = [];
   // Every key the page prints, written from the table (see `paintKeyWords`). The page ships the
   // shipped words so that a page read without any JavaScript at all still reads like the game, and
@@ -478,6 +483,24 @@ export function hideScreens() {
 }
 
 /**
+ * Put the screens underneath to bed, or let them up again.
+ *
+ * A panel is a rack of small type, and the page it goes up over is a page of large one, and the panel's
+ * own dim does not keep the two apart: with the hangar up you could still read the title's key line and
+ * the wreck's big score straight through the racks you were trying to read, which looks like a broken
+ * picture and not like a hint. So while a panel is up the page under it goes down to a tenth of what it
+ * was (index.html's `.aside`, on `opacity` rather than on `.hidden` so it travels on the quarter-second
+ * the page already fades over instead of blinking).
+ *
+ * A tenth is a hint and not a secret: the menu is still there, faintly, so the hangar stays a window
+ * onto the arena rather than a card pasted on black. The arena itself is not part of this - it is the
+ * canvas, and it keeps drifting behind every panel exactly as it does behind the pause.
+ */
+function putScreensToBed(down) {
+  for (const screen of beds) screen.classList.toggle('aside', down);
+}
+
+/**
  * Put one panel up over whatever screen is already there, taking the other ones down first, and fit
  * it to the window on the way.
  *
@@ -488,6 +511,7 @@ export function hideScreens() {
  */
 function raisePanel(which, screen, body) {
   layPanelsDown();
+  putScreensToBed(true);
   screen.classList.remove('hidden');
   panelUp = which;
   fitPanel(body, screen);
@@ -623,6 +647,7 @@ function fitPanel(body, screen) {
 /** Take every panel away again, leaving the screen underneath exactly as it was. */
 export function closePanels() {
   layPanelsDown();
+  putScreensToBed(false);
   panelUp = '';
 }
 

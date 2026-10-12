@@ -137,7 +137,13 @@ function makeContextStub(counters, drawLog) {
       drawLog.rects.push({ x: x, y: y, w: w, h: h, at: onto(x, y) });
     },
     fill: () => { counters.fills++; },
-    stroke: () => { counters.strokes++; drawLog.strokes.push(target.lineWidth); },
+    stroke: () => {
+      counters.strokes++;
+      drawLog.strokes.push(target.lineWidth);
+      // ...and how lit it was asked for, because `widths` alone cannot tell a thin line from a
+      // full-strength one, and "did the mark actually dim" is a question about the alpha (render/logo.js).
+      drawLog.alphas.push(target.globalAlpha);
+    },
     fillText: (text, x, y) => {
       counters.texts++;
       drawLog.words.push(String(text));
@@ -163,8 +169,17 @@ function makeContextStub(counters, drawLog) {
     rotate: (r) => onward({ a: Math.cos(r), b: Math.sin(r), c: -Math.sin(r), d: Math.cos(r), e: 0, f: 0 }),
     scale: (x, y) => onward({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }),
     setTransform: (a, b, c, d, e, f) => { matrix = { a: a, b: b, c: c, d: d, e: e, f: f }; },
-    save: () => { stack.push(matrix); },
-    restore: () => { if (stack.length > 0) matrix = stack.pop(); },
+    save: () => { stack.push({ m: matrix, a: target.globalAlpha, c: target.globalCompositeOperation }); },
+    restore: () => {
+      // The whole drawing state, not just the transform: `save` and `restore` are how a painter dims
+      // something for one call and puts the glass back afterwards (render/glow.js), and a stub that
+      // only gave the matrix back would leak the alpha onto everything drawn after it.
+      if (stack.length === 0) return;
+      const state = stack.pop();
+      matrix = state.m;
+      target.globalAlpha = state.a;
+      target.globalCompositeOperation = state.c;
+    },
     beginPath: noop,
     // Path points are logged where they land, so a test can measure how big a drawn
     // shape actually is - the only way to tell a bigger shard from the same shard
@@ -423,6 +438,9 @@ function makeElement(tag, classes) {
         return on;
       },
       contains(cls) { return this._set.has(cls); },
+      // What classes it is carrying right now, for a test that asks which of them a screen ended up
+      // with rather than betting on one (`classes(id)` below).
+      list() { return [...this._set]; },
     },
     appendChild(child) { this.children.push(child); return child; },
     /**
@@ -574,13 +592,13 @@ export async function bootGame(options) {
   // entities by translating to them, so this is how a test can see what was drawn
   // where - and the same trick works for the stamps, which is how the sky's
   // coverage can be checked (render/nebula.js).
-  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], rects: [] };
+  const drawLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], alphas: [], rects: [] };
   // The same log for every offscreen canvas the game makes - the glow sprites, and anything that
   // paints a layer of its own and lays the sheet on the window (render/darkness.js). Cleared with
   // the frame, like the window's, so a test can ask what the last frame cut. Nothing else stamps or
   // arcs onto an offscreen canvas: a sprite bake fills soft blobs and nothing more, so on any frame
   // that meets no new thing to draw, what is in here is the layer's own work.
-  const offLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], rects: [] };
+  const offLog = { translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [], strokes: [], alphas: [], rects: [] };
   const ctx = makeContextStub(counters, drawLog);
   const elements = {};
   for (const id of ELEMENT_IDS) {
@@ -853,11 +871,12 @@ export async function bootGame(options) {
       const spent = { fills: 0, strokes: 0, texts: 0, gradients: 0, translates: 0, images: 0, shadows: 0, dashes: 0 };
       const blank = {
         translates: [], images: [], dashes: [], points: [], circles: [], words: [], texts: [],
-        strokes: [], rects: [],
+        strokes: [], alphas: [], rects: [],
       };
       paint(makeContextStub(spent, blank));
       return Object.assign({}, spent, {
         widths: blank.strokes.slice(),
+        alphas: blank.alphas.slice(),
         points: blank.points.slice(),
         circles: blank.circles.slice(),
         rects: blank.rects.slice(),
@@ -938,6 +957,15 @@ export async function bootGame(options) {
      * instance (ui/screens.js `paintKeyWords`) - a field per readout would be a field per test.
      */
     text(id) { return elements[id] === undefined ? '' : elements[id].textContent; },
+    /**
+     * Which classes one element of the stub page is carrying right now, by id. The generic version of
+     * the `screen` snapshot's `...Hidden` fields: a page says a great deal about itself in classes -
+     * hidden, put to bed behind a panel, lit up under the cursor - and a test that wants to ask about
+     * one of them should not have to wait for a field to be cut for it.
+     */
+    classes(id) {
+      return elements[id] === undefined ? [] : elements[id].classList.list();
+    },
     get STATE() { return game.STATE; },
     get world() { return game.world; },
     get player() { return game.player; },

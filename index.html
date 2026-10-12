@@ -33,6 +33,12 @@
     transition: opacity .28s ease;
     padding: 24px;
   }
+  /* A page that a panel has gone up over is put to bed (ui/screens.js `putScreensToBed`). It sits
+     above `.hidden` on purpose: both rules say `opacity`, they are equally specific, and a screen that
+     is both must be *gone* - `.hidden` is the one that has to win. A tenth is left behind on purpose
+     too: the menu is a hint through the glass rather than nothing at all, and the arena keeps drifting
+     under it exactly as it does behind the pause. */
+  .screen.aside { opacity: .1; }
   .screen.hidden { opacity: 0; visibility: hidden; }
 
   /* The mark. STARFALL is drawn on the canvas (render/logo.js) and not typed, and this element is

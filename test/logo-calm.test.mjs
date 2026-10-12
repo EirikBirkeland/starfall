@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 
 import { bootGame } from '../tools/headless/harness.js';
-import { logoAge, logoLayout } from '../src/render/logo.js';
+import { logoAge, logoDim, logoLayout } from '../src/render/logo.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const FRAME = 16.7;
@@ -58,4 +58,17 @@ test('twenty seconds of frames and no star ever falls', () => {
     assert.equal(logoLayout().star, null, 'frame ' + i);
   }
   assert.equal(logoLayout().letters.length, 8, 'the word is still up');
+});
+
+test('a panel steps the mark back at once, rather than over a quarter of a second', () => {
+  // The fade the mark's step back usually takes is movement, and this visitor asked for none of it
+  // (render/logo.js, and the same request that pins the arrival). The brightness changes on the frame
+  // the panel opens, and that is the whole of the animation.
+  const press = (code) => { game.key(code, true); game.key(code, false); game.step(FRAME); };
+  press('KeyH');
+  assert.equal(game.screen.hangarHidden, false, 'the hangar is up');
+  assert.ok(logoDim() < 0.2, 'and the mark is already stepped back: ' + logoDim());
+  press('KeyH');
+  assert.equal(game.screen.hangarHidden, true, 'and down again');
+  assert.equal(logoDim(), 1, 'straight back to full light, on the one frame');
 });

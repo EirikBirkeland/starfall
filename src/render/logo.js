@@ -171,12 +171,22 @@ const GLYPHS = WORD.split('').map(buildLetter);
 /** The word's width in cap heights, tracking included and the trailing gap not. */
 const SPAN = GLYPHS.reduce((sum, g) => sum + g.w + TRACK, 0) - TRACK;
 
+// How far the mark steps back when a panel goes up over the title, and how long the step takes. The
+// fade is the page's own quarter-second (index.html `.screen`), so the mark and the words it shares the
+// screen with dim together instead of one of them blinking.
+const DIM = 0.18;
+const DIM_FADE = 0.25;      // s to within a hair of wherever it was asked to go
+const DIM_SNAP = 0.004;     // ...and the hair: closer than this and it is there
+
 // Frame state. `age` is how long the title has been on the glass; `box` is the last measurement of
 // the element the mark is supposed to sit in; `calm` says the visitor asked for less movement, and
-// pins the whole thing to its settled frame.
+// pins the whole thing to its settled frame. `dim` is how lit the mark is right now and `dimTo` where
+// it is going - see `dimLogo`.
 let age = 0;
 let box = null;
 let calm = false;
+let dim = 1;
+let dimTo = 1;
 
 /**
  * Remember where the mark belongs. `el` is the empty heading in the markup; a missing one, or one
@@ -197,10 +207,32 @@ export function setCalmMotion(on) {
 
 /** Burn the mark's clock. main.js calls this on the frame's time, like the sky. */
 export function advanceLogo(dt) {
+  // The step back travels on the same clock the mark's arrival does, and it travels whether or not the
+  // arrival is still running - a panel can be opened an hour into a page, with the word long since lit.
+  dim += (dimTo - dim) * (calm ? 1 : 1 - Math.pow(DIM_SNAP, dt / DIM_FADE));
+  if (Math.abs(dimTo - dim) < DIM_SNAP) dim = dimTo;
   if (calm) return;
   // The clock only has to run until everything has arrived; the comet works out its own place in
   // its cycle from the same number, so it keeps running quietly while the mark is off the glass.
   age += dt;
+}
+
+/**
+ * Ask the mark to step back from the glass, or to come forward again.
+ *
+ * The hangar, the codex and the settings all go up *over* the title, and the mark is the biggest and
+ * brightest thing on it: left at full strength it kept glowing behind the rack somebody was trying to
+ * read. So main.js says whether a panel is up on every frame and the mark moves back to a fraction of
+ * its light - the same step the page's own words take (ui/screens.js `putScreensToBed`), taken by the
+ * half of the title that is painted on the canvas instead of typed into the page.
+ */
+export function dimLogo(on) {
+  dimTo = on ? DIM : 1;
+}
+
+/** How lit the mark is at the moment, 1 being a title standing on its own (see `dimLogo`). */
+export function logoDim() {
+  return dim;
 }
 
 /** How long the title has been up, for a test that wants to know whether the mark has arrived. */
@@ -489,6 +521,10 @@ export function drawLogo(ctx) {
   const layout = logoLayout();
   if (layout.letters.length === 0 && layout.rule.open <= 0 && layout.star === null) return;
   ctx.save();
+  // One alpha for the whole mark, here and not in each painter: every pass below is additive, and the
+  // glow stamps already multiply the alpha they find - so this one line is the letters, the rule, the
+  // studs and the falling star together, and nothing that paints the mark can forget to be dimmed.
+  ctx.globalAlpha = dim;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   // Additive, like everything that shines in this game: where two tubes cross, and where the star
