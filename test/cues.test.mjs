@@ -4,8 +4,8 @@
 // The queue used to build one object per sound, which is the one thing in a busy step that
 // looked free and was not: a darter's beat, two shots landing, a death and the shards it paid
 // out is five allocations in one 1/120 s, and `tools/alloc-probe.js` measured the difference
-// at 295 B a step on the endless crowd - dearest allocator in the game. So a cue is a record
-// off a pool, and this file keeps the two promises that decision makes:
+// at 295 B a step on a crowd that is dying - the dearest allocator left in the game. So a cue is
+// a record off a pool, and this file keeps the two promises that decision makes:
 //
 //   - **a drained cue is on loan.** The records go back to the pool when the drain is over, so
 //     anything that means to keep one keeps a copy (`copyCue`), and a copy says what it heard
