@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.17",
+    "date": "2026-10-12",
+    "released": "2026-10-12T00:04:07.834Z",
+    "summary": "The menu behind the glass: a panel now puts the page underneath it to bed instead of the title shining through",
+    "added": 520,
+    "removed": 9,
+    "logBytes": 38717505
+  },
+  {
     "version": "0.10.16",
     "date": "2026-10-11",
     "released": "2026-10-11T22:51:31.899Z",
