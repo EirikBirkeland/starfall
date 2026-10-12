@@ -126,8 +126,9 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 // the game does. That is the point of a ratchet: it goes down when the game does, or it is only a
 // ceiling.
 //
-// The dearest gated load is the crowd dying, at 984 B: a body being killed and replaced costs about
-// twice what a body walking costs, which is the first place the next cut should go.
+// The dearest gated load is the crowd dying, at 984 B: killing and replacing 200 bodies a step costs
+// about as much again as the same 200 bodies walking (574 B) does, which is the first place the next
+// cut should go.
 export const FLOOR_BYTES = 128;
 export const STEP_BYTES = 1280;
 export const BODY_BYTES = 8;
@@ -453,11 +454,15 @@ export async function measureLoad(game, scene, opts, watch) {
  * stretch rather than pretended absent, so the number is what a young generation of this size costs a
  * player rather than what a single clean window would.
  *
- * It is the one number in this file that is played *cold*, and says so when it prints: a stretch is one
- * synchronous run of frames with no turn of the event loop in it, so it carries its own warm-up inside
- * itself and reads dearer than the warmed loads above it. `warmWork` cannot be used here the way it is
- * used on a planted scene, because the thing being measured is a run and a run played warm is a run
- * that has already ended by the time the window opens.
+ * It is the one number in this file still played *cold*, and the row says so when it prints: a stretch is
+ * one synchronous run of frames with no turn of the event loop in it, and so is the single 30-second run
+ * played beforehand to set the scene, which means the row carries its own warm-up inside itself and reads
+ * dearer than every warmed load above it. `warmWork` cannot be used here the way it is used on a planted
+ * scene, because there is no window of repeatable work to measure - the work is a run, and a run played
+ * to warm up is a run that had already ended by the time the window opened. Doing it properly means
+ * playing two or three of those 30-second runs with a turn of the event loop between them (~1.5 s of the
+ * box each) before the measured stretch, which is a decision for whoever next needs this row to be a
+ * cost and not a ceiling.
  */
 export async function measureLiveRun(game, seconds, watch) {
   const at = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1].at;
@@ -720,6 +725,9 @@ async function main() {
         + ' steps (' + dec(live.seconds, 0) + ' s of the schedule, '
         + (live.ended === null ? 'still flying when the window shut' : 'the run stopped early')
         + ', ' + int(live.collected) + ' collections inside the stretch)');
+      console.log('  played cold - a stretch is one synchronous loop with no turn of the event loop in'
+        + ' it, so this row carries its own warm-up inside it and is a ceiling, not a cost like the '
+        + 'warmed rows above');
     }
     console.log('');
     console.log('  (a scavenge of this heap measures 0.85-1.12 ms under `node --trace-gc`: that is the'

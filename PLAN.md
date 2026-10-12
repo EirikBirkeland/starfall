@@ -1693,6 +1693,14 @@ When every item above is ticked, go back to the first unchecked item of mileston
       against 10m00s / 75,596 / level 58, well inside the seed-to-seed spread, and the four-seed batch
       moved +16% median score which is less than the spread between its own best and worst seed.
 
+- [ ] Cut what the crowd costs when it is dying, which is now the dearest thing in the game and has not
+      been looked at. Warmed and re-measured after session 115 fixed the ruler's own warm-up, the same 200
+      bodies throw away **574 B** a step alive at the wall and **984 B** a step being killed and replaced -
+      so the killing and the replacing is about as much again as walking them, 5 B a body against an 8 B
+      budget, and the only gated load within 30% of its budget. Find where the extra 410 B a step goes -
+      the death FX, the spawner, whatever a wreck leaves behind that a pool does not take back - cut it,
+      then pull `STEP_BYTES` back down towards section 2's own 1 KiB, which the dearest load already fits
+      under by 4%.
 - [ ] The browser half of the performance pass, which this project cannot take by itself: open the game,
       put up the F3 plate, fly the endless door until the plate reads `bodies 200 / 200`, and write down
       what `step ms` and `draw ms` say. `tools/perf-probe.js` knows the arena (0.11 ms a step at that

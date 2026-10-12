@@ -13262,7 +13262,7 @@ all: the gate that is supposed to say "a step throws away less than it used to" 
 for a whole milestone, and every number in `PLAN` and in this file that came out of it was inflated by
 however much V8 happened to be compiling that day.
 
-Suite **2012 → 2014** (two new in `test/alloc-probe.test.mjs`, which is now 15 tests and 1m14s of the
+Suite **2012 → 2014** (two new in `test/alloc-probe.test.mjs`, which is now 14 tests and 1m14s of the
 suite's 2m11s). `node tools/simulate.js` still plays a whole game. The mutation guard still bites: putting
 `Math.hypot` back into `core/math.js` reads the endless wall at **5.3 KB** a step against a 1,280 B budget,
 so the tighter budgets have more teeth than the loose ones, not less.
@@ -13318,21 +13318,30 @@ twenty-four windows agree, and that a window whose two readings disagree is not 
 
 ### Worth knowing before the next perf item
 - **The dearest gated load is no longer the wall, it is the crowd dying: 984 B a step, 5 B a body, against
-  574 B for the same crowd alive.** Killing and replacing a body costs about twice what walking one costs.
-  That is where the next cut in `src/` belongs and it is the only load within 30% of a budget.
+  574 B for the same crowd alive.** The 410 B a step that killing and replacing 200 bodies costs is about
+  as much again as the same 200 bodies walking. That is where the next cut in `src/` belongs and it is the
+  only load within 30% of a budget.
 - A megabyte of garbage is 8.9 s of play at the dying crowd and 15 s at the living wall, and a scavenge of
   this heap measures 0.85-1.12 ms - so the dying crowd is where the F3 plate's worst frames come from.
-- `measureLiveRun` (the `--live` and `--run` rows) is still played **cold**, and now says so in its own
-  comment: a stretch is one synchronous run of frames, and a run played warm is a run that already ended.
-  Its numbers are ceilings, and are not gated.
+- `measureLiveRun` (the `--live` and `--run` rows) is still played **cold**, and its comment now says so
+  instead of claiming a warm-up it does not do: a stretch is one synchronous run of frames with no turn
+  of the event loop in it, so it carries its own warm-up inside the number it prints and reads dearer
+  than every warmed row above it. Warming it properly means playing a whole second run per window (~3 s
+  of the box each, three windows, twice over in the report) for a row that is not gated, so it is left.
+  If a future session wants that row to mean what the planted rows mean, the way is `warmWork` on the
+  `fresh()` closure the stretch already builds - play the run once unmeasured, then measure a second
+  copy of it.
 - Budgets are set about a third over the dearest warm reading, not on a rounding error. If a future session
   wants them tighter, widen `WARM_PROBE_STEPS` first and re-set them from what the wider probe says.
 - `node --test` is 2m11s and `test/alloc-probe.test.mjs` is over half of it. That is the price of a byte
   count that means something; do not "fix" it by shrinking the warm-up, which is where the flakiness was.
 
 ### What is next
-The three open items of milestone 10 are unchanged and this session unblocks the first of them:
-**the browser half of the performance pass** (open the game, read the F3 plate, compare against the plate's
-own numbers and the 574-984 B a step the ruler now says is the truth), then **Release 1.0.0**. The After-1.0
+First, the new item this session wrote into PLAN's milestone 10: **cut what the crowd costs when it is
+ dying** (984 B a step against the living wall's 574 B), which is the one place `src/` has an allocation
+ problem with a number attached to it and no fix yet.
+Then the three open items of milestone 10, unchanged and with the first of them unblocked by this session:
+**the browser half of the performance pass** (open the game, read the F3 plate, compare against the
+574-984 B a step the ruler now says is the truth), then **Release 1.0.0**. The After-1.0
 re-price of `tether`/`afterimage`/`overcharge` is still sitting there from session 114 and is still the
 lowest-stakes of the lot.
