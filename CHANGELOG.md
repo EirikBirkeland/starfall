@@ -1,5 +1,22 @@
 # Starfall — changelog
 
+## 1.2.1 — 2026-10-12
+The run log now says which rule a run was flown under, so a score in that column comes with its units.
+- **A ruled row says so.** The codex's PAST RUNS rack read `WISP · 40s · 90,000` whether the run stood on one
+  hull or three, which is the exact thing the harder rules were put in to stop. A row now reads
+  `WISP · 40s · 90,000 · ONE HULL`, beside the score it is the units of, and `CLEARED` still comes last.
+- **Old saves are not wrecked and not rewritten.** Every run anybody has ever logged predates the rules, and
+  the save store judges a row whole - a field a row was required to have and did not would have thrown away
+  twenty rows of somebody's history the first time this version read them. So the rule is an *optional*
+  field, and an ordinary run leaves it out instead of writing a word for "none": your log is the same text it
+  was, nothing is migrated on your first read, and a row written before rules existed says exactly what a
+  plain run says now - nothing, which is the truth about both of them.
+- **A rule a page has never heard of still gets named.** Same rule as the unknown ships: a save written by a
+  newer version than the page you opened it on keeps its row and prints its own word for the rule.
+- **The store grew a kind for it.** `KINDS.optional` is the honest answer to "a field a row written before it
+  existed is allowed to lack", and it is strict about what it does allow: a rule that is present and is not a
+  rule id still condemns the row, and `''` is not a rule id - the document says "none" by not naming one.
+
 ## 1.2.0 — 2026-10-12
 Every harder rule now has a number of its own, so a rule is something to beat and not just a harder night.
 - **A best under each rule.** The save keeps the best score it has flown under ONE HULL, under NO DASH and
