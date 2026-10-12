@@ -13253,3 +13253,86 @@ Re-price the dash lines against an instrument that presses the way a buyer of th
 `tether.damage`, `afterimage.bait` - whose 6%/30% crowd-attention figures were read with the dive habit and
 probably read *low*, since a get-out leaves its images behind a fleeing ship, which is exactly where a
 chasing crowd is - and what `overcharge` is worth now that the bot's dash is not spent on nothing.
+
+## Session 115 — The allocation ruler was weighing its own compiler. All three budgets came down
+
+**No release, on purpose.** Everything is in `tools/` and `test/`; not one byte of `src/` moved, so the game
+in the owner's menu is 0.10.19's. What this session buys is that the performance pass can be finished at
+all: the gate that is supposed to say "a step throws away less than it used to" had been sitting at FAIL
+for a whole milestone, and every number in `PLAN` and in this file that came out of it was inflated by
+however much V8 happened to be compiling that day.
+
+Suite **2012 → 2014** (two new in `test/alloc-probe.test.mjs`, which is now 15 tests and 1m14s of the
+suite's 2m11s). `node tools/simulate.js` still plays a whole game. The mutation guard still bites: putting
+`Math.hypot` back into `core/math.js` reads the endless wall at **5.3 KB** a step against a 1,280 B budget,
+so the tighter budgets have more teeth than the loose ones, not less.
+
+### The bug, and why it hid for a milestone
+`WARM_STEPS = 2400` steps in one synchronous `for` loop, then measure. That is not warm. Measured directly:
+20,000 uninterrupted steps of the endless wall left the first reading at **2,660 B** a step, and the same
+crowd stepped with the event loop handed back every 60 steps settled at **606 B** and stayed there from its
+first window. V8 installs the code it compiles in the background when the loop turns, so a warm-up that
+never turns weighs whatever the load started on. A browser turns the loop every frame, which is the whole
+argument for measuring the warm number; the cold number was a ruler measuring itself.
+
+That is why `the ratchet` failed under `node --test` and passed on its own: the reading depended on how much
+stepping the process happened to do, and a loaded box does fewer turns.
+
+What a load actually costs, warmed, reproducible to under a percent across a dozen runs and unchanged by six
+CPU burners (they were read *identical* under load, which is the proof the fix is real):
+
+| load | cold, as the file had it | warm, now | budget, now |
+| --- | --- | --- | --- |
+| the arena on its own | 184-415 B | **64 B** | 128 B (was 512) |
+| the schedule at full crowd | 1.1 KB | **436 B**, 4 B a body | 1,280 B (was 2,560) |
+| endless at the body wall | 1.4 KB | **574 B**, 3 B a body | |
+| the same crowd, dying | 1.8 KB | **984 B**, 5 B a body | |
+| the same crowd, spread out | 1.6 KB | **582 B**, 3 B a body | |
+| 900 sparks alone / 60 shots alone | 184-219 B | **64 B / 65 B** - nothing over an empty arena | |
+| PLAN section 2's impossible scene | 19.6 KB | **3.8-4.1 KB**, 6-7 B a body | not gated |
+
+The warm-up is now `warmWork`: measure the load in windows of its own - 1,000 steps, forced collections, the
+same two readings an ordinary window takes - until **six in a row land within 10% of each other**. A *band*
+of probes and not "this one was near the best", because the readings bounce on the way down (the wall dips
+to 831, rises to 1,080, settles near 580) and a rule that stops on a lucky dip stops twice as high as the
+truth: at 12,000 steps the empty arena sometimes plateaus at 184 B and never falls to its real 64. A load
+that is still getting cheaper at `WARM_MAX_STEPS` reports `warmSettled: false` and **fails the gate**, so a
+broken ruler cannot be read as a pass. Cost: a load wants 20,000-47,000 steps of warm and a full ladder is
+about a minute. `WARM_PROBE_STEPS` is not a free knob - at 2,000 the same crowd reads a fifth cheaper again
+- and the budgets above are set against 1,000.
+
+### The second bug, which the first one was hiding
+With the warm-up fixed, `--windows 6` and `--windows 24` still disagreed, and in the *wrong* direction: the
+wall read 574 B at six windows and **189 B** at twenty-four. Dumping every window (`.scratch/alloc-dump.js`
+is a copy of the tool with the window list printed - that is what `.scratch/` is for) showed why. The
+readings sit in a tight cluster, 567-610 B, and about **one window in a hundred reads half the truth**: the
+one that was caught had grown 59 KB off `heapUsed` and **176 KB** off the young generation, and reported
+197 B a step. Old space hands a page back inside a window and `perf_hooks` never calls that a collection, so
+the delta reads low - and a best-of-N rule is a magnet for exactly those windows, the more windows the more
+likely one turns up.
+
+The file's header has claimed since it was written that it "reads the heap twice and throws away a window
+where they disagree". Nothing ever compared them. Now `readingsAgree` does, a fifth of the larger reading or
+4 KB, and the liar is refused like any other bad window. Both new tests exist because of this: that six and
+twenty-four windows agree, and that a window whose two readings disagree is not a reading.
+
+### Worth knowing before the next perf item
+- **The dearest gated load is no longer the wall, it is the crowd dying: 984 B a step, 5 B a body, against
+  574 B for the same crowd alive.** Killing and replacing a body costs about twice what walking one costs.
+  That is where the next cut in `src/` belongs and it is the only load within 30% of a budget.
+- A megabyte of garbage is 8.9 s of play at the dying crowd and 15 s at the living wall, and a scavenge of
+  this heap measures 0.85-1.12 ms - so the dying crowd is where the F3 plate's worst frames come from.
+- `measureLiveRun` (the `--live` and `--run` rows) is still played **cold**, and now says so in its own
+  comment: a stretch is one synchronous run of frames, and a run played warm is a run that already ended.
+  Its numbers are ceilings, and are not gated.
+- Budgets are set about a third over the dearest warm reading, not on a rounding error. If a future session
+  wants them tighter, widen `WARM_PROBE_STEPS` first and re-set them from what the wider probe says.
+- `node --test` is 2m11s and `test/alloc-probe.test.mjs` is over half of it. That is the price of a byte
+  count that means something; do not "fix" it by shrinking the warm-up, which is where the flakiness was.
+
+### What is next
+The three open items of milestone 10 are unchanged and this session unblocks the first of them:
+**the browser half of the performance pass** (open the game, read the F3 plate, compare against the plate's
+own numbers and the 574-984 B a step the ruler now says is the truth), then **Release 1.0.0**. The After-1.0
+re-price of `tether`/`afterimage`/`overcharge` is still sitting there from session 114 and is still the
+lowest-stakes of the lot.
