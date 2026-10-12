@@ -48,7 +48,8 @@ Every decision should serve these. When in doubt, re-read them.
   `tools/alloc-probe.js` weighs a step in bytes and `test/alloc-probe.test.mjs` holds the budgets, and
   that rule is also why every distance in the game comes from `hypot` in `core/math.js`: V8's
   `Math.hypot` takes any number of arguments, so it lays them out in a list on the heap and throws the
-  list away on every call, which was three quarters of what a crowded step threw away.
+  list away on every call, which was three quarters of what a crowded step threw away. The other big
+  single win was the sound queue: a cue was an object per sound, and a crowded step asks for several.
 - Use a uniform spatial grid for collision. Never test every bullet against every enemy.
 
 ### Folder layout to work towards
@@ -1693,14 +1694,39 @@ When every item above is ticked, go back to the first unchecked item of mileston
       against 10m00s / 75,596 / level 58, well inside the seed-to-seed spread, and the four-seed batch
       moved +16% median score which is less than the spread between its own best and worst seed.
 
-- [ ] Cut what the crowd costs when it is dying, which is now the dearest thing in the game and has not
-      been looked at. Warmed and re-measured after session 115 fixed the ruler's own warm-up, the same 200
-      bodies throw away **574 B** a step alive at the wall and **984 B** a step being killed and replaced -
-      so the killing and the replacing is about as much again as walking them, 5 B a body against an 8 B
-      budget, and the only gated load within 30% of its budget. Find where the extra 410 B a step goes -
-      the death FX, the spawner, whatever a wreck leaves behind that a pool does not take back - cut it,
-      then pull `STEP_BYTES` back down towards section 2's own 1 KiB, which the dearest load already fits
-      under by 4%.
+- [x] Cut what the crowd costs when it is dying, which was the dearest thing in the game and had not
+      been looked at. **It was not the dying: it was the sound.** A cue - the note a darter's beat, a shot
+      landing, a body coming apart or a shard being collected asks `audio/sfx.js` for - was a fresh object
+      per sound, and a crowded step asks for 1.7 of them: that one `queue.push` was **295 B of the 410 B a
+      step** that separated the crowd dying (984 B) from the same 200 bodies standing still (574 B), and it
+      was the dearest allocator left in the game once `Math.hypot` was gone. The price of each suspect was
+      read the way the `Math.hypot` hunt read it - copy the tree, switch one part off, weigh the same load
+      again - because the probe weighs a step and cannot name a cause: cue objects off reads the dying crowd
+      at 689 B and the endless wall at 507 B; the whole shard drop-and-pickup path off reads it at 533 B
+      (the two overlap by ~155 B, which is the pickup pings); and the `'+' + enemy.score` string a floating
+      label is worth **4 B a step**, which is what the optimiser leaves of a short concatenation - so it was
+      measured and left exactly where it was, and a heap profile (`node --heap-prof`) named the queue by
+      5 MB over a fight before any of that.
+      **What shipped** is `game/cues.js` on a `core/pool.js` pool: one shape for all four kinds of cue, every
+      queue function writing every field (the contract every other pooled list in the game keeps), and a
+      drained cue *on loan* - the records go back the moment the drain is over, so `copyCue` is how you keep
+      one and `drainCues` now hands the frame's whole batch to its listener at once, which is what
+      `audio/sfx.js` needed anyway because it cannot spend a voice budget until it has seen the frame. Twelve
+      listeners in `test/` listen through the new `tools/headless/hear.js`, and 9 tests in
+      `test/cues.test.mjs` keep the loan, the wipe, the reuse and the `finally` that takes the records home
+      even from a listener that throws: **a real two-minute fight queues 4,968 sounds, builds 15 records and
+      leaves none live.**
+      **The same five loads, re-weighed**: the schedule crowd **436 B → 407 B**, the endless wall **574 →
+      514**, the crowd dying **984 → 735**, the same crowd spread out **582 → 499**, PLAN section 2's
+      impossible scene 3.9 KB → **3.3 KB**; a megabyte of garbage now takes 11.9 s of the dearest load
+      instead of 8.9 s, and a scavenge of that heap is what a worst frame is made of. `STEP_BYTES` came down
+      1,280 → **896 B** and `BODY_BYTES` 8 → **5**, and for the first time the gate was checked against the
+      regression that paid for it: putting an object per sound back reads 984 B a step and **fails** (exit 1),
+      which is the mutation check this file has always run on its own budgets. What is left of the 735 B is
+      small and diffuse - with the queue pooled the allocation sampler names nothing in `src/` above 200 KB
+      over a whole fight, the same verdict the grid hunt reached about the walk, so it is typed-array
+      positions or nothing now. The reference run is byte for byte the run it was (a cue never feeds back
+      into a run, and 4,968 of them make sure of it), suite 2014 → 2023.
 - [ ] The browser half of the performance pass, which this project cannot take by itself: open the game,
       put up the F3 plate, fly the endless door until the plate reads `bodies 200 / 200`, and write down
       what `step ms` and `draw ms` say. `tools/perf-probe.js` knows the arena (0.11 ms a step at that

@@ -133,10 +133,14 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 // against the 984 B and 574 B they were. Records go round a pool now, and what a sound costs a step is
 // a spawn, a hand of field writes and a clear instead of an allocation.
 //
-// STEP_BYTES is PLAN section 2's own 1 KiB, which the dearest gated load - the crowd dying, at 735 B -
-// fits under by 28%. BODY_BYTES is a third over the 3 B a body costs at that same wall.
+// STEP_BYTES sits inside PLAN section 2's 1 KiB on purpose: **896 B**, which is 22% over the dearest
+// gated load (the crowd dying, at 735 B) and - deliberately - *under* the 984 B that same load threw
+// away before the sound queue went onto a pool. A gate that the last fix would have passed is a gate
+// nobody believes, so this one was checked the way every budget in this file has been checked: put the
+// allocation back in a copy of the tree and watch it fail. BODY_BYTES is a third over the 3 B a body
+// costs at that same wall.
 export const FLOOR_BYTES = 128;
-export const STEP_BYTES = 1024;
+export const STEP_BYTES = 896;
 export const BODY_BYTES = 5;
 
 /**
