@@ -19,6 +19,14 @@
 // and this file only asks where it ended up - the same question render/logo.js asks of `#logoBox`, and
 // for the same reason: a chip whose pressed box is recomputed in JavaScript is a chip that moves when
 // the CSS does, and nobody would notice until a thumb missed it.
+//
+// **There is a second rail, and it is one chip long**: the pause rack's GIVE UP (main.js
+// `pressGiveUpChip`). It lives here rather than beside the pause's other words in ui/screens.js for the
+// one reason that decides anywhere a chip is pressed: a chip is pressed by asking the browser where it
+// was laid out and comparing that with the glass the press came in through, and this is the one file
+// that is given the canvas. It is not on the title's rail, because a rail is a place on a screen and the
+// pause is another screen - and a control that answers from behind a panel nobody is looking at is a
+// trap and not a control.
 
 /**
  * The three chips, in the order the rail paints them.
@@ -36,6 +44,17 @@ const CHIPS = [
   { id: 'mute', el: 'chipMute' },
 ];
 
+/**
+ * The pause rack's chip, and its two words.
+ *
+ * The second one is a whole instruction and not a shout, because the press it asks for is the one press
+ * in the game that costs a run and a player who is unsure of what a second tap does should not have to
+ * find out by tapping. main.js owns *whether* the chip is asking (what a press means is never a paint
+ * question); this file owns the only place its word is written, so the word and the answer the wiring
+ * acts on are painted from one fact.
+ */
+const GIVE_UP = { plain: 'GIVE UP', asking: 'TAP AGAIN TO GIVE UP' };
+
 // The rail, its three chips, and the canvas the press point is measured against. Filled once by
 // `initChips`, beside the same elements `initScreens` took its own from.
 let rail = null;
@@ -47,8 +66,15 @@ let chips = [];
 // never been shown is not a chip they meant to press.
 let up = false;
 
+// The pause's chip, and whether this visit's rack has one (main.js `showGiveUpChip`). Its own flag and
+// not the rail's, because the two are put up by two different facts: the rail is for a browser that has
+// fingers, and this is for a run that has actually been flown on one (`thumb.used`), which is the same
+// fact the pause rack's own words are painted from.
+let giveUp = null;
+let giveUpUp = false;
+
 /**
- * Find the rail. Called once at boot, and as strict about the page as `initScreens` is: a chip the
+ * Find both rails. Called once at boot, and as strict about the page as `initScreens` is: a chip the
  * markup does not have is a chip that would sit in the list forever answering nothing.
  */
 export function initChips(canvas) {
@@ -59,6 +85,8 @@ export function initChips(canvas) {
   for (const chip of chips) {
     if (chip.el === null) throw new Error('the page has no #' + chip.el + ' chip to press');
   }
+  giveUp = document.getElementById('pauseGiveUp');
+  if (giveUp === null) throw new Error('the page has no give-up chip to put on the pause rack');
 }
 
 /** Put the rail on the glass, or keep it off it (main.js asks input/touch.js which visit this is). */
@@ -68,12 +96,57 @@ export function showChips(on) {
 }
 
 /**
+ * The press point, in the window's own pixels.
+ *
+ * The point a press arrives with is the canvas's (input/mouse.js keeps it, and input/touch.js notes a tap
+ * in the same currency) and a chip's box is asked for in the window's, so the canvas's own place in the
+ * window is put back in.
+ */
+function windowPoint(x, y) {
+  const glass0 = glass.getBoundingClientRect();
+  return { x: x + glass0.left, y: y + glass0.top };
+}
+
+/** Did this window point land inside that box? A box with nothing in it lands nothing. */
+function landedOn(box, at) {
+  return box.width > 0 && box.height > 0
+    && at.x >= box.left && at.x <= box.left + box.width
+    && at.y >= box.top && at.y <= box.top + box.height;
+}
+
+/**
+ * Put the pause rack's GIVE UP chip on the glass, or keep it off it, and say which of its two words it
+ * wears (main.js `raisePause`, main.js `pressGiveUpChip`).
+ *
+ * `on` is the fact the pause rack's own line is written from: this visit steers with a thumb and so has
+ * no `G` to read and no letter to press. `asking` is whether the first press has happened; a rack going
+ * up is always a plain one, and a chip that is not on the glass never wears the question.
+ */
+export function showGiveUpChip(on, asking) {
+  giveUpUp = on === true;
+  const asks = giveUpUp && asking === true;
+  giveUp.classList.toggle('gone', !giveUpUp);
+  giveUp.classList.toggle('asking', asks);
+  giveUp.textContent = asks ? GIVE_UP.asking : GIVE_UP.plain;
+}
+
+/**
+ * Is this point on the pause's GIVE UP chip? main.js asks it before it asks anything else about a press
+ * over the pause rack, and only while the pause rack is the panel that is up.
+ *
+ * Same arithmetic as `chipAt` and the same reason for it: the box is the browser's, so the word a thumb
+ * reads and the box that thumb presses cannot be moved apart by a stylesheet edit.
+ */
+export function giveUpChipAt(x, y) {
+  if (!giveUpUp) return false;
+  return landedOn(giveUp.getBoundingClientRect(), windowPoint(x, y));
+}
+
+/**
  * Which chip is under this point on the glass? The id of one, or '' when the point hit none.
  *
  * The point is the one the press handler has - the same canvas pixels `mouse.x` keeps - and a chip's box
- * is asked for in the window's pixels, so the canvas's own place in the window is subtracted out. That
- * is what input/mouse.js does with a mouse event, and it is why a thumb's tap and a cursor's click
- * arrive at the same comparison.
+ * is asked for in the window's pixels, which is what `windowPoint` is for.
  *
  * A box with nothing in it answers nothing. That is both a chip the page has hidden and a stub page that
  * was never laid out, which is the honest answer for a browser without a layout engine and the reason
@@ -81,15 +154,9 @@ export function showChips(on) {
  */
 export function chipAt(x, y) {
   if (!up) return '';
-  const glass0 = glass.getBoundingClientRect();
-  const px = x + glass0.left;
-  const py = y + glass0.top;
+  const at = windowPoint(x, y);
   for (const chip of chips) {
-    const box = chip.el.getBoundingClientRect();
-    if (box.width <= 0 || box.height <= 0) continue;
-    if (px < box.left || px > box.left + box.width) continue;
-    if (py < box.top || py > box.top + box.height) continue;
-    return chip.id;
+    if (landedOn(chip.el.getBoundingClientRect(), at)) return chip.id;
   }
   return '';
 }

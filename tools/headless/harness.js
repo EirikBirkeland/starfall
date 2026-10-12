@@ -431,6 +431,9 @@ const ELEMENT_IDS = [
   // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
   // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.
   'thumbRail', 'chipToday', 'chipRule', 'chipMute',
+  // ...and the one chip on the pause rack, which is pressed the same way and needs a box of its own for
+  // the same reason (index.html, ui/chips.js, main.js `pressGiveUpChip`).
+  'pauseGiveUp',
 ];
 
 /**
@@ -442,7 +445,7 @@ const ELEMENT_IDS = [
  * `ui/chips.js` is written to answer nothing about. `logoBox` is not in here: the mark is measured
  * against the window on purpose (render/logo.js), which is what the title's own tests hold.
  */
-const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute'];
+const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'pauseGiveUp'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in

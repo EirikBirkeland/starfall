@@ -59,7 +59,7 @@ import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } fr
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
-import { initChips, showChips, chipAt } from './ui/chips.js';
+import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -207,6 +207,15 @@ function pressChip(id) {
 
 function onCanvasPressed() {
   initAudio();
+  // The pause rack's GIVE UP chip, asked before anything else on this screen and before the thumb's own
+  // way back into the run in particular - because on a thumb's pause that way back owns every pixel of
+  // the glass, and the one control that means something else has to be asked first or it is no control
+  // at all. It is refused while any other panel is up: the settings rack over a held run is a rack a
+  // tap is meant for, and a chip behind a panel is not a chip anybody is aiming at.
+  if (pauseIsUp() && giveUpChipAt(mouse.x, mouse.y)) {
+    pressGiveUpChip();
+    return;
+  }
   // A thumb is the one hand with no Esc on it, and its tap carries no gun - a run flown on a finger
   // holds its own trigger (game/assists.js) - so the reason a click may not resume a paused run is
   // precisely the reason a tap is allowed to. It has to be asked before the panel rule below,
@@ -937,14 +946,52 @@ function describePause() {
   };
 }
 
+// Has the pause's GIVE UP chip been pressed once already? The word on the chip is painted from this and
+// from nothing else (ui/chips.js `showGiveUpChip`), so the question a thumb reads and the press that
+// answers it are one fact and not two that have to be kept in step.
+let giveUpAsked = false;
+
 /**
  * Paint the pause from the run as it stands, and put it up. Both the key and a window that has lost
  * focus do this; only the key answers itself with a sound, because only a press has an ear waiting
  * for one.
+ *
+ * Every rack that goes up is a plain one: a give-up that was half-asked for on the last pause is not a
+ * give-up this one has been asked for, and a chip that came back wearing a question nobody asked is a
+ * chip that ends a run on the next stray tap.
  */
 function raisePause() {
+  giveUpAsked = false;
   showPause(describePause(), thumb.used);
+  showGiveUpChip(thumb.used, false);
   openPause();
+}
+
+/**
+ * The pause rack's GIVE UP chip went down: a thumb's `G`, and it takes two presses to land.
+ *
+ * It is answered by `onGiveUp` and by nothing else, guards included, for the usual reason - the letter
+ * and the chip cannot then get out of step, and a run given up from a chip is banked and carded exactly
+ * as one given up from a key is. What the chip adds is the second press, and it has to: this is the one
+ * press in the game that costs a run, and a screen whose every other pixel is "tap to go back" is a
+ * screen where one careless tap must not be able to end one. So the first press only changes the word
+ * on the chip, and every other press in the game - a tap back into the run, the settings, the rack going
+ * down at all - leaves it unanswered and the run keeps flying.
+ *
+ * The first press answers itself with the low edge of an ask (BALANCE.ui), because it did something: the
+ * chip is asking now. The second is answered by the run's own ending, which makes its own noise.
+ */
+function pressGiveUpChip() {
+  initAudio();
+  if (!giveUpAsked) {
+    giveUpAsked = true;
+    showGiveUpChip(true, true);
+    uiTick('ask');
+    return;
+  }
+  giveUpAsked = false;
+  showGiveUpChip(true, false);      // the question is answered, so it comes off the chip with the run
+  onGiveUp();
 }
 
 /**
@@ -1190,9 +1237,13 @@ function frame(now) {
   } else {
     victoryCardShown = false;
     winHintRevealed = false;
-    // Any screen but an ending is a run that has not ended yet, so the flag goes back with the rest.
-    overCardShown = false;
   }
+  // The death's flag is forgotten on any screen that is not an ending at all. It is *not* forgotten in
+  // the `else` above, tempting as that looks, because that branch is taken for a death as much as for a
+  // title: forgetting the flag there meant the wreck's card was painted again on every frame it was up -
+  // its knock once per frame instead of once per run, and the codex, the log, the awards and the rule
+  // racks all written again sixty times a second behind it.
+  if (world.state !== STATE.OVER && world.state !== STATE.WON) overCardShown = false;
   consumeCues(world.state);
   // The music is wound on the same frame the cue queue drains on: what the run looks
   // like right now - how far in it is, whether a boss is standing in it, how much hull the

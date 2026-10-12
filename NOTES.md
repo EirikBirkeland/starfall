@@ -14299,3 +14299,125 @@ keyboard line.
    silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the
    deliberate FAIL on the difficulty band (`difficulty-arc`, `run-shape`'s band check: 13% of 48 seeds die
    between 4m and 9m against the 50% "usually" asks for).
+
+## Session 125 — A thumb can give a run up: the pause rack's GIVE UP chip, and the wreck's card that was knocking every frame. Not released (see "the tree")
+
+Suite **2,123 → 2,141** (14 in `test/thumb-giveup.test.mjs`, 4 in `test/thumb-giveup-mouse.test.mjs`, one new
+assertion in `test/ui-sound.test.mjs`). `node --test` green, `tools/simulate.js` reaches the 10 m cap with no
+throw, `tools/contrast-check.js` (96 lines, 68 on the page, nothing under its bar), `tools/palette-check.js`
+clean. No new glass pixels, so the sight and ghost tools were not re-run; `alloc-probe` and `perf-probe` were
+not either, which is honest because nothing on a flying frame changed - and the one frame-rate change in this
+session is a *saving*, below.
+
+**No release.** See "the tree, which is not clean and not mine" at the end. The work is committed; the next
+session should release it once the tree is clean.
+
+### What shipped: the pause rack's GIVE UP
+A phone can hold a run (session 124) and, until now, could not end one: `G` was the only way and a phone has
+no `G`. The pause rack now carries a **chip** for it - `#pauseGiveUp` in `index.html`, `.chip.gone` shipped
+gone, put on and taken off and worded by `ui/chips.js` (`showGiveUpChip(on, asking)`, `giveUpChipAt(x, y)`)
+and answered by `main.js` `pressGiveUpChip`, which calls `onGiveUp` - the very handler `G` is answered by,
+guards included, so a run given up from a chip is banked, carded and cause-less exactly as one given up from
+a key is (`test/thumb-giveup.test.mjs` asserts the whole signature: OVER, panel down, card up, `finalScore`
+banked, `killedBy` empty).
+
+**It takes two presses, and that is the whole design.** Every other pixel of a thumb's pause screen means
+"tap to go back into the run" (session 124's tap-resume rule), so a single careless tap must not be able to
+end a run, and a confirm that only *looks* like the thing it confirms is no confirm. The first press changes
+the word on the chip from `GIVE UP` to `TAP AGAIN TO GIVE UP` and answers itself with a new `BALANCE.ui.ask`
+tick - low and edged like the banish but *rising* where that one falls, because it is a question and not the
+thing it asks about. The second press is the run's own ending, and nothing ticks over the top of it. Any
+other press in the game - a tap back into the run, `Esc`, the settings rack, the rack going down any way at
+all - leaves it unanswered, and `raisePause` repaints every rack plain, so an ask never travels from one
+pause to the next.
+
+Three decisions worth keeping:
+
+* **A chip, not a plate.** Session 124's pause control is a *plate*: `input/touch.js` claims the finger that
+  made it. This control is on a panel, over a run that is holding still, and the press arrives at
+  `onCanvasPressed` anyway - so it is the title rail's bargain: DOM paint, no listener, hit-tested against
+  the box the browser laid out. `giveUpChipAt` and `chipAt` now share `windowPoint`/`landedOn` so the two
+  cannot drift. `ui/chips.js`'s header says why a second rail lives there and not in `ui/screens.js`: only
+  that file is given the canvas to measure against.
+* **The hit test is asked *ahead* of the tap-resume rule**, guarded by `pauseIsUp()`. On a thumb's pause the
+  resume rule owns every pixel, so the one control that means something else would otherwise be no control;
+  and while another panel is up the chip is behind it, so a press a panel owns never reaches it.
+* **One fact, in one place.** `main.js` holds `giveUpAsked` and the chip's word is painted from it and from
+  nothing else, so the question on the glass and the press that answers it cannot disagree. The ask is
+  cleared in `raisePause`, which is the only way the rack comes back up, so there is no path that forgets it.
+
+The chip is **in flow** in `.pause-body` (`.pause .chip { margin-top: 26px }`) and not pinned to the bottom
+like the title's rail, because `fitPanel` measures that column as one thing and a chip pinned under it would
+be fitted outside it. It is `.gone` (`display: none`) rather than hidden, so a keyboard visit's column is
+shorter by exactly the chip: that visit has `G` written under the hint and needs no plate to find it
+(`test/thumb-giveup-mouse.test.mjs`). Its asking colour `#ffc164` is measured by the contrast audit at 11.62
+to 1. A cursor is allowed the same two presses (both hands), and `game.resetToTitle` does not reload the
+page, which is why the shipped `gone` class is belt-and-braces and not load-bearing.
+
+### The bug: the wreck's card was painted, and knocked, on every frame it was up
+I went looking for the sound of the give-up and found a 190 Hz rattle instead: `BALANCE.ui.card` was played
+**once per frame** for as long as the death card was up, and with it `showGameOver` - which repaints the
+card, the purse, the codex, the log, the awards and the rule racks - ran sixty times a second over every
+death in the game.
+
+`frame` remembered that it had carded the run with `overCardShown`, and then the *win's* branch forgot it
+again: `} else { victoryCardShown = false; winHintRevealed = false; overCardShown = false; }`. That `else` is
+`if (world.state === STATE.WON)`, and a death takes it too. The flag was only ever true for the length of one
+frame. Fixed by taking the line out of the `else` and giving it its own condition - forget it when the world
+is on neither ending - with the reason written where the line now is.
+
+Why 124 sessions did not see it: `test/ui-sound.test.mjs` asserted `heard(at, UI.card.freq)`, and `heard`
+means "some note at this pitch was asked for" - which is as true of sixty as of one. The assertion that
+catches it now is the negative one, `assert.equal(heard(at, UI.card.freq), false)` after 30 quiet frames with
+the card up, and the mutation (put the line back in the `else`) reddens exactly that test and nothing else.
+Two more lessons for the next session that reads this: **a "happened" assertion is not a "happened once"
+assertion**, and a per-frame cost that only exists on a screen the perf probes never visit is invisible until
+somebody listens. The win's card was already safe (`victoryCardShown` is reset only off the win).
+
+### Mutation checks
+| mutation | red |
+| --- | --- |
+| the first press gives up the run at once | the ask test, the cancel tests, the words test (5) |
+| `raisePause` does not clear the ask | "a chip left asking is not a chip the next rack is still asking on" |
+| `showGiveUpChip` never puts the chip on | the rack test, the ask tests |
+| the `pauseIsUp()` guard removed | nothing (see below) |
+| `overCardShown = false` back in the win's `else` | `ui-sound`'s card test, alone |
+
+The `pauseIsUp()` guard is the one line I could not make a test bite, because `onGiveUp` already refuses a
+press when the pause is not up, so both builds answer the same way out loud. It stays: a press a panel owns
+should not be swallowed by a chip behind it (it would even tick), but it is defence and not the load-bearing
+part. Everything else above is load-bearing.
+
+### The tree, which is not clean and not mine
+Halfway through this session the working tree grew, from under me, a **release-notes feature I did not write**:
+`tools/release-notes.js` (untracked), `releases/notes/*.md` for every past version (untracked), and edits to
+`tools/release.sh` and `releases/index.html` - the owner's menu, which `AGENTS.md` says to leave alone. Their
+mtimes are mid-session and nothing in `NOTES.md` or `git log` claims them, so a second pair of hands is in
+this folder. I left every one of them exactly as found: not committed, not reverted, not reviewed.
+
+Consequences the next session has to deal with, in order:
+1. **My work is committed and un-released.** Commit only my own paths (`git status` will show theirs
+   alongside); `git add -A` would put someone else's in-flight feature in my commit.
+2. `tools/release.sh` ends in `git add -A`, so **a release right now would sweep their work in too.** Do not
+   release until the tree is clean of it: read what they did, run the tools, then either commit it as its own
+   change or put it back. If it is good, it wants its own NOTES entry - a description page per release in the
+   owner's menu is a bigger change to the menu than anything in this session.
+3. Then release what I did. Suggested: **1.6.0**, "A thumb can give a run up, and the wreck's card lands
+   once" - a phone reaches the one press that costs a run, and a 60-per-second knock over every death card
+   stopped. Both are menu-worthy; the second is the sort of thing a player felt without being able to name.
+
+### What should come next
+1. **The panels' thumb shape**, unchanged from 123 and 124: a settings row that steps when it is tapped, a
+   CLOSE chip on a panel, and a controls rack that is refused on a finger visit instead of opened into rows
+   that ask for a key. Then the hangar, where a tap has to mean *buy* without a Shift and where a phone player
+   is still earning stardust they cannot spend.
+2. **The title's hint line** still says `PRESS SPACE OR CLICK TO LAUNCH`; `hasFinger()` is one decision away
+   (session 123's lesson: `hasFinger`, not `thumbUsed`, is the fact about a title).
+3. Worth a look because of what the card bug turned up: **audit the other once-per-screen flags the same way**.
+   Anything of the shape `if (!x) { do it; x = true; }` followed by a branch that clears `x` on the *same*
+   screen it was set for. `victoryCardShown`, `winHintRevealed`, `saveWritten` and friends are the candidates,
+   and the way to check one is to boot, step thirty frames on the screen in question, and count the notes.
+4. Still owed, unchanged: the browser half of the performance pass, `tools/gun-tune.js`, `cageWall` as a thin
+   wall for a protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the
+   ladder, and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against the
+   50% "usually" asks for).

@@ -2179,10 +2179,20 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       a live bug: the thumb's tap-resume path called `resumeRun` on its own and left the pause rack
       painted over a run that was flying again, with nothing on the glass left to close it.
 
-      Still open in this item: the panels' thumb shape (above) - which now includes the pause rack's own
-      GIVE UP, since a plate can hold a run but no finger can end one, and giving a run up wants a
-      confirm a single careless tap cannot set off - and the hangar, which is where a phone player
+      Still open in this item: the panels' thumb shape (above) - the settings and the codex, which want a
+      row that steps when it is tapped and a way out - and the hangar, which is where a phone player
       cannot spend a coin of the stardust they have been earning.
+
+      **The pause rack's GIVE UP is built (session 125).** It is a *chip*, not a plate: it is DOM paint on
+      the pause rack, found and hit-tested by `ui/chips.js` like the title's three, and answered by
+      `onGiveUp` - the very handler `G` is answered by - so a run ended from a chip is banked and carded
+      exactly as one ended from a key. It is on the rack for a visit that has flown on a thumb and for no
+      other, and it is asked **ahead of the tap-resume rule**, which owns every other pixel of that screen
+      - which is the reason it takes two presses: a screen where every stray tap means "back into the run"
+      must not let one careless tap end it. The first press changes the word on the chip to `TAP AGAIN TO
+      GIVE UP` and answers itself with a new `BALANCE.ui.ask` tick; every other press in the game leaves it
+      unanswered, and every rack that goes up is a plain one. `test/thumb-giveup.test.mjs` holds all of it,
+      including that a cursor on a both-hands machine is allowed the same two presses.
 
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,

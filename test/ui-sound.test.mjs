@@ -268,6 +268,14 @@ test("a run's own card lands with a knock", () => {
   // no pitch to log, so a knock at the card's own note is the card and not the wreck.
   assert.ok(heard(at, UI.card.freq), 'the card landed without a sound of its own: '
     + notesSince(at).join(', '));
+
+  // ...and it is ONE knock, for one ending. The card is painted once per run and not once per frame
+  // (main.js `overCardShown`): sixty knocks a second over a wreck is not an announcement, and sixty
+  // repaints of the codex, the log and the awards behind the card is not what a still screen is for.
+  at = mark();
+  wait(30);
+  assert.equal(heard(at, UI.card.freq), false,
+    'the card went on knocking on every frame it was up: ' + notesSince(at).join(', '));
 });
 
 test("a win's card lands with the same knock", () => {

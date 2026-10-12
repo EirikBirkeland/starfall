@@ -3980,6 +3980,13 @@ export const BALANCE = {
     // A line cut out of the run for good. Lower than the reroll and sawtooth rather than
     // triangle - the same gesture as a reroll with the edge on it, which is what a banish is.
     banish: { freq: 300, dur: 0.14, wave: 'sawtooth', vol: 0.05, slide: 140 },
+    // The pause's GIVE UP chip asking a second press (main.js `pressGiveUpChip`, and
+    // test/thumb-giveup.test.mjs holds what it sounds like). It has to be heard, because the press did
+    // something - the chip is asking now - and a press that goes unheard on a screen whose every other tap
+    // goes back into the run is a press that gets pressed twice by accident. Low and edged like the
+    // banish, but *rising* where that one falls, and quieter: it is the sound of a question and not of the
+    // thing it asks about, which is the run's own ending and makes its own noise.
+    ask: { freq: 230, dur: 0.1, wave: 'sawtooth', vol: 0.045, slide: 320 },
     // A run's card landing, death or win: one soft knock under whatever the arena is still
     // doing, because the card is a period and not an exclamation (the fight has already made
     // its own noise, and `victory.sound` says why the win needs no second cue).

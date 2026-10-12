@@ -330,6 +330,25 @@
      (input/touch.js `hasFinger`), so the page has to be able to take it away completely: a chip you
      cannot see must not be a chip you can press by accident. */
   .rail.hidden { opacity: 0; visibility: hidden; }
+  /* The pause rack's own chip (ui/chips.js, main.js `pressGiveUpChip`): a thumb's way to give the run
+     up, which is the one thing outside a fight a finger had no way to do at all. It is the title rail's
+     `.chip` again - a plate, paint and never a listener, pressed by the box the browser laid it out in -
+     but it sits *in* the pause's column instead of being pinned to the bottom of the page: this column
+     is measured and fitted to the window as one thing (ui/screens.js `fitPanel`), and a chip pinned
+     under it would be fitted outside it. */
+  .pause .chip { margin-top: 26px; }
+  /* A chip that is not on this visit's rack is not on it at all: a keyboard visit has the letter `G`
+     written under the hint and needs no plate to find it, and a gap where a control would have been
+     reads as a control that failed to arrive. */
+  .chip.gone { display: none; }
+  /* The chip between its two presses, asking the second one (main.js `pressGiveUpChip`). Warm, because
+     this is the one press in the game that costs a run and the word on it is only half of what it
+     says; the colour is the telegraph amber the arena already warns a big body in. */
+  .chip.asking {
+    border-color: rgba(255,179,64,.6);
+    box-shadow: 0 0 14px rgba(255,179,64,.22) inset, 0 0 12px rgba(255,179,64,.2);
+    color: #ffc164;
+  }
   /* The settings rack, and the one row of it (game/settings.js, audio/engine.js, game/assists.js):
      what the row is, what it is set to, and one plain line on what it does. No key chip, unlike a ship
      or a perk row - and that is the point. A chip says "press this", and nothing on this panel is
@@ -708,6 +727,10 @@
    </div>
   </div>
   <div class="hint" id="pauseHint">ESC OR P TO GO BACK TO THE RUN</div>
+  <!-- The thumb's way out of a run it does not want any more (ui/chips.js, main.js `pressGiveUpChip`).
+       Gone until the rack goes up for a visit that steers with a thumb, and it takes two presses of it
+       to end a run: the word on it says which of the two this is. -->
+  <div class="chip gone" id="pauseGiveUp">GIVE UP</div>
   <div class="keys"><span id="pauseKeysKeys"><span id="pauseKeysGiveUp">G</span> GIVES THE RUN UP &#183; <span id="pauseKeysSettings">O</span> SETTINGS &#183; </span>THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
  </div>
 </div>
