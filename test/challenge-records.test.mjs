@@ -314,6 +314,13 @@ test('the title says what the rule it was set to is worth', () => {
   press('KeyX');
   assert.equal(game.stats().challenge, 'swift');
   assert.equal(game.screen.titleChallenge, 'CHALLENGE  SWIFT CROWD  \u00b7  ' + saysOf('swift'));
+  // The last rule on the ladder is said the same way, its own sentence built out of its own number.
+  const last = CHALLENGES[CHALLENGES.length - 1];
+  press('KeyX');
+  assert.equal(game.stats().challenge, last.id);
+  assert.equal(game.screen.titleChallenge,
+    'CHALLENGE  ' + last.name + '  \u00b7  ' + saysOf(last.id),
+    'the last rule on the ladder is not said: ' + game.screen.titleChallenge);
   press('KeyX');                  // ...and back to no rule, which says nothing at all
   assert.equal(game.screen.titleChallenge, '');
 });

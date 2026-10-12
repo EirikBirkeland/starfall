@@ -2,9 +2,9 @@
 // runs, said out loud everywhere a run's facts are said, and read by the simulation only where the
 // number each rule changes is already read.
 //
-// Three halves. The first is the module on its own, with no browser and no run: the cycle, the three
-// levers the sim asks, the deck's gate, and the words - including the one sentence that is *built*
-// out of a number, which is the only way the card cannot go stale when the number moves. The second
+// Three halves. The first is the module on its own, with no browser and no run: the cycle, the four
+// levers the sim asks, the deck's gate, and the words - including the two sentences that are *built*
+// out of a number, which is the only way a card cannot go stale when its number moves. The second
 // is the sim, through a real run: the hull the ship stands on, the jump that is not there, the crowd
 // that travels faster. The third is the interface, through the same real game: the key, the title's
 // line, the glass beside the clock, the pause's rack, and both ending cards.
@@ -28,7 +28,7 @@ import { refreshOffer } from '../src/game/upgrades.js';
 import { shipRow, defaultShip } from '../src/game/ships.js';
 import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
-  CHALLENGES, activeOf, cardIsUsable, cardWords, crowdSpeedOf, cycleChallenge,
+  CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
   dashIsAllowed, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, pauseWords, saysOf,
   setChallenge, titleWords,
 } from '../src/game/challenges.js';
@@ -137,11 +137,22 @@ test('the swift crowd says its own number, whatever it is', () => {
   assert.match(saysOf('swift'), new RegExp(Math.round((shipped - 1) * 100) + '% faster'));
 });
 
-test('the cycle walks the four states and comes back round', () => {
+test('a rule with a number in it says that number and not a written one', () => {
+  // Two rules are written with an empty `says` on purpose: their sentence is arithmetic on their own
+  // row. A third that arrives that way and has no builder in challenges.js would say nothing at all,
+  // which is what this check is for - the glass would print a name with no sentence under it.
+  const built = CHALLENGES.filter((c) => c.says === '');
+  assert.ok(built.length >= 2, 'the crowd rules are the ones with a number to say');
+  for (const challenge of built) {
+    assert.ok(saysOf(challenge.id).length > 0, challenge.id + ' has an empty sentence');
+  }
+});
+
+test('the cycle walks every state and comes back round', () => {
   const visit = worldUnder('');
   const seen = [];
-  for (let i = 0; i < 4; i++) seen.push(cycleChallenge(visit));
-  // Nothing, then every rule in the table's order, and the fourth press is back at nothing.
+  for (let i = 0; i < CHALLENGES.length + 1; i++) seen.push(cycleChallenge(visit));
+  // Nothing, then every rule in the table's order, and the last press is back at nothing.
   assert.deepEqual(seen, [...CHALLENGES.map((c) => c.id), '']);
   assert.equal(activeOf(visit), '');
 });
@@ -163,6 +174,7 @@ test('no challenge flying means every lever answers its neutral number', () => {
   assert.equal(hullOverrideOf(plain), 0, 'no rule spoke about the hull');
   assert.equal(dashIsAllowed(plain), true);
   assert.equal(crowdSpeedOf(plain), 1);
+  assert.equal(crowdHoldOf(plain), 1, 'and the arena holds what it ships');
   assert.equal(cardIsUsable(plain, 'tether'), true);
   assert.equal(cardIsUsable(plain, 'afterimage'), true);
   assert.equal(titleWords(plain), '');
@@ -187,8 +199,15 @@ test('each rule moves exactly its own lever and none of the others', () => {
 
   const swift = worldUnder('swift');
   assert.equal(crowdSpeedOf(swift), BALANCE.challenges.swift.speedMul);
+  assert.equal(crowdHoldOf(swift), 1);
   assert.equal(hullOverrideOf(swift), 0);
   assert.equal(dashIsAllowed(swift), true);
+
+  const thick = worldUnder('thick');
+  assert.equal(crowdHoldOf(thick), BALANCE.challenges.thick.holdMul);
+  assert.equal(crowdSpeedOf(thick), 1);
+  assert.equal(hullOverrideOf(thick), 0);
+  assert.equal(dashIsAllowed(thick), true);
 
   assert.equal(isFlying(brittle, 'brittle'), true);
   assert.equal(isFlying(brittle, 'swift'), false);
@@ -337,7 +356,9 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   press('KeyX');
   assert.equal(game.stats().challenge, 'swift');
   press('KeyX');
-  assert.equal(game.stats().challenge, '', 'the fourth press is back to no rule');
+  assert.equal(game.stats().challenge, 'thick');
+  press('KeyX');
+  assert.equal(game.stats().challenge, '', 'the last press is back to no rule');
   assert.equal(game.screen.titleChallenge, '');
 });
 

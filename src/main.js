@@ -259,10 +259,10 @@ function onToday() {
 /**
  * X: a harder rule for the next run (game/challenges.js).
  *
- * One press rounds the cycle - nothing, then one hull, then no dash, then a swift crowd - and the
- * title's own line says which of the four the next launch will stand under. It is a choice about the
- * *next* run and nothing else, which is why it is answered on the two screens a run is launched from
- * and nowhere else:
+ * One press rounds the cycle - nothing, then one hull, then no dash, then a swift crowd, then a thick
+ * one - and the title's own line says which of these the next launch will stand under. It is a choice
+ * about the *next* run and nothing else, which is why it is answered on the two screens a run is
+ * launched from and nowhere else:
  *
  *   * a run that is flying, or is being held, or is waiting for a card keeps the rules it was flown
  *     under. Changing them mid-run would be rewriting the game the player is playing, and the outcome

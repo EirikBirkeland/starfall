@@ -1,9 +1,10 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Three ship: the ship stands on one hull; the dash is gone; the crowd and its
-// shots travel faster than they shipped. Every one of them is a row in `BALANCE.challenges` and a
-// question asked where the number it changes is already read - the hull is written where the ship's
+// once it is flying. Four ship: the ship stands on one hull; the dash is gone; the crowd and its
+// shots travel faster than they shipped; the arena holds more of the crowd than it ships. Every one of
+// them is a row in `BALANCE.challenges` and a question asked where the number it changes is already
+// read - the hull is written where the ship's
 // hull is written, the dash is refused where the dash is granted, the crowd's speed is multiplied
 // where a body's speed is worked out. Nothing is cached into a ship and nothing is kept in two
 // places, which is what makes an ordinary run untouched by any of this: with no challenge flying,
@@ -53,6 +54,7 @@ export const CHALLENGES = [
   { id: 'brittle', name: 'ONE HULL', says: 'one touch and the run is over' },
   { id: 'grounded', name: 'NO DASH', says: 'the jump is gone, and so are the cards that need it' },
   { id: 'swift', name: 'SWIFT CROWD', says: '' },
+  { id: 'thick', name: 'THICK CROWD', says: '' },
 ];
 
 /** The row a challenge id names, and a loud answer if there is not one. */
@@ -146,6 +148,24 @@ export function crowdSpeedOf(world) {
 }
 
 /**
+ * What the arena may hold at once is multiplied by: its wave director's budget and its wall on
+ * standing bodies, both applied in game/waves.js. 1 for every run that is not flying a thick crowd.
+ *
+ * One number for both walls on purpose - see the row in `BALANCE.challenges`. The curve the budget
+ * walks is left alone, so the crowd still *grows* between the bosses exactly as it does plainly; what
+ * the rule changes is how high that curve is allowed to get before it stops, which is the difference
+ * between a late run that settles and one that keeps filling up.
+ *
+ * The endless wall on standing bodies is not behind this lever. Endless already lifts the crowd past
+ * the schedule's ceiling with its own clock (game/endless.js) and that ceiling is a frame budget that
+ * has been measured on a real frame; a second multiplier on top of it would be a crowd nobody has
+ * timed.
+ */
+export function crowdHoldOf(world) {
+  return isFlying(world, 'thick') ? challengeRow('thick').holdMul : 1;
+}
+
+/**
  * Can a card on this line do anything in a run flying this challenge?
  *
  * Two lines are gated on the dash - the tether ties its cords at the moment a dash is granted and
@@ -221,15 +241,32 @@ export function nameOf(id) {
 }
 
 /** What the rule does, in the sentence the glass prints under its name. */
+/**
+ * What the rule does, in the sentence the glass prints under its name.
+ *
+ * Two rules have a sentence built out of their own number rather than written beside it, so a number
+ * cannot move and leave the words behind: 1.4 reads 40% faster and nothing else. A rule in the table
+ * with an empty `says` and no builder in `SENTENCES` is a bug and not a silent blank - the glass would
+ * print a name with nothing under it - and test/challenges.test.mjs asks every rule what it has to
+ * say, so it cannot be shipped either way.
+ */
+const SENTENCES = {
+  swift: (world) => 'the crowd travels ' + percentOf(crowdSpeedOf(world) - 1) + ' faster',
+  thick: (world) => 'the arena holds ' + percentOf(crowdHoldOf(world) - 1) + ' more of the crowd',
+};
+
+/** How a share reads as a percentage: four tenths of a thing is "40%" of it. */
+function percentOf(share) {
+  return Math.round(share * PERCENT) + '%';
+}
+
 export function saysOf(id) {
   if (id === '' || id === undefined) return '';
   const challenge = CHALLENGES.find((c) => c.id === id);
   if (challenge === undefined) return '';
   if (challenge.says !== '') return challenge.says;
-  // The swift crowd's sentence is built out of its own number, so the number cannot move and leave
-  // the words behind: 1.4 reads 40% faster and nothing else.
-  const mul = crowdSpeedOf({ challenge: id });
-  return 'the crowd travels ' + Math.round((mul - 1) * PERCENT) + '% faster';
+  const build = SENTENCES[id];
+  return build === undefined ? '' : build({ challenge: id });
 }
 
 /**

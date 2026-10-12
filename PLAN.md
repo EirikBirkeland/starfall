@@ -2095,6 +2095,27 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       gave the card, which is PLAN's number and would have to be argued out of existence first. Both
       are decisions about how a card feels, and the one thing a headless session does not have is eyes
       on a screen to make them with.
+- [x] A fourth challenge rule: **THICK CROWD** — the arena holds more of the crowd than it ships. One
+      row in `BALANCE.challenges` (`holdMul`), one lever (`crowdHoldOf`), and it is applied in the two
+      places the arena's two walls are already read: the wave director's budget and its ceiling on
+      standing bodies. One number for both walls because they are already tuned to meet (the budget's
+      400 points is ~89 bodies at the crowd's 4.5 points a body and `waves.maxBodies` is 100), and the
+      endless wall on bodies (`endless.growth.bodiesCeil`, 200) is deliberately left outside the
+      multiply: it is a frame budget that has been timed on a real frame and a challenge may not move
+      it. The rule is the fourth the After-1.0 list asked for and it costs the frame one row and one
+      lever, exactly as the last three did — the record, the logged row, the title line, the glass
+      beside the clock, the pause's rack and the codex's fifth rack all came free.
+      1.5 ships. On the careless hand (8 seeds × 5m) the middle run dies at **2m48s against plain's
+      3m53s** and scores **0.60x** plain's middle; on the careful hand nobody dies either way and it
+      still costs a run — **0.73x** plain's middle score and **11 hulls lost against plain's 3**. The
+      sweep could not choose between 1.3, 1.5 and 1.75 (0.64x, 0.60x, 0.62x on sixteen seeds), which is
+      said out loud in the row rather than hidden: a bigger crowd is more bodies to shoot, so the score
+      column is not monotonic in the share the way it is for a swift crowd. The number was picked on
+      the frame's own account instead — 150 bodies in a scheduled run, under the 200 the browser half
+      of the performance pass is meant to fly to. `tools/challenge-cost.js --hold` sweeps it and its
+      verdict judges the rule like the other two; `test/challenge-thick.test.mjs` is seven checks over
+      the lever, the endless wall, and the director filling the taller arena and not overflowing it.
+
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

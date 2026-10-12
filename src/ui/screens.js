@@ -878,8 +878,8 @@ export function showLog(runs) {
  * does - it is a row about a thing that has not happened yet, and the lit rows are the ones that are.
  *
  * The sentence about what the rule does is on every row, flown or not, because this is the one place a
- * player can read all three rules at once instead of cycling them blind, and a rack of three numbers
- * with no units is exactly the thing this feature exists to stop.
+ * player can read every rule at once instead of cycling them blind, and a rack of numbers with no
+ * units is exactly the thing this feature exists to stop.
  *
  * `bests` is the save's own ledger (game/challenges.js `bestsFromSave`), and it may name a rule this
  * build has never heard of; those are simply not on the rack, which is the same answer the awards' rack

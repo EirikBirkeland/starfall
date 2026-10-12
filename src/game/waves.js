@@ -34,6 +34,7 @@
 // it stands - and none at all before then: see game/elite.js.
 
 import { BALANCE } from './balance.js';
+import { crowdHoldOf } from './challenges.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
 import { rollElite } from './elite.js';
 import { newPack } from './flock.js';
@@ -92,7 +93,12 @@ export function crowdBudget(world) {
   // That second term is 0 for every run that has not been handed its arena back, which is what keeps
   // a normal run's budget exactly where it always was - the ceiling in the middle of this expression
   // is the schedule's and nothing else may lean on it.
-  return Math.min(spec.crowdMax, grown) + crowdGrowth(world);
+  //
+  // The multiplier is the fourth challenge's (game/challenges.js `crowdHoldOf`) and it sits on the
+  // schedule's terms and not on the endless clock's: a thick crowd is a taller schedule, not a run
+  // that has been handed back. It is exactly 1 for every other run, and multiplying by 1 does not
+  // even round, which is why the reference run has never noticed this line.
+  return Math.min(spec.crowdMax, grown) * crowdHoldOf(world) + crowdGrowth(world);
 }
 
 /**
@@ -103,13 +109,18 @@ export function crowdBudget(world) {
  * only as big as the smaller of the two, and before the endless clock existed the schedule's own
  * budget reached its ceiling at about the same moment the body wall did, which is why one number
  * appeared to be doing the work of both.
+ *
+ * The thick crowd's multiplier is on the schedule's wall and not on the endless one, which stays the
+ * outer wall: `crowdHoldOf` makes the arena hold more of the crowd, `bodiesCeil` is what a real frame
+ * has been timed against, and the second of those two is not a thing a challenge is allowed to move.
  */
 export function bodyCeiling(world) {
   const spec = BALANCE.waves;
   // Floored: this counts bodies, and a fractional one would be bought as a fractional pack
   // (`packFits` hands the difference to a loop). The lift is a rate per minute and lands on whole
   // bodies one at a time, which is also how the crowd notices it.
-  return Math.min(spec.maxBodies + Math.floor(bodyGrowth(world)), BALANCE.endless.growth.bodiesCeil);
+  const scheduled = Math.round(spec.maxBodies * crowdHoldOf(world));
+  return Math.min(scheduled + Math.floor(bodyGrowth(world)), BALANCE.endless.growth.bodiesCeil);
 }
 
 /**

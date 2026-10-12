@@ -290,12 +290,36 @@ export const BALANCE = {
   // bought. `dash: false` refuses the jump where the jump is granted. `speedMul` multiplies a body's
   // walk and an enemy shot's velocity, at the two places those are worked out.
   //
+  // `holdMul` multiplies what the arena may hold at once - the wave director's budget *and* its wall on
+  // standing bodies, both in game/waves.js - for the whole run. One number and not two because the two
+  // walls are already tuned to meet (waves.crowdMax is ~89 bodies at the crowd's 4.5 points a body and
+  // waves.maxBodies is 100), so moving one without the other would just make the quieter one the rule.
+  // The endless wall (`endless.growth.bodiesCeil`) stays outside the multiply and still the outer wall,
+  // which is what keeps a scheduled run under what a real frame has been measured to pay for.
+  //
+  // 1.5, from `tools/challenge-cost.js` on the careless hand (8 seeds x 5m, then 16 for the sweep):
+  // the middle run dies at 2m48s against plain's 3m53s and scores 0.60x plain's middle, which is the
+  // pair the ladder asks of a rule. On the careful hand nobody dies either way and it still costs a
+  // run: 0.73x plain's middle score, and 11 hulls lost against plain's 3 - a hand that can clear the
+  // extra crowd pays for it in hull and not in its life, which is the profile this rule wanted.
+  //
+  // The sweep could not choose between the shares, and that is said here rather than hidden: at 1.3 it
+  // reads 0.64x (3m01s), at 1.5 0.60x (2m48s) and at 1.75 0.62x (2m38s) on sixteen seeds, all of them
+  // inside a twentieth of each other. A bigger crowd is more bodies to shoot, so the score column is
+  // not monotonic in the share the way it is for a swift crowd; the ladder can say this rule costs a
+  // quarter of a careless run and cannot say which of those three is sharper. So 1.5 was not picked off
+  // the ladder. It was picked because it lifts the schedule's wall to 150 bodies, which is under the
+  // 200 a real frame has been timed against (`endless.growth.bodiesCeil`, and the figure the browser
+  // half of the performance pass is meant to fly to) - a share of 1.75 would stand 175 of them in a
+  // scheduled run, which is a crowd nobody here has ever timed on a screen.
+  //
   // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
   // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
   challenges: {
     brittle:  { hull: 1 },
     grounded: { dash: false },
     swift:    { speedMul: 1.4 },
+    thick:    { holdMul: 1.5 },
     gatedOn:  { grounded: ['tether', 'afterimage'] },
   },
 

@@ -80,6 +80,22 @@ test('a rule the ladder cannot see is said out loud and never quietly passed', (
   assert.deepEqual(seeing.problems, []);
 });
 
+test('a rule about the crowd is judged whatever the hull column says', () => {
+  // ONE HULL needs a batch that actually loses hulls before the ladder can see it. A rule about the
+  // crowd needs nothing of the sort - a crowd is in front of every pair of eyes, careless or not - so
+  // a thick crowd that scores over the bar is a failure even on a batch nobody wounded, and one that
+  // is paid for is passed without a word about what the ladder could or could not see.
+  const blind = row('none', 100000, 300, 0);
+  const soft = verdictOf([blind, row('thick', 97000, 300, 0)], blind);
+  assert.equal(problemsAbout(soft, 'thick').length, 1);
+  assert.match(problemsAbout(soft, 'thick')[0], /0\.97x plain/);
+  assert.deepEqual(soft.skipped, [], 'nothing was stood aside');
+
+  const honest = verdictOf([blind, row('thick', 60000, 200, 0)], blind);
+  assert.deepEqual(honest.problems, []);
+  assert.deepEqual(honest.skipped, []);
+});
+
 test('NO DASH is reported and never judged, because no bot here lives on the jump', () => {
   // 1.4x plain would fail any other rule. Under NO DASH the number is printed and the verdict is
   // held back: what the jump is worth is a question about a person's hands, and this hand presses it
