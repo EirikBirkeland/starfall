@@ -1737,6 +1737,11 @@ When every item above is ticked, go back to the first unchecked item of mileston
       this box and no canvas here to time, so a headless session can only say so. Everything the tool side
       can gate *is* gated (`tools/perf-probe.js` paints the arena into a recording painter and holds the
       step and the operation count), and it passes; what nobody has ever read is what a real GPU says.
+      **One more stop for the same flight, added in session 122**: a scheduled run under THICK CROWD holds
+      150 bodies instead of 100, a crowd the arena has never been timed at, between the 100 the plate's
+      scheduled scene stops at and the 200 endless may reach. Read `step ms` and `draw ms` there too while
+      the plate is up - `crowdHoldOf` is capped by `bodiesCeil` and by nothing else, so if a real machine
+      says 150 is too many the honest answer is a smaller share and not a raised ceiling.
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read
