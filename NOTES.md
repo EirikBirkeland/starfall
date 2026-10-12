@@ -14093,3 +14093,97 @@ the number a future session will "retune" back into a perf problem.
    is between the 100 the arena has been timed at and the 200 endless may reach), the difficulty band's
    deliberate FAIL, `tools/gun-tune.js`, `cageWall` for a protanope, silhouettes for the crowd pairs that
    share a colour, and the afterimage's flat top of the ladder.
+
+## Session 123 — The thumb's rail: three chips a finger can press on the title. Released 1.4.0
+
+Suite **2,099 → 2,109** (8 in `test/thumb-rail.test.mjs`, 2 in `test/thumb-rail-mouse.test.mjs`).
+`tools/simulate.js` still runs a whole game; `contrast-check --strict`, `palette-check`, `ghost-grid`
+still pass and the new `.chip` line is measured in the audit (17.05 to 1, on the hangar's centre field).
+`run-shape` exits 1 on the **band** check (13% of 48 seeds die between 4m and 9m against the 50%
+"usually" needs) and I proved it is not mine by running the tool in a `git worktree` of HEAD: the report
+is identical, line for line. Session 122's battery note said it exited 0; either that was a mis-read or
+the tool has been retuned since. It is the same deliberate difficulty-band finding `difficulty-arc.js`
+has been FAILing on since session 99, so it stays a finding and not a regression.
+
+### What shipped
+`src/ui/chips.js`, 96 lines, and four boxes in `index.html`: a `.rail` pinned to the bottom of the page
+with three `.chip`s in it - **TODAY · RULE · MUTE**. `main.js` puts them up at boot (`showChips(hasFinger())`)
+and answers them in `pressChip`, which does nothing except call `onToday`, `onChallenge` and
+`onMuteSwitch`: **a chip is its key**, guards included, so the day's chip cannot launch a run on a screen
+`T` would refuse it on and the rule chip cannot get an extra step in the cycle. `input/touch.js` grew
+`hasFinger()`; the harness grew `touch: true` and four new stub elements.
+
+### The design decision the whole item turned on: a chip is paint, never a listener
+The obvious implementation - real DOM buttons with `click` handlers - is wrong twice over in this game.
+First, `input/touch.js` calls `preventDefault()` on every `touchstart` (it has to, or the page scrolls and
+the browser synthesises a click after a stick drag), and **a prevented touchstart never becomes a click**:
+the handler would fire for a mouse and not for the thumb it was built for. Second, even if it did, the
+touch also bubbles to the window's own `touchstart`, which calls the press handler, so one tap would
+open a panel *and* launch a run underneath it. There is exactly one press path in this game and the fix
+was to stand in it rather than add a second one: the page has no listener on a chip, `main.js` hit-tests
+the press point against the chips' boxes, and every hand - thumb, mouse, stylus - arrives through the
+same door. That is also what makes "the chip you see and the chip you press are one chip" true by
+construction: `chipAt` asks `getBoundingClientRect`, the same question `render/logo.js` asks of
+`#logoBox`, so the CSS is the only place a chip's size and place are written.
+
+### Which chips, and why SETTINGS is not one of them
+The bar I decided on: **a chip is a whole action in one press.** The day launches a run, the rule changes
+the next one and says so on the title, the sound goes off and back with a plate on the glass to prove it.
+PLAN's short list had SETTINGS on it and it came off, for a reason worth writing down: the settings panel
+is arrow-key rows, and `onCanvasPressed` refuses every press while a panel is up - so a chip that opened
+it would put a phone visitor inside a rack they can neither change nor leave, with no way back except
+reloading the page. That is a trap, not a control. The settings, the hangar and the codex each need their
+own thumb shape (a row that steps when it is tapped, and a way out that is on the glass), which is the
+rest of the item and not a chip. The hangar is the one that stings: a phone player has been earning
+stardust they cannot spend.
+
+### Other decisions, so nobody relitigates them
+- **`hasFinger()` asks the browser, not the game.** `thumbUsed()` could not: it is set when a control
+  *claims* a touch and a tap on a title is deliberately not a control, so waiting for it would mean
+  waiting for the tap that launched a run - the chips would arrive after the moment they were for. So it
+  is `ontouchstart` / `navigator.maxTouchPoints`, decided once at boot. A touchscreen laptop gets chips
+  it can also click, which costs it nothing; a mouse visit never sees the rail and a click where a chip
+  sits is still exactly the launch it was (`test/thumb-rail-mouse.test.mjs`, which boots the same layout
+  with no fingers so the only difference between the two files is what the browser claimed).
+- **The rail is pinned to the bottom of the page, not added to the title's column**, which is exactly as
+  tall as the window it was built for (the `daily` test's comment says so) and a row in it would move the
+  mark `render/logo.js` measures. Chips are plates (`#09152e`, the HUD's own) rather than the transparent
+  key caps the title's list uses, because on a window shorter than the column the column spills past its
+  own bottom and a control has to read over whatever landed behind it. `min-height: 44px` is `DASH_MIN`,
+  and a test reads the stylesheet for it rather than trusting a remembered number.
+- **A panel owns the chips too.** The chip check sits after `panelIsUp()` in `onCanvasPressed`, so the
+  rail - which is in the page going to a tenth behind any panel - answers nothing. Tested.
+- **The harness gives the four new boxes a 0×0 rect** until a test lays them out. The stub's default is
+  "a screen is the window", which is honest for a screen and a lie for a chip: `chipAt` would have found
+  a chip under every press of every existing test. 0×0 means "the page has not been laid out", which is
+  what `ui/chips.js` is written to answer nothing about - and it is why all 2,099 old tests are untouched.
+
+### The mutation checks, and the one that caught me out
+Killing `chipAt` (return `''` always) turned 3 of the 8 thumb tests red - the three chip tests, and only
+them, which is right: the other five are about the rail's visibility, the panel ordering and the CSS.
+Removing the `if (!up)` guard was supposed to turn the *mouse* file red, and it did not: I had written
+`LAYOUT` in that file and then forgotten to pass it to `bootGame`, so the chips had no boxes at all and
+the mutation had nothing to bite on. Fixed by passing the layout; the guard mutation now fails
+"and did not fly the day". Same lesson session 121 wrote down, arrived at the same way: **before trusting
+a check, print what it actually returns** - I ran a three-line script that pressed a chip in a mouse boot
+and watched it change the challenge, which is what proved the test and not the code was the liar.
+
+### What should come next
+1. **The panels' thumb shape**, which is the rest of the item: a settings row that steps when it is
+   tapped, a CLOSE chip on a panel, and a way out of the controls rack for a visit with no keyboard (a
+   row being rebound asks for a key, which a phone has no way to give it - that row should probably be
+   refused on a finger visit rather than opened). Then the hangar, where a tap has to mean *buy* without
+   a Shift, and the codex, which is only reading and could simply be allowed to scroll.
+2. **A pause chip.** A held run is reached by `Esc`/`P` only, so a phone still cannot stop a run except
+   by backgrounding the tab, and the pause is also where a run is given up (`G`). The trap to design
+   around: while a run is flying, a touch that lands in the left half is *claimed by the stick*
+   (`STICK_EDGE`), so a chip in that half steals stick placements - the top-right corner is the only
+   place clear of both the stick and the dash button. `game.stats().paused` already answers a test;
+   `game.screen` has no `paused` field and does not need one.
+3. The title's hint line still says `PRESS SPACE OR CLICK TO LAUNCH`. For a finger visit `render/cards.js`'s
+   "OR TAP" idiom exists and is one `thumbUsed()`-shaped decision away - but `hasFinger()`, not
+   `thumbUsed()`, is the fact about a title.
+4. Still owed to a screen, unchanged from session 122: the browser half of the performance pass (now
+   including a THICK CROWD run standing 150 bodies on a scheduled run), `tools/gun-tune.js`,
+   `cageWall` for a protanope, silhouettes for the crowd pairs that share a colour, and the afterimage's
+   flat top of the ladder.

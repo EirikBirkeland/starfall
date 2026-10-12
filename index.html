@@ -304,8 +304,11 @@
      laid where a thumb already rests. It is pinned to the bottom of the page instead of being left in
      the title's column, because that column is exactly as tall as the window it was built for and a
      row added to it would move the mark - and render/logo.js measures that box for where the word
-     STARFALL sits. A chip is as tall as the thumb's own other control (input/touch.js's DASH_MIN, 44
-     px) and is *paint*: nothing in the page has a click handler, because the press comes in through
+     STARFALL sits. On a window shorter than the column the column spills past its own bottom, so the
+     chips are plates (the HUD's own `#09152e`) and not the transparent key caps the title's list uses:
+     a control you have to hit with a thumb is never decoration, and this one has to read over whatever
+     landed behind it. A chip is as tall as the thumb's own other control (input/touch.js's DASH_MIN,
+     44 px) and is *paint*: nothing in the page has a click handler, because the press comes in through
      the glass like every click always did. That is the only way a tap and a click stay one press. */
   .rail {
     position: absolute; left: 0; right: 0;
@@ -318,7 +321,7 @@
     min-height: 44px; padding: 6px 18px;
     border: 1px solid rgba(94,247,255,.45);
     border-radius: 9px;
-    background: rgba(94,247,255,.07);
+    background: rgba(9,21,46,.9);
     box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
     color: #d8fbff; font-size: 12px; font-weight: 600;
     letter-spacing: .18em; text-indent: .18em;
