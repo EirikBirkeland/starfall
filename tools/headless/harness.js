@@ -402,6 +402,9 @@ const ELEMENT_IDS = [
   // The line on the pause rack that says how the run is let go of again - which is a key or a tap,
   // depending on which hands this visit arrived with (ui/screens.js `showPause`, input/touch.js).
   'pauseHint',
+  // ...and the clauses of the line under it that name a letter, which a visit with no keyboard is not
+  // shown (index.html, ui/screens.js `showPause`).
+  'pauseKeysKeys',
   // The win's card (index.html), read the same way the death's is.
   'winScreen', 'winScore', 'winBest', 'winNewBest', 'winCleared', 'winStats', 'winBuild',
   'winHint', 'winDust', 'winAwards',

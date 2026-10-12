@@ -145,3 +145,6 @@ export { captureKeys } from './keyboard.js';
 // ...and the one question a screen asks the glass before anybody has touched it: did this visit arrive
 // with a finger (input/touch.js, ui/chips.js).
 export { hasFinger } from './touch.js';
+// ...and the thumb's pause plate, which the wiring presses for a cursor and the touch layer presses
+// for a finger, against one predicate so the two can never disagree (input/touch.js, render/touch.js).
+export { pausePlateIsUp, onPausePlate } from './touch.js';

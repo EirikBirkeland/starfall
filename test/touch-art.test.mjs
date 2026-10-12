@@ -190,6 +190,9 @@ test('a thumb visit is told how to go back to the run in the words it owns', asy
 
   tap(VIEW.width * 0.5, VIEW.height * 0.5);
   assert.equal(game.stats().paused, false, 'and the tap does what the line says');
+  assert.equal(game.screen.pauseHidden, true,
+    'and the rack it was said on goes down with it - a run flying behind a panel that has stopped '
+    + 'meaning anything is the worst of both');
   lift(stick);
 });
 

@@ -2168,10 +2168,21 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       reports fingers) and gives the four new boxes a 0x0 rect until a test lays them out, which is the
       honest answer for a stub with no layout engine and the reason every old visit is untouched.
 
-      Still open in this item: the panels' thumb shape (above), a pause chip - a held run is reached by
-      `Esc`/`P` only, so a phone still cannot stop one except by backgrounding the tab, and the pause
-      would also be where a run is given up - and the hangar, which is where a phone player cannot spend
-      a coin of the stardust they have been earning.
+      **A pause plate is built (session 124, v1.5.0).** It is not a chip - a chip is a title's and a
+      plate is a fight's: `input/touch.js` grew a third place on the glass (`pauseButton`, on the right
+      edge above the dash button, smaller than it, claimed by the touch layer the way the dash is) and
+      `render/touch.js` paints it out of the same numbers, so the disc a thumb presses and the disc an
+      eye sees are one disc. It is answered by `onPauseKey` - the very handler `Esc` and `P` are
+      answered by - from both doors: the touch layer claims a finger's press and the wiring answers a
+      cursor's (`onPausePlate`), because both of them have to be the same pause or the plate is a lie.
+      It is on the glass for a visit that arrived with a finger and for no other, and doing it turned up
+      a live bug: the thumb's tap-resume path called `resumeRun` on its own and left the pause rack
+      painted over a run that was flying again, with nothing on the glass left to close it.
+
+      Still open in this item: the panels' thumb shape (above) - which now includes the pause rack's own
+      GIVE UP, since a plate can hold a run but no finger can end one, and giving a run up wants a
+      confirm a single careless tap cannot set off - and the hangar, which is where a phone player
+      cannot spend a coin of the stardust they have been earning.
 
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,

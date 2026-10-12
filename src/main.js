@@ -49,7 +49,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys, hasFinger } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys, hasFinger, onPausePlate } from './input/index.js';
 import { initAudio, openAudioDevice, wakeAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -213,8 +213,13 @@ function onCanvasPressed() {
   // because the pause *is* one of the panels, and the pause rack says so in its own line
   // (ui/screens.js `showPause`). The settings rack over a held run still owns the screen: a tap that
   // is meant for a row is not a tap that goes back into the fight.
+  //
+  // It is answered by `onPauseKey` and not by `resumeRun` on its own, because the way out of a held
+  // run is two things and not one: the clock let go *and* the rack taken down with it. Calling
+  // `resumeRun` here left the run flying behind a panel that had stopped meaning anything - a whole
+  // window of rack over an arena that was live again, with nothing on the glass left to close it.
   if (world.paused && thumb.used && !ownsTheScreen()) {
-    resumeRun(world);
+    onPauseKey();
     return;
   }
   // Over a panel a click is not a launch. The title's click-to-go is worth having and the
@@ -238,6 +243,16 @@ function onCanvasPressed() {
   // table again (render/cards.js is what says which one the point landed on).
   if (world.state === STATE.LEVEL) {
     answerChoice(mouse.x, mouse.y);
+    return;
+  }
+  // The pause plate (input/touch.js `pauseButton`), for the hand whose press does not come in through
+  // the touch layer at all: a cursor on a machine that has both. A finger's press on the same plate is
+  // claimed by the layer itself (input/touch.js `claimPause`) and never reaches here, and both of them
+  // answer `onPauseKey` - the very key the plate stands in for, so it cannot get out of step with it.
+  // `onPausePlate` is the same question the plate is painted with, which is the one guarantee a control
+  // on the glass has to have: the disc you see is the disc you press.
+  if (onPausePlate(mouse.x, mouse.y)) {
+    onPauseKey();
     return;
   }
   // Over a paused run a click is nothing at all. The pause is not a screen to be clicked through on

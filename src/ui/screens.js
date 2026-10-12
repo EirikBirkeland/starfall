@@ -401,6 +401,9 @@ export function initScreens() {
     pauseBody: document.getElementById('pauseBody'),
     pauseHead: document.getElementById('pauseHead'),
     pauseHint: document.getElementById('pauseHint'),
+    // The two clauses of the pause's keys line that name a letter, and so are a keyboard's only
+    // (index.html, ui/screens.js `showPause`).
+    pauseKeysKeys: document.getElementById('pauseKeysKeys'),
     factRow: document.getElementById('factRow'),
     buildRow: document.getElementById('buildRow'),
     // The settings: what this visit asked the game to do to its own picture and sound
@@ -1030,6 +1033,11 @@ export function showPause(run, onGlass) {
   el.pauseHint.textContent = onGlass
     ? 'TAP TO GO BACK TO THE RUN'
     : 'ESC OR ' + wordsOf('pause') + ' TO GO BACK TO THE RUN';
+  // ...and the line under it says what else this screen can be asked to do, which for a visit with no
+  // keyboard is nothing: a run cannot be given up and the settings cannot be opened from a thumb, so
+  // naming the two keys that do them would name letters this hand does not have. The third clause of
+  // that line - where the hangar and the codex are - is true of every hand and stays.
+  el.pauseKeysKeys.classList.toggle('gone', onGlass === true);
   el.pauseHead.textContent = 'SCORE '
     + run.score.toLocaleString('en-US') + '   \u00b7   ' + clockWords(run.seconds);
   paintRows(factRows, el.factRow, factLines(run), buildFactRow);

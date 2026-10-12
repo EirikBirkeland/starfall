@@ -1,11 +1,13 @@
-// The thumb: one finger to fly with and one to dash with (PLAN section 6).
+// The thumb: one finger to fly with, one to dash with, and a plate to stop with (PLAN section 6).
 //
 // PLAN's row is the whole design - "a virtual stick on the left, auto-aim and auto-fire, a dash
 // button on the right" - and its three halves are split three ways, because each half belongs to a
-// different layer:
+// different layer. The pause plate is a fourth place on the same bargain, and it is here because a
+// held run is reached by `Esc` and by nothing else, which leaves a phone stopping a run by
+// backgrounding the tab (main.js `onPauseKey` is the answer both of them get):
 //
 //   * this file knows where a thumb has to land for it to *mean* something, and keeps the one fact
-//     everybody else reads: where the thumbs are;
+//     everybody else reads: where the thumbs are, and which of the three places a finger landed on;
 //   * the stick goes into the same descriptor the keyboard writes into (input/index.js), so a thumb
 //     lean and a WASD lean are one lean and the ship cannot tell them apart;
 //   * the aiming and the trigger are game/assists.js, because "point at the nearest body" is a
@@ -14,7 +16,8 @@
 //
 // **What a touch means depends on the screen, and this layer does not know what screen the game is
 // on.** So `handlers.flying()` asks the wiring (src/main.js) whether a run is being flown. While
-// one is, the left half of the glass is a stick and the button on the right is the dash. While one
+// one is, the left half of the glass is a stick, the button on the right is the dash and the plate
+// above it is the pause. While one
 // is not, every touch is a tap, and a tap is the press a click already was: the title launches, the
 // cards are answered and the wreck's card restarts, all of which is `onCanvasPressed` deciding what
 // a press means on the screen it landed on - exactly what the mouse's left button has been doing
@@ -48,6 +51,11 @@ const DASH_MIN = 44;
 const DASH_MAX = 76;
 const DASH_INSET = 26;     // px from the right edge of the window to the button's edge
 const DASH_LIFT = 46;      // px from the bottom edge: clear of the XP bar and of the frame-rate read
+const PAUSE_SIZE = 0.085;  // the pause plate's radius, same share and same reason
+const PAUSE_MIN = 30;
+const PAUSE_MAX = 44;
+const PAUSE_GAP = 18;      // px of glass between the two buttons that share the right edge
+const PAUSE_FLOOR = 96;    // px from the top edge the plate may never climb above (render/hud.js)
 
 /** How far a thumb has to travel on the stick for it to be a full lean. */
 export function stickReach(width, height) {
@@ -59,6 +67,29 @@ export function stickReach(width, height) {
 export function dashButton(width, height) {
   const r = clamp(Math.min(width, height) * DASH_SIZE, DASH_MIN, DASH_MAX);
   return { x: width - r - DASH_INSET, y: height - r - DASH_LIFT, r: r };
+}
+
+/**
+ * Where the pause plate is, and how big: on the right edge, above the dash button.
+ *
+ * Three neighbours pick the place. The left half of the glass is the stick's (STICK_EDGE), so a
+ * control out there would be stealing thumb placements from the ship; the bottom-right corner is the
+ * dash's; and the top-right corner is the hull readout's (render/hud.js). What is left is the right
+ * edge, and the thumb that already lives there for the dash is the one that reaches this - which is
+ * why the plate is placed off the dash button and not off the window. It is the smaller of the two on
+ * purpose: a dash is pressed a hundred times a run and a pause once, and the smaller of two
+ * neighbours is the one a hand can aim at without thinking about it.
+ *
+ * `PAUSE_FLOOR` is what keeps the plate out of the hull pips on a window short enough that the two
+ * buttons would have to share a corner: it climbs rather than slide under the readout. Such a window
+ * is below about 300 px tall - no phone in either pocket of anybody's pocket - and at that size the
+ * two do start to touch, and the dash wins the shared pixels because it is asked first. That is the
+ * right precedence: a swallowed dash can cost a run and a mis-pressed pause costs a tap back.
+ */
+export function pauseButton(width, height) {
+  const dash = dashButton(width, height);
+  const r = clamp(Math.min(width, height) * PAUSE_SIZE, PAUSE_MIN, PAUSE_MAX);
+  return { x: dash.x, y: Math.max(dash.y - dash.r - r - PAUSE_GAP, PAUSE_FLOOR + r), r: r };
 }
 
 /**
@@ -74,6 +105,7 @@ export const thumb = {
   used: false,
   onStick: false,
   onDash: false,
+  onPause: false,
   originX: 0,     // where the stick was put down
   originY: 0,
   knobX: 0,       // where the thumb is now, which is the knob of the stick
@@ -123,14 +155,43 @@ export function thumbUsed() {
   return thumb.used;
 }
 
+/**
+ * Is the pause plate on the glass?
+ *
+ * One question, asked by whoever paints the plate and by whoever presses it, so the plate that is
+ * seen and the plate that is answered can never disagree. It is on the glass while a run is being
+ * flown - a paused run has its own rack and a screen has its own business - and only for a visit that
+ * arrived with a finger, the same fact that puts the title's chips up (ui/chips.js `chipAt` asks its
+ * own version of this). A machine that reports no touch points at all gets no plate and no press where
+ * one would have been, which is the honest answer for a stylus on a mouse's computer.
+ */
+export function pausePlateIsUp() {
+  return hasFinger() && runIsFlying();
+}
+
+/**
+ * Did this point on the glass land on the pause plate? `false` when there is no plate to land on.
+ *
+ * The point is in glass pixels, the same ones input/mouse.js keeps, so a cursor's click and a thumb's
+ * tap are the same question here (see ui/chips.js `chipAt` for the same bargain on the title).
+ */
+export function onPausePlate(x, y) {
+  if (!pausePlateIsUp()) return false;
+  const rect = glassRect();
+  const plate = pauseButton(rect.width, rect.height);
+  return hypot(x - plate.x, y - plate.y) <= plate.r;
+}
+
 let glass = null;
 let press = null;
+let pausePress = null;
 // Asked of the wiring, because which half of the glass a finger is in is not the only question a
 // touch answers - whether the game is flying a run at all decides whether it is a control or a tap.
 let runIsFlying = () => false;
 
 let stickId = -1;
 let dashId = -1;
+let pauseId = -1;
 
 /** The glass's own box and size: every touch coordinate is measured against it. */
 function glassRect() {
@@ -172,6 +233,21 @@ function claimDash(touch) {
   touchTaps.dash = true;
 }
 
+/**
+ * The pause plate claimed: the thumb's Esc, and answered by the very handler Esc is answered by
+ * (main.js hands `onPauseKey` to both), guards and all. It claims the touch the way the dash does -
+ * which is what makes a visit that presses the plate before it has ever leaned the stick a thumb
+ * visit, and so what lets the pause rack promise a tap back into the run (input/index.js) - and it
+ * hands the press over once, on the way down, because stopping a run is worth the frame it takes to
+ * say so and is not a request the next step has to be waiting for.
+ */
+function claimPause(touch) {
+  pauseId = touch.identifier;
+  thumb.used = true;
+  thumb.onPause = true;
+  if (pausePress !== null) pausePress();
+}
+
 function onTouchStart(event) {
   // A finger is never a scroll, a pinch, or the click the browser would otherwise synthesise after
   // it - and that last one is the important one, because a tap that was answered twice would launch
@@ -198,6 +274,10 @@ function onTouchStart(event) {
     }
     if (dashId < 0 && hypot(x - button.x, y - button.y) <= button.r) {
       claimDash(touch);
+    } else if (pauseId < 0 && onPausePlate(x, y)) {
+      // Asked through `onPausePlate` and not against a box measured here, so that the plate a thumb
+      // lands on, the plate a cursor clicks and the plate that gets painted are one question.
+      claimPause(touch);
     } else if (stickId < 0 && x < rect.width * STICK_EDGE) {
       claimStick(touch, rect);
     }
@@ -234,6 +314,9 @@ function onTouchEnd(event) {
     } else if (id === dashId) {
       dashId = -1;
       thumb.onDash = false;
+    } else if (id === pauseId) {
+      pauseId = -1;
+      thumb.onPause = false;
     }
   }
 }
@@ -241,10 +324,12 @@ function onTouchEnd(event) {
 /**
  * handlers.onPress  - the same handler the mouse's left button calls, for a tap on a screen
  * handlers.flying   - is a run being flown right now (src/main.js answers it)
+ * handlers.onPause  - the pause key, which the thumb's plate is the same press as (main.js)
  */
 export function initTouch(canvas, handlers) {
   glass = canvas;
   press = handlers.onPress || null;
+  pausePress = handlers.onPause || null;
   if (handlers.flying) runIsFlying = handlers.flying;
   // Passive false on every one of them: a browser that is allowed to scroll is a browser that eats
   // the gesture a stick is made of.
@@ -261,8 +346,10 @@ export function initTouch(canvas, handlers) {
 export function clearThumb() {
   stickId = -1;
   dashId = -1;
+  pauseId = -1;
   thumb.onStick = false;
   thumb.onDash = false;
+  thumb.onPause = false;
   thumb.pushX = 0;
   thumb.pushY = 0;
   // ...and a dash asked for in the same instant as the focus going away is not a dash owed to

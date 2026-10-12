@@ -375,6 +375,10 @@
   .keys {
     margin-top: 10px; font-size: 11px; letter-spacing: .22em; text-indent: .22em; color: #7fa8c8;
   }
+  /* A clause of a keys line that this visit has no key for (ui/screens.js `showPause`). `display` and
+     not `visibility`, because the clause carries the separator that followed it: a clause that is only
+     invisible would leave that separator behind and the line would open on one. */
+  .keys .gone { display: none; }
   /* A short window. The title, ten rows of controls, what the visit has banked and the launch line
      are a tall column, and a centred column that does not fit is cut at both ends at once - which is
      the worst way to lose any of it. The breakpoint is where a 16:9 window of any useful size is
@@ -704,7 +708,7 @@
    </div>
   </div>
   <div class="hint" id="pauseHint">ESC OR P TO GO BACK TO THE RUN</div>
-  <div class="keys"><span id="pauseKeysGiveUp">G</span> GIVES THE RUN UP &#183; <span id="pauseKeysSettings">O</span> SETTINGS &#183; THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
+  <div class="keys"><span id="pauseKeysKeys"><span id="pauseKeysGiveUp">G</span> GIVES THE RUN UP &#183; <span id="pauseKeysSettings">O</span> SETTINGS &#183; </span>THE HANGAR AND THE CODEX ARE BETWEEN RUNS</div>
  </div>
 </div>
 
