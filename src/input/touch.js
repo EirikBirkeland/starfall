@@ -87,6 +87,30 @@ export const thumb = {
 export const touchTaps = { dash: false };
 
 /**
+ * Did this visit arrive with a finger at all?
+ *
+ * The one thumb question that has to be answered *before* anybody has touched anything, because the
+ * title's chips (ui/chips.js) are put up on the first frame or not at all - and `thumbUsed()` cannot
+ * answer it. A tap on a screen is deliberately not a control, so a phone sitting on its title has never
+ * claimed a touch and `thumbUsed()` is rightly false there; waiting for the first tap would mean waiting
+ * for the tap that launched a run.
+ *
+ * So this is asked of the browser and not of the game: a phone says yes, a laptop with a touchscreen
+ * says yes (and gets chips it can also click, which costs it nothing), and a desktop with a mouse says
+ * no and is the visit it always was. A machine that answers no and then grows a finger anyway still
+ * gets the whole of the thumb the moment a control claims a touch - `thumbUsed()` is the truth about
+ * that - this function only decides what the *page* is painted with.
+ */
+export function hasFinger() {
+  // Both of the two ways browsers have ever reported a finger: the event the older ones put on the
+  // window, and the count the newer ones put on the navigator. Neither is there on a machine with no
+  // touch at all, and neither throws on a global this build may not have been handed.
+  if (typeof window !== 'undefined' && 'ontouchstart' in window) return true;
+  if (typeof navigator !== 'undefined') return Number(navigator.maxTouchPoints) > 0;
+  return false;
+}
+
+/**
  * Is this visit flying on a thumb?
  *
  * The one question the rest of the game asks the glass, and it is asked as a function rather than read

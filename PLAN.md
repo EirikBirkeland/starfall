@@ -2139,6 +2139,40 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       of this wants eyes on a real screen for the feel of it; the wiring does not, and the harness can
       put a touch on the glass (`touchstart`/`touchend` go through the same handlers a browser's do).
 
+      **Part of it is built (session 123, v1.4.0): the thumb's rail.** Three chips at the bottom of the
+      title - `TODAY`, `RULE`, `MUTE` - in `.rail`/`.chip` (index.html), found and hit-tested by
+      `ui/chips.js`, answered in `main.js` `pressChip` by the very handlers `T`, `X` and `M` are
+      answered by, guards and all. The four questions above, answered:
+
+      * *Which ones:* the three that are a whole action in one press. That is the bar a chip has to clear,
+        and it is why **SETTINGS is not on the rail** even though the short list above said it was: the
+        chip would open a rack of arrow-key rows that a finger can neither change nor leave (`onCanvasPressed`
+        refuses every press over a panel, so such a panel is a cage until a keyboard arrives). The
+        settings, the hangar and the codex each want their own thumb shape - a row that steps when it is
+        tapped, and a way out - and that is the rest of this item, not a chip.
+      * *Where they go:* pinned to the bottom of the page (`position: absolute` inside the fixed
+        `.screen`, above the safe-area inset), because the title's flex column is exactly as tall as the
+        window it was built for and a row in it would move the mark `render/logo.js` measures.
+      * *How big:* `min-height: 44px`, the same floor as `DASH_MIN`, and a test reads the stylesheet to
+        hold it against the thumb's own number rather than a remembered one.
+      * *Which visits see them:* one that arrived with a finger - `input/touch.js` `hasFinger()`, which
+        asks the browser (`ontouchstart`, `navigator.maxTouchPoints`) because `thumbUsed()` cannot: a tap
+        on a screen is deliberately not a control, so a phone on its title has never claimed one. A mouse
+        visit never sees the rail and a click on where it sits is still just the launch
+        (`test/thumb-rail-mouse.test.mjs`).
+
+      A chip is **paint and never a listener**: the page has no click handler on it, the press comes in
+      through the glass exactly as a click always did, and `chipAt(x, y)` asks the browser where the chip
+      was laid out - the same question `render/logo.js` asks of `#logoBox`, so the box that is seen and
+      the box that is pressed are one box by construction. The harness grew `touch: true` (a browser that
+      reports fingers) and gives the four new boxes a 0x0 rect until a test lays them out, which is the
+      honest answer for a stub with no layout engine and the reason every old visit is untouched.
+
+      Still open in this item: the panels' thumb shape (above), a pause chip - a held run is reached by
+      `Esc`/`P` only, so a phone still cannot stop one except by backgrounding the tab, and the pause
+      would also be where a run is given up - and the hangar, which is where a phone player cannot spend
+      a coin of the stardust they have been earning.
+
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

@@ -300,6 +300,33 @@
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
     color: #9fd8ff; animation: pulse 1.7s ease-in-out infinite;
   }
+  /* The thumb's rail (ui/chips.js, main.js `pressChip`): the few keys a finger has no keyboard for,
+     laid where a thumb already rests. It is pinned to the bottom of the page instead of being left in
+     the title's column, because that column is exactly as tall as the window it was built for and a
+     row added to it would move the mark - and render/logo.js measures that box for where the word
+     STARFALL sits. A chip is as tall as the thumb's own other control (input/touch.js's DASH_MIN, 44
+     px) and is *paint*: nothing in the page has a click handler, because the press comes in through
+     the glass like every click always did. That is the only way a tap and a click stay one press. */
+  .rail {
+    position: absolute; left: 0; right: 0;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    display: flex; justify-content: center; gap: 10px;
+    padding: 0 10px;
+  }
+  .chip {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 44px; padding: 6px 18px;
+    border: 1px solid rgba(94,247,255,.45);
+    border-radius: 9px;
+    background: rgba(94,247,255,.07);
+    box-shadow: 0 0 14px rgba(94,247,255,.18) inset, 0 0 12px rgba(94,247,255,.14);
+    color: #d8fbff; font-size: 12px; font-weight: 600;
+    letter-spacing: .18em; text-indent: .18em;
+  }
+  /* The rail is on the glass for a visit that arrived with a finger and off it for every other one
+     (input/touch.js `hasFinger`), so the page has to be able to take it away completely: a chip you
+     cannot see must not be a chip you can press by accident. */
+  .rail.hidden { opacity: 0; visibility: hidden; }
   /* The settings rack, and the one row of it (game/settings.js, audio/engine.js, game/assists.js):
      what the row is, what it is set to, and one plain line on what it does. No key chip, unlike a ship
      or a perk row - and that is the point. A chip says "press this", and nothing on this panel is
@@ -568,6 +595,15 @@
   <!-- The day's key is written where the other launch keys are, because it is one: one press and the
        run is flying the arena everybody else is flying today (game/daily.js). -->
   <div class="hint">PRESS SPACE OR CLICK TO LAUNCH &#183; <span id="titleKeysToday">T</span> FOR TODAY&#39;S ARENA</div>
+  <!-- The thumb's rail (ui/chips.js). It is put up for a visit that arrived with a finger and never
+       for any other, so a keyboard visit never sees it; and every word in here is one the page writes
+       once, because a chip is the name of a key and not a readout. MUTE is the whole of what the key
+       does - off, then back - and the plate on the glass says which of the two it just did. -->
+  <div class="rail hidden" id="thumbRail">
+    <span class="chip" id="chipToday">TODAY</span>
+    <span class="chip" id="chipRule">RULE</span>
+    <span class="chip" id="chipMute">MUTE</span>
+  </div>
 </div>
 
 <!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.

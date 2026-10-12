@@ -424,7 +424,22 @@ const ELEMENT_IDS = [
   'hangarKeysBack', 'hangarKeysSettings', 'codexKeysBack', 'codexKeysSettings',
   'settingsKeysClose', 'keysKeysBack',
   'pauseKeysGiveUp', 'pauseKeysSettings', 'overKeysSettings', 'winKeysReroll',
+  // The thumb's rail (index.html, ui/chips.js): the three chips a finger can press on the title, and
+  // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
+  // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.
+  'thumbRail', 'chipToday', 'chipRule', 'chipMute',
 ];
+
+/**
+ * The boxes that sit *inside* a screen rather than being one.
+ *
+ * Every screen is `fixed; inset: 0`, so the window is the honest answer for where it is; the same
+ * answer for a small box inside one would be a lie - a chip would be said to cover the whole page, and
+ * a press hit-test would find it under every press. A box with no layout in it is 0×0, which is what
+ * `ui/chips.js` is written to answer nothing about. `logoBox` is not in here: the mark is measured
+ * against the window on purpose (render/logo.js), which is what the title's own tests hold.
+ */
+const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -551,6 +566,10 @@ function keyRow(row) {
  * `autoplay: true` is a browser that lets this page make a sound without being asked (audio/engine.js
  * `audioIsHeard`); without it the audio device is built asleep and only a press wakes it, which is
  * what a first visit to a normal browser gets. `game.audioState` says which state the device is in.
+ * `touch: true` is a browser that arrived with fingers (input/touch.js `hasFinger`), which is what puts
+ * the title's thumb rail up (ui/chips.js). A touch works either way - `touchDown` below hands over the
+ * same event - because a mouse machine can be handed a stylus; what the option decides is only what the
+ * browser *says about itself* before anybody has touched anything.
  */
 export async function bootGame(options) {
   const opts = options || {};
@@ -620,10 +639,15 @@ export async function bootGame(options) {
     // and so are the four panels, each of which is put up by a key.
     const startsHidden = id === 'overScreen' || id === 'winScreen' || id === 'winHint'
       || id === 'hangarScreen' || id === 'codexScreen' || id === 'pauseScreen'
-      || id === 'settingsScreen' || id === 'keysScreen';
+      || id === 'settingsScreen' || id === 'keysScreen'
+      // ...and the thumb's rail, which the page ships hidden and the game puts up for a visit that
+      // arrived with a finger (`touch`, below).
+      || id === 'thumbRail';
     elements[id] = makeElement('div', ['screen', startsHidden ? 'hidden' : ''].filter(Boolean));
     elements[id].id = id;
     elements[id].getContext = () => ctx;
+    elements[id].rect = BOXES_INSIDE.indexOf(id) >= 0
+      ? { left: 0, top: 0, width: 0, height: 0 } : null;
     elements[id].getBoundingClientRect = () => rectOf(elements[id]);
     // The box's own measurements, as far as a stub without a layout engine can give them: a screen
     // is the window it is painted on, and a *block* inside one measured nothing at all until a test
@@ -702,6 +726,11 @@ export async function bootGame(options) {
   Object.defineProperty(globalThis, 'navigator', {
     value: Object.assign({}, globalThis.navigator, {
       getGamepads: () => (gamepad === null ? [] : [gamepad]),
+      // How many fingers this browser reports (input/touch.js `hasFinger`). `touch: true` is a visit
+      // that arrived with them, which is the only way a headless test can be a phone: every other visit
+      // says none, exactly as a desktop with a mouse does - and can still be handed a touch, because a
+      // browser that reports no touch points can still be holding a stylus.
+      maxTouchPoints: opts.touch === true ? 5 : 0,
     }),
     configurable: true, writable: true, enumerable: true,
   });

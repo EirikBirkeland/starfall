@@ -49,7 +49,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys, hasFinger } from './input/index.js';
 import { initAudio, openAudioDevice, wakeAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -59,6 +59,7 @@ import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } fr
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
 import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initChips, showChips, chipAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -190,6 +191,20 @@ function pressAction() {
   beginRun();
 }
 
+/**
+ * A chip went down under a thumb - or under a cursor, which is allowed the same three words.
+ *
+ * Nothing here is a new action. Each chip is answered by the very handler its letter is answered by,
+ * guards included, which is the whole point of writing it this way: the day, the rule and the sound do
+ * exactly what `T`, `X` and `M` do, on the screens those keys are answered on and nowhere else, and a
+ * chip can never get out of step with the key it stands in for because there is only one of each.
+ */
+function pressChip(id) {
+  if (id === 'today') onToday();
+  else if (id === 'rule') onChallenge();
+  else if (id === 'mute') onMuteSwitch();
+}
+
 function onCanvasPressed() {
   initAudio();
   // A thumb is the one hand with no Esc on it, and its tap carries no gun - a run flown on a finger
@@ -207,6 +222,17 @@ function onCanvasPressed() {
   // screen that throws you into a run because you aimed at a ship and missed - and there are two of
   // them now, one of which is full of things to look at and neither of which is a launch button.
   if (panelIsUp()) return;
+  // The thumb's chips (ui/chips.js), which are on the title and nowhere else. The check sits after the
+  // panels - a panel owns the glass it is up on, chips included, and the rail is behind one of them
+  // either way - and before everything a title press can otherwise be, because a press that landed on
+  // the day's chip is that press and not the launch it would otherwise have been.
+  if (world.state === STATE.START) {
+    const chip = chipAt(mouse.x, mouse.y);
+    if (chip !== '') {
+      pressChip(chip);
+      return;
+    }
+  }
   // While the cards are up the click is an answer, not a shot and not a restart - and it
   // can be one of three answers: take this card, banish it out of the run, or deal the
   // table again (render/cards.js is what says which one the point landed on).
@@ -1193,6 +1219,10 @@ function boot() {
   initScreens();
   initCanvas(document.getElementById('game'));
   logoBox = document.getElementById('logoBox');
+  // The thumb's chips, put up or not for the whole visit on the one thing the browser says about a
+  // finger (input/touch.js). They are measured against the glass, so they are built after it.
+  initChips(view.canvas);
+  showChips(hasFinger());
   onResize();
   // Whether this visitor asked for as little movement as the machine can give (the same query the
   // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the
