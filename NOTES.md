@@ -13776,3 +13776,112 @@ against 4,000), `tools/shake-meter.js` inside `release.sh` still 100% still agai
 3. The four items still owed to a screen, unchanged from session 118: the browser half of the performance
    pass (F3 plate against `bodies 200 / 200`), the difficulty band's deliberate FAIL, `tools/gun-tune.js`,
    `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
+
+## Session 120 — A best under each rule: the save keeps a score per challenge, and says it in three places. Released 1.2.0
+
+**Released v1.2.0**: the record half of the challenge rules. Every rule now has a number of its own — the
+best this save has flown *under* it — which is what turns a rule from a difficulty dial into something to
+beat. This is the item session 119 wrote into PLAN as "a separate item, because it wants a save section and
+a panel of its own", and it is the first thing built on top of 1.0's own feature list.
+
+### What shipped
+- `SAVE.challenges.bests` — one map, rule id → best score, in `core/save.js`'s existing `counts` shape (the
+  one the perk tally uses), with the **score's** ceiling on the number side and not a rank's: a best under a
+  rule is the same kind of number as `score.best`, and `MAX_COUNT` 1,000 would have been a record nobody
+  could beat. One map rather than a key per rule is what keeps a fourth rule a row in a table instead of a
+  request for storage. A rule missing from the map has never been flown, which is an answer and not a hole —
+  `bestOf` says 0 and every line that would have printed it prints nothing instead.
+- `src/game/challenges.js` grew the third section it always had room for: **the records** (`bestsFromSave`,
+  `bestOf`, `bankChallenge`) and the words that say them. `bankChallenge` is called from `bankRun` after the
+  all-time best and the day's, as the narrowest of the three claims, and it keeps the same bargain they keep
+  about a run that is won, handed back and finally goes down: the second ending only wins if the run came out
+  bigger. `world.newChallengeBest` is the per-run flag, cleared in `resetRun` beside `newDailyBest`.
+- Said in three places, and nowhere a step has to look: the **title's rule line** ends with `1,234 BEST FOR
+  THIS RULE` when the save has one (so the key that sets a rule shows what that rule is worth — which is the
+  whole point of the feature), and an **ending's card** ends with the same number or with `NEW BEST FOR THIS
+  RULE`, which is exactly the pair `game/daily.js` makes about the day. Both go through one private
+  `recordWords`, so a card and a title cannot describe the same number differently. `FOR THIS RULE` is not
+  padding: a card has an all-time BEST a hand's width above it and would otherwise say BEST twice with two
+  different numbers.
+- **The codex's fifth rack, HARDER RULES** (`showRules`, `index.html #ruleRow`, painted at boot and by every
+  ending like the log and the awards). One row per rule in the order the key cycles them — its number and its
+  sentence, or `NOT FLOWN YET` and no glow, wearing the codex's own `unknown` class. The sentence is on every
+  row, flown or not, because this is the one place all three rules can be read at once instead of cycled
+  blind.
+- `tools/headless/harness.js` — `ruleRow` in the stub page and `screen.rules` in the snapshot, in the
+  `entryRow` shape because a rule row can be dim.
+- `test/challenge-records.test.mjs` — 18 checks: the ledger round-tripping through the save, what the store
+  refuses to write (a score that is a sentence, a score that is a fraction, a score below zero, an id the
+  game cannot name, a ledger that is a word), what `bankChallenge` decides (no rule, first run, smaller
+  second ending, bigger one, zero, and a rule that is not this rule), every combination of the words with and
+  without a record, a real visit banking and lighting the card, the title after `X`, the rack's rows, the rack
+  repainted by the ending that changed it without the panel being opened again, and that a flying run writes
+  nothing to storage while its ending does. **2,087 pass, 0 fail** (from 2,069).
+
+### A rack and not a panel — the one place PLAN was overruled
+PLAN said "a panel of its own". Three rules do not earn a third key when the panel that already answers
+"what has this save flown" is one press away, and the codex's fourth rack (the log) had already broken out of
+"met n of 30" to be exactly that question. So the record went there: read and not bought, one row per rule,
+same row shape, same `fitPanel` fitting. If a fourth and fifth rule arrive the rack grows by a row, which is
+cheap; a panel would have wanted a key, a hint line, a `panels` entry and a fit test for three rows.
+
+### The measurements
+- Reference run **byte for byte unchanged**, checked against a `git worktree` of HEAD~1 and not from memory:
+  seed 1 → 10m00s, 73,399, level 56, 3,890 kills; seed 20261006 → 73,982, level 57, 3,934 kills. Both
+  `diff`s empty. An ordinary run never calls `bankChallenge` at all, which is the whole reason this holds.
+- `tools/alloc-probe.js` **PASS** (4 gated loads, dearest step 735 B, a body 2 B a step), `tools/perf-probe.js`
+  **PASS** (worst step 0.105 ms, dearest mean 3,407 operations), and `tools/shake-meter.js` inside
+  `release.sh` still 100% still against the 95% it needs.
+
+### Things that surprised me
+- **`test/alloc-probe.test.mjs` had been failing one run in five, and it was not my change.** The suite got a
+  red test the first time I ran it and I assumed I had put an allocation in a walk; a clean `git worktree` of
+  HEAD failed it too, twice in five runs. "All three together is the crowd" bounded the cost of 900 sparks and
+  60 shots *on top of* the crowd as a ratio — `both < crowd × 1.35` — and the two numbers it divides do not
+  move together: 38-42 B on a quiet box (1.11x) against **117-121 B** with eight test files running at once
+  (1.36x, and a failure). It is bounded in bytes now, like the check directly above it: what each pool lives in
+  is allowed on its own, doubled — 192 B against the 38-121 measured, while a real regression (an object per
+  spark) is thousands. **Do not "tighten" this back to a ratio**: the ratio was the bug, and the noise is the
+  machine, not the game.
+- Adding a save section costs two edits in `test/save.test.mjs` — the fresh-document shape and the
+  hard-coded key-order list that proves the document is written in schema order. Both are worth having; both
+  will bite whoever adds section fourteen.
+- Two assertions in `test/challenges.test.mjs` pinned the title line and the card line word for word, and both
+  failed the moment the record was appended — which was the cheapest possible proof that the feature works from
+  end to end. They now check the *rule* part word for word and delegate the record to the new file; the words
+  test also writes an empty ledger first, because "a rule with no record" is a state of the save and the file
+  should not be hoping for it by ordering.
+- `STATE.OVER` is 2, not 4. A launch press that is refused by the restart guard leaves the game in 2 and the
+  failure reads like a mystery level-up; the fix was `frames(GUARD)` before the press, which is what
+  `test/daily.test.mjs` has always done.
+- The title's rule line is painted by `X` and at boot and by nothing in between, so it would have gone one run
+  stale the moment a record could exist. `showGameOver` and `showVictory` repaint it from the summary the way
+  they already repaint `showStanding` — nothing can see the title from under a card, but a line that is a run
+  behind is the sort of thing that gets a panel lying later.
+
+### Decisions, so nobody relitigates them
+- **Per rule, not per rule-and-ship, not per rule-and-seed.** A record per (rule, ship) is fifteen numbers, most
+  of them about a ship nobody flies on purpose, and the point of the record is "what is this *rule* worth to
+  you". The ship is on the card already when it matters.
+- **The pause says nothing about the record**, exactly as the pause says nothing about the day's best: the pause
+  rack is about the run that is being held, and the record is about the save.
+- **The record travels with the card** (`summary.challengeBests`, `newChallengeBest`) rather than being read
+  off the save inside `ui/screens.js`, for the same reason the codex ledger and the log do — the panel that
+  goes up over a card must not be able to disagree with it.
+- **Read at endings and at title paints, never in a step.** `core/save.js` re-reads storage on every call by
+  design; a record asked during `stepWorld` would be a JSON parse sixty times a second. There is a test for
+  this (`the ledger is written at an ending and never while a run is flying`).
+- **A run that scored nothing banks nothing** — no rule ever shows a 0 as though somebody had scored it, which
+  is the same reason the title's TODAY number stays hidden until the day has been flown.
+
+### What should come next
+1. **The log does not say which rule a run was flown under** — new PLAN item, and it is real: a 90,000 scored
+   on ONE HULL sits in the PAST RUNS column next to a 90,000 flown plain. It is not a patch, because
+   `core/save.js` `records` judges a row whole and a new required field would silently drop every row on every
+   existing save. Either the store grows an honest "optional field" kind or the log is rewritten once on the
+   way in. The hazard is written into PLAN so the next session does not discover it by breaking somebody's save.
+2. **More rules**, each with its own row and its own ladder (`tools/challenge-cost.js` already refuses to judge
+   a rule it cannot see). They now come with a record for free, which they would not have before this session.
+3. The four items still owed to a screen, unchanged from session 119: the browser half of the performance pass
+   (F3 plate against `bodies 200 / 200`), the difficulty band's deliberate FAIL, `tools/gun-tune.js`,
+   `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
