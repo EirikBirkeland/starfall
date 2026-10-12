@@ -10,7 +10,9 @@
 //   node tools/simulate.js --picks random      answer the level-up with a die instead of a
 //                                              build (tools/headless/bot.js PICKS; what
 //                                              tools/difficulty-arc.js measures with)
-//   node tools/simulate.js --dash              let the bot dash when a body gets close
+//   node tools/simulate.js --dash              let the bot dash its way out of a crowd
+//   node tools/simulate.js --dash-habit dive   a different habit (tools/dash-habit.js compares
+//                                              them: off, escape, dive, along)
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc, lance, swarm)
 //   node tools/simulate.js --ship bulwark      fly another ship (game/ships.js: wisp,
@@ -42,18 +44,19 @@
 // eyes behind a person's hands - it looks a fifth of a second at a time and a quarter of
 // its looks are at the wrong thing (tools/headless/human.js). None of them dashes until
 // `--dash` is asked for, which is the only way a line that lives on the dash
-// (game/afterimage.js) can be measured at all. This script must always
+// (game/afterimage.js, game/tether.js) can be measured at all. Which way it dashes is a habit and
+// not a law - `tools/dash-habit.js` is the ladder that chose the shipped one. This script must always
 // finish without throwing; the one exit it may choose for itself is `--need`.
 
 import { pathToFileURL } from 'node:url';
 import { clock, int, dec } from './headless/tables.js';
-import { playRuns, dashEscape, POLICIES, PICKS } from './headless/bot.js';
+import { playRuns, POLICIES, PICKS } from './headless/bot.js';
 import { MIX, ledgerOf } from '../src/audio/mix.js';
 import { musicLedger } from '../src/audio/music.js';
 import { noiseVoices } from '../src/audio/noise.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, picks: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, picks: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined, dash: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -71,6 +74,7 @@ function readArgs(argv) {
     else if (arg === '--at') opts.at = parseFloat(next());
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--dash') opts.dash = true;
+    else if (arg === '--dash-habit') opts.dash = next();
     else if (arg === '--audio') opts.audio = true;
     else {
       console.error('unknown option: ' + arg);
@@ -259,7 +263,7 @@ if (isMain) {
     ship: opts.ship,
     weapon: opts.weapon,
     at: opts.at,
-    onFrame: opts.dash ? dashEscape : undefined,
+    dash: opts.dash,
     // Printed as each run finishes: a batch of twenty long ones is minutes of work and
     // a silent terminal cannot be told apart from a stuck one.
     onRun: (summary) => {

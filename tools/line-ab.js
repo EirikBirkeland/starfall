@@ -44,8 +44,9 @@
 // the bots cannot use - which is a finding about the bots as often as about the card, and NOTES is
 // full of the ones where it was the bots (game/afterimage.js lives on a press neither of them will
 // press, and game/magnetar.js on picking a shard up). `--dash` is there for exactly that: it gives
-// the bot the habit a dash line needs (a press when something gets within arm's reach), and a
-// number quoted for a dash line without it is a number about a bot that never dashes.
+// the bot the habit a dash line needs (a press out of whatever gets within arm's reach), and a
+// number quoted for a dash line without it is a number about a bot that never dashes. Which habit -
+// the get-out, or the dive-in it replaced - is `--dash-habit` (tools/dash-habit.js).
 //
 // What is measured is the run, because these are the lines the power ladder cannot see: a knot of
 // bodies that cannot die never walks anywhere, never drops a shard and never gets picked up, so
@@ -66,7 +67,7 @@
 import { BALANCE } from '../src/game/balance.js';
 import { WEAPONS } from '../src/game/weapons.js';
 import { bootGame } from './headless/harness.js';
-import { playOneRun, dashEscape, POLICIES, DEFAULT_POLICY } from './headless/bot.js';
+import { playOneRun, POLICIES, DEFAULT_POLICY, DEFAULT_DASH_HABIT } from './headless/bot.js';
 import { median } from './simulate.js';
 import { clock, int, dec, table } from './headless/tables.js';
 
@@ -80,7 +81,7 @@ const DEFAULTS = {
   sets: [],
   holds: [],
   policy: undefined,
-  dash: false,
+  dash: undefined,
   weapon: undefined,
 };
 
@@ -99,6 +100,7 @@ function readArgs(argv) {
     else if (arg === '--set') opts.sets.push(next());
     else if (arg === '--with') opts.holds.push(next());
     else if (arg === '--dash') opts.dash = true;
+    else if (arg === '--dash-habit') opts.dash = next();
     else if (arg === '--weapon') opts.weapon = next();
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -206,6 +208,9 @@ async function measure(game, condition, id, opts) {
       maxSeconds: opts.seconds,
       policy: opts.policy,
       weapon: opts.weapon,
+      // Before the step, wherever the bot's own hands are (playOneRun): a dash leans the frame it
+      // is granted in and not the one after it.
+      dash: opts.dash,
       onFrame: () => {
         // Handed after every step, which is how a rank that was never bought is felt by the very
         // next one - the same door a card taken between two frames goes through (game/upgrades.js).
@@ -218,7 +223,6 @@ async function measure(game, condition, id, opts) {
           const held = game.world.upgrades[parts[0]];
           game.world.upgrades[parts[0]] = Math.max(held, Number(parts[1]));
         }
-        if (opts.dash) dashEscape(game);
       },
     }));
     process.stdout.write('.');
@@ -277,7 +281,9 @@ console.log(table(
   'the ' + opts.line + ' line, measured on ' + opts.seeds + ' seeds at a ' + clock(opts.seconds)
     + ' window, ' + (opts.policy === undefined ? DEFAULT_POLICY : opts.policy) + ' bot'
     + (opts.weapon === undefined ? '' : ' flying the ' + BALANCE.weapons[opts.weapon].name)
-    + (opts.dash ? ' with the dash pressed' : ' that never dashes')
+    + (opts.dash === undefined
+      ? ' that never dashes'
+      : ' with the ' + (opts.dash === true ? DEFAULT_DASH_HABIT : opts.dash) + ' dash habit pressed')
     + (opts.holds.length > 0 ? ', on a run that always had ' + opts.holds.join(', ') : '')
     + (changed.length > 0 ? ', with ' + changed.join(', ') : ''),
   'the middle run of each batch, against the first condition listed. `damage` is everything the\n'

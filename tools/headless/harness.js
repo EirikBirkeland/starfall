@@ -777,6 +777,11 @@ export async function bootGame(options) {
   const game = globalThis.window.STARFALL;
   if (!game) throw new Error('the game booted but did not expose window.STARFALL');
 
+  // Where the pointer stands, as far as this browser knows. `tapDash` presses the dash
+  // *there*; anything else that needs the pointer asks for it. Null until a hand or a bot
+  // puts it somewhere.
+  const pointer = { x: null, y: null };
+
   const controller = {
     /** Run one animation frame, `ms` after the previous one. */
     step(ms) {
@@ -804,14 +809,36 @@ export async function bootGame(options) {
         Object.assign({ code: code, preventDefault() {} }, extra));
     },
     moveMouse(x, y) {
+      pointer.x = x;
+      pointer.y = y;
       controller.fire('mousemove', { clientX: x, clientY: y, preventDefault() {} });
     },
     /** `button` is a DOM button number: 0 left (fire), 2 right (dash). */
     pressMouse(x, y, button) {
+      pointer.x = x;
+      pointer.y = y;
       controller.fire('mousedown', {
         clientX: x, clientY: y, button: button === undefined ? 0 : button, preventDefault() {},
       });
     },
+    /**
+     * Dash without putting the pointer anywhere new: the right button, down and up again on
+     * the spot the pointer was last put. A bot that wants to dash must not have to move its
+     * aim to do it - the aim is where the gun points and a dash is not an aim - and a real
+     * hand already knows that, because its cursor is where it was.
+     *
+     * Throws when the visit has never put the pointer down: pressing at an unknown point
+     * would press at (0, 0), which is a corner of the window and not nowhere.
+     */
+    tapDash() {
+      if (pointer.x === null) throw new Error('nothing has put the pointer anywhere to dash from');
+      controller.fire('mousedown', {
+        clientX: pointer.x, clientY: pointer.y, button: 2, preventDefault() {},
+      });
+      controller.fire('mouseup', { button: 2 });
+    },
+    /** Where the pointer stands, or `null` before anything put it there. */
+    get pointer() { return { x: pointer.x, y: pointer.y }; },
     releaseMouse(button) {
       controller.fire('mouseup', { button: button === undefined ? 0 : button });
     },

@@ -1902,12 +1902,34 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
-- [ ] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
+- [x] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
       the dash at the screen point of the nearest body, and a dash taken with no movement key held goes
       the way the cursor points - at it. Measured on the same seeds it is a *negative* habit: the aware
       bot's careless middle death falls from 4m19s to 1m43s with `--dash` on, and the human's from 2m44s
       to 56s. Every line that lives on the dash was priced with it on (`game/afterimage.js` especially),
       so fixing which way it dashes means re-pricing those cards - a session, not a patch.
+      **Done in NOTES session 114, and the habit turned out to be the smaller half of it.** The bot now
+      dashes the way a person does - away from the crowd it is standing in, away from the edge where the
+      crowd is not, when something actually gets within reach - and `tools/dash-habit.js` is the check that
+      keeps it honest (`--strict`, four habits, and the columns say which way each dash was pointed and
+      where it ended). What the sweep found is that *when* it presses matters far more than which way: at
+      the old panic distance of 170 px the get-out habit was still worth roughly nothing (careless aware
+      middle of deaths 5m11s against the 4m23s floor, 12 of 16 dead against 9), because a dash spent on
+      every cooldown is a dash spent on nothing. At 45 px - about one body-reach - the same habit is worth
+      more than anything else measured: careless aware 7m20s against that 4m23s floor with 1 of 16 dead
+      instead of 9 and a score median of 42,893 against 12,914, and the careless human 4m32s against its
+      own 2m33s floor. On the careful build nobody dies either way and the habit costs nothing, which is
+      the other half of why it ships: 7.8 presses a quarter-hour against a bit over a hundred, and the
+      same 15 minutes of flying.
+- [ ] Re-price the two dash lines against the habit that ships now. The get-out dash presses about ten
+      times a quarter-hour where the dive habit pressed a hundred and thirty, and both these lines are
+      gated entirely on the press: with the new habit `tools/line-ab.js --line tether --dash` says five
+      free ranks are worth +1.5% score and nothing at all to the damage column, against the +2..5%
+      the row was priced off, and a cord now stands for about 1% of a run instead of half of one.
+      Neither is a retune on its own - the rate that card is bought at is a player spending dashes on
+      purpose, which no bot here has ever done - but `tether.damage`, `afterimage.bait` and what the
+      `overcharge` line is worth with its dash taken away all want reading again against an instrument
+      that presses the way its buyer would. NOTES session 114 has every number.
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

@@ -13156,3 +13156,100 @@ selector, a mixer row lying about its size - each turned exactly the named test 
 3. If a third ruler ever wants the same shape (text on the *arena* background, e.g. a floating score label
    over a bright nebula), `contrast.js` already composites over an arbitrary field - but `nebula.js` bakes
    its own pixels and the audit declines to invent a brightness for a sprite, so say what the field is first.
+
+## Session 114 — The bot's dash is a get-out now, and pressed a tenth as often
+
+**No release, on purpose.** Everything this session changed lives in `tools/`; the only `src/` edits are
+comments in `balance.js`. The game a player opens is the one 0.10.19 shipped, byte for byte - the
+reference run is identical - and a version in the owner's menu that nobody can tell from the one under it
+is noise, not progress. The next session that moves the game itself releases, and it will have two
+balance rows' worth of fresh measurement to say for itself.
+
+Suite **1998 → 2012** (14 in `test/dash-habit.test.mjs`). The reference run (`--seed 20261006 --trace`) is
+byte for byte session 113's again (10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards, 7 vacuums,
+2036 in), which is the point of `--dash` existing: nothing about the shipped bot moved, and every number
+in this file that was measured without it still means what it said.
+
+The item was PLAN's "the bot's dash habit is a dive in and not a get-out". It was two bugs wearing one
+coat, and the second was the expensive one.
+
+### What was wrong, and what it cost
+`dashEscape` pressed the dash *at* the nearest body by moving the pointer there and clicking the right
+button. Two things follow from that. The dash goes where the movement keys point if any are held and the
+pointer only if none are (`src/game/player.js` `dashDirection`), so half the time it was not even a dive -
+it was wherever the policy's flee was already taking it - and the pointer move took the guns off whatever
+they were aimed at, which is the one thing the bot's aim has to keep. And it pressed whenever anything came
+within 170 px, a number borrowed from the walk's own panic distance, which in a crowd is every cooldown
+forever: 58 to 164 dashes a run depending on the build.
+
+Sixteen careless seeds, ten minutes each, and the same seeds with the habit switched off as the floor:
+
+| habit, at 170 px | aware+random middle / died / score | human+random middle / score |
+| --- | --- | --- |
+| never presses | 4m23s / 9 of 16 / 12,914 | 2m33s / 3,173 |
+| the dive, as shipped | 1m07s / 10 of 16 / 5,754 | 1m13s / 1,799 |
+| the get-out, as shipped | 5m11s / 12 of 16 / 5,773 | 2m27s / 2,316 |
+
+Every habit that pressed was *losing runs*. The instrument was costing the thing it measured.
+
+### Which way, and when
+The new habit is `escape`: press only when a body is actually within reach, throw the ship the way the
+crowd is *not* (every body within `push` px pushing on it, nearest loudest), give any wall the veto over
+the axis it stands on - and if that leaves nothing, keep the press instead of spending it on a wall. The
+press is `game.tapDash()`, the right button down and up on the spot the pointer already stood, so the aim
+is not moved at all. `DASH_HABITS` is `off, escape, dive, along` and `--dash-habit <name>` picks one
+through `tools/simulate.js`, `tools/line-ab.js`; `tools/dash-habit.js` is the ladder that ranks them and
+exits non-zero under `--strict` when the shipped one is not the one to ship.
+
+Sweeping `--trigger` over 30, 45, 60, 90, 110, 170 px turned out to be the finding, not the direction:
+
+| trigger | aware+random middle / died / score / dashes a run | human+random middle / score / dashes a run |
+| --- | --- | --- |
+| never presses | 4m23s / 9 of 16 / 12,914 / - | 2m33s / 3,173 / - |
+| 170 px | 5m11s / 12 of 16 / 5,773 / 107 | 2m27s / 2,316 / 58 |
+| 90 px | 5m17s / 8 of 16 / 9,790 / 39 | 2m54s / 3,347 / 30 |
+| 60 px | 4m16s / 3 of 16 / 49,593 / 17 | 3m05s / 5,537 / 23 |
+| **45 px** | **7m20s / 1 of 16 / 42,893 / 12** | **4m32s / 5,998 / 16** |
+| 30 px | 5m13s / 3 of 16 / 24,158 / 6 | 4m00s / 4,115 / 10 |
+
+45 px is one body-reach - contact plus the dozen pixels a closing body covers between two of a person's
+looks - and it is what ships, in `DASH` next to the habit. On the careful build (aware, wise picks, twelve
+seeds at a quarter hour) nothing dies either way and the habit costs nothing: score medians 117,007 against
+the floor's 117,814, at 7.8 presses a run instead of 164.
+
+### Things that surprised me
+- **The verdict had to be bought with the score, not the deaths.** The first version of `tools/dash-habit.js`
+  ranked on the middle of the deaths, and at the loose trigger that said the get-out habit was fine (5m11s
+  against a 4m23s floor) while those runs were making *half* the score of a bot that never presses. A
+  habit that spends every cooldown running survives a bit longer and plays worse. The check is now
+  two-sided - nothing that dashes may beat the shipped habit by 10%, and the shipped habit may not fall 10%
+  *under* the never-presses floor - and `--trigger 170 --strict` fails it, which is the falsification that
+  says the check has teeth. `--strict` on the shipped defaults passes.
+- **`dive` does not really dive, and the column said so.** `at a body` reads 70-76% for the dive habit at
+  170 px and 13-21% at 45 px, because at a reach the policy always has a flee key held and the keys beat
+  the pointer. So most of the old habit's harm was the pointer yank and the hundred wasted presses, not the
+  heading; held at 45 px the dive middles 4m28s against the get-out's 4m32s and the ladder cannot tell them
+  apart at all. Direction and timing are both fixed because a habit is one thing, but only one of them was
+  worth three minutes of a run.
+- **The tether's whole measured worth was the bot's dash rate.** With the old habit a cord stood for 54,452
+  of a run's 108,000 steps - half the run. With the new one `tools/line-ab.js --line tether --dash` reads
+  482 of 54,000 steps at five free ranks and 1,566 at three dealt, and five free ranks are worth +1.5%
+  score and nothing to the damage column, against the +2..5.3% the row was priced off. `tether.damage` is
+  left where it is on purpose: the rate the card is bought at is a player spending dashes on the knot,
+  which is nearer the old instrument than the new one, and re-tuning a row because the bot forgot to use it
+  is how a balance table eats itself. Written up as a new "After 1.0" item instead. `afterimage`'s deck
+  numbers were re-read the same way (0.946x dealt, 0.997x free - the card still does nothing measurable,
+  and now on a batch where the out line is not dying at 4m51s, so the ratio means something).
+- **A careful batch is not a verdict.** `off,escape,dive,along` on aware+wise at 900 s: nothing dies, so
+  there is no middle of any deaths to compare, and a PASS there would be a claim about a window that
+  measured nothing. The tool says `NOTHING RANKED` and exits non-zero, and its defaults are the *careless*
+  build for the same reason `tools/difficulty-arc.js`'s are.
+- **`tapDash` refuses to invent a place to press.** The harness remembers where the pointer was last put and
+  throws if nothing ever put it anywhere, because pressing at (0, 0) would be pressing at a corner of the
+  window and not nowhere. Small thing; it is the difference between a dash that aims and a dash that guesses.
+
+### What is next
+Re-price the dash lines against an instrument that presses the way a buyer of them would (PLAN's new item):
+`tether.damage`, `afterimage.bait` - whose 6%/30% crowd-attention figures were read with the dive habit and
+probably read *low*, since a get-out leaves its images behind a fleeing ship, which is exactly where a
+chasing crowd is - and what `overcharge` is worth now that the bot's dash is not spent on nothing.

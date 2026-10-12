@@ -2915,12 +2915,19 @@ export const BALANCE = {
       // crowd that stops coming at all is a crowd that never forms, and the arena would be
       // empty of danger in the two seconds the trick lasts.
       //
-      // Measured, like everything else here, on a bot that dashes (the instrument is NOTES session
-      // 42's: an aware bot given `dashEscape`, eight seeds of two minutes, and the share of the
-      // bodies standing within 250 px of the ship that are walking at a ghost): 110 px takes 6%
+      // Measured, like everything else here, on a bot that dashes. The instrument is NOTES session
+      // 42's: an aware bot given the dash habit, eight seeds of two minutes, and the share of the
+      // bodies standing within 250 px of the ship that are walking at a ghost: 110 px takes 6%
       // of that near crowd off a rank-1 ship and 30% off a rank-5 one, where 72 px - the first
       // number, chosen for tidiness - managed 2% and 13%, which is a card that mostly does
       // nothing, and 150 px managed 18% and 44%, which is a card that ends the fight for you.
+      //
+      // Read that with `node tools/dash-habit.js` in mind, though: it was read with the dash habit
+      // that shipped until 0.10.19, which threw the bot *at* the crowd and so dropped its images
+      // inside it - the best case bait has ever had. The habit that replaced it in session 114 runs
+      // away from the crowd and leaves the images behind a fleeing ship, which is where a chasing
+      // crowd actually is, so the reading may well go up rather than down. Either way, if `bait` is
+      // ever revisited it is re-read against the shipped habit and not against that one.
       //
       // It is also the number the rank's value depends on, and that is the second half of why it
       // sits here: images are 220/rank px apart, so at 110 the two of the second rank just touch
@@ -2929,17 +2936,20 @@ export const BALANCE = {
       // is what `step` above is not allowed to be.
       //
       // And what the deck says, which is the honest half: nothing moves. Ten seeds at the 900 s
-      // cap, the line dealt and taken against out of the deck, score medians 111,850 against
-      // 112,884 for the plain bot - which cannot dash, so for it the card is a card - and 107,937
-      // against 113,741 for the dash-habit one, which does dash and still does not gain: hand that
-      // one five free ranks and it mediates 113,657, i.e. the same again. None of it is outside
-      // the noise of a batch of ten, and none of it is a surprise. Both bots are runners, and a
-      // runner's near field is two or three bodies wide: diverting a third of three is nothing.
+      // cap on the instrument that dashes like a person (session 114's habit, `tools/dash-habit.js`),
+      // the line dealt and taken against out of the deck: score medians 122,849 out, 116,217 dealt
+      // (0.946x) and 122,427 for five free ranks (0.997x), with nine or ten of ten seeds still
+      // alive at the cap in every column. The same batch on a bot that never dashes reads 121,613
+      // out, 117,744 dealt, and 121,613 free - free and out *identical*, because a bot that never
+      // dashes cannot spend a card whose only lever is the dash. None of it is outside the noise of
+      // a batch of ten, and none of it is a surprise. Both bots are runners, and a runner's near
+      // field is two or three bodies wide: diverting a third of three is nothing.
       // What this card is for is the knot a player dashes *out of*, which no bot in tools/headless
       // has ever been in, so the claim is made where it can be measured instead - the press in
       // test/afterimage.test.mjs: twenty bodies coming up from behind, one dash away from them,
       // and the nearest of them 1.7x further off with five ranks than without. NOTES session 42 is
-      // where the two instruments were compared.
+      // where the two instruments were compared, and session 114 why the dash-habit column had to
+      // be re-read at all.
       bait: 110,
       // An image going out: one ring closing in on the place it stood, and a note thin enough to
       // be a hiss. No light when it is *born*, because the image itself is the light and a dash
@@ -3196,9 +3206,17 @@ export const BALANCE = {
       //
       // Two seconds is also shorter than the dash's own cooldown (2.5 s, BALANCE.player.dash), which
       // is the same bargain afterimage struck: one dash's tether is gone before the next dash is
-      // allowed, so a run that dashes on cooldown keeps a thread tied nearly all the time - measured at
-      // 54,452 of a run's 108,000 steps, just over half the run, on a bot that dashes whenever anything
-      // gets within arm's reach - and a run that saves its dashes gets one when it needs it.
+      // allowed, so a run that dashes on cooldown keeps a thread tied nearly all the time and a run
+      // that saves its dashes gets one when it needs it. How much of a run *that* is depends entirely
+      // on how often the player presses, and the instrument's answer to that changed in NOTES session
+      // 114 (`node tools/dash-habit.js`): the bot now presses about ten times a
+      // quarter-hour, and on `tools/line-ab.js --line tether --dash --seeds 6` a cord was standing for
+      // a median of 482 of a run's 54,000 steps with all five ranks handed and 1,566 with three ranks
+      // dealt - one and three percent of the run, not half of it. The figure quoted here for a long
+      // time - 54,452 of a run's 108,000 steps, just over half the run - was read with the dash habit
+      // that shipped until 0.10.19, which pressed whenever anything came within 170 px and so tied a
+      // thread every few seconds. The `life` below is still what makes the bargain what it is; only
+      // the rate of the presses, and therefore how much of a run is lit, moved.
       life: 2,
       // s of that life the threads spend visibly letting go, so the line says it is nearly done
       // instead of stopping between two frames (game/mines.js fades its mines the same way).
@@ -3241,7 +3259,11 @@ export const BALANCE = {
       // that the line is entirely gated on the dash: without `--dash`, five free ranks are worth
       // nothing at all - the same six seeds read 116,141 score and 58,359 damage with the line out and
       // 116,141 and 58,359 with all five ranks handed, identical to the unit, because a tether is only
-      // ever tied by a dash. Every number below is therefore measured on the bot that presses it.
+      // ever tied by a dash. Every number below is therefore measured on the bot that presses it -
+      // which is why they are all marked with the habit they were read on.
+      //
+      // Read with the habit that shipped until 0.10.19, which pressed the dash at anything within
+      // 170 px and so spent a thread every few seconds:
       //
       //   out    score 61,000   damage 29,812   3 of 6 still flying at a quarter hour
       //   dealt  score 115,882  damage 57,627   4 of 6, at 2.5 ranks taken by the bot itself
@@ -3253,18 +3275,40 @@ export const BALANCE = {
       // for its five free ranks) and a shade above it, which is where a line that costs a dash - and
       // nothing at all if you never spend one - belongs.
       //
-      // What the line actually did, rather than what the run scored: on the batch above five ranks tied
-      // 226 tethers, pulsed 317 times and came round 339 bodies, which at this weight and the run's own
-      // damage line is about 6% of everything the run took off. Two readings of that are worth writing
+      // Read again in session 114 with the habit that ships now - a get-out, pressed about ten times a
+      // quarter-hour instead of two hundred - the same instrument on ten seeds at the cap says the line
+      // is worth a great deal less: out 120,080 score and 60,003 damage with eight of ten still flying,
+      // dealt 116,217 and 57,741 at three ranks taken, free 121,930 and 59,971, i.e. +1.5% score and
+      // nothing at all to the damage column. The damage column is the one this row's `damage` is priced
+      // off, and it went from +3.7..5.3% to nil. `damage` is left where it is because the reason is that
+      // the *bot* sweeps the threads less often, not that a sweep does less work - a person who buys
+      // TETHER and dashes at the knot that has them spends it far more like the old instrument than the
+      // new one, and a card's price is not the price of the bot that forgot to use it. What is owed is a
+      // re-price against a bot that presses the way a TETHER buyer would, which is written up as an
+      // item in PLAN's "After 1.0" and is a session of its own.
+      //
+      // What the line actually did, rather than what the run scored, on six of those seeds with the
+      // habit that ships now: three dealt ranks tied a fan a median of 6.5 times a run, pulsed 23.5
+      // of them and came round 37 bodies; five free ranks tied 2, pulsed 6 and came round 6.5 - the ship
+      // with all five in hand is driven into a corner a great deal less often than the one buying them
+      // one at a time, and a tether is only ever tied by a ship that is in one. Read with the old dash
+      // habit the same columns were 226 tethers, 317 pulses and 339 bodies at
+      // five ranks, which is what the two paragraphs below are made of. What the line takes off at
+      // that rate is about 6% of everything the run took off. Two readings of that are worth writing
       // down, because they disagree and both are true:
       //
-      //   **Per event it is already in mines' family, and its events are four times rarer.** A pulse
-      //     came round 1.07 bodies (339 over 317), and a mine's blast comes round 1.11 (session 45) -
-      //     the near crowd is the near crowd, whoever sweeps through it. But the bot ties a tether once
-      //     every four seconds and the beat fires it about 1.4 times, so it pays out 317 events a run
-      //     where a minefield pays out 1,097. That is why the weight is 5 and not 3: a thread is worth
-      //     about a mine's blast per body and happens a quarter as often, and the two lines came out
-      //     the same size on the run at a weight that is bigger than a mine's by roughly that ratio.
+      //   **Per event it is already in mines' family, and its events are rarer again than that.** A
+      //     pulse came round 1.07 bodies (339 over 317), and a mine's blast comes round 1.11 (session
+      //     45) - the near crowd is the near crowd, whoever sweeps through it. But the old bot tied a
+      //     tether once every four seconds and the beat fired it about 1.4 times, so it paid out 317
+      //     events a run where a minefield pays out 1,097. That is why the weight is 5 and not 3: a
+      //     thread is worth about a mine's blast per body and happened a quarter as often, and the two
+      //     lines came out the same size on the run at a weight bigger than a mine's by roughly that
+      //     ratio. The rate the ratio was made of is the old habit's - the bot that ships now dashes
+      //     ten times a run, so a thread is tied about once a minute and a half and today's instrument
+      //     would price this line out of the deck altogether. `damage` stays where the old readings put
+      //     it, because the rate that card is bought at is a player spending dashes on the knot, which
+      //     is nearer the old instrument than the new one.
       //   **The first sweep of this number was 0.4, and it was wrong by an order of magnitude.** At
       //     0.4 the threads took 0.4% of a run's damage and the score column moved by +1.1% at five
       //     free ranks, which read as "a cosmetic fifth system" and was really the ladder's disease
@@ -3273,13 +3317,15 @@ export const BALANCE = {
       //     at 6, and settled at 5: at 6 the threads' own share was 8.5% and a pulse was one-hit-killing
       //     most of the crowd twice over, which is a beam-cannon and not a tether.
       //
-      // And the honest oddity, kept in because it is the most useful thing the dash bot measured: on
-      // these six seeds the line out of the deck mediates 8m30s with three of six dead, and *any*
-      // amount of the line in - one dealt rank or five free ones - takes the batch to the cap. Six and
-      // a half minutes of survival for a source worth 6% of a run's damage is not arithmetic the damage
-      // column can show; it is what a wall of light across your own wake is worth to a ship that is
-      // running for its life, and it is a floor and not a ceiling - the same trap as every dash line,
-      // no bot in tools/headless ever dashes *on purpose*.
+      // And an oddity the old instrument saw that the new one does not, kept here because it explains a
+      // result nobody would otherwise believe: on those six seeds the line *out of the deck* mediated
+      // 8m30s with three of six dead, and any amount of the line in - one dealt rank or five free ones
+      // - took the batch to the cap, six and a half minutes of flying for a source worth 6% of a run's
+      // damage. It is not arithmetic the damage column can show; it is what a wall of light across your
+      // own wake is worth to a ship running for its life. The same batch with the get-out habit reads
+      // 6 of 6 alive with the line out and nothing to buy at all, which is the same lesson this whole
+      // instrument has now taught twice: a dash line measured on a bot that spends its dashes badly is
+      // measuring the bot. No bot in tools/headless has ever dashed *on purpose*.
       weight: 5,
       // px/s thrown clear of the line, off the thread's own perpendicular. A shove and not a slow
       // (game/chill.js): a body burned off a tether is still walking at you, it is just not on the

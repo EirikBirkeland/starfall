@@ -210,7 +210,7 @@ function oneEndlessRun(game, opts) {
       // `botFrame` answers the level-up table by itself, so a build that cannot use what it is
       // offered still does not stall on it: what is being measured is the crowd, not the deal.
       botFrame(game, opts.policy);
-      if (world.state === STATE.PLAY) dashEscape(game);
+      dashEscape(game);
     }
     game.step(FRAME_MS);
 

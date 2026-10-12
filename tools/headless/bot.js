@@ -271,30 +271,213 @@ function chooseCard(game, picks) {
 }
 
 /**
- * Press the dash when the crowd has got close and the dash is ready.
+ * When the bot presses the dash, and which way it sends it. Like `SKILL` in threats.js and the
+ * dial in human.js, these are the bot's own numbers and not the game's.
  *
- * This is the one habit that makes a bot able to use the lines that live on the dash -
- * game/afterimage.js is the first of them - and it is written as what a player does with a dash:
- * a get-out-of-jail press when something is within `PANIC_RANGE`, not a way of crossing the
- * arena. It is opt-in (`tools/simulate.js --dash`) for an honest reason: every run measured in
- * NOTES before it existed was measured with a bot that never touched the dash at all, and those
- * numbers are that bot's. A card that lives on a press the bot will not make cannot be measured
- * without it - and it cannot be measured *fairly* without saying so, because the plain bot pays
- * for such a card in the deal and can never spend it.
+ * The habit has to be written down at all because the first one was wrong in a way that cost runs:
+ * it pressed the dash *at* the nearest body, and a dash with no movement key held goes the way the
+ * cursor points - so a bot that was standing still dashed into whatever frightened it, and one
+ * that was moving dashed wherever its feet were already going. It also moved the pointer to do it,
+ * which moves the guns. `tools/dash-habit.js` is the measurement that says so; see NOTES session 114.
  *
- * It goes on `onFrame`, after the step: a dash request is a tap kept until the next frame that
- * actually simulated reads it (src/input/index.js), which is exactly how a key press works.
- * The press lands on whatever the bot is already aiming at, so the one thing a dash must not do
- * to the instrument is move the cursor and change where the gun is pointed.
+ * `trigger` is how near a body has to be before pressing is worth it at all, and `push` how far out
+ * bodies vote on which way is out. Both are in units of the dash's own reach, which is the only
+ * honest yardstick for a dash, and both are measured rather than picked.
+ *
+ * The sweep is `tools/dash-habit.js --trigger N` over 30, 45, 60, 90, 110 and 170 px on sixteen
+ * seeds of ten minutes, on the two careless players (a die for the cards, on the human's hands and
+ * on the aware bot's). It is a cliff and not a peak. Pressing whenever a body is 170 px out - what
+ * the first habit did, with the number borrowed from the walk's own panic distance - *loses* runs:
+ * on the aware batch 12 of 16 died against 9 of 16 with no dash at all, and the score median fell
+ * from 12,914 to 5,773; the careless human's middle death came in at 2m27s against its own floor of
+ * 2m33s. Pressed at 45 px - one reach, which is contact plus the dozen px a closing body covers
+ * between two of a person's looks - the same aware batch reads **1 of 16 died at a middle of 7m20s
+ * with a score median of 42,893**, and the human's **4m32s against 2m33s**. A press spent early buys
+ * 220 px and then spends the wait walking back into a crowd that was never cleared; a press spent
+ * when something is actually reaching for the hull buys the only thing a dash can buy. 30 and 60 both
+ * measured well - 4m00s and 3m05s on the human's hands, 5m13s and 4m16s on the aware one's - and 45
+ * is the best of the three on both batches, which is the only reason it is the one that ships.
+ *
+ * What that is *not*, and the reason the sweep lives in a tool instead of in this comment: a dial on
+ * the player can always be turned until the numbers look better, and a bot tuned that way is a ruler
+ * that has been sanded down. What makes 45 a habit and not a tuning is that it is the press the dash
+ * was designed for - PLAN 3.1's get-out-of-jail, pressed when jail has you by the arms - and that the
+ * rate it comes out at is a person's rate, a dozen or sixteen presses in a fifteen-minute run
+ * instead of a hundred and seven.
+ *
+ * `push` stays wider than `trigger` on purpose: which way the crowd is not is a neighbourhood
+ * question, and the neighbourhood is what decides the direction; the press itself is about the one
+ * body that nearly has me.
+ *
+ * Exported, and mutable, for the one thing a fixed habit cannot do: the ladder sweeps `trigger` and
+ * prints what each value is worth, because "how cornered before you spend the dash" is a habit and
+ * not a law. Whoever sweeps it next writes the number back here.
+ */
+export const DASH = {
+  trigger: 45,
+  push: BALANCE.player.dash.distance * 0.77,
+};
+
+/** Put the habit's own numbers over, the way human.js's `setDial` does (tools/dash-habit.js). */
+export function setDashDial(dial) {
+  for (const key of Object.keys(dial)) {
+    if (DASH[key] === undefined) throw new Error('the dash habit has no number called ' + key);
+    if (!Number.isFinite(dial[key])) throw new Error(key + ' wants a finite number');
+  }
+  Object.assign(DASH, dial);
+  return DASH;
+}
+
+/** Is the ship flying, and is its dash spent nothing right now? */
+function dashReady(game) {
+  return game.world.state === game.STATE.PLAY && game.player.dashCd <= 0;
+}
+
+/** Straight away from one body, as a unit vector. */
+function awayFrom(game, enemy) {
+  const ship = game.player;
+  const dx = ship.x - enemy.x;
+  const dy = ship.y - enemy.y;
+  const d = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { x: dx / d, y: dy / d };
+}
+
+/**
+ * Every body within `range`, pushing the ship away, nearest loudest - the crowd's own opinion of
+ * which way is out. Null when the crowd is balanced enough to have no opinion, which the caller
+ * has to have a fallback for (a pinch is exactly when a dash is worth pressing and a push that
+ * cancels itself says nothing).
+ */
+function crowdPush(game, range) {
+  const ship = game.player;
+  let x = 0;
+  let y = 0;
+  for (const enemy of game.enemies) {
+    const dx = ship.x - enemy.x;
+    const dy = ship.y - enemy.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > range || d < 1e-6) continue;
+    const weight = (1 - d / range) / d;
+    x += dx * weight;
+    y += dy * weight;
+  }
+  const length = Math.sqrt(x * x + y * y);
+  return length < 1e-9 ? null : { x: x / length, y: y / length };
+}
+
+/**
+ * Take the part of a direction out that would spend the dash against a wall.
+ *
+ * Where the dash would actually put the ship is worked out from the dash's own distance, so a wall
+ * that is nowhere near the end of the dash has no say. Cancelling an axis can leave nothing at all
+ * - a ship in a corner with the crowd behind it pointing straight out of the world - and then the
+ * answer is that there is no dash worth pressing this frame, which is `null` and the caller's to
+ * respect. Holding the press costs one frame; a dash into a wall costs the wait.
+ */
+function offTheWalls(game, dir) {
+  const ship = game.player;
+  const field = game.world.field;
+  const reach = BALANCE.player.dash.distance;
+  let x = dir.x;
+  let y = dir.y;
+  if (x < 0 && ship.x + x * reach < field.x0) x = 0;
+  if (x > 0 && ship.x + x * reach > field.x1) x = 0;
+  if (y < 0 && ship.y + y * reach < field.y0) y = 0;
+  if (y > 0 && ship.y + y * reach > field.y1) y = 0;
+  const length = Math.sqrt(x * x + y * y);
+  return length < 1e-9 ? null : { x: x / length, y: y / length };
+}
+
+/**
+ * The shipped habit: when something is within `DASH.trigger`, throw the ship the way the crowd is
+ * *not* - the weighted push away from everything near, with the walls given a veto over the axis
+ * they stand on - and press the dash without moving the pointer, so the guns stay pointed where the
+ * policy pointed them.
+ *
+ * The habit is one of the lines' reason to exist: game/afterimage.js, game/tether.js and
+ * game/overcharge.js are priced against a bot that dashes, and a card cannot be priced against a
+ * press the instrument will not make. It is still opt-in (`tools/simulate.js --dash`), for the
+ * same honest reason it always was: every run measured in NOTES before it existed was measured
+ * with a bot that never touched the dash, and those numbers are that bot's.
+ *
+ * It runs *before* the frame is stepped, not after: the dash goes the way the keys mean at the step
+ * that grants it, so a habit that leans after the step has leaned one frame too late and the ship
+ * has already gone wherever the policy was going.
  */
 export function dashEscape(game) {
-  if (game.world.state !== game.STATE.PLAY) return;
-  const ship = game.player;
-  if (ship.dashCd > 0) return;
+  if (!dashReady(game)) return;
   const near = nearestEnemy(game);
-  if (near === null || near.distance2 > PANIC_RANGE * PANIC_RANGE) return;
+  if (near === null || near.distance2 > DASH.trigger * DASH.trigger) return;
+  const want = crowdPush(game, DASH.push) || awayFrom(game, near.enemy);
+  const out = offTheWalls(game, want);
+  if (out === null) return;
+  drive(game, out);
+  game.tapDash();
+}
+
+/**
+ * The first habit, kept so that the tool can measure against it: press the dash at the nearest
+ * body, pointer and all. It is what `--dash` meant up to 0.10.19, and it was measured at the panic
+ * distance of that time (170 px) on sixteen careless seeds: a middle of deaths of 1m13s on the
+ * human's hands against the 2m33s of the same bot leaving the dash alone, and 1m07s against
+ * 4m23s on the aware one's, with 70-76% of its dashes pointed at a body and 23-38% of them
+ * finishing inside one. That is the kind of thing a measurement instrument is not allowed to be
+ * quietly doing to the thing it measures.
+ *
+ * Which way it actually goes is not entirely its own doing. A dash follows the movement keys when
+ * any are held and the pointer only when none are (game/player.js `dashDirection`), so this habit
+ * lands on the body when the policy has let go of the keys and slides off its flee otherwise; the
+ * `at a body` column of tools/dash-habit.js is what says how often each, and it is why the harm
+ * this habit does is not only the direction - the pointer move yanks the guns off whatever they
+ * were pointed at, which is the one thing the bot's aim has to keep.
+ *
+ * Held at the shipped panic distance of 45 px it is no longer a disaster - sixteen careless seeds
+ * middle 4m28s against the get-out's 4m32s - and the reason is in the `at a body` column: pressed
+ * that late the policy always has a flee key held, so the pointer barely gets to steer at all (13%
+ * of its dashes pointed at a body, against the 70-76% it managed at the old distance). What the old
+ * habit was really doing, either way, was spending a hundred dashes a run on nothing at all.
+ * Direction and timing are both fixed here because a habit is one thing and not two, but only one
+ * of them was worth three minutes of a run.
+ */
+export function dashDive(game) {
+  if (!dashReady(game)) return;
+  const near = nearestEnemy(game);
+  if (near === null || near.distance2 > DASH.trigger * DASH.trigger) return;
   const on = game.screenOf(near.enemy.x, near.enemy.y);
   game.pressMouse(on.x, on.y, 2);
+}
+
+/**
+ * The same get-out, read off the threat model instead of off the crowd: dash the way the ship was
+ * already trying to walk (tools/headless/threats.js), which is the only reading that knows about a
+ * shot in the air or a line that has been drawn. Kept for the ladder because it is the version of
+ * the habit the *aware* bot alone is entitled to - the naive one has no eyes like these.
+ */
+export function dashAlongTheEscape(game) {
+  if (!dashReady(game)) return;
+  const near = nearestEnemy(game);
+  if (near === null || near.distance2 > DASH.trigger * DASH.trigger) return;
+  const escape = escapeDirection(game.world);
+  const want = escape.pressure > 1e-6 ? escape : awayFrom(game, near.enemy);
+  drive(game, want);
+  game.tapDash();
+}
+
+/** The habits by name, and the one `--dash` means. */
+export const DASH_HABITS = {
+  off: () => {},
+  escape: dashEscape,
+  dive: dashDive,
+  along: dashAlongTheEscape,
+};
+export const DEFAULT_DASH_HABIT = 'escape';
+
+/** The habit for a name; `undefined` means the shipped one, and `true` the same. */
+export function dashHabitOf(name) {
+  if (name === undefined || name === true) return DASH_HABITS[DEFAULT_DASH_HABIT];
+  const habit = DASH_HABITS[name];
+  if (!habit) throw new Error('no dash habit is called ' + name);
+  return habit;
 }
 
 /**
@@ -366,13 +549,17 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, at }
+ * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, at, dash }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
   const maxSeconds = opts.maxSeconds === undefined ? 600 : opts.maxSeconds;
   const frameLimit = Math.ceil(maxSeconds * 1000 / FRAME_MS);
   const picks = opts.picks;
+  // Which dash habit, if any. Leaving it out is the bot that never touches the dash at all, which
+  // is what every number already in NOTES.md was measured with; `true` is the shipped get-out and
+  // a name picks one of the others (tools/dash-habit.js is the ladder that compares them).
+  const dash = opts.dash === undefined || opts.dash === false ? null : dashHabitOf(opts.dash);
   // Checked before a single frame, because a batch of twenty long runs is the wrong place to
   // find out the picker's name was spelled wrong.
   pickerOf(picks);
@@ -418,6 +605,9 @@ export function playOneRun(game, options) {
   let vacuums = 0;
   while (frames < frameLimit) {
     botFrame(game, opts.policy, picks);
+    // Before the step and not after it: the dash goes whichever way the keys mean at the step that
+    // grants it, so a habit told after the step is always leaning one frame too late.
+    if (dash) dash(game);
     game.step(FRAME_MS);
     frames++;
     // "Start the run already five minutes in", asked honestly: the launch zeroes the clock and

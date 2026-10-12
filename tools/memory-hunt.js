@@ -317,7 +317,7 @@ async function flyLong(game, opts, onSample) {
       game.key('Space', false);
     } else {
       botFrame(game, opts.policy);
-      if (world.state === STATE.PLAY) dashEscape(game);
+      dashEscape(game);
     }
     game.step(FRAME_MS);
     frames++;
