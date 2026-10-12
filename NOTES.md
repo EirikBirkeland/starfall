@@ -13591,3 +13591,75 @@ inferred from two columns rather than measured. No number on the row moved.
    decision (`tools/difficulty-arc.js`), `tools/gun-tune.js` from session 96, `cageWall` is a thin wall
    for a protanope (deliberately unjudged), and the crowd pairs that share a colour want silhouettes -
    all of them art or judgement jobs a headless session cannot finish honestly.
+
+## Session 118 — The plan is finished. Released 1.0.0
+
+**Released v1.0.0**, the last milestone-10 item this project can take by itself. Nothing in `src/` moved:
+the session was the release itself, plus writing down what the release is.
+
+What the item asked for before cutting it was the two budgets, and both were re-read this session rather
+than trusted from session 116:
+
+- `tools/alloc-probe.js` — **PASS**, 4 gated loads: the schedule at full crowd 404 B a step, the endless
+  wall 515 B, that crowd dying **735 B** (the dearest gated step) against `STEP_BYTES` 896, spread out
+  499 B, and PLAN section 2's impossible scene 3.3 KB / 5 B a body against `BODY_BYTES` 5. The empty
+  arena is 64 B, which is the floor every one of those numbers is measured from.
+- `tools/perf-probe.js` — **PASS**, 4 gated scenes: the worst step **0.103 ms** against 1.5, the dearest
+  mean **3,407 canvas operations** against 4,000 and the dearest single frame 3,642 against 4,400.
+- `node --test` — 2,043 pass, 0 fail, 2m11s. `node tools/simulate.js` — a full run to the cap, no throw.
+  `tools/shake-meter.js` ran inside `release.sh`: the median run sat still 100% of frames against the 95%
+  it needs.
+
+Then the CHANGELOG entry, which is the part that took the care. **A release note is a set of claims with no
+test behind it**, so every number in it was looked up in the source rather than remembered, and two of my
+first guesses were wrong: `BALANCE.ships` has six keys but only **five ships** (`default` is the row the
+others are written against, and `hangar.js` says so — "four of the five ships" you can buy), and
+`BALANCE.weapons` has seven keys but only **five guns** (likewise `default`, plus `rateMax`, which is a cap
+and not a weapon). The rest, stated so the next session can re-check them: **19 upgrade lines**, **9 kinds**
+of enemy, **3 bosses** — `bosses.schedule` puts the Warden at 300 s, the Hive at 600 and the Eclipse at 900,
+so the scheduled run is fifteen minutes and the win is the Eclipse coming down — and **96 releases** were
+out before this one, every one of them still playable from the menu.
+
+PLAN got two edits. `- [ ] Release 1.0.0` is ticked with what it was checked against, so nobody has to
+wonder whether it was waved through. And the item that stays open — *the browser half of the performance
+pass* — now says out loud that it is the owner's: it wants the F3 plate put up on a real screen and flown to
+`bodies 200 / 200`, and there is no browser on this box. That is the only unchecked box in milestones 0–10,
+and it is unchecked because of where the work happens and not because anything is unfinished that can be
+finished here.
+
+The reference run (`--seed 20261006 --trace`) is byte for byte session 117's again — 10m00s / 73,982 /
+level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2,036 in — which is the proof a release that touches no
+`game/` file wanted: the same bytes, and now ninety-seven builds of them to choose from in the menu.
+
+### Things that surprised me
+- `release.sh` stamped this release itself: **+817 −3** lines since `v0.10.20` (which is session 117's work,
+  all of it in `tools/` and `test/` plus the two overcharge counters and the balance rows), with the session
+  log at 41,619,607 bytes. The stamping added for the menu has now carried four releases without a complaint.
+- Writing the entry found one loose number in the tooling, not in the game: the paint gate is a **mean** of
+  4,000 and a **worst frame** of 4,400, and my first line quoted the dearest worst frame against the mean
+  budget. The entry now quotes the mean against the mean. Said because it is the kind of slip a changelog is
+  full of everywhere, and the only defence is looking each number up where it lives.
+
+### Decisions, so nobody relitigates them
+- **1.0.0 and not 0.10.21.** AGENTS.md's `0.<milestone>.<patch>` is how the versions grew *through* the
+  milestones; PLAN's own item named this release `1.0.0`, and the event is the milestone list ending. From
+  here: **`1.0.<patch>` for fixes and measured retunes, `1.<minor>.0` for a feature that deserves its own
+  number** — the After-1.0 list is feature work, so it will start asking that question soon.
+- **The entry says the difficulty band was measured, not that it passed.** `tools/difficulty-arc.js` still
+  exits FAIL on the careless-build death window, deliberately and with the argument written in the row
+  (session 99-ish, repeated in the item). A 1.0 note that claimed the arc was inside PLAN's band would be
+  the first false thing in this file, so it doesn't.
+
+### What should come next
+1. **The After-1.0 list needs an item a headless session can actually finish.** Everything currently written
+   there is either done or waiting for a screen (the afterimage's flat top of the ladder, session 117). Of
+   PLAN's suggested ideas the one that is buildable *and* checkable from here is **challenge modifiers** —
+   double speed, one hull, no dash: each is a row in `BALANCE` plus a flag the sim can set, and the bot
+   already gives a fair yardstick (does the careless build die sooner, by how much, and does the careful one
+   still stand?). Write it as a PLAN item first, as the After-1.0 section asks.
+2. A **fourth boss** is the other big thing that could be built blind, but it is a piece of *art* as much as a
+   machine: `bosses.js` is 2,000 lines of beats and the plan's pillar is that a boss is a pattern you learn by
+   eye. It wants a session that can look at it.
+3. Still owed and unchanged from session 117's list: the difficulty band's FAIL by decision, `tools/gun-tune.js`
+   from session 96, `cageWall` as a thin wall for a protanope, and the crowd pairs that share a colour wanting
+   silhouettes. All four want eyes on a screen.
