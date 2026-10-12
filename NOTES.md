@@ -13663,3 +13663,116 @@ level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2,036 in — which is the proo
 3. Still owed and unchanged from session 117's list: the difficulty band's FAIL by decision, `tools/gun-tune.js`
    from session 96, `cageWall` as a thin wall for a protanope, and the crowd pairs that share a colour wanting
    silhouettes. All four want eyes on a screen.
+
+## Session 119 — The first After-1.0 feature: three harder rules, and the ladder that prices them. Released 1.1.0
+
+**Released v1.1.0**: challenge modifiers. `X` cycles the *next* run between nothing, **ONE HULL**, **NO
+DASH** and **SWIFT CROWD** (a 1.4x crowd and 1.4x enemy shot speed), one rule at a time. This is the item
+session 118 wrote into PLAN's After-1.0 list, and it is the first feature to get its own minor number under
+the version rule that session wrote too.
+
+### What shipped
+- `src/game/challenges.js` — the whole rule set in one file, in the split `game/perks.js` uses: the table
+  (`CHALLENGES`: id, name, sentence), the cycle, four levers, and the words. `BALANCE.challenges` is the
+  number sheet (`brittle.hull`, `grounded.dash`, `swift.speedMul`, and `gatedOn`, which lines a rule makes
+  pointless). Nothing is cached into a ship: each lever is asked *where the number it changes is already
+  read* — `run.js` after the ship's row and the hangar's plating have written the hull, `player.js`
+  `beginDash` where a dash is granted, `kinds.js` `makeEnemy` and `enemyshots.js` `enemyShotAt` where a
+  speed and a velocity are worked out, `upgrades.js` `linesWithRoom` and `guaranteeSomethingNew` where the
+  deck is filtered for a card the run cannot spend. With no rule flying every lever answers its neutral
+  number, and that is why `tools/simulate.js` is **byte for byte 1.0.0's** (checked against a `git worktree`
+  of HEAD, not from memory: seed 1, 10m00s, score 73,399, level 56, 3,890 kills, build 4/3/3/3/3/4/…).
+- Said out loud in five places, because a rule the player forgot is a rule the game cheated with: the title's
+  own column, the HUD beside the clock (pink — the arena's colour for the thing that hurts you, not the gold
+  of ENDLESS or the dim blue of the day), the pause's rack, and both ending cards. Empty means no rule and an
+  empty line takes its space with it, so an ordinary screen is the screen it always was. Under NO DASH the
+  dash's ready ring is not drawn at all: a ring promising a jump that never arrives is a lie told sixty times
+  a second.
+- `tools/challenge-cost.js` — the ladder. Same seeds flown under each rule, careless hand (`--bot human
+  --picks random`, pressing the shipped get-out dash), and a **verdict** rather than a table: a rule has to
+  beat 0.95x plain's middle score or it is reported as a flavour setting, and a rule that lets the batch
+  *outlive* plain fails whatever it scored. `verdictOf` is exported behind the `isMain` guard and
+  `test/challenge-cost.test.mjs` asserts on it with made-up rows, so the decision is testable without
+  minutes of simming (the shape `tools/ghost-grid.js` settled on).
+- `test/challenges.test.mjs` — 21 checks: the table and its words, the cycle, each lever moving exactly its
+  own number, the two dash lines leaving the deck, the hull override standing over both the ship's row and
+  five ranks of plating, the title line, the HUD mark, both cards, the pause row, the key, and the headless
+  door. 26 new checks in all; **2,069 pass, 0 fail** (from 2,043).
+
+### The measurements (`node tools/challenge-cost.js`, 8 seeds × 5m, careless hand)
+| rule | middle death | died | middle score | vs plain | hulls lost |
+| --- | --- | --- | --- | --- | --- |
+| plain | 3m53s | 6/8 | 7,035 | 1.00x | 28 |
+| ONE HULL | 1m57s | 8/8 | 2,768 | **0.39x** | 8 |
+| NO DASH | 3m03s | 5/8 | 9,650 | 1.37x | 40 |
+| SWIFT CROWD | 2m53s | 8/8 | 3,192 | **0.45x** | 24 |
+
+Both judged rules are paid for in the score column and both die sooner, which is the pair the verdict asks
+for. NO DASH reads *better* than plain for this hand and is reported and never judged — see the decision
+below. `hulls` is the column that says whether the ladder could see a rule at all: an aware bot finishes a
+5m run with hull to spare, so it is blind to ONE HULL and the tool says `not measurable on this ladder`
+instead of passing a rule it never touched. `--speed` sweeps the swift multiplier without touching a source
+file, because the sim reads `BALANCE.challenges.swift.speedMul` every time it builds a body.
+
+Machine cost is unchanged where it could have moved: `tools/alloc-probe.js` **PASS** (dearest gated step
+764 B), `tools/perf-probe.js` **PASS** (worst step 0.113 ms against 1.5, dearest mean 3,407 operations
+against 4,000), `tools/shake-meter.js` inside `release.sh` still 100% still against the 95% it needs.
+
+### Things that surprised me
+- **A test file that calls `game.stop()` at top level breaks every test in the file, silently, and the
+  failure looks like a game bug.** Mine ran the stop at the bottom of the module — which is *before* `test()`
+  bodies run, because the file body is evaluated first — so the frame loop was dead and every run in the file
+  had 0 steps, 0 enemies and `t` 0 forever. Two hours of suspicion about `chooseChallenge` were two hours
+  about one line in my own test file. The fix is one line (`stop()` inside a test, or not at all, which is what
+  `test/daily.test.mjs` does) and the lesson is bigger than the bug: **when a fresh test file says the sim did
+  nothing, look at the file's own top level before you look at the sim.** Three other test files call
+  `game.stop()`, always inside a test body, so nothing else was sitting on this.
+- Diagnosing it needed a bisect that could not be done by editing the file, so I made throwaway copies in
+  `.scratch/` and diffed behaviour between two near-identical files. Worth knowing that trick exists: `.scratch/`
+  is gitignored and `node --test .scratch/x.test.mjs` works.
+- `world.perkRanks` and not `world.perks` — the plating ranks are `perkRanks` on the world (`game/perks.js`
+  `rankOf` reads that). My test guessed the shorter name and got `undefined` for a rank.
+- The key-count tests caught the new control exactly as designed: `test/keymap.test.mjs` prints the whole
+  shipped table, and `test/keys.test.mjs` counts the rack's rows, walks to its last row and rebinds every
+  one of them onto its own letter. Fourteen rows now. The rebind test had to *drop* `KeyX` from its letter
+  list — X belongs to a row now, and binding another row onto it is a swap, which is a different thing for
+  the test to be doing.
+- Only **two** of the three dash cards are gated on the dash. `tether.js` and `afterimage.js` both measure
+  how far a dash has travelled off `player.dashLeft`; `overcharge.js` only refuses to load *while* a dash is
+  in progress, so it works perfectly well for a ship that cannot jump. `gatedOn.grounded` is those two ids and
+  no third, and the synergies needed no handling: a synergy is dealt only when `needsMet` has the run holding
+  the base line, and a base line that is never dealt can never be held.
+
+### Decisions, so nobody relitigates them
+- **One rule at a time, not a stack.** Combinations multiply into rules nobody measured. A combination, when
+  it is wanted, is its own row with its own yardstick.
+- **The choice lives for the visit, not in the save** — exactly like `world.ship` and `world.weapon`. A saved
+  challenge is a game that is secretly harder for somebody who switched it on weeks ago, and the only cure
+  for a rule nobody remembers is a rule nobody can leave set.
+- **X answers on the title and on the death's card, and nowhere else.** Not mid-run, not while held, not over
+  a card table, and not on the win's card: a won run can be *resumed*, and changing its rules under it would
+  be rewriting a fight that was already fought. `main.js`'s `onChallenge` says all of this above itself.
+- **NO DASH is reported and never judged**, in the tool and not just in prose: `verdictOf` prints the ratio
+  and holds back the verdict, because what a jump is worth is a question about a person's hands and the bot
+  presses it a handful of times a quarter hour. Passing it on the bot's 1.37x would have been the tool lying;
+  failing it would have been the tool pretending to be a player.
+- **The swift crowd speeds bodies and enemy shots, and not a boss's beats.** A telegraph sped up is a pattern
+  nobody can learn, and "learn the pattern" is the pillar this rule must not lean on.
+- **A rule has to beat 0.95x plain** (`MIN_COST` 0.05 in the tool). The batches are paired on identical seeds,
+  so that number is not a noise allowance, it is the claim that a rule which costs a run less than a
+  twentieth of its score is not the rule its card says it is.
+- **A record per challenge stayed out**, as the PLAN item says: a best under each line wants a save section
+  and a panel of its own, and that is the next item, not a fourth lever on these three.
+
+### What should come next
+1. **A best per rule**, the way the day keeps its own (`game/daily.js`): a save section, a line on the title
+   under the choice, and a row in the standings rack. It is the natural completion of this and it is entirely
+   buildable headless — the seed, the rule and the window are all three already in `stats()`.
+2. **More rules, each with its own row and its own ladder**: a crowd that grows between the bosses, a hull that
+   will not heal (an elite's gift and the leech both spend into nothing), a schedule that skips the second
+   boss so the Eclipse arrives at 5m. The frame now costs one `BALANCE.challenges` row, one lever and one
+   `CHALLENGES` entry each, so the next one is cheap; the ladder is the work, and it already knows how to
+   refuse a rule it cannot see.
+3. The four items still owed to a screen, unchanged from session 118: the browser half of the performance
+   pass (F3 plate against `bodies 200 / 200`), the difficulty band's deliberate FAIL, `tools/gun-tune.js`,
+   `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
