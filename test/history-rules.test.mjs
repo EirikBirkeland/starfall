@@ -21,6 +21,7 @@ import {
   continueRun, endRun, resetRun, victoryCardIsAnswerable, winRun,
 } from '../src/game/run.js';
 import { logKeeps, runLedger } from '../src/game/history.js';
+import { setChallenge } from '../src/game/challenges.js';
 import { setShip } from '../src/game/ships.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
@@ -153,6 +154,32 @@ test('the ledger is the log, and not the log itself', () => {
   assert.equal(world.pastRuns[0].seed, 1);
 });
 
+test('a run flown under a harder rule says which one, and a plain one says nothing', () => {
+  // A score is quoted with its units (game/challenges.js): 90,000 under ONE HULL is not the same
+  // number as 90,000 flown plain, and the log is where a run's number outlives its card.
+  const world = freshVisit(8);
+  setChallenge(world, 'brittle');
+  flyTheRun(world, 606, 90000, 300);
+  endRun(world);
+  assert.equal(world.pastRuns[0].rule, 'brittle', 'the rule the score was scored under');
+
+  // Take the rule off and the next row has no rule to speak of - not a word for "none", but the
+  // absence, which is what every row flown before rules existed says too (core/save.js `optional`).
+  setChallenge(world, '');
+  resetRun(world);
+  flyTheRun(world, 607, 90000, 300);
+  endRun(world);
+  assert.equal(world.pastRuns.length, 2);
+  assert.equal('rule' in world.pastRuns[0], false, 'a plain row carries no rule field');
+  assert.deepEqual(Object.keys(world.pastRuns[0]), ['seed', 'ship', 'seconds', 'score', 'won'],
+    'the same five fields a row has ever had, in the same order');
+
+  // The rule belongs to the run and not to the visit: a row keeps the rule it was flown under when
+  // the row above it was flown under none, and neither borrows from the next run.
+  assert.deepEqual(world.pastRuns.map((run) => run.rule), [undefined, 'brittle'],
+    'newest first, each row keeping its own rule');
+});
+
 test('the log goes to the save document, in the shape the next visit reads', () => {
   // The store is the point of the whole exercise, so the write is checked from the outside: a fake
   // browser's storage, and what the game put in it at the ending.
@@ -179,6 +206,28 @@ test('the log goes to the save document, in the shape the next visit reads', () 
     endRun(world);
     assert.equal(JSON.parse(store['starfall.save']).runs.log.length, 1, 'still one row');
     assert.equal(JSON.parse(store['starfall.save']).runs.log[0].score, 7000);
+
+    // ...and the rule travels with it: the run this one was won under is the run the row is about,
+    // so the rule the score was scored under goes into the document with the score.
+    setChallenge(world, 'swift');
+    flyTheRun(world, 5150, 9000, 240);
+    endRun(world);
+    const ruled = JSON.parse(store['starfall.save']).runs.log[0];
+    assert.equal(ruled.rule, 'swift');
+    assert.equal(ruled.score, 9000, 'and it is still the one row this run has');
+
+    // A plain run writes a plain row, byte for byte the text a row was made of before rules existed -
+    // the whole reason the field is optional and there is nothing to migrate (core/save.js).
+    setChallenge(world, '');
+    resetRun(world);
+    flyTheRun(world, 5151, 1000, 30);
+    endRun(world);
+    const rows = JSON.parse(store['starfall.save']).runs.log;
+    assert.equal(rows.length, 2, 'the new run is its own row on top of the ruled one');
+    assert.equal(JSON.stringify(rows[0]),
+      '{"seed":5151,"ship":"wisp","seconds":30,"score":1000,"won":false}',
+      'no word for "none", and no rule key to explain');
+    assert.equal(rows[1].rule, 'swift', 'and the row under it still says what it was flown under');
   } finally {
     delete globalThis.window;
   }

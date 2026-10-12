@@ -25,7 +25,7 @@ import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { endingWords, hullLedger } from '../game/tally.js';
 import { cardWords, titleWords } from '../game/daily.js';
-import { cardWords as challengeCardWords, titleWords as challengeTitleWords, CHALLENGES, saysOf } from '../game/challenges.js';
+import { cardWords as challengeCardWords, titleWords as challengeTitleWords, CHALLENGES, nameOf, saysOf } from '../game/challenges.js';
 import { clockWords } from '../core/words.js';
 import { wordsOf } from '../core/keymap.js';
 import { uiTick } from '../audio/sfx.js';
@@ -775,6 +775,9 @@ function paintEntries(rows, entries, met, refused) {
     same word the win's own card opens with, because it is the same fact. */
 const LOG_CLEARED = 'CLEARED';
 
+/** The join between the facts on a log row's second line - the same three-space dot every rack uses. */
+const LOG_DOT = '   \u00b7   ';
+
 /**
  * The ship a log row names (game/ships.js). A save written by a newer build can name a ship this
  * build has never met - the store keeps any well-formed name and it is not wrong to (core/save.js)
@@ -786,16 +789,37 @@ function logShip(id) {
 }
 
 /**
+ * The rule a log row says its run was flown under, joined to the line with the same dot as every
+ * other fact on it - and '' for a run that was not flown under one, which is every run ever flown
+ * before rules existed as well as every plain one since (game/challenges.js, `KINDS.optional` in
+ * core/save.js). Saying nothing *is* the sentence: a row that had to name the absence would have to
+ * name it for rows that predate the field, and the rack would be lying about them.
+ *
+ * A rule id this build has never heard of is named by its own text, the same way an unknown ship is,
+ * so a log written by a newer page still says what it says.
+ */
+function logRule(id) {
+  if (id === undefined) return '';
+  const name = nameOf(id);
+  return LOG_DOT + (name === '' ? String(id).toUpperCase() : name);
+}
+
+/**
  * What one run's row says (game/history.js): which seed it was flown on - which is how a run gets
- * asked for again, `?seed=` in the address bar - and then the four facts about the flying of it: the
- * body it was flown in, how long it lasted, what it scored, and whether it cleared the schedule.
+ * asked for again, `?seed=` in the address bar - and then the facts about the flying of it: the body
+ * it was flown in, how long it lasted, what it scored, the rule it was flown under if it had one,
+ * and whether it cleared the schedule.
+ *
+ * The rule goes next to the score and not after the win, because it is the score's units: a 90,000
+ * flown under ONE HULL is not the same number as a 90,000 flown plain (game/challenges.js).
  */
 function logLine(run) {
   return {
     name: 'SEED ' + run.seed,
-    says: logShip(run.ship) + '   \u00b7   ' + clockWords(run.seconds)
-      + '   \u00b7   ' + run.score.toLocaleString('en-US')
-      + (run.won ? '   \u00b7   ' + LOG_CLEARED : ''),
+    says: logShip(run.ship) + LOG_DOT + clockWords(run.seconds)
+      + LOG_DOT + run.score.toLocaleString('en-US')
+      + logRule(run.rule)
+      + (run.won ? LOG_DOT + LOG_CLEARED : ''),
   };
 }
 

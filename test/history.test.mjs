@@ -120,3 +120,30 @@ test('launching a run takes the rack down with the rest of the panel and keeps e
   assert.equal(game.screen.codexHidden, true, 'and the panel went down for the run');
   assert.equal(game.stats().runs, 2, 'the log is the save\'s, not the run\'s, and it stayed whole');
 });
+
+test('a run flown under a harder rule says so on its row, and a plain one does not', async () => {
+  // The point of the row's fifth fact (game/challenges.js): a 90,000 scored under ONE HULL is not the
+  // same number as a 90,000 flown plain, and the rack is where both are printed in one column.
+  await game.resetToTitle(777);
+  playOneRun(game, { maxSeconds: 600, policy: 'naive', challenge: 'brittle' });
+  const stats = game.stats();
+  assert.equal(stats.state, game.STATE.OVER);
+  assert.equal(stats.runLog[0].rule, 'brittle', 'the row says which rule the score was scored under');
+
+  const ruled = rack()[0].says.split(DOT);
+  assert.equal(ruled[0], BALANCE.ships[stats.ship].name);
+  assert.equal(ruled[3], 'ONE HULL', 'and so does the rack, next to the score it belongs to');
+  assert.equal(rack()[1].says.split(DOT).length, 3,
+    'the plain run under it says nothing about a rule, because it had none');
+  assert.equal(saveIn(game).runs.log[0].rule, 'brittle', 'and the next visit will be able to read it');
+
+  // The rule is the run's and not the rack's. The *choice* outlives a run like the ship pick does
+  // (game/challenges.js), so the plain run below has to say `''` out loud - and its row keeps its
+  // three facts while the ruled one sits under it, so the column never says ONE HULL about a run
+  // that was not flown under one.
+  await game.resetToTitle(778);
+  playOneRun(game, { maxSeconds: 600, policy: 'naive', challenge: '' });
+  assert.equal('rule' in game.stats().runLog[0], false, 'no rule flown, no rule on the row');
+  assert.equal(rack()[0].says.split(DOT).length, 3, 'and the row says three things, as a plain one does');
+  assert.equal(rack()[1].says.split(DOT)[3], 'ONE HULL', 'while the ruled row keeps its own');
+});

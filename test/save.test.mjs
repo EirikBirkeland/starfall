@@ -307,6 +307,48 @@ test('a run record that is not whole is dropped, and the log keeps its neighbour
     'the whole records survived, and the one unknown field did not ride along');
 });
 
+test('a run record is allowed to lack a rule, and not to invent one', () => {
+  // The one optional field in the document (`KINDS.optional`), and the reason it exists: the run log
+  // has been written for seven milestones and the harder rules arrived after 1.0, so every row in
+  // every save already out there predates the field. Judging it whole would have thrown away twenty
+  // runs of somebody's history the first time a newer page read them.
+  const LOG = { log: [] };
+  const predating = [runRecord(11), runRecord(12, { score: 0, won: true })];
+  browser(stored({ runs: { log: predating } }));
+  assert.deepEqual(section('runs', LOG).log, predating,
+    'a row with no rule is a whole row, and stays without one');
+  assert.equal('rule' in section('runs', LOG).log[0], false,
+    'and nothing is invented for the gap - the reader says what absent means');
+
+  const ruled = [runRecord(13, { rule: 'brittle' })];
+  browser(stored({ runs: { log: ruled } }));
+  assert.deepEqual(section('runs', LOG).log, ruled, 'a rule that is a name rides along');
+
+  // But "allowed to be absent" is not "allowed to be nonsense". A rule that is present and is not a
+  // name is the field being the wrong kind, and a record is still judged whole: the row goes, and the
+  // rows either side of it keep their places and their order.
+  const rubbish = [
+    runRecord(21),
+    runRecord(22, { rule: 'ONE HULL' }),    // a name on the glass is not an id (game/challenges.js)
+    runRecord(23, { rule: '' }),            // not a name, and not how this document says "none"
+    runRecord(24, { rule: null }),          // not a name
+    runRecord(25, { rule: 2 }),             // not a name
+    runRecord(26, { rule: 'grounded' }),
+  ];
+  browser(stored({ runs: { log: rubbish } }));
+  assert.deepEqual(section('runs', LOG).log, [rubbish[0], rubbish[5]],
+    'the ruled row survived, the four that lied about it did not');
+
+  // A write goes out the same way: a ruled row keeps its rule, and a plain one writes exactly the
+  // text a row was made of before rules existed - which is what there is no migration to write.
+  const store = browser({});
+  assert.equal(remember('runs', { log: [runRecord(31), runRecord(32, { rule: 'swift' })] }), true);
+  assert.deepEqual(parsed(store).runs.log,
+    [runRecord(31), runRecord(32, { rule: 'swift' })], 'both rows as they were given');
+  assert.equal(text(store).indexOf('"rule"'), text(store).lastIndexOf('"rule"'),
+    'exactly one rule in the whole document, because only the ruled row has one to say');
+});
+
 test('a log that is not a log is not stored, and an empty one is an answer', () => {
   const first = runRecord(1);
   const ONE = { log: [first] };

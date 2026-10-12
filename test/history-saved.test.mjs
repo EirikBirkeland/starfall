@@ -26,11 +26,15 @@ const FRAME = 16.7;
 const KEEP = logKeeps();
 const DOT = '   \u00b7   ';
 
-/** The three rows every assertion here is about: a cleared one, one in an unknown ship, and an empty. */
+/** The rows every assertion here is about: a cleared one, one in an unknown ship, an empty, and two
+    that were flown under a rule - one of them under a rule this build has never heard of, which the
+    store keeps for the same reason it keeps the unknown ship: it is a well-formed name (game/history.js). */
 const AWKWARD = [
   { seed: 999, ship: 'volt', seconds: 61, score: 4321, won: true },
   { seed: 3031, ship: 'sandpiper', seconds: 5, score: 10, won: false },
   { seed: 7, ship: 'wisp', seconds: 0, score: 0, won: false },
+  { seed: 808, ship: 'wisp', seconds: 40, score: 90000, won: false, rule: 'brittle' },
+  { seed: 909, ship: 'volt', seconds: 12, score: 500, won: true, rule: 'upside-down' },
 ];
 
 /** Enough more rows to arrive past what this build keeps, oldest last (seeds 400 up). */
@@ -66,13 +70,19 @@ test('the log it arrived with is the log it opens on, newest first, up to what t
   // skipped, and the rows past this build's number were never read at all.
   assert.deepEqual(game.stats().runLog, CAME_WITH.runs.log.slice(0, KEEP));
 
-  assert.deepEqual(game.screen.pastRuns.slice(0, 3), [
+  assert.deepEqual(game.screen.pastRuns.slice(0, 5), [
     { name: 'SEED 999', says: 'VOLT' + DOT + '1m01s' + DOT + '4,321' + DOT + 'CLEARED' },
     // The ship this build does not know is named by its own id rather than throwing the rack away,
     // and a run that was not a win says nothing about clearing anything.
     { name: 'SEED 3031', says: 'SANDPIPER' + DOT + '5s' + DOT + '10' },
     // A run that scored nothing in no seconds at all is still a run, and gets its line.
     { name: 'SEED 7', says: 'WISP' + DOT + '0s' + DOT + '0' },
+    // A run flown under a rule says which, next to the score it was scored under - the row is not
+    // this build's first, and the rack does not get to forget that (game/challenges.js).
+    { name: 'SEED 808', says: 'WISP' + DOT + '40s' + DOT + '90,000' + DOT + 'ONE HULL' },
+    // ...and a rule this build has never met is named by its own text, the same way an unknown ship
+    // is, because the row is the save's and the save is allowed to be newer than the page.
+    { name: 'SEED 909', says: 'VOLT' + DOT + '12s' + DOT + '500' + DOT + 'UPSIDE-DOWN' + DOT + 'CLEARED' },
   ]);
   assert.equal(game.screen.pastRuns.length, KEEP, 'and the rack painted no row the visit does not hold');
   assert.equal(game.screen.pastRuns[KEEP - 1].name, 'SEED ' + (400 + KEEP - AWKWARD.length - 1),
@@ -99,6 +109,12 @@ test('the runs of this visit go on top, and the oldest rows finally come off the
   assert.equal(game.screen.pastRuns[KEEP - 1].name, 'SEED ' + (400 + KEEP - AWKWARD.length - 2),
     'and the bottom row is one the visit read in, slid down one and not off the end');
 
+  // The run this visit flew stood under no rule, so its row says the three things a plain row says -
+  // the same three a row written before rules existed says, which is the whole trick of the field
+  // being an absent one instead of a word for "none" (core/save.js `KINDS.optional`).
+  assert.equal(game.screen.pastRuns[0].says.split(DOT).length, 3);
+  assert.equal(game.screen.pastRuns[1].says.split(DOT).length, 4, 'and the cleared row keeps its four');
+
   // The write carries this build's twenty: the new row, nineteen of the ones that came in, and the
   // ship this page cannot name riding along with all of them - a row this build cannot name is still
   // this save's row, and it is not this page's to lose.
@@ -107,4 +123,6 @@ test('the runs of this visit go on top, and the oldest rows finally come off the
   assert.equal(written[0].seed, stats.seed);
   assert.deepEqual(written.slice(1), CAME_WITH.runs.log.slice(0, KEEP - 1));
   assert.equal(written.map((run) => run.ship).indexOf('sandpiper') > 0, true, 'it rode along');
+  assert.equal(written[5].rule, 'upside-down', 'and so did the rule this page cannot name');
+  assert.equal('rule' in written[0], false, 'while the plain run it just flew wrote no rule at all');
 });

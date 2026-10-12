@@ -1993,7 +1993,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       byte for byte the run it was: `tools/simulate.js` on seed 20261006 traces the same 10 minutes it
       traced before this existed.
 
-- [ ] The run log does not say which rule a run was flown under. A row of the codex's fourth rack is a
+- [x] The run log does not say which rule a run was flown under. A row of the codex's fourth rack is a
       seed, a body, a clock, a score and a win (game/history.js), and a 90,000 scored on ONE HULL sits in
       that column next to a 90,000 flown plain, which is the exact thing the last item was written to stop.
       It is not a line of code: `core/save.js` `records` judges every field of a row whole — a record that
@@ -2002,6 +2002,30 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       store grows a honest kind for "a field a row written before it existed is allowed to lack", or the
       log is rewritten once on the way in with the plain answer filled in. Both are store work with a
       migration in it, which is why it is an item and not a patch.
+      **Done, and the migration turned out to be the half that was not needed.** The store grew the honest
+      kind — `KINDS.optional(inner)` wraps another kind and says *a record may arrive without this field*,
+      which `records` reads as its own answer: an absent field is left **off the record** rather than filled
+      with a stand-in, and a reader that owns the field decides what absent means. That is the whole trick,
+      because it makes the absence the answer instead of a word for it: an ordinary run writes a row that is
+      byte for byte the row it always wrote (`{"seed":…,"won":false}` and nothing more), a row written before
+      rules existed reads back as exactly that same row, and so there is nothing to rewrite on anybody's
+      way in — no migration, no save version bump, no first-read write that would break the store's own "a
+      read never destroys" promise. A rule that *is* there is still judged by the inner kind, so "allowed to
+      be absent" is not "allowed to be nonsense": a row with `rule: 'ONE HULL'` or `rule: ''` or `rule: 4` is
+      a wrecked row and is dropped with its neighbours intact, and `''` is refused on purpose because the
+      document says "none" by not naming one, the same way an unmapped control is simply not in `keys.binds`.
+      `runs.log`'s row is therefore seed, ship, seconds, score, won, and `rule` when it had one
+      (game/challenges.js's id, not its display name). The codex's fourth rack prints the rule next to the
+      score it is the units of — `WISP · 40s · 90,000 · ONE HULL` — and says nothing for a plain row, which
+      is the only sentence that is true of a row that predates the field; a rule id this build has never met
+      is named by its own text, exactly as an unknown ship already was. Tested at every layer it touches:
+      a test in `test/save.test.mjs` over the new kind (predecessor rows read whole, rubbish refused, a
+      plain row's written text proved byte for byte), one in `test/history-rules.test.mjs` that a row keeps
+      the rule its own run flew while the plain row above it says nothing, one in `test/history.test.mjs`
+      over a real visit — ruled run, plain run, both rows in the save — and `test/history-saved.test.mjs`
+      now arrives with a ruled row and a row under a rule that does not exist here. The reference run is
+      untouched — `tools/simulate.js --trace` on seed 20261006 traces identically against a `git worktree`
+      of the previous commit, which is what a mirror read at endings and never in a step is supposed to do.
 
 - [x] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
       the dash at the screen point of the nearest body, and a dash taken with no movement key held goes

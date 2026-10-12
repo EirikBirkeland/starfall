@@ -116,6 +116,29 @@ const KINDS = {
   /** One short name on its own - one field of a record, where `names` below is a whole set. */
   name: (value) => (typeof value === 'string' && NAME.test(value) ? value : null),
   /**
+   * Wraps another kind to say that a *record* is allowed to arrive without this field at all - which
+   * is how a field is added to a row shape that runs have been written under for weeks (see
+   * `records`). A row written before the field existed is not a wrecked row, it is a row that has
+   * nothing to say about that field, and judging it whole would throw away the player's history the
+   * first time the newer build read it.
+   *
+   * The lack is not filled in with a stand-in: the record comes back *without the key*, and whoever
+   * owns the field decides what "not there" means (game/history.js prints nothing about a rule a run
+   * was not flown under, which is what an old row and a plain new one both are). That is also what
+   * makes the addition cost nothing: a row with nothing to say writes exactly the text it wrote
+   * before the field existed, so there is no migration to write and no save to rewrite.
+   *
+   * A value that *is* there is judged by `inner` like any other, because "allowed to be absent" is
+   * not "allowed to be nonsense" - and it is not `inner`'s own empty answer either: `''` is not a
+   * name, and a document says "no rule" by not naming one, the same way an unmapped key is simply
+   * not in `keys.binds`.
+   */
+  optional: (inner) => {
+    const kind = (value) => (value === undefined ? undefined : inner(value));
+    kind.optional = true;
+    return kind;
+  },
+  /**
    * A set of short names, kept as a list: which ships the purse has bought, later which perks.
    * The store knows it is a list of names and nothing about what the names mean - the feature
    * that owns them does (game/hangar.js), which is the same split the whole document is built on.
@@ -196,7 +219,8 @@ const KINDS = {
   /**
    * A log of small records: the last twenty runs, and what each one was (game/history.js, PLAN
    * 3.7). Where `names` is a set and `counts` a ledger, this is a *list of rows*, and the rows are
-   * small fixed shapes - one object per run, holding a seed, a ship, a time, a score and a win.
+   * small fixed shapes - one object per run, holding a seed, a ship, a time, a score, a win and the
+   * rule it was flown under, if it had one.
    *
    * Two things make this kind different from the other two lists, and both of them matter:
    *
@@ -204,10 +228,12 @@ const KINDS = {
    *   hands back exactly as it came: nothing is sorted and nothing is deduped - the same seed flown
    *   twice is two runs and two rows, which is the truth about them.
    *
-   *   **An entry is judged whole.** Every field in `fields` is required, and one field that is not
-   *   that kind condemns the whole row rather than just itself: a record that lost its score is not
-   *   a record with a spare field, it is a line that cannot be printed. Its neighbours on the list
-   *   are kept, as always.
+   *   **An entry is judged whole.** Every field in `fields` is required unless it is wrapped in
+   *   `optional`, and one field that is not that kind condemns the whole row rather than just
+   *   itself: a record that lost its score is not a record with a spare field, it is a line that
+   *   cannot be printed. Its neighbours on the list are kept, as always. A row that lacks an optional
+   *   field is whole and keeps the hole - the key is left off the record rather than filled with a
+   *   stand-in, so a reader can tell "this row never had one" from "this row had one and it was this".
    */
   records: (maxEntries, fields) => (value) => {
     if (!Array.isArray(value)) return null;
@@ -220,6 +246,13 @@ const KINDS = {
       for (const name of names) {
         const read = fields[name](entry[name]);
         if (read === null) { whole = false; break; }
+        // An absent optional field: the row never had one, so the record does not either. Anything
+        // else that came back with nothing is a required field the row is missing, and that is the
+        // row being unprintable - which is the answer two lines above.
+        if (read === undefined) {
+          if (fields[name].optional !== true) { whole = false; break; }
+          continue;
+        }
         record[name] = read;
       }
       if (whole) kept.push(record);
@@ -234,9 +267,9 @@ const KINDS = {
 };
 
 /**
- * What one entry of the run log is made of (game/history.js). Every field is required: a record
- * missing one is not a half a run, it is a wrecked line, and a wrecked line in a log of twenty is
- * dropped rather than printed with a hole where the score should be.
+ * What one entry of the run log is made of (game/history.js). Every field is required but the last:
+ * a record missing one is not a half a run, it is a wrecked line, and a wrecked line in a log of
+ * twenty is dropped rather than printed with a hole where the score should be.
  */
 const RUN_FIELDS = {
   seed: KINDS.whole(MAX_SEED),
@@ -244,6 +277,12 @@ const RUN_FIELDS = {
   seconds: KINDS.whole(MAX_RUN_SECONDS),
   score: KINDS.whole(MAX_WHOLE),
   won: KINDS.flag,
+  // Which harder rule the run was flown under (game/challenges.js) - and the one optional field
+  // here, because runs have been logged since milestone 3 and rules only arrived after 1.0, so
+  // every row in every save already out there predates this line. An ordinary run leaves it off
+  // rather than writing a word for "none", which is what lets a plain row be the same text it was
+  // before the field existed and what lets an old row need no migration at all.
+  rule: KINDS.optional(KINDS.name),
 };
 
 // The document's definition: the sections, and the kind of every key in them. A section that is
@@ -276,8 +315,9 @@ const SCHEMA = {
   },
   // The runs themselves (game/history.js, PLAN 3.7): the last twenty, newest first, each one a
   // record of what was flown - the seed it was flown on, the ship that flew it, how long it lasted,
-  // what it scored, and whether it ended in a win. One field and not one per fact because a run is
-  // one thing, and because the store has no business knowing what a run means (see `records`).
+  // what it scored, whether it ended in a win, and the harder rule it stood under when it had one.
+  // One field and not one per fact because a run is one thing, and because the store has no business
+  // knowing what a run means (see `records`).
   runs: {
     log: KINDS.records(MAX_RUNS, RUN_FIELDS),
   },
@@ -440,7 +480,10 @@ function normalise(parsed) {
     const kept = {};
     for (const key of Object.keys(keys)) {
       const value = keys[key](stored[key]);
-      if (value !== null) kept[key] = value;
+      // A value of `null` is "that is not one of these" and is dropped; `undefined` is "not there"
+      // and is dropped too - it is only ever produced by `KINDS.optional`, and a key with nothing in
+      // it is not a key the document has.
+      if (value !== null && value !== undefined) kept[key] = value;
     }
     doc[name] = kept;
   }

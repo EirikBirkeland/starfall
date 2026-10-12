@@ -2,9 +2,9 @@
 //
 // The card a run ends on says everything about that run and then it is gone, and the best score is
 // the only fact that outlives it. This is the rest of the memory: one row per run - the seed it was
-// flown on, the ship that flew it, how long it lasted, what it scored, and whether it ended in a
-// win - kept in the save document and read off the codex panel, where a row has no key and no price
-// because nothing here can be bought.
+// flown on, the ship that flew it, how long it lasted, what it scored, whether it ended in a win,
+// and the harder rule it stood under when it had one - kept in the save document and read off the
+// codex panel, where a row has no key and no price because nothing here can be bought.
 //
 // Three rules, which are the same three the codex and the awards keep:
 //
@@ -29,6 +29,7 @@
 
 import { remember, section } from '../core/save.js';
 import { BALANCE } from './balance.js';
+import { activeOf } from './challenges.js';
 
 /** A log with nothing in it yet: the shape every reader wants, whether or not anything is flown. */
 export function emptyLog() {
@@ -65,15 +66,26 @@ export function logKeeps() {
  *
  * `won` is the run's own fact and not the last ending's: a run that cleared the schedule, was handed
  * back and went down an hour later is a cleared run, and the log says so either way.
+ *
+ * The rule the run was flown under (game/challenges.js) rides with the score it was scored under,
+ * and is *left off* a run that had none rather than written as a word for "none" - the same bargain an
+ * unmapped control strikes in `keys.binds` (core/save.js): the absence is the answer. Two things fall
+ * out of that, and they are the whole reason it is done that way: a plain run's row is byte for byte
+ * the row it always was, and a row written before rules existed says the same thing a plain run
+ * written after them does, so there is nothing to migrate. `rule` is optional in the store for
+ * exactly this reason (`KINDS.optional`).
  */
 function recordOf(world) {
-  return {
+  const record = {
     seed: world.seed >>> 0,
     ship: world.ship,
     seconds: Math.floor(world.elapsed),
     score: world.score,
     won: world.won === true,
   };
+  const rule = activeOf(world);
+  if (rule !== '') record.rule = rule;
+  return record;
 }
 
 /**
