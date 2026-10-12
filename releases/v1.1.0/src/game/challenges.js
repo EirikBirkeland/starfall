@@ -1,0 +1,226 @@
+// The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
+//
+// A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
+// once it is flying. Three ship: the ship stands on one hull; the dash is gone; the crowd and its
+// shots travel faster than they shipped. Every one of them is a row in `BALANCE.challenges` and a
+// question asked where the number it changes is already read - the hull is written where the ship's
+// hull is written, the dash is refused where the dash is granted, the crowd's speed is multiplied
+// where a body's speed is worked out. Nothing is cached into a ship and nothing is kept in two
+// places, which is what makes an ordinary run untouched by any of this: with no challenge flying,
+// every lever below answers its neutral number and a run traces byte for byte what it always traced.
+//
+// Three decisions are worth having written down:
+//
+//   **One at a time.** Two rules stacked is a third rule nobody measured, and a challenge that has
+//     never been measured is a guess about the player's night. So the key cycles a *single* id and
+//     the levers below ask "is this the challenge flying", never "is one of these". When a
+//     combination is ever wanted it wants its own row and its own yardstick, not a multiplication.
+//
+//   **It is a choice about the next run, so it is remembered for the visit and not for the save.**
+//     That is exactly how the ship pick works (game/ships.js): `world.ship` outlives a run and dies
+//     with the page. A saved challenge would be a game that is secretly harder for a visitor who
+//     switched it on once weeks ago, and the only cure for a rule nobody remembers is a rule nobody
+//     can leave set.
+//
+//   **It is said out loud everywhere a run's facts are said** - the title, the glass beside the
+//     clock, the pause's rack, and the ending's card. A rule the player has forgotten is a rule the
+//     game cheated with, and an ending that does not say which rules it was flown under is a number
+//     that will be quoted without its units.
+//
+// What is deliberately *not* here: a record per challenge. A best under each line, the way the day
+// keeps its own (game/daily.js), is a save section and a panel of its own, and it is written as the
+// next item in PLAN rather than smuggled in beside three rules.
+
+import { BALANCE } from './balance.js';
+
+const PERCENT = 100;
+
+/**
+ * The challenges, in the order the key cycles through them. The order is the ladder: the mildest
+ * first, so a hand that presses the key twice by accident has not been put on the sharpest rule.
+ *
+ * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
+ * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
+ * call, because the swift crowd's sentence is built out of its own number and a sentence written by
+ * hand next to a number that can move is a sentence that goes stale.
+ */
+export const CHALLENGES = [
+  { id: 'brittle', name: 'ONE HULL', says: 'one touch and the run is over' },
+  { id: 'grounded', name: 'NO DASH', says: 'the jump is gone, and so are the cards that need it' },
+  { id: 'swift', name: 'SWIFT CROWD', says: '' },
+];
+
+/** The row a challenge id names, and a loud answer if there is not one. */
+function challengeRow(id) {
+  const row = BALANCE.challenges[id];
+  if (row === undefined) throw new Error('no challenge is called ' + id);
+  return row;
+}
+
+/** The list, with the empty first step that means "no challenge" in front of it. */
+const CYCLE = ['', ...CHALLENGES.map((c) => c.id)];
+
+/** Is `id` one of the challenges on offer? The empty string is, and means none. */
+export function isChallenge(id) {
+  return CYCLE.indexOf(id) >= 0;
+}
+
+/**
+ * Put a challenge on the runs this world flies. `''` takes it off again - which is what the key's
+ * first step back round the cycle is, and what every run ever flown was.
+ *
+ * Like the ship pick it is a choice made between runs and it outlives the run it was made for
+ * (`resetRun` never touches it). Whether the next run is flown under it is a different question and
+ * belongs to whoever launches the run; this only says what the next one will stand under.
+ */
+export function setChallenge(world, id) {
+  if (!isChallenge(id)) throw new Error('no challenge is called ' + id);
+  world.challenge = id;
+  return id;
+}
+
+/**
+ * One press of the key: round the cycle, and answer what it landed on (`''` when it came back round
+ * to no challenge at all). Anything that prints the choice prints what this returns.
+ */
+export function cycleChallenge(world) {
+  const at = CYCLE.indexOf(world.challenge);
+  // A world left pointing at something this build has never heard of is a bug, not a locked-in
+  // choice: the cycle takes it to the first real rule rather than spinning on nothing.
+  const next = at < 0 ? CHALLENGES[0].id : CYCLE[(at + 1) % CYCLE.length];
+  world.challenge = next;
+  return next;
+}
+
+/** Which challenge this world is flying, or '' for none. */
+export function activeOf(world) {
+  return world.challenge === undefined ? '' : world.challenge;
+}
+
+/** Is *this* the challenge flying? The one question every lever below asks. */
+export function isFlying(world, id) {
+  return activeOf(world) === id;
+}
+
+// ---------------------------------------------------------------------------
+// The levers. Each one is asked where the number it changes is already read.
+// ---------------------------------------------------------------------------
+
+/**
+ * The hull the ship stands on, when a challenge says one, or 0 when none does.
+ *
+ * 0 and not the ship's own number, so the caller's `if (hull > 0)` reads as "if a challenge spoke"
+ * and an ordinary run is written by exactly the two hands that always wrote it - the ship's row and
+ * the hangar's plating (game/run.js). What it replaces is the *starting* hull and its ceiling: a
+ * heal still has nothing above it to reach, which is the whole of what "one hull" means, and an
+ * elite's gift heals nothing because there is nothing to heal into.
+ */
+export function hullOverrideOf(world) {
+  return isFlying(world, 'brittle') ? challengeRow('brittle').hull : 0;
+}
+
+/**
+ * May this ship jump? `false` is not "the dash is on cooldown", and callers must not treat it as
+ * such: the interface asks so that it can stop promising a dash that will never come.
+ */
+export function dashIsAllowed(world) {
+  return !isFlying(world, 'grounded') || challengeRow('grounded').dash !== false;
+}
+
+/**
+ * What a body's speed - and an enemy shot's - is multiplied by. 1 for every run that is not flying
+ * the swift crowd, which is the reason the reference run has never noticed this line.
+ *
+ * One number for both, because the claim the card makes is one claim: everything that comes at you
+ * travels that much quicker. A boss's *beats* are not here - they are timed by the fight's own
+ * clocks (game/bosses.js), and a telegraph sped up is a pattern nobody can learn, which is the one
+ * thing this rule must not do.
+ */
+export function crowdSpeedOf(world) {
+  return isFlying(world, 'swift') ? challengeRow('swift').speedMul : 1;
+}
+
+/**
+ * Can a card on this line do anything in a run flying this challenge?
+ *
+ * Two lines are gated on the dash - the tether ties its cords at the moment a dash is granted and
+ * the afterimage throws its images down the streak one leaves - and under NO DASH they can never
+ * fire. A card that can do nothing is not a small choice, it is no choice: the run pays a level to
+ * find that out and gives up the level the card would have been worth. game/upgrades.js refuses them
+ * for the same reason it refuses a line the ship's gun cannot spend, and for the same price: the
+ * deck is a little smaller, which was measured before it was agreed (NOTES session 119).
+ */
+export function cardIsUsable(world, lineId) {
+  const gated = BALANCE.challenges.gatedOn;
+  for (const id of Object.keys(gated)) {
+    if (!isFlying(world, id)) continue;
+    if (gated[id].indexOf(lineId) >= 0) return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// The words. One place says each of these, and every other reader asks here.
+// ---------------------------------------------------------------------------
+
+/** The name of the challenge an id names - `''` for no challenge, which has no name. */
+export function nameOf(id) {
+  for (const challenge of CHALLENGES) {
+    if (challenge.id === id) return challenge.name;
+  }
+  return '';
+}
+
+/** What the rule does, in the sentence the glass prints under its name. */
+export function saysOf(id) {
+  if (id === '' || id === undefined) return '';
+  const challenge = CHALLENGES.find((c) => c.id === id);
+  if (challenge === undefined) return '';
+  if (challenge.says !== '') return challenge.says;
+  // The swift crowd's sentence is built out of its own number, so the number cannot move and leave
+  // the words behind: 1.4 reads 40% faster and nothing else.
+  const mul = crowdSpeedOf({ challenge: id });
+  return 'the crowd travels ' + Math.round((mul - 1) * PERCENT) + '% faster';
+}
+
+/**
+ * What the title says about the next run, or '' when there is nothing to say - and an empty line
+ * takes its space with it, so a title with no challenge on it is the title it always was.
+ */
+export function titleWords(world) {
+  const id = activeOf(world);
+  if (id === '') return '';
+  return 'CHALLENGE  ' + nameOf(id) + '  \u00b7  ' + saysOf(id);
+}
+
+/**
+ * The mark beside the run's clock while it is flying under a rule: `ONE HULL`, and nothing else.
+ * Short, because it shares that line with the clock, the endless word and the day.
+ */
+export function hudWords(world) {
+  const id = activeOf(world);
+  return id === '' ? '' : nameOf(id);
+}
+
+/**
+ * What an ending's card says about the rules its run was flown under, or '' for an ordinary run.
+ * Said after the score and the best, before the day: the rule is the biggest fact about a run that
+ * had one, and a score quoted without it would be quoted wrong.
+ *
+ * Takes the world or an ending's summary, as game/daily.js's `cardWords` does.
+ */
+export function cardWords(run) {
+  const id = activeOf(run);
+  if (id === '') return '';
+  return 'CHALLENGE \u00b7 ' + nameOf(id) + ' \u00b7 ' + saysOf(id);
+}
+
+/**
+ * One row on the pause's rack for a run flying under a rule, and null for one that is not - which is
+ * how the rack leaves the row out (ui/screens.js `factLines`).
+ */
+export function pauseWords(run) {
+  const id = activeOf(run);
+  if (id === '') return null;
+  return { name: 'CHALLENGE', says: nameOf(id) };
+}

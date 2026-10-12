@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.1.0",
+    "date": "2026-10-12",
+    "released": "2026-10-12T17:07:00.899Z",
+    "summary": "Challenge modifiers: a harder rule for the next run, picked with X",
+    "added": 1238,
+    "removed": 19,
+    "logBytes": 42070743
+  },
+  {
     "version": "1.0.0",
     "date": "2026-10-12",
     "released": "2026-10-12T15:41:41.372Z",
