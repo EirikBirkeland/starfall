@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.19",
+    "date": "2026-10-12",
+    "released": "2026-10-12T07:09:14.719Z",
+    "summary": "Every line of interface type is measured, and the nine that could not be read can be now",
+    "added": 983,
+    "removed": 34,
+    "logBytes": 39622961
+  },
+  {
     "version": "0.10.18",
     "date": "2026-10-12",
     "released": "2026-10-12T04:21:58.580Z",
