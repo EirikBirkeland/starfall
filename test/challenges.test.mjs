@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 
 import { bootGame } from '../tools/headless/harness.js';
+import { remember } from '../src/core/save.js';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { makeEnemy } from '../src/game/kinds.js';
@@ -208,6 +209,10 @@ test('NO DASH takes the two lines that fire off a dash out of the deck', () => {
 });
 
 test('the words name the rule everywhere and say nothing when there is no rule', () => {
+  // A save with nothing banked under any rule, said out loud rather than left to the file's order:
+  // these are the words of a rule with no record, and what a rule *with* one says is
+  // test/challenge-records.test.mjs's business.
+  remember('challenges', { bests: {} });
   const under = worldUnder('brittle');
   assert.equal(hudWords(under), 'ONE HULL');
   assert.equal(titleWords(under), 'CHALLENGE  ONE HULL  \u00b7  one touch and the run is over');
@@ -320,8 +325,13 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   assert.equal(game.screen.titleChallenge, '', 'a visit with no rule says nothing');
   press('KeyX');
   assert.equal(game.stats().challenge, 'brittle');
-  assert.equal(game.screen.titleChallenge,
-    'CHALLENGE  ONE HULL  \u00b7  one touch and the run is over');
+  // The line is `titleWords`' own, record and all (game/challenges.js): what this test is about is that
+  // the glass says which rule the key landed on, and what the save has banked under it is a fact about
+  // the save and not about the cycle. test/challenge-records.test.mjs writes the whole line out word for
+  // word, record included.
+  assert.ok(game.screen.titleChallenge.startsWith(
+    'CHALLENGE  ONE HULL  \u00b7  one touch and the run is over'),
+    'the line does not say which rule is on: ' + game.screen.titleChallenge);
   press('KeyX');
   assert.equal(game.stats().challenge, 'grounded');
   press('KeyX');
@@ -371,8 +381,11 @@ test('both ending cards say what the run was flown under, and an ordinary one sa
   game.chooseChallenge('grounded');
   launch();
   killTheShip();
-  assert.equal(game.screen.finalChallenge,
-    'CHALLENGE \u00b7 NO DASH \u00b7 the jump is gone, and so are the cards that need it');
+  // The rule and its sentence come first, and what the run did to the rule's own record rides on the
+  // end of it (test/challenge-records.test.mjs holds that half word for word).
+  assert.ok(game.screen.finalChallenge.startsWith(
+    'CHALLENGE \u00b7 NO DASH \u00b7 the jump is gone, and so are the cards that need it'),
+    'the card did not say the rule: ' + game.screen.finalChallenge);
 });
 
 test('the pause rack keeps the row only when there is a rule to name', () => {

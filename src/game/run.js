@@ -19,7 +19,7 @@ import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
 import { applyShip } from './ships.js';
 import { extraBanishesOf, extraRerollsOf, startingHullOf } from './perks.js';
-import { hullOverrideOf } from './challenges.js';
+import { hullOverrideOf, bankChallenge } from './challenges.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
@@ -197,6 +197,10 @@ export function resetRun(world) {
   // this run's to forget: it is written when the run is launched and it is what the ending is scored
   // on, and a run that is restarted flies whatever arena the next launch asks for.
   world.newDailyBest = false;
+  // ...and it has not beaten the rule's own best either (game/challenges.js). The rule itself -
+  // `world.challenge` - is not this run's to forget either: it is a choice about the *next* run and it
+  // outlives every one it has been flown under.
+  world.newChallengeBest = false;
   // ...and this run has taught the codex nothing yet (game/codex.js). What the codex *knows* is
   // above, in `world.found`, and is none of this run's to forget.
   world.codexNew = 0;
@@ -275,6 +279,10 @@ function bankRun(world) {
   // all-time one because it is the smaller of the two claims: a daily run can beat today and still be
   // nowhere near the save's best, and the card says both numbers separately for that reason.
   world.newDailyBest = bankDaily(world);
+  // ...and the rule's own best, for a run that was flown under one (game/challenges.js). Last of the
+  // three because it is the narrowest claim of them: a run under a rule can beat the rule and be
+  // nowhere near the save's best or the day's, and each of the three is said separately for that reason.
+  world.newChallengeBest = bankChallenge(world);
   payForRun(world);
   recordRun(world);
   bankAwards(world);

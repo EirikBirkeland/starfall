@@ -97,6 +97,10 @@ function createWorld() {
     // fact like the one above it, and cleared with it: a card that lit NEW today does not stay lit for
     // the run that comes after it.
     newDailyBest: false,
+    // ...and whether it beat what this save had scored under the rule it was flown under
+    // (game/challenges.js). Same shape again, and it is nothing at all for a run flown under no rule -
+    // `bankChallenge` says so before it ever asks the save a question.
+    newChallengeBest: false,
     // Hit-stop: how long the run still has to hold still for, in seconds (0 when
     // nothing is frozen). game/effects.js `hitStop` sets it, `stepWorld` spends it.
     freeze: 0,

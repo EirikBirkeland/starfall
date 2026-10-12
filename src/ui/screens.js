@@ -25,7 +25,7 @@ import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { endingWords, hullLedger } from '../game/tally.js';
 import { cardWords, titleWords } from '../game/daily.js';
-import { cardWords as challengeCardWords, titleWords as challengeTitleWords } from '../game/challenges.js';
+import { cardWords as challengeCardWords, titleWords as challengeTitleWords, CHALLENGES, saysOf } from '../game/challenges.js';
 import { clockWords } from '../core/words.js';
 import { wordsOf } from '../core/keymap.js';
 import { uiTick } from '../audio/sfx.js';
@@ -69,6 +69,11 @@ let synRows = [];
 // one row per run flown, so it is built as it is painted (`showLog`) and not at init with the tables
 // that never change size.
 let logRows = [];
+
+// The codex's fifth rack: what this save has scored under each harder rule (game/challenges.js). It
+// is built at init with the tables that never change size, because it has one row per rule the game
+// can name and no more - three rows today, and a fourth rule is a row in a table, not a rack.
+let ruleRows = [];
 
 // The pause's two racks (game/run.js `pauseRun`): the run's numbers, and the lines it has taken.
 // Both of them are as long as the run is, so both are grown and trimmed as they are painted, like the
@@ -386,6 +391,9 @@ export function initScreens() {
     lineRow: document.getElementById('lineRow'),
     synRow: document.getElementById('synRow'),
     logRow: document.getElementById('logRow'),
+    // ...and the fifth, what the runs of this save have scored under each harder rule (index.html,
+    // game/challenges.js).
+    ruleRow: document.getElementById('ruleRow'),
     awardRow: document.getElementById('awardRow'),
     awardTitle: document.getElementById('awardTitle'),
     // The pause: a run held where it stands, and its numbers read off the world (game/run.js).
@@ -436,6 +444,7 @@ export function initScreens() {
   hostRows = HOSTS.map(() => buildEntryRow(el.hostRow));
   cardRows = CARDS.map(() => buildEntryRow(el.lineRow));
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
+  ruleRows = CHALLENGES.map(() => buildEntryRow(el.ruleRow));
   awardRows = AWARDS.map(buildAwardRow);
   // The five panels, in the one list everything that is true of "a panel" walks: taking them all
   // down, and fitting whichever one is up. Built here, beside the elements themselves, because
@@ -837,6 +846,34 @@ export function showLog(runs) {
 }
 
 /**
+ * Paint the codex's fifth rack: what this save has scored under each harder rule (game/challenges.js).
+ *
+ * One row per rule the game can name, in the order the key cycles them, so the rack is the same ladder
+ * the title's line is: the mildest rule at the top and the sharpest at the bottom. A rule this save has
+ * never been flown under keeps its name and gives up its glow, the way a codex row for a thing not met
+ * does - it is a row about a thing that has not happened yet, and the lit rows are the ones that are.
+ *
+ * The sentence about what the rule does is on every row, flown or not, because this is the one place a
+ * player can read all three rules at once instead of cycling them blind, and a rack of three numbers
+ * with no units is exactly the thing this feature exists to stop.
+ *
+ * `bests` is the save's own ledger (game/challenges.js `bestsFromSave`), and it may name a rule this
+ * build has never heard of; those are simply not on the rack, which is the same answer the awards' rack
+ * gives an award it has no row for.
+ */
+export function showRules(bests) {
+  for (let i = 0; i < ruleRows.length; i++) {
+    const challenge = CHALLENGES[i];
+    const best = bests[challenge.id] === undefined ? 0 : bests[challenge.id];
+    ruleRows[i].row.classList.toggle('unknown', best === 0);
+    ruleRows[i].name.textContent = challenge.name;
+    ruleRows[i].says.textContent = (best > 0
+      ? best.toLocaleString('en-US')
+      : 'NOT FLOWN YET') + '   \u00b7   ' + saysOf(challenge.id);
+  }
+}
+
+/**
  * Paint what this save has been credited with (game/awards.js), on the hangar's third rack.
  *
  * A row that is won keeps its name and its sentence and loses its number: an award is paid once, and
@@ -1167,6 +1204,10 @@ export function showGameOver(summary) {
   // ...and the rule it was flown under, above the day: the rule is the bigger fact about the run, and
   // a score won under one means nothing without it (game/challenges.js).
   el.finalChallenge.textContent = challengeCardWords(summary);
+  // ...and the title's own line about the rule, painted again from the record this run has just left in
+  // the save. Nothing can see the title from under this card, but the line is the one thing on that
+  // screen that a finished run changes, and a panel painted off it later would be a run behind.
+  el.titleChallenge.textContent = challengeTitleWords({ challenge: summary.challenge });
   // What ended the run, under the heading it happened to, and what every hull of it went to (game/
   // tally.js). A run that was given up has no cause and says so. The rack keeps the last hull out of
   // its own rows only when the headline above has just named it - a give-up's line names the giving-up
@@ -1188,6 +1229,7 @@ export function showGameOver(summary) {
   showCodex(summary.codexFound);
   showLog(summary.pastRuns);     // ...and the same promise about the log (game/history.js)
   showAwards(summary.awardsOwned);  // ...and the awards the hangar keeps (game/awards.js)
+  showRules(summary.challengeBests);  // ...and what the run just scored under its rule, if it had one
   el.over.classList.remove('hidden');
   // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
   // was written, so this is a screen's own event and the simulation has no idea it happened.
@@ -1218,6 +1260,8 @@ export function showVictory(summary) {
   // ...and which rule it was flown under, above the day (game/challenges.js). A won run under a rule is
   // the bigger claim of the two, and it is the one a score quoted from this card would be missing.
   el.winChallenge.textContent = challengeCardWords(summary);
+  // ...and the title's line, same as the death's card: see `showGameOver`.
+  el.titleChallenge.textContent = challengeTitleWords({ challenge: summary.challenge });
   // What the run lost on the way to winning it. No cause line: nothing took a win down, and the tally
   // keeps no cause for a run that finished (game/run.js `winRun`) - which is also why the rack here
   // says everything it has, down to a single hull, because there is no headline above it to have said
@@ -1233,6 +1277,7 @@ export function showVictory(summary) {
   showCodex(summary.codexFound);    // the same promise the death's card makes (see above)
   showLog(summary.pastRuns);        // ...and the log's
   showAwards(summary.awardsOwned);  // ...and the awards' rack
+  showRules(summary.challengeBests);  // ...and the rules' (game/challenges.js)
   // The invitation waits. The card goes up on the hush and the game answers to nothing until the
   // guard is spent, and a line saying "press" that nothing may be pressed with is the exact thing
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).

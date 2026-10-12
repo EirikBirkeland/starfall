@@ -1967,6 +1967,42 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       rule that scores above 0.95x plain, and says out loud when a batch was blind to a rule instead of
       passing it as free.
 
+- [x] A best under each rule: what this save has scored under every challenge, the way the day keeps
+      its own. A rule with no number under it is a rule with nothing to beat, and a score flown under
+      ONE HULL that is filed in the same column as an ordinary one is a number quoted without its
+      units. So: a save section of challenge id to best score, banked at an ending beside the all-time
+      best and the day's; the record of the *chosen* rule said on the title's challenge line, so the
+      key that sets a rule also shows what that rule is worth to this save; the same record on the
+      ending's card, with the NEW word the day's line uses when this run set it; and a fifth rack on
+      the codex — one row per rule, its best and its sentence, dim and saying NOT FLOWN YET until it
+      has been. The codex and not a panel of its own, because "what this save has flown" is already
+      that panel's second question (the log is its fourth rack) and three rules do not earn a key.
+      Written so an ordinary run never pays for it: no rule flying means no bank, no word and no row
+      that was not there before.
+      **Shipped over `SAVE.challenges.bests`** — one map of rule id to best score, in the same ledger
+      shape the perk tally is, so a fourth rule is a row in a table and not a request for storage. It is
+      banked in `bankRun` after the all-time best and the day's, as the narrowest of the three claims,
+      and it keeps their bargain about a run that stops twice. `game/challenges.js` owns the reading
+      (`bestsFromSave`, `bestOf`, `bankChallenge`) and the saying: the title's rule line ends with what
+      the save has under that rule, and an ending's card ends with the same number or with NEW BEST FOR
+      THIS RULE, which is the pair game/daily.js makes about the day. The codex's fifth rack has one row
+      per rule in the order the key cycles them — its number and its sentence, or NOT FLOWN YET and no
+      glow — so all three can be read at once instead of cycled blind, and it is repainted by the ending
+      that changed it, like the log and the awards. `test/challenge-records.test.mjs` is 18 checks over
+      the ledger, the store's refusals, the words, a real visit, and the rack. An ordinary run is still
+      byte for byte the run it was: `tools/simulate.js` on seed 20261006 traces the same 10 minutes it
+      traced before this existed.
+
+- [ ] The run log does not say which rule a run was flown under. A row of the codex's fourth rack is a
+      seed, a body, a clock, a score and a win (game/history.js), and a 90,000 scored on ONE HULL sits in
+      that column next to a 90,000 flown plain, which is the exact thing the last item was written to stop.
+      It is not a line of code: `core/save.js` `records` judges every field of a row whole — a record that
+      lost a field is a row that cannot be printed, and it is dropped — so a new required `challenge` field
+      would silently throw away every row on every existing save the first time it was read. Either the
+      store grows a honest kind for "a field a row written before it existed is allowed to lack", or the
+      log is rewritten once on the way in with the plain answer filled in. Both are store work with a
+      migration in it, which is why it is an item and not a patch.
+
 - [x] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
       the dash at the screen point of the nearest body, and a dash taken with no movement key held goes
       the way the cursor points - at it. Measured on the same seeds it is a *negative* habit: the aware

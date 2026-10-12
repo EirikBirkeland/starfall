@@ -393,6 +393,8 @@ const ELEMENT_IDS = [
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
   'logRow',
+  // ...and the fifth, what they have managed under each harder rule (index.html, game/challenges.js).
+  'ruleRow',
   // The box the title's mark is measured against (index.html, render/logo.js). It is the one element
   // on the page that is not a screen: an empty heading whose rectangle in the flex column is where
   // the drawn word belongs.
@@ -1091,6 +1093,9 @@ export async function bootGame(options) {
         // ...and the fourth rack: the last runs this save has flown, newest first, or the one line
         // that says there have been none (game/history.js).
         pastRuns: elements.logRow.children.map(plainRow),
+        // ...and the fifth rack: what this save has scored under each harder rule, and which of them it
+        // has never flown under at all (game/challenges.js `showRules`).
+        rules: elements.ruleRow.children.map(entryRow),
         // The pause: whether it is up, how it was fitted to the window ('' is "it fit"), its headline
         // of score and clock, and its two racks - the run's numbers, and the lines it was built from
         // (game/run.js `pauseRun`, ui/screens.js `showPause`).

@@ -27,11 +27,16 @@
 //     game cheated with, and an ending that does not say which rules it was flown under is a number
 //     that will be quoted without its units.
 //
-// What is deliberately *not* here: a record per challenge. A best under each line, the way the day
-// keeps its own (game/daily.js), is a save section and a panel of its own, and it is written as the
-// next item in PLAN rather than smuggled in beside three rules.
+// What is here because the rules are not much good without it: a record per rule. A best under each
+// line, the way the day keeps its own (game/daily.js), is what makes a rule something to beat rather
+// than a difficulty dial - and a score flown under ONE HULL that is filed in the same column as an
+// ordinary one is a number quoted without its units. The record is banked at an ending beside the
+// all-time best and the day's, said on the title under the rule that was chosen, said on the ending's
+// card, and kept on a rack of its own in the codex. An ordinary run pays nothing for any of it: no
+// rule flying means no bank, no word, and no row that was not there before.
 
 import { BALANCE } from './balance.js';
+import { remember, section } from '../core/save.js';
 
 const PERCENT = 100;
 
@@ -160,6 +165,50 @@ export function cardIsUsable(world, lineId) {
 }
 
 // ---------------------------------------------------------------------------
+// The records. What this save has scored under each rule, kept the way the day keeps its own
+// (game/daily.js): a read of storage at an ending, and a read of storage when a title is painted -
+// never a read during a step, and nothing cached into the world.
+// ---------------------------------------------------------------------------
+
+/**
+ * The whole ledger out of the save: challenge id -> the best score flown under it. A rule that is not
+ * in here has never been flown, which is an answer and not a hole - there is no zero to beat yet.
+ *
+ * Read whole rather than one rule at a time because two of the three readers want all of them: the
+ * codex's rack has a row per rule, and the store hands back the map as one field anyway.
+ */
+export function bestsFromSave() {
+  return section('challenges', { bests: {} }).bests;
+}
+
+/** The best this save has flown under one rule: 0 for a rule nobody has flown, and for no rule at all. */
+export function bestOf(id) {
+  if (nameOf(id) === '') return 0;
+  const best = bestsFromSave()[id];
+  return best === undefined ? 0 : best;
+}
+
+/**
+ * Bank this run against the rule it was flown under (game/run.js `bankRun` is the only caller, and it
+ * calls once per ending). False when there was nothing to bank - an ordinary run, or a run that did not
+ * beat what the rule already had - and true when the rule has a new best, which is what lights the
+ * card's own words.
+ *
+ * The same bargain the day strikes above it in `bankRun`, and for the same reason: a run that is won,
+ * handed back and finally goes down is banked twice, and the second ending only wins if the run came
+ * out bigger than its first one, which it nearly always has.
+ */
+export function bankChallenge(world) {
+  const id = activeOf(world);
+  if (id === '') return false;
+  if (world.score <= bestOf(id)) return false;
+  const bests = bestsFromSave();
+  bests[id] = world.score;
+  remember('challenges', { bests: bests });
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // The words. One place says each of these, and every other reader asks here.
 // ---------------------------------------------------------------------------
 
@@ -184,13 +233,36 @@ export function saysOf(id) {
 }
 
 /**
+ * What a rule's record is worth in words, or '' when there is nothing to say about it yet. Said the
+ * same way on the title and on a card, because it is the same number in both places: the best this
+ * save has flown under that rule, or the fact that this run just set it (game/daily.js's card line
+ * makes the same pair about the day, and for the same reason - a new best and a standing one are two
+ * different answers to "what did I just do").
+ *
+ * "FOR THIS RULE" is not padding: a card with an all-time BEST a hand's width above it would otherwise
+ * print the same word twice over with two different numbers under it.
+ */
+function recordWords(id, isNew) {
+  const best = bestOf(id);
+  if (best === 0) return '';
+  if (isNew === true) return 'NEW BEST FOR THIS RULE';
+  return best.toLocaleString('en-US') + ' BEST FOR THIS RULE';
+}
+
+/**
  * What the title says about the next run, or '' when there is nothing to say - and an empty line
  * takes its space with it, so a title with no challenge on it is the title it always was.
+ *
+ * The record rides on the end of it when the save has one, which is the point of the whole feature: the
+ * key that sets a rule shows what that rule is worth to this save, so what is being chosen is a number
+ * to beat and not just a harder night.
  */
 export function titleWords(world) {
   const id = activeOf(world);
   if (id === '') return '';
-  return 'CHALLENGE  ' + nameOf(id) + '  \u00b7  ' + saysOf(id);
+  const words = 'CHALLENGE  ' + nameOf(id) + '  \u00b7  ' + saysOf(id);
+  const record = recordWords(id, false);
+  return record === '' ? words : words + '  \u00b7  ' + record;
 }
 
 /**
@@ -207,12 +279,16 @@ export function hudWords(world) {
  * Said after the score and the best, before the day: the rule is the biggest fact about a run that
  * had one, and a score quoted without it would be quoted wrong.
  *
- * Takes the world or an ending's summary, as game/daily.js's `cardWords` does.
+ * Takes the world or an ending's summary, as game/daily.js's `cardWords` does - and the summary says
+ * `newChallengeBest` the same way it says `newDailyBest`, because "did that one count" is the first
+ * thing anybody asks of a score.
  */
 export function cardWords(run) {
   const id = activeOf(run);
   if (id === '') return '';
-  return 'CHALLENGE \u00b7 ' + nameOf(id) + ' \u00b7 ' + saysOf(id);
+  const words = 'CHALLENGE \u00b7 ' + nameOf(id) + ' \u00b7 ' + saysOf(id);
+  const record = recordWords(id, run.newChallengeBest);
+  return record === '' ? words : words + ' \u00b7 ' + record;
 }
 
 /**

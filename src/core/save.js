@@ -290,6 +290,16 @@ const SCHEMA = {
     day: KINDS.whole(MAX_DAY),
     best: KINDS.whole(MAX_WHOLE),
   },
+  // What the runs of this save have scored under each harder rule (game/challenges.js, PLAN After
+  // 1.0): challenge id -> the best score flown under that rule. It is one map and not one key per
+  // rule, for the same reason the perk tally is - the store has no business knowing how many rules the
+  // game can name, and a table that grows should not have to ask for storage each time it does. The
+  // number side is a *score*'s ceiling and not a rank's: a best under a rule is the same kind of
+  // number as `score.best`, and 1,000 would be a record nobody could beat. A rule that is not in here
+  // has never been flown, which is an answer and not a hole - see `bestOf`.
+  challenges: {
+    bests: KINDS.counts(MAX_NAMES, MAX_WHOLE),
+  },
   // audio/engine.js owns these three: two slider positions and the mute. The ceilings are the
   // store's, not the mixer's - no slider has a thousand positions - and the mixer clamps again
   // to its own travel when it applies them.

@@ -188,9 +188,20 @@ test('the two lists that live in pools throw away nothing extra', () => {
 test('all three together is the crowd, and not the crowd plus the two free lists', () => {
   const crowd = parts.rows.find((r) => r.name === 'the schedule crowd alone');
   const both = parts.rows.find((r) => r.name === 'all three together');
-  assert.ok(both.bytesPerStep < crowd.bytesPerStep * 1.35,
-    '900 sparks and 60 shots on top of the crowd cost '
-      + bytes(both.bytesPerStep - crowd.bytesPerStep) + ' a step, which is not nothing');
+  // Said in bytes, like the test above it, and for the same reason. This was a ratio - `both` under 1.35x
+  // `crowd` - and the two numbers it divides do not move together: on a quiet box 900 sparks and 60 shots
+  // on top of the crowd cost **38-42 B** a step (a 1.11x ratio), and the same load measured while eight
+  // test files were running at once read **117-121 B**, which is a 1.36x ratio and a failing suite one
+  // run in five. The claim was never about a ratio - it is that two lists which live in pools throw away
+  // nothing worth naming - so it is bounded the way its neighbour is: what each list is allowed on its
+  // own, twice, which is 192 B on this floor against the 38-121 B measured. A regression that puts an
+  // object per spark back is 900 sparks at tens of bytes apiece, thousands of bytes a step, and this
+  // fails on it however busy the machine is.
+  const allowance = Math.max(96, parts.floor * 0.25) * 2;
+  const extra = both.bytesPerStep - crowd.bytesPerStep;
+  assert.ok(extra <= allowance,
+    '900 sparks and 60 shots on top of the crowd cost ' + bytes(extra)
+      + ' a step, over the ' + bytes(allowance) + ' the two lists are allowed between them');
 });
 
 test('the same load reads the same number twice', () => {

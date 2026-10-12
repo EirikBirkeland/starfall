@@ -14,7 +14,7 @@ import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './ga
 import { loggedFromSave, runLedger } from './game/history.js';
 import { promptWords, tipsFromSave } from './game/tutorial.js';
 import { beginDailyRun, endDailyRun, pauseWords } from './game/daily.js';
-import { cycleChallenge, setChallenge, pauseWords as challengePauseWords } from './game/challenges.js';
+import { cycleChallenge, setChallenge, bestsFromSave, pauseWords as challengePauseWords } from './game/challenges.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -58,7 +58,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -1002,6 +1002,11 @@ function describeRun() {
     // Which harder rule this run was flown under ('' for none), so the card can say so and say nothing
     // when there was nothing to say (game/challenges.js `cardWords`).
     challenge: world.challenge,
+    // ...and whether this ending beat what the save had scored under that rule, and where the rule's
+    // best stands now (game/challenges.js). The ledger travels with the card for the same reason the
+    // codex and the log do: the panel that goes up over this card must not disagree with it.
+    newChallengeBest: world.newChallengeBest,
+    challengeBests: bestsFromSave(),
     // How much of this run was flown past its own win, and so whether it was endless at all
     // (game/endless.js). The death card says so when there is something to say.
     endlessPast: endlessTime(world),
@@ -1264,6 +1269,10 @@ function boot() {
   showCodex(world.found);
   showLog(world.pastRuns);
   showAwards(world.awards);
+  // ...and what the runs of this save have scored under each harder rule (game/challenges.js), read
+  // the same once for the same reason. A rule with nothing under it is a rule nobody has flown yet, and
+  // the rack says exactly that about it.
+  showRules(bestsFromSave());
   showShip(world.ship);
   showChallenge(world);
   saveNote = saveProblem();
