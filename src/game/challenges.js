@@ -42,13 +42,19 @@ import { remember, section } from '../core/save.js';
 const PERCENT = 100;
 
 /**
- * The challenges, in the order the key cycles through them. The order is the ladder: the mildest
- * first, so a hand that presses the key twice by accident has not been put on the sharpest rule.
+ * The challenges, in the order the key cycles through them.
+ *
+ * The order is the shape of the rule and not a ladder of severity: the two rules about your own ship
+ * come first - what your hull is, then whether you can jump - and the two about the crowd's size and
+ * speed come last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
+ * `tools/challenge-cost.js` has measured all of them and the dearest (ONE HULL, at 0.39x a careless
+ * run's middle score) is the first press. A hand that presses the key twice by accident lands on NO
+ * DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
- * call, because the swift crowd's sentence is built out of its own number and a sentence written by
- * hand next to a number that can move is a sentence that goes stale.
+ * call, because the two crowd rules' sentences are built out of their own numbers and a sentence
+ * written by hand next to a number that can move is a sentence that goes stale.
  */
 export const CHALLENGES = [
   { id: 'brittle', name: 'ONE HULL', says: 'one touch and the run is over' },

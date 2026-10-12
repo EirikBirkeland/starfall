@@ -13980,3 +13980,116 @@ kind, and the migration turned out to be the half that could be thrown away.
    `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
 4. The afterimage's fourth and fifth ranks still buy very little over its third (PLAN's open item). It wants a
    decision about how a card feels, and this session did not grow eyes for that either.
+
+## Session 122 — A fourth rule: THICK CROWD, and the ladder that could not choose its number. Released 1.3.0
+
+Suite **2,090 → 2,099** (7 new in `test/challenge-thick.test.mjs`, 1 in `test/challenge-cost.test.mjs`,
+and one new check in `test/challenges.test.mjs` that every rule written with an empty `says` has a
+builder). The reference run (`tools/simulate.js --seed 20261006 --trace`) is byte for byte session 121's
+again - diffed against a `git worktree` of HEAD, not remembered - because with no rule flying the new
+lever answers 1 and multiplying a budget by 1 does not even round.
+
+**Released v1.3.0**: the fourth challenge rule. `X` now cycles nothing, ONE HULL, NO DASH, SWIFT CROWD
+and **THICK CROWD** - the arena holds half again as much of the crowd as it ships.
+
+### What shipped
+`BALANCE.challenges.thick = { holdMul: 1.5 }` and one lever, `crowdHoldOf(world)`, spent in the two
+places the arena's two walls are already read: `waves.js` `crowdBudget` multiplies the schedule's
+terms, and `bodyCeiling` its wall on standing bodies. One number and not two because the walls are
+already tuned to meet - `crowdMax` 400 points is ~89 bodies at the crowd's 4.5 points a body and
+`maxBodies` is 100 - so moving one alone would only promote the quieter one to being the rule. The
+*endless* wall (`endless.growth.bodiesCeil`, 200) is deliberately outside the multiply and still the
+outer wall: it is a frame budget that has been timed on a real frame and a challenge may not move it.
+
+Everything the last three rules' machinery already did came free, which is what sessions 119-121 were
+buying: a best under the rule on the title and the card, its row on the codex's HARDER RULES rack, its
+word beside the score in PAST RUNS, the pink mark by the clock and the line on the pause's rack. The one
+piece of generalising needed was `saysOf`: SWIFT CROWD's sentence was built out of its own number and so
+is the new one's, so what had been an inline `if` is a `SENTENCES` table now, and a rule added later with
+an empty `says` and no builder has a test that says so instead of printing a name with nothing under it.
+
+### The measurements (`node tools/challenge-cost.js`, careless hand unless said)
+| rule | middle death | died | middle score | vs plain | hulls |
+| --- | --- | --- | --- | --- | --- |
+| plain | 3m53s | 6/8 | 7,035 | 1.00x | 28 |
+| THICK CROWD 1.5 | 2m48s | 6/8 | 4,211 | **0.60x** | 26 |
+| THICK CROWD, careful hand | - | 0/8 | 20,455 | **0.73x** | 11 against plain's 3 |
+
+The careful hand is the interesting row: nobody dies under the rule and it still costs a run - a hand
+that can clear the extra crowd pays for it in hull and not in its life, which is the profile the rule
+wanted. The ladder judges the rule exactly like SWIFT CROWD and needed no new exemption.
+
+### The sweep could not choose, and that is the finding
+`--hold` sweeps the share through the balance row, the way `--speed` sweeps the swift multiplier. On
+sixteen seeds of five minutes: **1.3 reads 0.64x (3m01s), 1.5 reads 0.60x (2m48s), 1.75 reads 0.62x
+(2m38s)**. All three inside a twentieth of each other and not in order. The reason is in what the score
+column *is*: it counts bodies killed, and this rule puts more bodies in the arena, so a batch that
+survives the bigger crowd is paid more, not less. Score is not monotonic in a crowd share the way it is
+in a crowd *speed*. So **1.5 was not picked off the ladder** - it was picked because it lifts the
+scheduled wall to 150 bodies, under the 200 a real frame has been timed against and under the figure the
+owner's browser half of the performance pass is meant to fly to. All of that is written in the balance
+row and in the CHANGELOG, because a number that was not chosen by the ruler it is quoted from is exactly
+the number a future session will "retune" back into a perf problem.
+
+### Things that surprised me
+- **I lost twenty minutes to my own eyes.** I read the careful batch's row as 1.23x plain, concluded the
+  ladder had a design flaw (score cannot price a rule that adds bodies), started writing a `--wall` tool
+  to measure the honest version, and only then looked again: the 1.19x row was NO DASH's, and THICK CROWD
+  read 0.73x. `verdictOf` was right the whole time and I reproduced its correct output in one line to
+  prove it. The surviving truth from the phantom is the sentence above about the score column, which the
+  flat sweep says on its own. Lesson, again: before building a check for a flaw, print the thing the tool
+  actually returns.
+- **`scriptedRun` hands back *the one world of the process*, so two fields in one test are the same
+  object and comparing them compares nothing.** My first draft of `test/challenge-thick.test.mjs` did
+  `const plain = runAged(...); const thick = runAged(...)` and every comparison in it was vacuous - it
+  passed for the wrong reason and would have passed with the rule wired to nothing. Proved with
+  `scriptedRun(5) === scriptedRun(1)` → `true`, then fixed with a `measureUnder(challenge, seconds, what)`
+  that reads a number out of the world into a local before the next world is built. **While I was in
+  there: `test/endless-growth.test.mjs` has two assertions of exactly that shape** (its lines about "the
+  same crowd is still the same crowd", comparing `crowdBudget(handed)` with `crowdBudget(plain)` where
+  `handed` and `plain` are the same singleton). They are not wrong, they are just always true. Left
+  alone - fixing them means restructuring that file's pairs - and written here instead.
+- **`world.challenge` survives `resetRun` on purpose, which is a trap in a test file.** The helper writes
+  the rule on every call now, with a comment: a test that forgets inherits whatever the test before it
+  chose, which is session 121's lesson about `playOneRun` arriving a second time.
+- **`bodyCeiling` clamps to `bodiesCeil`, so a silly share is silently capped** rather than being big.
+  That is why the new test asserts the exact product *and* the wall (`thick <= bodiesCeil`) - "bigger
+  than plain" would have passed a share of 3 that the clamp quietly turned into 200.
+- Mutation check, the honest way (copy of `waves.js`, multiplier removed, real file restored from the
+  copy): 5 of the 7 new tests went red, including the director ones; the two that stayed green are the
+  neutral-lever and the sentence tests, which are about the lever and not the wall.
+- The whole strict-capable battery is green on today's tree: `challenge-cost`, `contrast-check`,
+  `dash-habit`, `ghost-grid`, `palette-check`, `sights`, `memory-hunt`, `run-shape`, `shake-meter`,
+  `skill-ladder` all exit 0, and `difficulty-arc` stays a FAIL by the measured decision it has carried
+  since session 99. `alloc-probe` PASS (dearest step 764 B), `perf-probe` PASS (worst step 0.105 ms).
+
+### Decisions, so nobody relitigates them
+- **The cycle's order comment was lying and now says what is true.** It claimed "the mildest first, so a
+  hand that presses the key twice has not been put on the sharpest rule"; the ladder has since measured
+  ONE HULL as the dearest rule of all and it is the *first* press. The order is actually the shape of the
+  rule - your hull, your jump, then the crowd's speed and size - and the comment says that now, plus the
+  measured costs, so the next rule knows where it is allowed to go. The new one went last, between the
+  crowd pair, cheapest-last within that pair (0.60x after 0.45x).
+- **1.5 ships on the frame's account, not the ladder's**, and says so in three places.
+- **The endless clock is outside the rule.** A thick crowd is a taller schedule, not a run that has been
+  handed its arena back, and the second clock's growth is added after the multiply so an endless run
+  under the rule grows on the same curve it always did. Tested both ways.
+- **No new save shape was needed**: `SAVE.challenges.bests` is keyed by rule id, so a fourth rule is a row
+  in the ledger and an old save simply has no number under it yet.
+
+### What should come next
+1. **The new PLAN item: a thumb can fight and nothing else.** I read `input/touch.js` and `main.js`'s press
+   handler cold looking for a mouse/touch gap, and the layer is honest about what it does - but every
+   action outside the fight is a letter: the day, the rule, the codex, the hangar, the settings, the
+   controls, the pause and the giving-up. A phone visitor sees a title rack of eight keys they cannot
+   press and can do one thing with them. Two facts a session starting that will want: the harness can put
+   a touch on the glass (`touchstart`/`touchend` go through the shipped handlers), and `game.screen` does
+   **not** expose `paused`, so the first thing a test there needs is that in `screens()`.
+2. **`test/endless-growth.test.mjs`'s two same-object assertions** (above): make the pair two different
+   measurements of one world, the way `test/challenge-thick.test.mjs`'s `measureUnder` does, or the file
+   keeps passing at a thing it never checks.
+3. Still owed to a screen, unchanged: the browser half of the performance pass (and now a second thing to
+   look at while the plate is up - a run under THICK CROWD stands 150 bodies on a *scheduled* run, which
+   is between the 100 the arena has been timed at and the 200 endless may reach), the difficulty band's
+   deliberate FAIL, `tools/gun-tune.js`, `cageWall` for a protanope, silhouettes for the crowd pairs that
+   share a colour, and the afterimage's flat top of the ladder.
