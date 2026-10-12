@@ -23,7 +23,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { resetRun } from '../src/game/run.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { fire, setWeapon, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.js';
 
@@ -37,9 +38,7 @@ const IMMORTAL = 1e6;
 function cuesOfPull(field) {
   clearCues();
   fire(field);
-  const cues = [];
-  drainCues((cue) => cues.push(cue));
-  return cues;
+  return hear();
 }
 
 /** One pull, as the light it left behind: the bolts, oldest first. */

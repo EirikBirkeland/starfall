@@ -31,7 +31,8 @@ import {
 } from '../src/game/run.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { fieldIsCaged } from '../src/game/field.js';
-import { drainCues, clearCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { scriptedRun, stepTheWorld, bossOnTheField, enemyAt } from '../tools/headless/scripted.js';
 
 const STEP = BALANCE.sim.step;
@@ -191,8 +192,7 @@ test('the win is a chord over the fight that made it, not instead of it', () => 
   const boss = lastFightOnTheField();
   fell(boss);
   assert.ok(until(() => field.state === STATE.WON, 6), 'the run never got won');
-  const heard = [];
-  drainCues((cue) => heard.push(cue));
+  const heard = hear();
   const chords = heard.filter((cue) => cue.kind === 'chord');
   assert.ok(chords.length >= 2,
     'the going-down and the win are two chords between them; heard ' + chords.length);

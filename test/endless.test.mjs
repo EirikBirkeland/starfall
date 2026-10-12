@@ -30,7 +30,8 @@ import {
 } from '../src/game/run.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { endlessTime } from '../src/game/endless.js';
-import { drainCues, clearCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { scriptedRun, stepTheWorld, bossOnTheField, enemyAt } from '../tools/headless/scripted.js';
 
 const STEP = BALANCE.sim.step;
@@ -244,8 +245,7 @@ test('the hand-back is a ring, a word and a chord, and nothing else', () => {
 
   assert.ok(ringsIn(PALETTE.elite) > before, 'one ring out of the hull, in the colour of a reward');
   assert.equal(wordsSaying(spec.word), 1, 'and the word over it, once');
-  const heard = [];
-  drainCues((cue) => heard.push(cue));
+  const heard = hear();
   assert.equal(heard.filter((cue) => cue.kind === 'chord').length, 1, 'one chord, and not a second fanfare');
   assert.equal(heard.filter((cue) => cue.kind === 'beep').length, 0, 'and no shard ping pretending to be news');
 });

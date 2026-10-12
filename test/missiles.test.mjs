@@ -30,7 +30,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { fire, setWeapon, shotsPerPull, WEAPONS } from '../src/game/weapons.js';
 import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.js';
 
@@ -350,16 +351,14 @@ test('the sound is one per pull, and it leaves rather than strikes', () => {
   swarmRun(612);
   clearCues();
   fire(field);
-  const cues = [];
-  drainCues((cue) => cues.push(cue));
+  const cues = hear();
   assert.equal(cues.length, 1, 'one report a pull, however many shells came with it');
   assert.ok(cues[0].slideTo > cues[0].freq, 'and it slides up: the missile is off and going');
 
   clearCues();
   bodyAhead(200, 10000);
   letItFly(1.5);
-  const report = [];
-  drainCues((cue) => report.push(cue));
+  const report = hear();
   assert.ok(report.length >= 1, 'and the blast makes its own crack when it lands');
 });
 

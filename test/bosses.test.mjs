@@ -14,7 +14,7 @@ import { resetRun } from '../src/game/run.js';
 import { fieldIsCaged, openField } from '../src/game/field.js';
 import { damageEnemy, killEnemy } from '../src/game/enemies.js';
 import { isBossBody } from '../src/game/bosses.js';
-import { drainCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import {
   bossFlare, bossHullShare, bossName, bossPhase, bossPhaseCount, bossTint, bossWarning,
   spokeCount,
@@ -43,9 +43,7 @@ function steps(seconds) {
 
 /** Every sound the game has asked for since the last time this was called. */
 function cues() {
-  const out = [];
-  drainCues((cue) => out.push(cue));
-  return out;
+  return hear();
 }
 
 /**

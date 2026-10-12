@@ -26,7 +26,8 @@ import { SHIPS } from '../src/game/ships.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { world } from '../src/game/world.js';
 import { newRanks } from '../src/game/upgrades.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import {
   AWARDS, AWARD_IDS, bankAwards, dustOf, dustTotal, nameOf, resetAwards,
   takeAwardToasts, updateAwards, wasWon, wonFromSave, wonShare,
@@ -141,8 +142,7 @@ test('a live rule is announced once, spends nothing, and queues its chime', () =
 
   // The chime went out with the plate: the run asked for the sound (game/cues.js) and the audio
   // layer has not even been involved yet.
-  const cues = [];
-  drainCues((cue) => cues.push(cue));
+  const cues = hear();
   assert.equal(cues.length, 1);
   assert.equal(cues[0].kind, 'chord');
 

@@ -20,7 +20,8 @@ import {
 import { makeEnemy } from '../src/game/kinds.js';
 import { dropShards } from '../src/game/pickups.js';
 import { resetRun } from '../src/game/run.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { BALANCE } from '../src/game/balance.js';
 import { world } from '../src/game/world.js';
 
@@ -31,9 +32,7 @@ const STEP = BALANCE.sim.step;
 
 /** Every beep queued since the last call. */
 function beepsHeard() {
-  const out = [];
-  drainCues((cue) => { if (cue.kind === 'beep') out.push(cue); });
-  return out;
+  return hear((cue) => cue.kind === 'beep');
 }
 
 /**

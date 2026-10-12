@@ -163,9 +163,10 @@ test('a crowd costs the step something, and it is a fraction of what it used to 
     + ' a step, over the ' + bytes(BODY_BYTES) + ' the budget allows');
   // The history of this number, because it is the one that shows what the rule has cost: **94 B** a body
   // while `core/grid.js` emptied its cells with `cell.length = 0`, **31 B** once a cell was a count and a
-  // store and `game/awards.js` stopped listing the ranks table every step, and **3-5 B** now that the
-  // crowd's walks call `core/math.js`'s `hypot` instead of `Math.hypot` and that the load has been
-  // warmed before it was weighed. The bound below is where it sat
+  // store and `game/awards.js` stopped listing the ranks table every step, **3-5 B** once the crowd's
+  // walks called `core/math.js`'s `hypot` instead of `Math.hypot` and the load had been warmed before it
+  // was weighed, and **2-3 B** since the sound a darter's beat asks for became a record off a pool
+  // (`game/cues.js`) rather than an object per note. The bound below is where it sat
   // before the last of those two fixes, so a regression that puts an allocation back in the walk trips
   // this and a rounding error does not.
   assert.ok(crowd.perBody < 31, 'a body used to cost 31 B a step; it now costs ' + crowd.perBody);

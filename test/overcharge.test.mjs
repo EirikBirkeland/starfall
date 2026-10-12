@@ -27,7 +27,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import { setWeapon, weaponOf } from '../src/game/weapons.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { effectOf, pullBoostOf } from '../src/game/upgrades.js';
 import {
   chargeOf, hasOvercharge, isLoaded, isStandingStill,
@@ -83,9 +84,7 @@ function plainWeight(field) {
 function cuesOf(action) {
   clearCues();
   action();
-  const cues = [];
-  drainCues((cue) => cues.push(cue));
-  return cues;
+  return hear();
 }
 
 test('the first rank doubles the pull and every rank after it adds another copy of it', () => {

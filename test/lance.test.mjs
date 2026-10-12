@@ -26,7 +26,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
-import { clearCues, drainCues } from '../src/game/cues.js';
+import { clearCues } from '../src/game/cues.js';
+import { hear } from '../tools/headless/hear.js';
 import { resetRun } from '../src/game/run.js';
 import { fire, setWeapon, shotsPerPull, shotsPerSecond } from '../src/game/weapons.js';
 import { windOf } from '../src/game/lance.js';
@@ -84,9 +85,7 @@ function bodyBeside(across, range, hp) {
 function cuesOfPull() {
   clearCues();
   fire(field);
-  const cues = [];
-  drainCues((cue) => cues.push(cue));
-  return cues;
+  return hear();
 }
 
 /** The hull a body has lost out of what it was planted with. */
@@ -260,8 +259,7 @@ test('a pull that winds up is one sound, and the discharge is another', () => {
 
   clearCues();
   holdTheTrigger(BEAM.wind + 0.02);
-  const report = [];
-  drainCues((cue) => report.push(cue));
+  const report = hear();
   assert.equal(report.length, 1, 'and the report is one sound, however many lines came with it');
   assert.ok(report[0].slideTo < report[0].freq, 'and it slides down, for a change');
 });

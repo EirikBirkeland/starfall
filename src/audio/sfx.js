@@ -11,7 +11,7 @@
 
 import { STATE } from '../game/state.js';
 import { BALANCE } from '../game/balance.js';
-import { drainCues } from '../game/cues.js';
+import { BEEP, CHORD, drainCues, MUFFLE, NOISE } from '../game/cues.js';
 import { getContext, getSfxBus, isMuted, muffleMusic } from './engine.js';
 import { noiseVoice } from './noise.js';
 import { loudnessOf, takeVoice } from './mix.js';
@@ -110,9 +110,9 @@ function byLoudness(a, b) {
 }
 
 function play(cue) {
-  if (cue.kind === 'beep') beep(cue.freq, cue.dur, cue.wave, cue.vol, cue.slideTo);
-  else if (cue.kind === 'chord') chord(cue.notes, cue.dur, cue.wave, cue.vol);
-  else if (cue.kind === 'noise') hiss(cue.dur, cue.vol, cue.cutoff, cue.sweep, cue.q);
+  if (cue.kind === BEEP) beep(cue.freq, cue.dur, cue.wave, cue.vol, cue.slideTo);
+  else if (cue.kind === CHORD) chord(cue.notes, cue.dur, cue.wave, cue.vol);
+  else if (cue.kind === NOISE) hiss(cue.dur, cue.vol, cue.cutoff, cue.sweep, cue.q);
 }
 
 /**
@@ -122,17 +122,25 @@ function play(cue) {
  * way to spend a budget well: a frame that asks for a bomber's death and thirty shard pings
  * should play the death and as many pings as are left over, and it cannot know that until
  * it has seen all thirty-one.
+ *
+ * The mix is decided and played *inside* the drain, which is the same sentence said a second
+ * way: a cue a drain hands over is a record borrowed from game/cues.js's pool, so nothing may
+ * read one after the drain is over. `waiting` only ever holds what is on loan right now.
  */
 export function consumeCues(state) {
   waiting.length = 0;
-  drainCues(function (cue) {
-    if (state === STATE.START) return;
-    // A blanket is not one of the sounds competing for the frame: it is not spent from the
-    // budget and it is not made to wait behind anything, so it is handled on the way past.
-    if (cue.kind === 'muffle') blanket(cue.to, cue.back);
-    else waiting.push(cue);
+  drainCues(function (batch) {
+    for (let i = 0; i < batch.length; i++) {
+      const cue = batch[i];
+      if (state === STATE.START) continue;
+      // A blanket is not one of the sounds competing for the frame: it is not spent from the
+      // budget and it is not made to wait behind anything, so it is handled on the way past.
+      if (cue.kind === MUFFLE) blanket(cue.to, cue.back);
+      else waiting.push(cue);
+    }
+    if (waiting.length === 0) return;
+    waiting.sort(byLoudness);
+    for (let i = 0; i < waiting.length; i++) play(waiting[i]);
   });
-  waiting.sort(byLoudness);
-  for (let i = 0; i < waiting.length; i++) play(waiting[i]);
   waiting.length = 0;
 }

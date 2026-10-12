@@ -118,20 +118,26 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 //
 // Where the three budgets stood when they were last moved: measured on a load that has actually been
 // warmed (see `warmWork`), on this box and reproducible to under one percent, the empty arena throws
-// away **64 B** a step, the schedule crowd **436 B**, the endless wall **574 B**, the same crowd dying
-// **984 B** and spread out **582 B**; a body costs **3-5 B** and 900 sparks and 60 shots together cost
+// away **64 B** a step, the schedule crowd **407 B**, the endless wall **514 B**, the same crowd dying
+// **735 B** and spread out **499 B**; a body costs **2-3 B** and 900 sparks and 60 shots together cost
 // the step *nothing* over an empty arena. All three budgets came down when the warm-up was fixed - by
 // 4x on the floor, 2x on a load and 2x on a body - because what the old numbers were mostly measuring
 // was V8 still compiling the step, and a ratchet set against a compiler cannot be tightened by anything
 // the game does. That is the point of a ratchet: it goes down when the game does, or it is only a
 // ceiling.
 //
-// The dearest gated load is the crowd dying, at 984 B: killing and replacing 200 bodies a step costs
-// about as much again as the same 200 bodies walking (574 B) does, which is the first place the next
-// cut should go.
+// They came down a second time when the **sound queue** went onto a pool (game/cues.js). Every cue used
+// to be a fresh object and a fight asks for 1.7 sounds a step - a darter's beat, two shots landing, a
+// death and the shards it paid out - which made one `queue.push` the dearest allocator in the game on
+// its own: switching those four pushes off read the dying crowd at 689 B and the endless wall at 507 B
+// against the 984 B and 574 B they were. Records go round a pool now, and what a sound costs a step is
+// a spawn, a hand of field writes and a clear instead of an allocation.
+//
+// STEP_BYTES is PLAN section 2's own 1 KiB, which the dearest gated load - the crowd dying, at 735 B -
+// fits under by 28%. BODY_BYTES is a third over the 3 B a body costs at that same wall.
 export const FLOOR_BYTES = 128;
-export const STEP_BYTES = 1280;
-export const BODY_BYTES = 8;
+export const STEP_BYTES = 1024;
+export const BODY_BYTES = 5;
 
 /**
  * How a load is warmed up. `WARM_PROBE_STEPS` is the window the warm-up measures - wider than a
@@ -405,10 +411,11 @@ export async function warmWork(work, watch) {
  * back out, because keeping a scene standing is this file's work and not the game's.
  *
  * The sound queue is emptied after every step, which is what a frame does with it once per frame
- * (`main.js` → `audio/sfx.js consumeCues`): a cue is an object, and a probe that stepped without
- * draining would measure a headless run's queue getting longer instead of the game's work. The count
- * is kept and printed, because how many sounds a load asks for is a fact worth seeing next to the
- * bytes they cost.
+ * (`main.js` → `audio/sfx.js consumeCues`): a cue is a pooled record and a probe that stepped
+ * without draining would measure a headless run's queue getting longer instead of the game's
+ * work. The count is kept and printed, because how many sounds a load asks for is a fact worth
+ * seeing next to the bytes they cost - the queue was the dearest allocator in the game until the
+ * records went onto a pool, and it is still the row that says what a load asks an ear for.
  */
 export async function measureLoad(game, scene, opts, watch) {
   const world = game.world;
@@ -417,11 +424,11 @@ export async function measureLoad(game, scene, opts, watch) {
     aimX: world.player.x + 200, aimY: world.player.y, firing: false, dash: false,
   };
   let cues = 0;
-  const countCue = () => { cues++; };
+  const countBatch = (batch) => { cues += batch.length; };
   const step = () => {
     holdScene(game, scene);
     stepWorld(STEP, input);
-    drainCues(countCue);
+    drainCues(countBatch);
   };
 
   const warm = await warmWork(step, watch);
