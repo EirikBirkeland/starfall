@@ -2116,6 +2116,24 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       verdict judges the rule like the other two; `test/challenge-thick.test.mjs` is seven checks over
       the lever, the endless wall, and the director filling the taller arena and not overflowing it.
 
+- [ ] A thumb can fight and nothing else. The touch layer (`input/touch.js`) puts a stick and a dash
+      button on the glass and, when a run is not flying, hands a tap to the same handler a click uses -
+      which is enough to launch and to answer a card. Every other action in the game is a letter: the
+      day (`T`), the harder rule (`X`), the codex, the hangar, the settings, the controls rack, the
+      pause, and the giving-up of a run. A visitor on a phone therefore sees a title rack listing eight
+      keys they cannot press and can do exactly one thing with the eight they can. Reading the layer
+      cold (session 122) found nothing broken in it - the stick, the dash, the auto-fire assist and the
+      "a tap resumes a held run" rule are all honest and documented; the gap is that the screens around
+      the fight were never given a thumb shape. What to decide before building: *which* of those
+      actions is worth a tap target on the title (my short list is TODAY, the rule, and SETTINGS,
+      because the other three are reading and can wait for a keyboard), where the chips go without
+      moving the logo, how big a target a thumb needs at the window sizes the game is played at
+      (`input/touch.js` already answers that question for its own two controls, through `STICK_MIN`
+      and `DASH_MIN`), and whether a held run gets a pause chip at all - the pause is currently reached
+      by `Esc`/`P` and by nothing else, so a phone can only stop a run by backgrounding the tab. Part
+      of this wants eyes on a real screen for the feel of it; the wiring does not, and the harness can
+      put a touch on the glass (`touchstart`/`touchend` go through the same handlers a browser's do).
+
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

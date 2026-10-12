@@ -118,6 +118,12 @@ test('the rule multiplies the budget and the wall on bodies, from the first step
   assert.equal(thickLate[0], W.crowdMax * T.holdMul);
   assert.equal(plainLate[1], W.maxBodies);
   assert.equal(thickLate[1], Math.round(W.maxBodies * T.holdMul));
+  // ...and the lifted wall has to stay under the one a real frame was timed for. This is the number that
+  // decides whether the shipped share is allowed to be what it is: raise `holdMul` past 2 and this line
+  // is the one that says so, before anybody finds it on a screen.
+  assert.ok(thickLate[1] <= G.bodiesCeil,
+    'a scheduled run under the rule stands ' + thickLate[1] + ' bodies, over the frame budget\u2019s '
+    + G.bodiesCeil);
 });
 
 test('the endless clock is outside the rule, and so is its ceiling', () => {

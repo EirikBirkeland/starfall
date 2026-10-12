@@ -1,5 +1,27 @@
 # Starfall — changelog
 
+## 1.3.0 — 2026-10-12
+A fourth harder rule: **THICK CROWD**, which fills the arena. `X` now cycles nothing, ONE HULL, NO DASH,
+SWIFT CROWD and THICK CROWD.
+- **What it does.** The arena holds half again as much of the crowd as it ships: the wave director's budget
+  and its ceiling on standing bodies both stand 50% taller for the whole run, so a late fight is 150 bodies
+  instead of 100 and the crowd keeps climbing for longer before it stops. It is one number in one row
+  (`BALANCE.challenges.thick.holdMul`) and it is spent in the two places the arena's two walls are already
+  read, which is why nothing else about a run moved.
+- **What it costs, measured.** On the careless hand the middle run dies at **2m48s against plain's 3m53s**
+  and scores **0.60x** plain's middle. On the careful hand nobody dies either way and it still costs a run:
+  **0.73x** its score and **11 hulls lost against plain's 3** - a hand that can clear the extra crowd pays
+  for it in hull, not in its life.
+- **It came with everything the other rules had.** A best under the rule on the title and on the ending's
+  card, its own row on the codex's HARDER RULES rack, its word beside the score in PAST RUNS, the mark
+  next to the clock and the line on the pause's rack: all of that was written once, last month, and a fourth
+  rule joined it by being a row in a table.
+- **What the ruler could not decide.** It could not tell a share of 1.3 from 1.5 from 1.75 (0.64x, 0.60x,
+  0.62x on sixteen seeds), because a bigger crowd is also more bodies to shoot at, so the score column is
+  not a straight line in the share the way it is for a swift crowd. The number was picked on the frame's
+  account instead - 150 bodies is under the 200 a real frame has been timed against - and the flat sweep is
+  said in the balance row rather than hidden.
+
 ## 1.2.1 — 2026-10-12
 The run log now says which rule a run was flown under, so a score in that column comes with its units.
 - **A ruled row says so.** The codex's PAST RUNS rack read `WISP · 40s · 90,000` whether the run stood on one
