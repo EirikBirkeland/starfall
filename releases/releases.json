@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.3.0",
+    "date": "2026-10-12",
+    "released": "2026-10-12T19:43:03.278Z",
+    "summary": "THICK CROWD: the arena holds half again as much of the crowd, and there is a fourth rule to beat",
+    "added": 379,
+    "removed": 38,
+    "logBytes": 42689534
+  },
+  {
     "version": "1.2.1",
     "date": "2026-10-12",
     "released": "2026-10-12T18:47:13.073Z",
