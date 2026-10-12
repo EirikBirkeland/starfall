@@ -143,7 +143,7 @@ function drawVacuumMeter(ctx) {
   ctx.font = FONT_TINY;
   haloText(ctx, BALANCE.vacuum.start.word, x, y - VACUUM_WORD, PALETTE.elite, GLOW_GOLD);
 
-  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  ctx.fillStyle = PALETTE.plate;
   roundRect(ctx, x, y, place.w, place.h, 2.5);
   ctx.fill();
   if (place.filled > 1) {
@@ -182,7 +182,7 @@ function drawLeechMeter(ctx, x, y) {
 
   const left = x - LEECH_W;
   const top = y + 6;
-  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  ctx.fillStyle = PALETTE.plate;
   roundRect(ctx, left, top, LEECH_W, LEECH_H, 2.5);
   ctx.fill();
 
@@ -286,7 +286,7 @@ export function drawHUD(ctx, fps) {
   const bh = 12;
   const bx = (W - bw) / 2;
   const by = H - 34;
-  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  ctx.fillStyle = PALETTE.plate;
   roundRect(ctx, bx, by, bw, bh, 6);
   ctx.fill();
   ctx.strokeStyle = 'rgba(94,247,255,0.28)';
@@ -377,7 +377,7 @@ function drawBossBar(ctx, W, boss) {
   const flare = bossFlare(boss);
   const tint = bossTint(boss);
 
-  ctx.fillStyle = 'rgba(10,22,48,0.75)';
+  ctx.fillStyle = PALETTE.plate;
   roundRect(ctx, bar.x, bar.y, bar.w, bar.h, 7);
   ctx.fill();
   ctx.strokeStyle = PALETTE.bossBarTrack;

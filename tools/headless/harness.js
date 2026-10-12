@@ -110,6 +110,12 @@ function makeContextStub(counters, drawLog) {
       // `haloText` strokes a word and then fills it, so every haloed word on the card rack is in
       // here twice. A test that counts words asks for the filled ones.
       stroke: stroke,
+      // ...and the colour it was actually painted with, with the canvas alpha it was painted under:
+      // the only way to ask whether a line of type is legible where it sits (test/contrast.test.mjs)
+      // rather than trusting what a tool remembers about it. A word drawn with `withAlpha` carries its
+      // own alpha inside the colour string; a panel that fades carries the canvas's.
+      ink: String(stroke ? target.strokeStyle : target.fillStyle),
+      alpha: target.globalAlpha,
     });
   };
   const target = {

@@ -86,7 +86,7 @@ export function drawTutorial(ctx) {
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'center';
 
-  ctx.fillStyle = 'rgba(6,16,41,0.86)';
+  ctx.fillStyle = PALETTE.plateDeep;
   roundRect(ctx, plate.x, plate.y, plate.w, plate.h, PLATE.radius);
   ctx.fill();
   // Cool on the edge and in the letters, because everything that helps is (PLAN section 4) - and no

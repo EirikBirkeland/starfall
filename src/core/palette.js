@@ -155,6 +155,20 @@ export const PALETTE = {
   cardScrim: 'rgba(3,7,20,0.74)',
   cardFace: 'rgba(9,20,44,0.94)',
   cardEdge: '#3f89c9',
+  // The three plates the interface writes type on, which are colours and not pixels-per-rule for
+  // the same reason everything else here is: `tools/contrast.js` measures every line of type against
+  // the field it sits on, and a plate spelled out at its four call sites is a plate that stops being
+  // true the day somebody tunes one of them.
+  //
+  // `plate` is the HUD's own - the meter behind the leech, the frame under the XP caption, the box
+  // the FPS readout sits in - and it is the least opaque of the three because it is laid over a run
+  // that is still going and should stay visible behind it. `plateDeep` is for a plate that has
+  // arrived to be read: an award, the mixer, a lesson, the developer's own frame cost. `chipFace`
+  // is a card's key chip and its SYNERGY plate, a shade lighter than the card face behind it so the
+  // mark reads as a key and not as a hole in the card.
+  plate: 'rgba(10,22,48,0.75)',
+  plateDeep: 'rgba(6,16,41,0.9)',
+  chipFace: 'rgba(9,20,44,0.92)',
 
   // Enemy kinds. PLAN section 4 wants the harmful ones in the red-to-magenta half
   // of the palette; the darter is the first drawn from there, and the drifter's

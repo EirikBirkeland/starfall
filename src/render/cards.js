@@ -409,7 +409,7 @@ function drawSynergyPlate(ctx, tab, card) {
   const rect = { x: left, y: tab.y, w: width, h: tab.h };
   const cx = rect.x + rect.w / 2;
 
-  ctx.fillStyle = 'rgba(9,20,44,0.92)';
+  ctx.fillStyle = PALETTE.chipFace;
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, rect.h / 2);
   ctx.fill();
   ctx.lineWidth = 1.2;
@@ -479,10 +479,16 @@ function drawBanishTab(ctx, tab, number, hot) {
   const cy = tab.y + tab.h / 2;
   const edge = hot ? PALETTE.playerLine : PALETTE.cardEdge;
 
+  // The edge may be the card's own blue, because an edge is a line a pixel thick; the ink on it is a
+  // 13px mark that has to be read across a table of cards, so cold it is the interface's secondary
+  // text colour and hot it is what the card's own number key is written in. The card's blue at 0.75
+  // measured 3.3 to 1 on the chip (`tools/contrast-check.js`), which is a mark and not a readable one.
+  const ink = hot ? PALETTE.playerLine : withAlpha(PALETTE.uiDim, 0.85);
+
   // The tab is a fixed size however big the card is, so its type is fixed with it rather than left
   // as whichever font the last line of the card happened to set.
   ctx.font = FONT_KEY;
-  ctx.fillStyle = hot ? withAlpha(PALETTE.player, 0.16) : 'rgba(9,20,44,0.92)';
+  ctx.fillStyle = hot ? withAlpha(PALETTE.player, 0.16) : PALETTE.chipFace;
   roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
   ctx.fill();
   ctx.lineWidth = 1.2;
@@ -490,7 +496,7 @@ function drawBanishTab(ctx, tab, number, hot) {
   roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
   ctx.stroke();
 
-  haloText(ctx, '\u21e7' + number, cx, cy + 5, withAlpha(edge, hot ? 1 : 0.75),
+  haloText(ctx, '\u21e7' + number, cx, cy + 5, ink,
     hot ? GLOW_KEY : 'rgba(111,143,176,0.35)');
 }
 

@@ -50,9 +50,12 @@ const FONT_LABEL = '700 11px "Segoe UI", system-ui, sans-serif';
 const FONT_KEY = '600 10px "Segoe UI", system-ui, sans-serif';
 const GLOW_CYAN = 'rgba(94,247,255,0.8)';
 // The row you just moved, and the one that was merely there. Both rows are always shown: the
-// question a person who just pressed a key has is "and what did the *other* one do".
+// question a person who just pressed a key has is "and what did the *other* one do". The quiet one is
+// half-lit rather than half-*dark*: an alpha of 0.5 put the label at 3.0 to 1 on its own plate, which
+// is a word you have to lean on (`tools/contrast-check.js`), so the two rungs are 8.8 and 4.8 to 1 - a
+// clear step down the ladder, and both of them legible.
 const ROW_LIT = 1;
-const ROW_QUIET = 0.5;
+const ROW_QUIET = 0.7;
 const TRACK = 'rgba(111,143,176,0.28)';
 const PIP_R = 2;    // px of corner on a pip
 // The line under the rows: the keys that did it, said in the same caps the rows above them are said
@@ -147,7 +150,7 @@ export function drawVolumePanel(ctx) {
   // away together - so the fade goes on the canvas and the rows keep their own lit-or-quiet.
   ctx.save();
   ctx.globalAlpha = layout.fade;
-  ctx.fillStyle = 'rgba(6,16,41,0.86)';
+  ctx.fillStyle = PALETTE.plateDeep;
   roundRect(ctx, layout.x, layout.y, layout.w, layout.h, PANEL.radius);
   ctx.fill();
   ctx.strokeStyle = withAlpha(PALETTE.wall, 0.35);

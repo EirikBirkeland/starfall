@@ -423,7 +423,7 @@ export function drawDebug(ctx) {
   const panel = debugLayout();
 
   ctx.save();
-  ctx.fillStyle = 'rgba(6,16,41,0.9)';
+  ctx.fillStyle = PALETTE.plateDeep;
   roundRect(ctx, panel.x, panel.y, panel.w, panel.h, PANEL.radius);
   ctx.fill();
   ctx.strokeStyle = withAlpha(PALETTE.wall, 0.35);

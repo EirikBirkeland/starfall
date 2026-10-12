@@ -25,6 +25,16 @@
   }
   canvas { position: fixed; inset: 0; display: block; cursor: crosshair; }
 
+  /* Every line of type on this page is measured, by `tools/contrast-check.js`, against the brightest
+     field the interface can put behind it - and the rule the measurements wrote is here: a line that
+     is meant to be *quiet* is quieted by its colour (greyer, no glow) and not by darkness, because a
+     line under about 4.5 to 1 against this sky is not a quiet line, it is an absent one. The dim
+     rungs are the ones the game dims on purpose - a codex row it has not met, an award not yet won,
+     a ship the purse has not bought - and they all clear the bar with the rung above them still
+     clearly above them. Nothing here is a remembered hex: the tool reads this stylesheet, so a new
+     rule with a `color:` on it is measured the day it is written, and a red `node --test` is what
+     tells whoever wrote it. */
+
   .screen {
     position: fixed; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -87,7 +97,7 @@
   .ship {
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
     font-size: 12px; letter-spacing: .14em;
-    color: #6f9dc0; transition: color .15s ease;
+    color: #79a4c5; transition: color .15s ease;
   }
   .ship .key { min-width: 42px; padding: 6px 0; text-align: center; }
   /* The numbers are the second line of the row, lined up under the words rather than under the
@@ -95,7 +105,7 @@
      priced on. They are the part two rows are compared with, so they are set in tabular figures. */
   .ship .numbers {
     flex: 1 0 100%; margin-left: calc(42px + 14px);
-    font-size: 10px; letter-spacing: .18em; color: #5f89ab;
+    font-size: 10px; letter-spacing: .18em; color: #6a91b1;
     font-variant-numeric: tabular-nums;
   }
   .ship.picked { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
@@ -108,10 +118,12 @@
   /* A ship the purse has not bought yet. Every word of the row stays readable - a shop that hides
      what it sells is not a shop, and the numbers are the reason anybody wants it - but the row is
      dimmer than the ones that are yours, and its key is dimmest of all because that key does not
-     answer it yet. */
-  .ship.locked { color: #527a9d; }
+     answer it yet. "Dimmer" is paid for in colour and not in darkness: the locked row is greyer than
+     an owned one and the two are a clear step apart (5.35 to 1 against the owned row's 7.05), which is
+     the step a WCAG bar lets the row keep while still being read at 10px. */
+  .ship.locked { color: #6a8dab; }
   .ship.locked .key { opacity: .5; }
-  .ship.locked .numbers { color: #48688a; }
+  .ship.locked .numbers { color: #6b85a0; }
   /* What a locked row costs, in the purse's own gold, on a line under its numbers. Empty for a ship
      that is already yours, so a bought rack reads exactly as it did before there was anything to
      buy. */
@@ -127,11 +139,11 @@
      perk row says which rank the purse is on as plainly as it says what the next one costs. */
   .perk-list { display: grid; gap: 9px; }
   .perk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
-    font-size: 12px; letter-spacing: .14em; color: #6f9dc0; }
+    font-size: 12px; letter-spacing: .14em; color: #79a4c5; }
   .perk .key { min-width: 42px; padding: 6px 0; text-align: center; }
   .perk .numbers {
     flex: 1 0 100%; margin-left: calc(42px + 14px);
-    font-size: 10px; letter-spacing: .18em; color: #5f89ab;
+    font-size: 10px; letter-spacing: .18em; color: #6a91b1;
     font-variant-numeric: tabular-nums;
   }
   .perk.maxed { color: #d8fbff; text-shadow: 0 0 14px rgba(94,247,255,.6); }
@@ -146,7 +158,7 @@
      nine. Small and dim on purpose: it is a label on the rows, not another thing to read. */
   .rack-title {
     margin: 22px 0 0; font-size: 10px; letter-spacing: .5em; text-indent: .5em;
-    color: #5f89ab;
+    color: #6a91b1;
   }
   /* What the visit has to show for itself, on the title: the number to beat and the number being
      saved up. Two numbers, one line, because they are the same kind of thing. */
@@ -239,12 +251,14 @@
     font-size: 12px; letter-spacing: .12em;
   }
   .entry .name { color: #d8fbff; font-weight: 600; text-shadow: 0 0 12px rgba(94,247,255,.45); }
-  .entry .says { color: #6f9dc0; }
+  .entry .says { color: #79a4c5; }
   /* A row for a thing this save has not met. It keeps its place in the list - how many are missing,
      and where they sit, is the whole of what an undiscovered thing may say about itself - and it gives
-     up its glow, so the lit rows are the ones that were earned. */
-  .entry.unknown .name { color: #43637f; text-shadow: none; }
-  .entry.unknown .says { color: #38566f; }
+     up its glow, so the lit rows are the ones that were earned. The glow is the earned mark and the
+     colour only says "quieter": both lines stay legible, because a missing entry that cannot be read
+     says nothing about what is still to find. */
+  .entry.unknown .name { color: #718a9f; text-shadow: none; }
+  .entry.unknown .says { color: #6c8395; }
   /* One readout on the pause screen: a label, and the number it is a label for. This is the codex's
      row turned inside out - there the name is the thing and the line about it is beside it, here the
      *number* is the thing and the label is the small word in front of it. Tabular figures, because a
@@ -254,7 +268,7 @@
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px;
     font-size: 12px; letter-spacing: .12em;
   }
-  .fact .name { color: #6f9dc0; }
+  .fact .name { color: #79a4c5; }
   .fact .says {
     color: #d8fbff; font-weight: 600; font-variant-numeric: tabular-nums;
     text-shadow: 0 0 12px rgba(94,247,255,.45);
@@ -264,7 +278,8 @@
      and this is the one place in the hangar that says where the purse comes from and not only what
      it buys. A row that is won keeps its glow and no number: it is paid. A row that is not keeps its
      number and gives up its glow, which is the same bargain the codex strikes with a thing it has not
-     met - the dim rows are the ones still to do. */
+     met - the dim rows are the ones still to do, dim in colour and legible, and not dim to the point
+     of being unreadable. */
   .award-list { display: grid; gap: 4px; }
   .award {
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 10px;
@@ -275,11 +290,11 @@
      rack only while it is thirty lines tall, and the hangar has two other racks to fit beside it. A
      rule this build outgrew would still wrap whole, onto its own line under its own name - the row
      grows, the sentence does not fall in half. */
-  .award .says { color: #9b7f5e; white-space: nowrap; }
+  .award .says { color: #9e8362; white-space: nowrap; }
   .award .pays { color: #ffe6bd; text-shadow: 0 0 12px rgba(255,179,64,.5); }
   .award .pays:empty { display: none; }
-  .award.unwon .name { color: #5c7f9c; text-shadow: none; }
-  .award.unwon .says { color: #40607a; }
+  .award.unwon .name { color: #6d8da6; text-shadow: none; }
+  .award.unwon .says { color: #698397; }
   .award.unwon .pays { color: #c7a272; text-shadow: none; }
   .hint {
     margin-top: 34px; font-size: 13px; letter-spacing: .3em; text-indent: .3em;
@@ -303,7 +318,7 @@
   }
   /* The line about the row on the line below it, the way a ship row wears its numbers: it is the part
      you read once and then stop reading, so it is the dimmest thing on the panel. */
-  .setting .says { flex: 1 0 100%; font-size: 10px; letter-spacing: .18em; color: #4a7291; }
+  .setting .says { flex: 1 0 100%; font-size: 10px; letter-spacing: .18em; color: #6d8ea7; }
   /* The row the cursor is on, lit the way a picked ship is. It is the one row the next arrow press
      will change, and a cursor nobody can see is a cursor nobody can use. The border is there and
      transparent every other time, so lighting it cannot move anything. */
@@ -440,7 +455,7 @@
   .hull { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: 11px; letter-spacing: .12em; }
   .hull .name, .hull .says { white-space: nowrap; }
   .hull .name { color: #ffb2d0; text-shadow: 0 0 12px rgba(255,94,196,.35); }
-  .hull .says { color: #a0788c; }
+  .hull .says { color: #a37d90; }
   /* And the ship the next run will be flown in, which is what a number pressed over a wreck
      changes. Kept apart from the build line above it on purpose: that one is about the run that
      ended, this one is about the next. */

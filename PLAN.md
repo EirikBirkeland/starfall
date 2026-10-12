@@ -1866,6 +1866,35 @@ When every item above is ticked, go back to the first unchecked item of mileston
       when the run took no cards at all (`WISP · PULSE · BUILT FROM · NO UPGRADES`); it was left alone
       because the only fix that reads better would split one sentence across two modules, and `NO UPGRADES`
       is the same clause the banished lines are said with (`NO TETHER`).
+- [x] Measure every line of interface type, and make the quiet ones legible. (**The arena has had a
+      colour ruler for five milestones and the interface has never had one**, which is how ten of the
+      game's lines came to be written at 2.4 to 4.4 to 1 against the field they sit on - every one of them
+      deliberate: the codex's undiscovered rows (2.43, 2.96), an award not yet won (2.82, 4.42), a ship the
+      purse has not bought (3.22, 4.12), a settings row's own explanation (3.65), the mixer's quiet slider
+      (3.05) and the banish tab (3.31). `tools/contrast.js` is the ruler - the WCAG 2.1 relative-luminance
+      ratio, 4.5 to 1 for a line you read and 3 to 1 for a heading of 24px or more, because a line of type
+      you cannot read is a fact the game is not telling you, and not a colour-vision question in the way a
+      red body against a red sky is - and the Oklab step is printed beside every number so an interface
+      figure can still be compared with an arena one. **The page half is read out of `index.html` itself**:
+      every `color:` declaration in its stylesheet, its size resolved through the same inheritance a
+      browser would use, dimmed by whatever `opacity` its own rule sets, composited over a veil parsed out
+      of the same file - so the audit cannot drift from the page and a new line of type is measured the day
+      it is written. **The glass half is a table** of the 27 lines `src/render/` paints, every colour read
+      from `core/palette.js` by name and every plate a palette entry (`plate`, `plateDeep`, `chipFace`, and
+      a test refuses an inline rgba plate in the renderer), pinned to the drawing twice: once by reading the
+      function that paints it, once by painting the mixer readout in a test and reading the ink and the alpha
+      back off the canvas stub. That pin is not decoration - the tab had been measured in `cardEdge` while
+      the code had long since started painting it in the card's own key colour, so one of those ten failures
+      was a phantom and nine were real. **What changed on the screen**: the quiet rungs are quiet in colour
+      and no longer in darkness, because a line under the bar is not a quiet line, it is an absent one - the
+      page's body blue went 6.46 to 7.05 and its numbers 5.03 to 5.60 so the ladder stayed stretched, and the
+      eight dim rungs came up to 4.7-5.6 with the step below the rung above them intact (the glow, and not
+      the colour, is the mark of a thing earned: it says so in the CSS and in a test). The mixer's untouched
+      row went from alpha 0.5 to 0.7 - 3.05 to 4.82, still half as lit as the row you just moved - and the
+      banish tab's cold ink from the card's blue to the interface's secondary text colour, 3.31 to 6.43.
+      `tools/contrast-check.js` prints the whole thing (`--all`, `--strict`) and `test/contrast.test.mjs`
+      holds it in 13 tests, including a named list of the five lines that are meant to be near their bar.
+      Suite 1985 to **1998**, and the reference run traces the same bytes because nothing in `game/` moved.)
 - [ ] Release `1.0.0`.
 
 ### After 1.0

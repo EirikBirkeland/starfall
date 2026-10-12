@@ -128,7 +128,7 @@ export function drawToasts(ctx) {
   ctx.textBaseline = 'alphabetic';
   for (const plate of layout) {
     ctx.globalAlpha = plate.glow;
-    ctx.fillStyle = 'rgba(6,16,41,0.9)';
+    ctx.fillStyle = PALETTE.plateDeep;
     roundRect(ctx, plate.x, plate.y, plate.w, plate.h, PLATE.radius);
     ctx.fill();
     ctx.strokeStyle = withAlpha(PALETTE.elite, 0.45);

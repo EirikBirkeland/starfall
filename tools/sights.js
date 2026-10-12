@@ -91,8 +91,9 @@
 //   which is the whole reason this file is about crowds.
 //
 //   **The interface** - cards, panels, the HUD, the codex. Those are read at leisure,
-//   in words, with the run stood still; they are checked for contrast in their own
-//   way (see `tools/contrast-check.js` if and when somebody wants it).
+//   in words, with the run stood still; they are measured by `tools/contrast-check.js`
+//   on a different ruler (WCAG's contrast ratio, because the question is a line of type
+//   you can read and not two bodies that have to be two) and by `test/contrast.test.mjs`.
 //
 //   **Fills on their own.** A body's fill is a wash behind its line and the line is
 //   what the eye reads as the thing's colour, so pairs are judged on the line; a fill
