@@ -1733,6 +1733,10 @@ When every item above is ticked, go back to the first unchecked item of mileston
       crowd, 2,947 canvas operations a frame) and the plate is the only thing in here that can say what
       a real canvas asks of a real machine. Until that is read, `endless.growth.bodiesCeil` stays at 200
       and PLAN section 2's 600-enemy sentence stays printed and ungated.
+      **This one is the owner's to take, and it survived 1.0.0 for that reason**: there is no browser on
+      this box and no canvas here to time, so a headless session can only say so. Everything the tool side
+      can gate *is* gated (`tools/perf-probe.js` paints the arena into a recording painter and holds the
+      step and the operation count), and it passes; what nobody has ever read is what a real GPU says.
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read
@@ -1929,7 +1933,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
       `tools/contrast-check.js` prints the whole thing (`--all`, `--strict`) and `test/contrast.test.mjs`
       holds it in 13 tests, including a named list of the five lines that are meant to be near their bar.
       Suite 1985 to **1998**, and the reference run traces the same bytes because nothing in `game/` moved.)
-- [ ] Release `1.0.0`.
+- [x] Release `1.0.0`. **Done.** The last milestone-10 item this project could take by itself: the two
+      budgets it wanted re-checked were checked the same session (`tools/alloc-probe.js` - 4 gated loads,
+      the dearest step 735 B, PASS; `tools/perf-probe.js` - 4 gated scenes, the worst step 0.103 ms and
+      the dearest mean 3,407 operations, PASS), the whole suite of 2,043 tests passed, and a full headless
+      run plays through to the cap. The only item left in this milestone is the browser half of the
+      performance pass above, which needs a screen and a person in front of it.
 
 ### After 1.0
 Keep going with whatever makes the game better. Ideas: new enemies, a fourth boss, challenge modifiers
