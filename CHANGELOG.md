@@ -1,5 +1,29 @@
 # Starfall — changelog
 
+## 0.10.17 — 2026-10-12
+The hangar reported this one on itself, and it was right: open it and the title screen kept shining
+through - the key line, the big score on a wreck's card, the mark itself - so the panel you were reading
+had a second, fainter panel underneath it and the picture looked broken. Now the page underneath a panel
+is put to bed, and what is left of the menu behind the glass is a hint at a tenth.
+- **Everything the menu said goes, not only the words**: the title, the wreck's card and the win's card
+  fade to a tenth of what they were, and the STARFALL mark - which is painted on the canvas rather than
+  typed into the page - steps back to the same share of its light, or the word would have gone on glowing
+  behind the racks all on its own.
+- **Every panel does it**: the hangar, the codex, the settings, and the controls rack behind them - and
+  stepping from one to the next keeps the page asleep instead of letting it up in between. Whatever key
+  closes the last panel lets the page back up.
+- **It fades**, over the quarter of a second the page already fades its screens with, so the menu sinks
+  rather than blinking. Ask your machine for as little movement as it will give and the change lands on
+  a single frame instead, like everything else here that moves.
+- **The arena is not part of it.** The crowd and the starfield keep drifting behind every panel exactly as
+  they do behind the pause; that was always on purpose. It was the *other page's words* that had to go, and
+  a tenth of them is left behind so the hangar stays a window onto the arena rather than a card pasted on
+  black.
+- **Eight new tests**, among them one that reads the page's own stylesheet to check that the class the code
+  writes is a class the page actually styles (and that `hidden` still outvotes it), and one that prices the
+  mark's strokes so a test can see the dim happen instead of assuming it. The reference run traces the
+  same bytes as before it.
+
 ## 0.10.16 — 2026-10-11
 There is a **MARKS** row now, one press inside the settings: on, every enemy shot is drawn with a dark
 hole punched through its light and every shard with a lit spark in its middle. That is the whole feature -

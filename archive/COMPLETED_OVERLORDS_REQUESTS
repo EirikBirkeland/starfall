@@ -207,3 +207,35 @@ Three new tests and eight amended ones, and a stub browser that now models the a
 `autoplay: true` is a browser that lets the page play, and without it the device is built asleep and
 `resume()` is refused until the harness presses something. The reference run traces the same bytes as
 before, which is the check that a device built a frame earlier moved nothing a player can feel.
+
+------------------------------------------------------------
+
+BUG-HOTFIX:
+The Hangar works fine, but due to insufficient opacity, the root menu shines through. This makes it seem as if the graphics have bugged out.
+TIP: The main menu should not be visible at all from the hangar, or perhaps just a slight, slight hint.
+
+Finished? YES
+Shipped in 0.10.17, and the diagnosis was exactly right: the hangar is an overlay, and it sits *over* the
+title rather than instead of it. Its own dim was strong enough for the arena behind it and nowhere near
+strong enough for a page of bright type painted between the two - so the title's key line, and the big
+score on a wreck's card, were still readable straight through the racks you were trying to buy things
+from.
+
+The fix is not a bigger dim, because a dim strong enough to bury those would have buried the arena too -
+and the crowd drifting behind the panel is the one thing every panel here shares with the pause. Instead
+the page underneath a panel is now put to bed: while the hangar, the codex, the settings or the controls
+rack is up, the title and the two cards fade out to a tenth of what they were and come back when the panel
+goes. That is the "slight, slight hint" you asked for, and it fades over the same quarter of a second the
+page already fades its screens with, so it sinks instead of blinking. The arena is untouched by any of it:
+the crowd and the starfield drift behind every panel at the strength they always had - behind the hangar,
+in fact, a shade clearer than before, now that they are dimmed once instead of twice.
+
+Two halves of the title needed separate handling. The STARFALL mark is painted on the canvas and not typed
+into the page, so it went on glowing behind the hangar at full tube; it steps back to the same share of
+its light now, letters, rule and falling star together. And the mark is the largest and brightest thing on
+that screen, so it was worth saying out loud in the tests: one of them prices the mark's own strokes and
+measures how lit each one was asked for, which is the only way in here to tell a dimmed mark from a missing
+one.
+
+Eight new tests, and the reference run traces the same bytes as before it - nothing here can touch a run,
+because nothing here is in one.
