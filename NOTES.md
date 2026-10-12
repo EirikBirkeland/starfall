@@ -13346,3 +13346,98 @@ Then the three open items of milestone 10, unchanged and with the first of them 
 574-984 B a step the ruler now says is the truth), then **Release 1.0.0**. The After-1.0
 re-price of `tether`/`afterimage`/`overcharge` is still sitting there from session 114 and is still the
 lowest-stakes of the lot.
+
+## Session 116 — The dearest thing in a crowded step was the sound it asks for. Released 0.10.20
+
+**Released v0.10.20.** This one moves `src/`, and it is the sort of change the owner's menu should carry: the
+game looks identical and sounds identical, and the worst frames in a fight are the collector, which it now
+interrupts a quarter less often. Suite **2014 → 2023** (9 in `test/cues.test.mjs`). The reference run
+(`--seed 20261006 --trace`) is byte for byte session 115's (10m00s / 73,982 / level 57 / 3,934 kills /
+4,934 shards, 7 vacuums, 2036 in) — a cue never feeds back into a run, and 4,968 of them in a two-minute
+fight make sure of it.
+
+The item was PLAN's "cut what the crowd costs when it is dying". It was not the dying. **It was the sound
+queue**: `cueBeep`/`cueNoise` pushed a fresh object per sound, and a crowded step asks for 1.7 sounds — a
+darter's beat, two shots landing, a death, the shards it paid out. That one `queue.push` was **295 B of the
+410 B** separating the crowd dying (984 B a step) from the same 200 bodies standing still (574 B), and it
+was the last big single allocator left after `Math.hypot`.
+
+### How the bytes were attributed, since the ruler cannot name a cause
+`tools/alloc-probe.js` weighs a step; it has no idea which system spent it. So, exactly as the `Math.hypot`
+hunt did it: **`git worktree add /tmp/wt HEAD`, switch one suspect off in the copy, weigh the same load
+again** (~7 s a weighing once you know what you want). And `node --heap-prof --heap-prof-interval=1024` with
+`.scratch/read-heap2.mjs` (prints full stacks over a size floor) for names. What that bought:
+
+| switched off | the crowd dying reads |
+| --- | --- |
+| nothing (as it was) | 984 B a step |
+| the cue objects | **689 B** |
+| the whole shard drop-and-pickup path | 533 B |
+| both | 393 B |
+| the `'+' + enemy.score` label string | 980 B |
+
+The two big rows overlap by ~155 B (the pickup pings are cues), which is why the ablations are read as a
+lattice and not added up. The last row is the lesson: a string concatenation per kill is worth **4 B a
+step**, because V8 does not allocate what it can see the whole life of. It was measured, written down, and
+left exactly where it was — the third time this project has saved a session by refusing to fix a plausible
+guess.
+
+### What shipped
+`game/cues.js` is a `core/pool.js` pool now. One record shape for all four kinds (one hidden class instead
+of four), every queue function writes every field — the contract every other pooled list in the game keeps —
+and **a drained cue is on loan**: `drainCues(handle)` hands the whole frame's batch over and returns every
+record when `handle` returns, inside a `finally`. `audio/sfx.js` had to work that way anyway (it cannot
+spend its voice budget until it has seen the frame), so its mix now sorts and plays *inside* the drain.
+`copyCue(cue)` is how a listener keeps one; 12 test listeners went through the new `tools/headless/hear.js`
+instead of hand-rolling the copy.
+
+Two decisions worth keeping:
+- **The batch and not the cue.** A per-cue callback would have failed *silently* if a call site had been
+  missed — a batch read as a cue has no `kind`, so audio would have played nothing and no test would have
+  noticed. `grep -rn "drainCues("` is the guard, and `hear()` is the one place the shape is written.
+- **`drainCues` returns the records in a `finally`,** so a listener that throws mid-frame cannot leave the
+  queue stuck full replaying itself forever. Falsified by copying the file to `/tmp`, dropping the
+  `finally`, and watching `test/cues.test.mjs` go red — and *not* with `git checkout --`, per session 113.
+
+The numbers: schedule crowd **436 → 407 B**, endless wall **574 → 514**, crowd dying **984 → 735**, spread
+out **582 → 499**, PLAN section 2's impossible scene 3.9 → **3.3 KB**. A megabyte of garbage is 11.9 s of
+the dearest load instead of 8.9 s. `STEP_BYTES` 1,280 → **896** and `BODY_BYTES` 8 → **5**, and for the
+first time the tightened gate was pointed at the regression that paid for it: `git worktree add /tmp/wt2`,
+put an object per sound back, and the dying crowd reads **984 B and FAILS (exit 1)**. Every earlier budget
+in this file was mutation-checked against an allocation that had already been deleted and could only be
+re-invented; this one could simply be put back, and was.
+
+### Things that surprised me
+- **A pooled queue is not a queue that does nothing.** The ablation said 689 B; the pool says 735 B. The 46 B
+  a step between them is `spawn`/`clear` bookkeeping and eleven field writes per sound, and it is the honest
+  price of keeping the fight audible rather than silently not making the sound. Said out loud in the module
+  header so nobody reads the ablation number as the achievable one.
+- **An instrument that skips the frame loop reads its own omission.** My `.scratch/dying-profile.mjs` stepped
+  the world without draining cues (the real frame does, `main.js` → `consumeCues`), so the first profile
+  *after* the fix still showed megabytes under `makeCue` — the pool growing because nothing was handing the
+  records back. Adding the drain made the picture honest again, and then nothing in `src/` scored over
+  200 KB across a whole fight. Same family as session 114's instrument-that-measured-itself; the rule is
+  "a probe must empty the queue exactly as a frame does", which `tools/alloc-probe.js` already knew and I
+  did not.
+- **`test/structure.test.mjs`'s `Math.hypot` guard is a text grep over all of `src/`,** so writing the words
+  `Math.hypot` in a *comment* in `cues.js` failed the suite. That is the guard being literal rather than
+  clever — the fix was to name the thing differently in prose ("the crowd's distances went through
+  `core/math.js`'s own `hypot`"), and it is worth knowing before you write about it in a comment anywhere
+  else in `src/`.
+- **One `node --test` run reported `fail 2` and the next `fail 1`.** The extra one did not reproduce and was
+  in `test/alloc-probe.test.mjs`, which is the suite's flakiest file because it spawns probing children
+  while eight other files are probing too. Nothing was changed for it; if the suite goes red there without a
+  change to `src/`, look at load before you look at the code. The tightened budgets still have room — the
+  dearest load is 22% under `STEP_BYTES` — but that is the margin to watch.
+
+### What is next
+The two open items of milestone 10, in order: **the browser half of the performance pass** (open the game,
+F3 plate, fly the endless door to `bodies 200 / 200`, and write down what `step ms` and `draw ms` say — the
+ruler now says 514-735 B a step and 0.11 ms a step is what the arena knows; only a real canvas can say what
+a real machine asks), then **Release 1.0.0**.
+
+And the dead end, written down so nobody re-walks it: after the queue, the sampler names no site in `src/`
+worth cutting. The crowd dying still costs ~221 B a step more than the same crowd standing, and that residue
+is diffuse — the grid hunt already said the same about the walk. Typed-array positions for the crowd or
+nothing. The After-1.0 re-price of `tether`/`afterimage`/`overcharge` from session 114 is still sitting
+there, still the lowest-stakes of the lot.
