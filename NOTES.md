@@ -12847,3 +12847,92 @@ shipped palette needs no rescuing, and the honest half that was left was the row
    and deliberately unjudged); and the four crowd pairs that share a colour (`darter/swarmling` 0.35 above
    all) want a silhouette rather than a colour - which is the other word in PLAN's sentence and a different
    session.
+
+## Session 111 — The owner's hangar hotfix: a panel puts the page underneath it to bed
+
+Suite **1970 → 1982** (7 in `test/panel-aside.test.mjs`, 1 in `test/logo-calm.test.mjs`). The reference run
+(`--seed 20261006 --trace`) is byte for byte session 110's again (10m00s / 73,982 / level 57 / 3,934 kills
+/ 4,934 shards, 7 vacuums, 2036 in) - nothing in `game/` was touched. Released **0.10.17**.
+
+`OVERLORDS_REQUESTS` arrived with a BUG-HOTFIX in it: *"The Hangar works fine, but due to insufficient
+opacity, the root menu shines through... The main menu should not be visible at all from the hangar, or
+perhaps just a slight, slight hint."* Bugs first, so this was the session. The entry is now in
+`archive/COMPLETED_OVERLORDS_REQUESTS` with the note on what shipped.
+
+### What landed
+- **`ui/screens.js` `putScreensToBed(down)`** - the whole feature in four lines. `raisePanel` puts the
+  three menu screens (title, wreck's card, win's card - `beds`, built beside `panels` in `initScreens`)
+  to bed; `closePanels` lets them up. The page carries a new class, `aside`, and `index.html` gives it
+  `opacity: .1` - written *above* `.screen.hidden` deliberately, because both rules say `opacity`, they
+  are equally specific, and a screen can be both: `.hidden` has to be the one that wins. That precedence
+  is a test and not a comment.
+- **`render/logo.js` `dimLogo(on)` / `logoDim()`** - the other half of the title. The mark is painted on
+  the canvas, so fading the page left the word glowing behind the hangar at full tube on its own. `dim`
+  eases toward its target on the frame's clock inside `advanceLogo` (`DIM` 0.18, `DIM_FADE` 0.25 s, and
+  it eases even after the arrival has finished, because a panel can be opened an hour into a page) and
+  `drawLogo` stamps it once with `ctx.globalAlpha = dim` inside its `save` - one line covers the letters,
+  the rule, the studs and the falling star, and `paintGlow` already multiplies the alpha it finds.
+- **`main.js`** asks `dimLogo(panelIsUp())` on every frame, next to `advanceLogo`. Not on each open/close
+  path: there are half a dozen of those and the mark only needs the answer once per frame.
+- **What the eye gets, in numbers.** Before: the title's words came through the hangar's centre at 45% and
+  the mark at 45%. After: the words are at 0.1 × 0.45 = **4.5%**, the mark at 0.18 × 0.45 = **8%**, and the
+  arena behind them at 44% instead of 34% - the title's own veil went to a tenth with its words, so the
+  crowd behind the hangar is a shade *clearer* than it was, dimmed once instead of twice. That is the
+  "slight, slight hint" the request asked for, and it is why a bigger panel dim was not the answer: a dim
+  strong enough to bury a page of bright type would have buried the arena too, and the arena behind the
+  glass is the one thing these panels share with the pause.
+- **A tenth and not nothing, on purpose.** `opacity` and not `.hidden` so it travels on the page's own
+  0.28 s fade instead of blinking, and a tenth left behind so the hangar is still a window onto the arena
+  rather than a card pasted on black. `prefers-reduced-motion` gets the change on one frame (the test in
+  `logo-calm.test.mjs`), which is what that request means everywhere else in the game.
+- **Harness** (`tools/headless/harness.js`): `classes(id)` beside `text(id)` (a test can ask which classes
+  a screen ended up with instead of betting on one), the stroke log now records the `globalAlpha` each
+  stroke was asked for and `measure()` hands it back as `alphas` - the only way in here to tell a dimmed
+  mark from a missing one, since both cost the same strokes.
+
+### The stub was the bug, not the game
+The new art test went red first with a stroke at `0.0258` where everything else was at `0.18` - and it was
+the *rig* that was wrong, and had been for a long time: the canvas stub's `save`/`restore` only gave the
+transform back, so `paintGlow`'s `globalAlpha *= strength` leaked onto every stroke drawn after a glow
+stamp in the same frame. No `src/` code was wrong (a real canvas restores alpha), but any test that read a
+logged `alpha` after a stamp had been measured against a lying canvas. `save` now stacks
+`{m, a, c}` - transform, alpha, composite - and the whole suite says the change is free.
+
+### The orphan in the tree
+`test/shot-speed.test.mjs` was sitting there **uncommitted** at session start - the shot-speed line the
+last six sessions' notes kept listing as owed, apparently written by a session that ended before it could
+verify it. It is complete, honest and passing: it measures the card on the world (a shot's `life` is a
+fuse in seconds, so a rank buys `speed × life` of reach; a faster shot falls behind a walking body by
+exactly the walk it saves; and the honest negative - the crowd walks into the reach a plain shot already
+had, which is *why* `tools/line-ab.js` reads 1.00x on the pulse). Committed as its own commit after
+`node --check` and a green run. **That closes the shot-speed item** - on the world, which is the only
+place the effect is measurable at all, and it says so in its header comment.
+
+### Decisions, so nobody relitigates them
+- **Every menu screen goes, hidden or not.** `putScreensToBed` does not check `.hidden` first: a hidden
+  screen wearing `aside` is a screen nobody can see, and the alternative is a branch that has to be
+  remembered every time a screen is added. The CSS precedence is the guard, and it is tested.
+- **The mark is dimmed and not hidden.** "Not visible at all" was the owner's first preference; a faint
+  mark is the second, and it is the one that keeps the hangar inside the same place the title is. A mark
+  that vanished outright would be a hole in the middle of the panel's glow.
+- **`beds` does not include the panels themselves**, and the pause is not a bed: a held run is the subject
+  of the pause panel, not a page underneath it.
+- **The HUD behind the pause is the same shape of problem and was left alone.** `render/hud.js` is drawn
+  while paused (score top-left, clock, hull pips) and comes through at 45% the way the menu did - but it
+  sits at the edges, the pause panel is centred, and the pause's own headline already prints the two
+  numbers that overlap most. Nobody has reported it; if it is ever done, it is `dimHud(world.paused)` and
+  the same one line in `drawHUD`, not a stronger panel.
+- **`dimLogo` is a request and `dim` is the state**, which is what keeps the calm-motion snap in one place
+  instead of three callers each deciding whether to fade.
+
+### What should come next
+1. **Milestone 9's last item is still `- [ ] Release.`** (PLAN, end of M9). Session 110's note: read the
+   milestone's checklist against what exists, tick it or argue with it. Whatever it turns out to be, that
+   is the next session's one thing.
+2. Then milestone 10: the **difficulty band** (`tools/difficulty-arc.js` still fails), `tools/gun-tune.js`
+   from session 96, session 101's **`--paint` door** on `tools/alloc-probe.js`, the browser half of the
+   performance pass - and `1.0.0`. The **shot-speed line is done** (see the orphan above).
+3. Still owed from session 110 and unchanged: an interface half of the colour audit (`tools/contrast-check.js`
+   aimed at `render/cards.js` text-on-panel), `cageWall` is a thin wall for a protanope (0.13 from the ship,
+   deliberately unjudged), and the four crowd pairs that share a colour (`darter`/`swarmling` 0.35 above all)
+   want a silhouette rather than a colour.
