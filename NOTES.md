@@ -13056,3 +13056,103 @@ does drive the dash through the mouse, but it aims on purpose, so it is not the 
    "how pointed is this body" measure would have to export them the way the sizes are exported; and
    `POLYGON_FORMS` has a name for 4 and 7 sides but no kind asks for either, which is fine until a new
    kind asks for a heptagon and finds nothing.
+
+## Session 113 — The interface is measured: nine lines of type that could not be read can be now. Released **0.10.19**
+
+Suite **1985 → 1998** (13 in `test/contrast.test.mjs`). The reference run (`--seed 20261006 --trace`) is
+byte for byte session 112's again (10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards, 7 vacuums,
+2036 in), which it must be: nothing in `game/` was touched, and every colour that moved is a colour the
+simulation never reads.
+
+Three sessions' notes ended with "the audit still has no opinion on the **interface**". It has one now, and
+it was not a nice one: nine lines of the game's own type were written below the legibility bar, all of them
+deliberately dim.
+
+### The orphan in the tree, part three
+`tools/contrast.js` (a whole measurement library, no CLI) and the three plate entries in
+`core/palette.js` were sitting **uncommitted** at session start - session 112's owed item, written by a run
+that ended before it could verify it. Nothing imported it, `test/contrast.test.mjs` did not exist, and the
+plates it documented were only half-moved (session 113's own diff had `PALETTE.plate` in `hud.js` and the
+`chipFace` swaps in `cards.js`, still uncommitted). Finishing it was the session: same shape as the palette
+audit - `tools/contrast.js` is the ruler and the tables, `tools/contrast-check.js` prints them, and
+`test/contrast.test.mjs` holds them - which meant splitting the file, because the draft had its report
+running at import time and a test importing it would have run a report and called `process.exit`.
+
+### What the ruler found, and what moved
+Type gets **WCAG 2.1's contrast ratio** (4.5 to 1 for a line you read, 3 to 1 for a heading of `LARGE_PX`
+24px or more) and not the Oklab step: a line of grey-on-navy type carries no hue and needs none, and
+"can this be read" is a different question from "are these two bodies two". The Oklab step is printed
+beside every number anyway so an interface figure can be compared with an arena one.
+
+Failures, and where they ended up: `.entry.unknown .says` **2.43** → 4.73, `.award.unwon .says` **2.82** →
+4.71, `.entry.unknown .name` **2.96** → 5.19, `.ship.locked .numbers` **3.22** → 4.88, `.setting .says`
+**3.65** → 5.41, `.ship.locked` **4.12** → 5.35, `.award.unwon .name` **4.42** → 5.35, the mixer's quiet row
+**3.05** → 4.82, the cold banish tab **3.31** → 6.43. Two more that merely cleared it thin came up too
+(`.hull .says`, `.award .says`). The page's body blue went 6.46 → 7.05 and its numbers 5.03 → 5.60 so the
+ladder stayed *stretched*: lifting the floor alone would have packed every rung into half a step.
+
+- **A quiet line is paid for in colour and not in darkness.** The game dims a codex row it has not met, an
+  award not yet won, a ship the purse has not bought, the slider nobody moved - and the honest signal for
+  all of those is already something else: the glow (`text-shadow`), the gold price line, the dim key chip.
+  So the rungs went greyer and stayed legible, and `test/contrast.test.mjs` refuses a quiet rung that
+  carries more chroma than the rung above it, and one that is within 0.4 of a ratio of it. A "fix" that
+  painted everything one bright flat wash would pass the bar and fail that.
+- **The page half is read out of `index.html` itself** - every `color:` in its `<style>`, size resolved
+  through the page's own inheritance (`.entry.unknown .name` asks `.entry.unknown`, then `.entry`, and
+  takes the smallest `clamp()` branch when there is one), dimmed by the rule's own `opacity`, composited
+  over a veil parsed from the same file. `pageColourRules()` is the same parse with the audited rows taken
+  back out, and a test asserts the counts match, so a new selector cannot be filtered into silence.
+- **The glass half is a table pinned to the drawing twice.** Every colour by `core/palette.js` name, and a
+  test reads the function that paints each pinned line and refuses a name it never mentions, plus one that
+  paints the mixer for real and reads the ink, the alpha *and* the point size back off the canvas stub.
+  That pin is what caught the draft's own error: the banish tab was being measured in `cardEdge` while
+  `drawBanishTab` had long since moved its hot ink to `playerLine`.
+- **The three plates are palette entries** (`plate`, `plateDeep`, `chipFace`) and a test greps `src/render/`
+  for their literal `rgba(` spellings, because a plate copied into a draw call is a plate that stops being
+  true. A translucent colour is composited before it is measured, everywhere, same rule `sights.js` uses.
+- **`tools/sights.js`'s "if and when somebody wants it"** pointer to `tools/contrast-check.js` was left
+  four sessions ago in a comment that anticipated exactly this file. It now points at a tool that exists.
+
+### The mistake that cost the most, and it was avoidable
+**I destroyed work with `git checkout -- <file>`.** To falsify the new guards I mutated a colour, ran the
+test, and "restored" with `git checkout`. Half the files I mutated carried **uncommitted** work - mine and
+session 113's - and `git checkout` handed back HEAD: four files lost the plate extraction, the tab ink,
+`ROW_QUIET` and every CSS colour lift in one line. I rebuilt all of it from the diff printed at the top of
+this session, and the suite is green again, but only because I had read that diff. **Rules for the next
+session: copy the file to `/tmp` and copy it back (that is what the mutation runs in this note should have
+been), and treat `git checkout --` as a destroyed-work machine whenever the tree is dirty.** A dirty tree is
+normal here - an orphan session left one at the start of this one, and it will again.
+
+Every guard was then falsified properly, with backups: a dimmed codex line, `ROW_QUIET` back to 0.5, the tab
+ink back to `cardEdge`, an inline plate in `hud.js`, a locked row as bright as an owned one, a new dim
+selector, a mixer row lying about its size - each turned exactly the named test red and nothing else did.
+
+### Decisions, so nobody relitigates them
+- **Four exclusions, each one written down in the tool**: a `text-shadow` is not counted (a line that only
+  reads because of its glow should be shouted about, not passed); a pulsing line is measured at full
+  strength, like a bomber's flash; `.screen.aside` is not a legibility question (session 111's tenth is on
+  purpose) - and a test notes that the two exclusions currently carry no colours at all, so a colour put
+  there is reported rather than skipped; and the developer's readouts (the F3 plate, the frame-rate line)
+  are exempt on `test/words.test.mjs`'s grounds.
+- **Every page line is measured on the *brightest* field**, because the four veils are all nearly black and
+  light-on-dark type is worst on the brightest. A test holds them within an order of magnitude of each
+  other and under luminance 0.05, so the day a panel gets a real background the audit is forced to grow a
+  per-panel field instead of lying.
+- **The report prints `thin` lines on a clean run** (five today: 4.71-4.88), the way `palette-check.js`
+  prints the pairs near their bar. A clean run should say where the edge is.
+- The harness's text log gained `ink` and `alpha` (session 111 did the same for strokes). Anything that can
+  measure a *painting* should, over a remembered table - that is the third time that sentence has been
+  true in this project.
+
+### What should come next
+1. **Milestone 10's remaining work**: the **difficulty band** (`tools/difficulty-arc.js` still fails),
+   `tools/gun-tune.js` owed from session 96, session 101's **`--paint` door** on `tools/alloc-probe.js`,
+   then the browser half of the performance pass - and `1.0.0`.
+2. Small things this session saw and left: `.setting .says` is now brighter than the base hangar row and
+   that is fine but accidental, and the two mixers (the readout and the settings rack) still describe their
+   quiet states in two different ways - an alpha in one and a colour in the other; `cageWall` is still a
+   thin wall for a protanope (deliberately unjudged); and the crowd pair `darter`/`swarmling` still wants a
+   silhouette, which remains an art job for a session with eyes on a screen.
+3. If a third ruler ever wants the same shape (text on the *arena* background, e.g. a floating score label
+   over a bright nebula), `contrast.js` already composites over an arbitrary field - but `nebula.js` bakes
+   its own pixels and the audit declines to invent a brightness for a sprite, so say what the field is first.
