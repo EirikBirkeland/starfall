@@ -14187,3 +14187,115 @@ and watched it change the challenge, which is what proved the test and not the c
    including a THICK CROWD run standing 150 bodies on a scheduled run), `tools/gun-tune.js`,
    `cageWall` for a protanope, silhouettes for the crowd pairs that share a colour, and the afterimage's
    flat top of the ladder.
+
+## Session 124 — The thumb's pause plate, and the tap that left the rack up. Released 1.5.0
+
+Suite **2,099 → 2,123** (11 in `test/thumb-pause.test.mjs`, 3 in `test/thumb-pause-mouse.test.mjs`, and one
+new assertion in `test/touch-art.test.mjs`). `tools/simulate.js --seed 20261006 --trace` is byte for byte
+session 123's again - diffed against a `git worktree` of HEAD, not remembered - because the plate is paint
+and a claim, and a bot never touches the glass. `contrast-check`, `palette-check`, `ghost-grid`, `sights`,
+`memory-hunt`, `alloc-probe` (dearest step 764 B, unchanged) and `perf-probe` (worst step 0.117 ms) all
+still pass.
+
+**Released v1.5.0**: a phone can stop a run. A **PAUSE plate** sits on the right edge above the dash button;
+one press holds the run, the next lets it go. Along the way it turned up a live bug that has been there since
+the thumb could resume at all (below).
+
+### What shipped
+`input/touch.js` grew a third place on the glass - `pauseButton(W, H)`, `pausePlateIsUp()`, `onPausePlate(x,
+y)`, `claimPause()`, `thumb.onPause`, `handlers.onPause` - and `render/touch.js` paints it out of the same
+numbers the dash button is painted out of. `main.js` answers a *cursor's* press on the plate (a machine with
+both hands), because the plate is painted for every visit with fingers and a plate that answers a thumb but
+not a mouse is half a control. `showPause` now takes the two key-naming clauses of the pause's keys line away
+from a visit that has no keys.
+
+### The bug: a tap that resumed the run left the pause rack painted over it
+`onCanvasPressed`'s thumb-resume branch called `resumeRun(world)` and returned. `onPauseKey` - the key's own
+way out - does two things: `resumeRun` **and** `closePanels()`. So on a phone, tapping "TAP TO GO BACK TO THE
+RUN" put the run back in motion behind a `.pause` panel that fades to 94% opaque, and nothing left on the
+glass could close it: pressing `Esc` again (no phone has it) would pause and re-raise the same rack. Proved
+it is pre-existing and not mine by probing a `git worktree` of HEAD with a stick claim, `Esc`, then a tap:
+`paused false, pauseHidden false` while the run flew. Fixed by having the tap answer `onPauseKey` - the
+whole way out, rack and tick included - and pinned in `test/touch-art.test.mjs` and in `thumb-pause`.
+
+It is worth writing down *why* 123 sessions did not see this: `test/touch-art.test.mjs` asserted
+`paused === false` after the tap, which is the half that worked. A test that reads one field of a two-field
+promise passes on a broken build. The mutation check on the fix (put `resumeRun` back) reddens exactly the two
+resume tests, so the assertion is load-bearing now.
+
+### Why a plate and not a fourth chip
+The title's chips (`ui/chips.js`) are **paint that the wiring hit-tests**, and that bargain is right for a
+screen: the press arrives at `onCanvasPressed` anyway, and the box is CSS's. A fight's controls are the
+opposite: `input/touch.js` **claims** touches, because a stick and a dash have to own the finger that made
+them (and refuse it to the stick's half of the glass). A pause control that lives over an arena is a control,
+so it is claimed - and it sets `thumb.used`, which is not a cosmetic choice: the promise "a tap resumes a held
+run" is gated on `thumb.used`, so a phone whose very first touch of a run was the plate would otherwise have
+paused a run it could not un-pause. It got the word PAUSE written across it and the dash's own look, because
+it is a control and not a caption.
+
+The `hasFinger()` test is in **`pausePlateIsUp()`, one predicate asked by whoever paints and by whoever
+presses** (`onPausePlate` returns false when there is no plate to land on), which is the same trick that makes
+`chipAt` honest: the thing you see and the thing you press are one question, and a mouse-only browser gets
+neither a plate nor a dead pixel where one would have been (`test/thumb-pause-mouse.test.mjs`).
+
+### The geometry, and what it had to dodge
+Three neighbours own the glass already: the stick owns the left half (`STICK_EDGE`), the dash owns the
+bottom-right corner, the hull readout owns the top-right (`render/hud.js`: pips at `PAD+34`, leech meter
+under them). What is left is the right edge, so the plate is placed **off the dash button** rather than off
+the window - the thumb that is already there for the dash is the thumb that reaches it - with `PAUSE_GAP = 18`
+px of glass between the two discs and `PAUSE_SIZE = 0.085` of the short side (floor 30, ceiling 44, so it is
+always the smaller of the two). `PAUSE_FLOOR = 96` keeps its top below the hull readout. Below about 300 px
+of window height the two buttons start to share pixels, and the dash is asked first, deliberately: a
+swallowed dash can cost a run and a mis-pressed pause costs a tap back. All of that is asserted for a window
+and a phone in one test, in px, not remembered.
+
+### The pause rack's own honesty
+The line under the pause read "G GIVES THE RUN UP · O SETTINGS · THE HANGAR AND THE CODEX ARE BETWEEN RUNS"
+on a phone, which names two letters no phone has - and one of them, G, is the only way to end a run, which is
+still not reachable on a finger (see below). The two key clauses went into one `#pauseKeysKeys` span that
+`showPause` marks `gone` for a thumb visit, and the CSS uses `display: none` because **the separator travels
+inside the clause**: `visibility: hidden` would leave the leading `·` opening the line. The two spans
+`paintKeyWords` writes (`pauseKeysGiveUp`, `pauseKeysSettings`) are nested inside and untouched, so the
+keymap still owns every letter the page prints and a page read without JavaScript still reads the whole
+keyboard line.
+
+### Small things done while in there
+- `render/touch.js`'s two buttons are now one `drawButton(ctx, button, held, look)` fed by two `lookOf(...)`
+  records built once at module scope - the frame builds no font string on its way past, and the dash's pixels
+  and numbers did not move.
+- `render/debug.js`'s F3 plate is anchored to the same right edge and is painted later, so on a
+  touchscreen-development machine it covers the plate. Accepted and commented, not designed around: the plate
+  still presses underneath, and a run being measured is a run being flown on purpose.
+- The harness grew `pauseKeysKeys` in `ELEMENT_IDS`; nothing else about the stub had to change (the plate is
+  canvas, not DOM, so no new box to lay out).
+
+### Mutation checks, all caught by exactly the tests that should catch them
+| mutation | red |
+| --- | --- |
+| `claimPause` does not call the handler | the three tests that press the plate |
+| the plate is never painted | the three tests that look for it |
+| `onPausePlate` refused for a cursor | the both-hands test, alone |
+| `resumeRun` back in the tap path | the two tap-resume tests (plus one cascade) |
+| `pausePlateIsUp` ignores `hasFinger()` | both mouse-file plate tests |
+| `showPause` never hides the key clauses | the thumb's pause-rack test |
+| `PAUSE_GAP = -30` (over the dash) | the geometry test |
+
+### What should come next
+1. **Giving a run up from a finger.** The plate can hold a run and no phone can end one, and the pause rack no
+   longer pretends otherwise - which makes the gap visible instead of merely untrue. It wants its own shape on
+   the pause rack (a `GIVE UP` plate, hit-tested ahead of the tap-resume rule, which owns every other pixel of
+   that screen) and it wants a **confirm a careless tap cannot set off** - the plate's word changing to ask a
+   second time, and any other press cancelling it. That is a session on its own: the state machine, the words,
+   and a test that a single tap never ends a run.
+2. **The panels' thumb shape**, unchanged from session 123: a settings row that steps when it is tapped, a
+   CLOSE chip on a panel, and a controls rack that is refused on a finger visit rather than opened into rows
+   that ask for a key. Then the hangar, where a tap has to mean *buy* without a Shift, and where a phone player
+   is still earning stardust they cannot spend.
+3. **The title's hint line** still says `PRESS SPACE OR CLICK TO LAUNCH`. For a finger visit the `OR TAP`
+   idiom in `render/cards.js` is one `hasFinger()`-shaped decision away - `hasFinger`, not `thumbUsed`, is the
+   fact about a title (session 123's lesson).
+4. Still owed to a screen, unchanged: the browser half of the performance pass (including a THICK CROWD run
+   standing 150 bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope,
+   silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the
+   deliberate FAIL on the difficulty band (`difficulty-arc`, `run-shape`'s band check: 13% of 48 seeds die
+   between 4m and 9m against the 50% "usually" asks for).
