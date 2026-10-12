@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.0.0",
+    "date": "2026-10-12",
+    "released": "2026-10-12T15:41:41.372Z",
+    "summary": "The plan is finished: every milestone is done, and the game is 1.0",
+    "added": 817,
+    "removed": 3,
+    "logBytes": 41619607
+  },
+  {
     "version": "0.10.20",
     "date": "2026-10-12",
     "released": "2026-10-12T14:13:45.069Z",
