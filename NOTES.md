@@ -13323,14 +13323,15 @@ twenty-four windows agree, and that a window whose two readings disagree is not 
   only load within 30% of a budget.
 - A megabyte of garbage is 8.9 s of play at the dying crowd and 15 s at the living wall, and a scavenge of
   this heap measures 0.85-1.12 ms - so the dying crowd is where the F3 plate's worst frames come from.
-- `measureLiveRun` (the `--live` and `--run` rows) is still played **cold**, and its comment now says so
-  instead of claiming a warm-up it does not do: a stretch is one synchronous run of frames with no turn
-  of the event loop in it, so it carries its own warm-up inside the number it prints and reads dearer
-  than every warmed row above it. Warming it properly means playing a whole second run per window (~3 s
-  of the box each, three windows, twice over in the report) for a row that is not gated, so it is left.
-  If a future session wants that row to mean what the planted rows mean, the way is `warmWork` on the
-  `fresh()` closure the stretch already builds - play the run once unmeasured, then measure a second
-  copy of it.
+- `measureLiveRun` (the `--live` and `--run` rows) is still played **cold**, and its comment and its own
+  printed line both say so: a stretch is one synchronous run of frames with no turn of the event loop in
+  it, and so is the single 30-second run played beforehand to set the scene, so the row carries its own
+  warm-up inside it - **4.7 KB a step** against the warmed loads' 570-980 B, which is a ceiling and not a
+  cost. Warming it properly means playing two or three more of those 30-second runs with a turn of the
+  event loop between them (~10 s of the box each, and the flag costs about half a minute of the report as
+  it is) before the measured stretch, so it is left. If a future session wants that row to mean what the
+  planted rows mean, that is the fix: `playOneRun` twice more with a `setImmediate` between the plays,
+  then plant and measure as now.
 - Budgets are set about a third over the dearest warm reading, not on a rounding error. If a future session
   wants them tighter, widen `WARM_PROBE_STEPS` first and re-set them from what the wider probe says.
 - `node --test` is 2m11s and `test/alloc-probe.test.mjs` is over half of it. That is the price of a byte

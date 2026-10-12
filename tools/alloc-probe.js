@@ -460,8 +460,8 @@ export async function measureLoad(game, scene, opts, watch) {
  * dearer than every warmed load above it. `warmWork` cannot be used here the way it is used on a planted
  * scene, because there is no window of repeatable work to measure - the work is a run, and a run played
  * to warm up is a run that had already ended by the time the window opened. Doing it properly means
- * playing two or three of those 30-second runs with a turn of the event loop between them (~1.5 s of the
- * box each) before the measured stretch, which is a decision for whoever next needs this row to be a
+ * playing two or three more of those 30-second runs with a turn of the event loop between them (~10 s of
+ * the box each) before the measured stretch, which is a decision for whoever next needs this row to be a
  * cost and not a ceiling.
  */
 export async function measureLiveRun(game, seconds, watch) {
