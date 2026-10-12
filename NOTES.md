@@ -13441,3 +13441,153 @@ worth cutting. The crowd dying still costs ~221 B a step more than the same crow
 is diffuse — the grid hunt already said the same about the walk. Typed-array positions for the crowd or
 nothing. The After-1.0 re-price of `tether`/`afterimage`/`overcharge` from session 114 is still sitting
 there, still the lowest-stakes of the lot.
+
+## Session 117 — The three dash lines were re-read against the dash that ships. No number moved, and two of them can be measured again
+
+Suite **2023 → 2043** (19 in `test/ghost-grid.test.mjs`, 1 new in `test/overcharge.test.mjs`). The
+reference run (`--seed 20261006 --trace`) is byte for byte session 116's again (10m00s / 73,982 /
+level 57 / 3,934 kills / 4,934 shards, 7 vacuums, 2036 in) - the only `src/` numbers added are two
+counters that feed nothing back into a run, which is what makes that sentence testable rather than
+hopeful.
+
+**No release, on purpose.** The counters are invisible: the game in the owner's menu behaves and looks
+and sounds exactly as 0.10.20's does, and a version nobody can tell from the one under it is noise
+(sessions 114 and 115 held the same line for the same reason). The next session should ship
+**1.0.0**, which is the only milestone-10 item left that this project can do by itself - see the last
+section.
+
+The item was PLAN's "re-price the two dash lines against the habit that ships now" (After 1.0, owed
+from session 114). Three numbers were in its scope: `tether.weight`, `afterimage.bait`, and what
+`overcharge` is worth now the bot's dash is a get-out. All three were read; **none moved**, and each
+one now has a reason with a number behind it instead of a paragraph of hope.
+
+### What was wrong with the old readings, in one line each
+- **`afterimage.bait` 110 px** was chosen by session 42 off a grid read with the *dive* habit at a
+  170 px trigger - a bot that pressed the dash twenty times a minute and threw itself at what
+  frightened it. Session 114 replaced that habit with one that presses ~ten times a *quarter-hour*
+  and leaves its images behind a fleeing ship. Both halves of the instrument moved under the number.
+- **`tether.weight` 5** was defended in the row by "a thread is worth about a mine's blast per body
+  and happened a quarter as often" - and the quarter was the old habit's rate, which session 114
+  measured as nearer a twentieth.
+- **`overcharge`** had never been measured on a dashing instrument at all: its deck A/B in the row was
+  read on a bot that never pressed the dash, and its "6.3 loaded pulls a minute" came from a
+  throwaway script that no longer exists.
+
+### What shipped
+- **`tools/ghost-grid.js`** - the ruler session 42 had to write as a throwaway, made permanent and
+  made a check. It plays a grid of (radius × rank) cells on the same seeds, pins the rank after every
+  step, sets `BALANCE.upgrades.afterimage.bait` live (the sim reads it per call, so the sim itself is
+  never touched), and samples every frame a ghost is standing: how many bodies are within 250 px of
+  the ship and how many of them `quarryFor` answers with a ghost. Two denominators are printed,
+  because a rooted body - a sniper, a place in the Hive's wall - cannot be diverted by anything and
+  has no business in the denominator of a share of what got diverted; the "every body in the ring"
+  figure is kept beside it so session 42's grid is still readable. It carries session 42's three
+  promises as checks (`--strict`): a first rank felt (`FLOOR` 4%), a fifth under the ceiling
+  (`CEILING` 40% - past it the crowd stops coming and the fight ends by itself), and a slope of at
+  least twice (`SLOPE`), which is the test that refused 150 px back then.
+- **The overcharge line keeps two counters now** - `overchargeLoaded` (steps the gun stood full) and
+  `overchargeSpent` (pulls that went out loaded), on `game/overcharge.js`'s record and on `stats()`,
+  so `tools/line-ab.js --line overcharge --stats overchargeLoaded,overchargeSpent` prints the rate
+  the row has always quoted from a lab. A fresh/cold gun counts 0 in both, a run without the card
+  counts 0 in both, and `resetRun` takes them with the charge - all four are tested, and one real
+  flown run reads them through `stats()`.
+- Every number quoted below is also written into the three balance rows, dated, with the command that
+  reproduces it.
+
+### The measurements
+`afterimage`, ten seeds of five minutes, the shipped get-out habit, ranks pinned:
+
+| bait | rank 1 | rank 3 | rank 5 | slope 1→5 |
+| --- | --- | --- | --- | --- |
+| 72 px | 7.7% | 19.3% | 19.0% | 2.47x |
+| 90 px | 15.9% | 21.4% | 30.2% | 1.90x |
+| **110 px (ships)** | **16.5%** | **35.7%** | **37.0%** | **2.25x** |
+| 130 px | 19.9% | 45.2% | 51.1% | 2.57x, over the ceiling |
+
+Session 114's prediction held: the images a get-out leaves behind a fleeing ship stand in the road the
+crowd is walking down, and the share turned aside went from 6.4%/30.2% to 16.5%/37.0% at the two ends
+of the ladder. **`bait` stays at 110 anyway.** The radius sweep says it is the best-shaped of the four
+(130 px is over the ceiling - that is the crowd stopping coming; 72 and 90 buy a *flatter* ladder,
+which falsifies the idea I went in with, that a narrower disc would buy back the slope), and the
+verdict on the shipped radius clears all three promises on a batch with a real sample.
+
+`tether`, eight seeds at the cap, the shipped habit, read per event this time with the counters
+`game/tether.js` has kept since its first session: three ranks the bot bought for itself tied a fan 6
+times, pulsed 22, came round 37 bodies - **1.68 bodies a pulse**, **0.56 of a body standing on the
+threads** over a live step; five free ranks tied 2, pulsed 6, came round 6.5 (1.08, and 0.18) because
+a ship with all five is hardly ever cornered. At those runs' damage rank a pulse is 5 × 2.2 = 11 hull
+a body, so the line paid **0.7%** of the dealt batch's damage and **0.1%** of the free one, where the
+old instrument reported ~6%. **`weight` stays at 5**: 1.08-1.68 bodies a pulse against a mine's 1.11 a
+blast is the same near crowd whoever sweeps it (session 45's finding, repeated), and there is no press
+rate a person has at which 5 is too strong - at the panic rate it bought +2.1..5.3% of a run's score,
+at the get-out rate it is invisible. A card that is never too much and often nothing is priced on a
+wager on the player, which is what the row always said. What the batch *does* say is the `dealt`
+column: 0.972x - three levels spent on the line cost a run 2.8% of its score, so an instrument that
+buys it and cannot use it pays twice.
+
+`overcharge`, eight seeds at the cap, five free ranks: **+3.4% of the damage column** on the get-out
+habit against **+1.5%** on the dive habit - the biggest figure this line has ever read. The counters
+say why it is *not* the reason I expected: the gun comes up and is spent 399 times a quarter-hour on
+the get-out habit and **419** on the panic habit - *more* often, dashing at everything. So the gain is
+in what the heavy pulls land on, not how often they fire, and that mechanism is written in the row as
+inferred from two columns rather than measured. No number on the row moved.
+
+### Things that surprised me
+- **The window moves this measure more than the radius does.** Same radius, same habit: 16.5%/37.0% on
+  ten seeds of five minutes (71 presses of the dash) and **36.9%/57.1%** on eight seeds of two
+  minutes (10 presses). A short batch is nothing but the opening knot - the ship is in a pack whenever
+  it dashes - and a long one also counts every dash spent on the lone body that brushed past. That
+  swing is bigger than the whole distance from 72 px to 150 px, so a radius moved on one batch's
+  reading would be a radius moved on the window. Hence **`MIN_PRESSES` = 25**: the tool refuses to
+  verdict a batch that thin (`TOO FEW PRESSES`, and `--strict` exits on it), because the sample is
+  *presses* and not frames - 5,000 lit frames out of ten dashes is ten observations.
+- **Falsifying a check against history instead of against a mutation.** The best test in the new file
+  feeds `verdictOf` session 42's own three numbers (72 → 2.0%/13.4%, 110 → 6.4%/30.2%, 150 →
+  17.5%/43.8%) and asserts the tool agrees with the session: 110 passes, 72 fails the floor, 150 fails
+  the ceiling. If the thresholds drift away from the argument that set them, that test goes red without
+  anybody having to mutate a constant, and it is the only kind of test that can catch a promise that
+  has quietly become a formality.
+- **`quarryFor` is re-askable**, which is the whole reason a radius can be swept without touching the
+  sim: `game/enemies.js` hands each walk its quarry and forgets it, and the tool asks the same
+  question one step later against whatever `bait` it has just written into `BALANCE`. Cheaper and
+  better than a counter in `src/` would have been - and the one case where a counter *was* the right
+  call is the overcharge one, because "how often did the run really load the gun" is a fact about a
+  run and not about a probe.
+- **A charged pull counts as a step of loaded time even though it spends the charge on that step.**
+  Deliberate and tested: the sim steps `player.js` (which loads) before `weapons.js` (which spends),
+  so the gun really was loaded when the trigger was looked at. Said in the source, because the other
+  order is a defensible reading and someone will try it.
+- The edit tool's all-or-nothing multi-hunk behaviour bit **three times** (typos in `oldText`, one
+  apostrophe inside a single-quoted string - session 112's lesson, learned again), and `git diff
+  --stat` before writing anything more was the whole remedy each time.
+- 32 cores meant four long batches could run at once and none of them noticed; `tools/line-ab.js
+  --stats` is how you find out a stat exists, and it happily printed two that were written this
+  morning.
+
+### Decisions, so nobody relitigates them
+- **`bait` is not moved on a measure whose noise exceeds its effect.** If somebody wants to move it,
+  the honest way is with eyes on a screen, not with a fourth window length.
+- **The rank ladder is the thing the re-read put in question, not the radius** - 35.7% at rank 3
+  against 37.0% at rank 5 means the fifth card is nearly free of effect. Written up as a new PLAN
+  item, with the two ways out (spread the images down more than the dash's own 220 px, or sell the rank
+  as the two seconds, which is PLAN's number and would have to be argued out of existence first) and
+  the reason it is not this session's to take: both are feel decisions.
+- **`weight: 5` is a wager and not a rate.** The row now says so in those words, because the two
+  instruments disagree by a factor of twenty and neither is wrong.
+- **`overchargeLoaded` counts steps of the game's own clock** (120 a second), not frames. `tether
+  .steps` and `turret.steps` already meant that; a third reader of the same kind should not mean
+  something else.
+
+### What should come next
+1. **Release 1.0.0.** It is the only milestone-10 item left that this project can do alone. The other
+   one - "the browser half of the performance pass" - is not: there is no browser on this box and no
+   canvas to time, and it has been carried in PLAN as an item *the owner* must take. Before cutting
+   1.0.0, say so in NOTES and leave the item where it is with a sentence about who has to do it, and
+   re-check the two things the release wants: `tools/alloc-probe.js`'s budgets (session 115's warm
+   numbers, tightened in 116 to `STEP_BYTES` 896 / `BODY_BYTES` 5) and `tools/perf-probe.js`'s paint
+   budgets, both of which pass today.
+2. The **new After-1.0 item**: the afterimage's flat top of the ladder. Needs a screen.
+3. Still owed from earlier sessions and unchanged: the difficulty band stays a FAIL by measured
+   decision (`tools/difficulty-arc.js`), `tools/gun-tune.js` from session 96, `cageWall` is a thin wall
+   for a protanope (deliberately unjudged), and the crowd pairs that share a colour want silhouettes -
+   all of them art or judgement jobs a headless session cannot finish honestly.

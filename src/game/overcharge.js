@@ -67,12 +67,22 @@ const FULL_SLACK = 0.000000001;
 
 /** A fresh, cold gun. */
 export function newOvercharge() {
-  return { charge: 0 };
+  return {
+    charge: 0,
+    // Two counters, because everything about this line is a rate nobody can see: `loaded` is the
+    // steps the gun stood at full and `spent` the pulls that went out loaded. The card's whole
+    // argument is how rarely a run gets either (`BALANCE.upgrades.overcharge`), and a claim about
+    // "6.3 loaded pulls a minute" has to be countable in a run and not only in a lab.
+    loaded: 0,
+    spent: 0,
+  };
 }
 
 /** Put the gun back to cold. Called with the rest of the run's resetting. */
 export function resetOvercharge(world) {
   world.overcharge.charge = 0;
+  world.overcharge.loaded = 0;
+  world.overcharge.spent = 0;
 }
 
 /** Has this run taken the line at all. Nothing is painted and nothing is counted until it has. */
@@ -122,6 +132,10 @@ export function updateOvercharge(world, dt, input) {
   } else {
     state.charge = Math.max(0, state.charge - dt * spec.bleed);
   }
+  // Counted after the step and not before it, so the step a pull goes out on still reads as a step
+  // the gun was loaded: it was, when the trigger was looked at, and that is the order the sim runs
+  // in (game/weapons.js is asked after game/player.js has been stepped).
+  if (isLoaded(world)) state.loaded++;
 }
 
 /**
@@ -139,6 +153,7 @@ export function chargedPullOf(world) {
  */
 export function spendCharge(world, noseX, noseY) {
   const spec = BALANCE.upgrades.overcharge.spent;
+  if (isLoaded(world)) world.overcharge.spent++;
   world.overcharge.charge = 0;
   ring(world, noseX, noseY, PALETTE.white, spec.ring.radius, spec.ring.speed, spec.ring.life);
   burst(world, noseX, noseY, PALETTE.bulletCore, spec.burst.count, spec.burst.speed, spec.burst.life);

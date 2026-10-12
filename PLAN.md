@@ -1955,7 +1955,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       own 2m33s floor. On the careful build nobody dies either way and the habit costs nothing, which is
       the other half of why it ships: 7.8 presses a quarter-hour against a bit over a hundred, and the
       same 15 minutes of flying.
-- [ ] Re-price the two dash lines against the habit that ships now. The get-out dash presses about ten
+- [x] Re-price the two dash lines against the habit that ships now. The get-out dash presses about ten
       times a quarter-hour where the dive habit pressed a hundred and thirty, and both these lines are
       gated entirely on the press: with the new habit `tools/line-ab.js --line tether --dash` says five
       free ranks are worth +1.5% score and nothing at all to the damage column, against the +2..5%
@@ -1964,6 +1964,46 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       purpose, which no bot here has ever done - but `tether.damage`, `afterimage.bait` and what the
       `overcharge` line is worth with its dash taken away all want reading again against an instrument
       that presses the way its buyer would. NOTES session 114 has every number.
+      **Read again in session 117. No number moved, and that is a finding rather than a shrug: each
+      of the three is now measured on the habit that ships, and two of them have an instrument that
+      can say so again.** **`tether.weight` 5** - per event the line was never the problem: three
+      ranks the bot bought for itself came round **1.68 bodies a pulse** and five free ranks 1.08
+      (against a mine's 1.11 a blast), with 0.56 of a body standing on the threads averaged over a
+      live step, so a sweep does exactly the work it always did and only the rate fell; the row keeps
+      the weight on purpose, because at the press rate of someone who bought a card gated on the dash
+      it paid 3-6% of a run's damage and +2.1..5.3% of its score - mines' family, not a beam-cannon -
+      and at the get-out rate it is all but invisible. A line that is never too much and often nothing
+      is priced on a wager on the player, which is what the row has always said it was. **
+      `afterimage.bait` 110** - the prediction held: a get-out leaves its images in the road the crowd
+      is walking down, and the share of the walking near crowd turned aside went from 6.4%/30.2%
+      (rank 1/rank 5, session 42) to **16.5%/37.0%** on ten seeds of five minutes. The radius stays,
+      for two reasons: the same instrument on a two-minute batch reads 36.9%/57.1% - a window that
+      swings further than the radius does is not a yardstick to move a shipped number with - and the
+      sweep of 72/90/110/130 px says the shipped radius is the best of the four on the habit that
+      ships (130 px turns aside 51.1% at the fifth rank, which is the crowd stopping coming; 72 and
+      90 px buy a *flatter* ladder, not a steeper one). `tools/ghost-grid.js` is that ruler, and
+      session 42's three promises - a first rank felt, a fifth under the ceiling, a slope of at least
+      twice - are now checks under `--strict`, with a floor of 25 presses of the dash under which the
+      tool refuses to verdict at all. **`overcharge`** - worth more now, for the reason the item
+      guessed: five free ranks are **+3.4%** of the damage column on the get-out habit against +1.5%
+      on the dive habit, because a ship that dashes out and then stands its ground loads the gun and
+      one that dashes every cooldown never stops moving long enough to. The line now counts its own
+      loaded steps and loaded pulls (`overchargeLoaded`, `overchargeSpent`), so that claim can be
+      re-read with a command instead of a guess.
+- [ ] The afterimage's fourth and fifth ranks buy very little over its third. The same ruler, ten
+      seeds of five minutes on the habit that ships: the share of the walking near crowd turned aside
+      is 16.5% at rank 1, **35.7% at rank 3 and 37.0% at rank 5** - the ladder does nearly all of its
+      work in the first three cards. The reason is the geometry the row already admits: five images
+      spread over the dash's 220 px stand 44 px apart and `bait` is 110, so from the third rank on the
+      discs have merged into one shape and another rank makes it fatter, not longer - the very test
+      session 42 used to refuse 150 px, now arrived at from the other side. Narrowing the radius is
+      not the answer and was measured as not the answer (72 and 90 px come out flatter, not steeper).
+      What would answer it is a rank that buys ground the images cannot overlap - the streak they are
+      spread over is `BALANCE.player.dash.distance` divided by the rank, and nothing in the game says
+      a decoy has to be left within the dash that made it - or a rank that buys the two seconds PLAN
+      gave the card, which is PLAN's number and would have to be argued out of existence first. Both
+      are decisions about how a card feels, and the one thing a headless session does not have is eyes
+      on a screen to make them with.
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

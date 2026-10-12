@@ -1508,6 +1508,12 @@ window.STARFALL = {
       // hull is painted out of this number, and it is how a headless run can watch a charge come
       // up and be spent instead of having to guess it from the damage.
       charge: world.overcharge.charge,
+      // ...and the two counters over the whole run: how many steps the gun stood loaded, and how
+      // many pulls went out loaded. A run that never took the line reads 0 in both, and the ratio
+      // between them is the card's whole story - a loaded gun that is never pulled is a charge
+      // spent on standing (tools/line-ab.js --line overcharge --stats overchargeLoaded,overchargeSpent).
+      overchargeLoaded: world.overcharge.loaded,
+      overchargeSpent: world.overcharge.spent,
       // How many images the dash has left standing in the arena (game/afterimage.js). A ghost has
       // no hull and throws no shot, so this is the only way a headless run can see the trick is up.
       images: world.afterimage.trail.count,

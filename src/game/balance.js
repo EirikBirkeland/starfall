@@ -2844,6 +2844,21 @@ export const BALANCE = {
       // with the line in the deal, 113,634 with it out, 113,951 with five ranks handed for free -
       // level with the deck, a shade better for free, which is the same shape leech came out with
       // (session 40) and the reason the bot is not handicapped out of taking it.
+      //
+      // Re-read in session 117 on the dash habit that ships now, which is the first time this line has
+      // been measured on an instrument that dashes the way session 114 said a dash should be dashed.
+      // Eight seeds at the cap: score median 121,722 with the line out, 116,676 dealt (three ranks
+      // taken) and 122,509 for five free - and the damage column **1.034x** for those five free
+      // ranks, against **1.015x** for the same batch read on the habit that pressed the dash every
+      // cooldown. The line now keeps its own counters to say why (game/overcharge.js's
+      // `overchargeLoaded` and `overchargeSpent`): with five ranks handed the gun comes up and is spent
+      // **399 times a quarter-hour**, standing loaded for 3.4% of the run's steps - and the habit
+      // that dashes at everything gets **419** of them, *more*. So the gain is not that a get-out lets
+      // the gun come up more often; it is what the heavy pulls get spent on, from a ship that has just
+      // put itself where it wanted to be rather than where the crowd was. That mechanism is inferred
+      // from two columns and not measured, and said so here rather than smoothed over; what is
+      // measured is that +3.4% of a run's damage is the biggest figure this line has ever read, and
+      // still small enough to leave every number on this row exactly where PLAN put it.
       step: 1,
       // s of standing still one charge costs. PLAN's number, unchanged, and the whole card: it
       // is long enough that a ship cannot twitch its way through a fight and keep it, and short
@@ -2950,6 +2965,27 @@ export const BALANCE = {
       // and the nearest of them 1.7x further off with five ranks than without. NOTES session 42 is
       // where the two instruments were compared, and session 114 why the dash-habit column had to
       // be re-read at all.
+      //
+      // Re-read in session 117, which is what that paragraph was waiting for. `tools/ghost-grid.js`
+      // is the ruler and the promise: ten seeds of five minutes on the habit that ships, and the
+      // share of the walking crowd within 250 px that is pointed at a ghost is **16.5% at rank 1 and
+      // 37.0% at rank 5** - up from the 6.4% and 30.2% above, at both ends, for exactly the reason
+      // session 114 guessed at: an image left behind a ship that is running away stands in the road
+      // the crowd is walking down, and one dropped inside the crowd it dove at stands in front of it.
+      // The near field is seven bodies wide and not "two or three" on that instrument, too. `bait`
+      // stays at 110 anyway, and the sweep is why: at 72 px the rank ladder reads 7.7% / 19.3% /
+      // 19.0% (the third rank takes everything the fifth could), at 90 px 15.9% / 21.4% / 30.2% (a
+      // flatter ladder than the shipped one, so the narrower disc buys no slope after all), at 110 px
+      // 16.5% / 35.7% / 37.0%, and at 130 px 19.9% / 45.2% / 51.1% - over the ceiling, and the crowd
+      // stops coming. Of the four the shipped radius is the one that turns aside most at the rank a
+      // player is most likely to own while still leaving the fifth rank under the bar. What the re-read
+      // does put in question is the top of the ladder rather than the radius: rank 3 already has
+      // nearly everything rank 5 can take, because five images spread over a 220 px streak are 44 px
+      // apart and their discs have merged into one shape. That is written up as an After 1.0 item.
+      // And the reason nobody moved the number on the strength of one batch: the same radius and the
+      // same habit on eight seeds of two minutes reads 36.9% and 57.1%, because a short batch is
+      // nothing but the opening knot. The window moves the figure more than the radius does, so the
+      // tool refuses to verdict on fewer than 25 presses of the dash.
       bait: 110,
       // An image going out: one ring closing in on the place it stood, and a note thin enough to
       // be a hiss. No light when it is *born*, because the image itself is the light and a dash
@@ -3286,6 +3322,30 @@ export const BALANCE = {
       // new one, and a card's price is not the price of the bot that forgot to use it. What is owed is a
       // re-price against a bot that presses the way a TETHER buyer would, which is written up as an
       // item in PLAN's "After 1.0" and is a session of its own.
+      //
+      // That session is 117, and it read the line per event as well as per run, on eight seeds at the
+      // cap with the counters game/tether.js has kept since its first one. The three ranks the bot
+      // bought for itself tied a fan a median of 6 times, pulsed it 22 and came round 37 bodies -
+      // **1.68 bodies a pulse**, with **0.56 of a body standing on the threads** averaged over the
+      // steps one was live - and the five free ranks tied 2, pulsed 6 and came round 6.5 (1.08 a
+      // pulse, 0.18 of a body: the ship with all five in hand is cornered so seldom that there is
+      // hardly ever a fan to sweep). At the fourth rank of the damage line those runs had, a pulse is
+      // 5 x 2.2 = 11 hull a body, so the line paid **0.7%** of the dealt batch's damage and **0.1%**
+      // of the free one, where the old instrument reported about 6%. Per event nothing changed and was
+      // never going to: 1.08-1.68 bodies a pulse against a mine's 1.11 a blast is the same near crowd
+      // whoever sweeps it, which is the finding session 45 made and this one repeats.
+      //
+      // So `weight` stays at 5, on an argument the two readings together make rather than either one:
+      // there is no press rate a person has at which 5 is too strong. Pressed the way the old
+      // instrument pressed - every cooldown, which is what a buyer of a card gated on the dash
+      // plausibly does - the line paid 3-6% of a run's damage and bought +2.1..5.3% of its score,
+      // which is mines' family and not a beam-cannon; pressed the way the shipped habit presses it is
+      // all but invisible. A card that is never too much and often nothing is priced on the *wager*,
+      // which is what this row has always said it was. What the new batch does say is in the `dealt`
+      // column: 0.972x, i.e. the three levels the bot spent on the card cost the run 2.8% of its
+      // score, so an instrument that buys the line and cannot use it pays twice - once for the card
+      // and once for the thread it never tied. That is a finding about the bot's appetite and not
+      // about the number, and it is the same shape every dash-gated line has shown since session 42.
       //
       // What the line actually did, rather than what the run scored, on six of those seeds with the
       // habit that ships now: three dealt ranks tied a fan a median of 6.5 times a run, pulsed 23.5

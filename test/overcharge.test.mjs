@@ -1,7 +1,7 @@
 // Overcharge (PLAN 3.5): "standing still for 1 s doubles the next shot", and the one card in the
 // deck whose price is paid in place rather than in levels.
 //
-// Six things are measured here, in the order `game/overcharge.js` argues for itself:
+// Seven things are measured here, in the order `game/overcharge.js` argues for itself:
 //
 //   the price - the first rank is PLAN's doubling and every rank after it is another copy of the
 //     pull, and rank 0 is not a charge that does nothing but no charge at all;
@@ -15,7 +15,10 @@
 //   the spending - a pull spends the charge and all of it is heavy: every pellet of a fan, every
 //     leap of a chain, and a pull that threw nothing has not fired and so has spent nothing;
 //   and the limits - one charge at a time, one shout when it comes up, and a new run does not
-//     inherit the last one's loaded gun.
+//     inherit the last one's loaded gun;
+//   and the two counters - the steps the gun stood loaded and the pulls that went out loaded, which
+//     are the only way the balance row's claim about what a run really gets can be checked in a run
+//     instead of in a lab.
 //
 // Everything runs in the scripted world on the game's own fixed step, with the wave director off
 // and the XP ceiling pushed out of reach, so a level-up can never pause a measured window. Where
@@ -112,6 +115,31 @@ test('a charge is worth a second of standing still, and not one step less', () =
   assert.ok(chargeOf(field) > 0.9999, 'and the meter is as good as full');
 });
 
+test('the line counts the steps the gun stood loaded, and the pulls that went out loaded', () => {
+  // The two counters are the only way the row's claim - a run gets the gun loaded now and then - can
+  // be checked in a run rather than in a lab, so what they count is promised here: steps of the
+  // game's own clock, and one per loaded pull that was actually thrown.
+  const field = armed(21, 1);
+  assert.equal(field.overcharge.loaded, 0, 'a fresh gun has never been full');
+  assert.equal(field.overcharge.spent, 0);
+  nearlyLoaded(field);
+  assert.equal(field.overcharge.loaded, 0, 'and most of a second of standing is not loaded time');
+
+  holdFor(field, STEP + 0.5);
+  const halfSecond = Math.round(0.5 / STEP);
+  assert.ok(field.overcharge.loaded >= halfSecond - 3
+      && field.overcharge.loaded <= halfSecond + 3,
+    'half a second loaded is ' + halfSecond + ' steps, and the counter said '
+      + field.overcharge.loaded);
+  assert.equal(field.overcharge.spent, 0, 'nothing has been fired yet');
+
+  onePull(field);
+  assert.equal(field.overcharge.spent, 1, 'one loaded pull, counted once');
+  assert.equal(chargeOf(field), 0, 'and the gun is cold again');
+  onePull(field);
+  assert.equal(field.overcharge.spent, 1, 'a plain pull is not a loaded one');
+});
+
 test('a run that has not taken the line never loads a gun', () => {
   const field = armed(3, 0);
   assert.equal(hasOvercharge(field), false);
@@ -119,6 +147,7 @@ test('a run that has not taken the line never loads a gun', () => {
   holdFor(field, OC.hold * 3);
   assert.equal(chargeOf(field), 0, 'nothing was counted');
   assert.equal(field.rings.count, rings, 'and nothing was announced');
+  assert.equal(field.overcharge.loaded, 0, 'and nothing was counted either');
   assert.equal(onePull(field)[0].charged, false, 'and a pull is a plain pull');
 });
 
@@ -314,6 +343,8 @@ test('a new run does not inherit the last one\'s loaded gun', async () => {
   assert.ok(isLoaded(field));
   scriptedRun(18);
   assert.equal(chargeOf(field), 0, 'resetRun took the charge with the ranks');
+  assert.equal(field.overcharge.loaded, 0, 'and it took the two counters with it');
+  assert.equal(field.overcharge.spent, 0);
 });
 
 test('a real run that stands still gets its heavy pulls', async () => {
@@ -338,4 +369,8 @@ test('a real run that stands still gets its heavy pulls', async () => {
   assert.ok(summary.seconds > 20, 'the bot flew: ' + summary.seconds + 's');
   assert.ok(loadedFrames > 0, 'the naive bot stands still, so the gun came up between pulls');
   assert.ok(heavyShots > 0, 'and a heavy pull was really in the air (' + heavyShots + ' frames)');
+  assert.ok(summary.stats.overchargeLoaded > 0, 'and the sim counted its own loaded steps: '
+    + summary.stats.overchargeLoaded);
+  assert.ok(summary.stats.overchargeSpent > 0, 'and its loaded pulls: '
+    + summary.stats.overchargeSpent);
 });
