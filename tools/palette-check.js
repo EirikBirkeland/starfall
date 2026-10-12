@@ -3,7 +3,9 @@
 //
 //   node tools/palette-check.js              the report
 //   node tools/palette-check.js --all        every pair, not only the tight ones
-//   node tools/palette-check.js --strict     and exit non-zero if any pair is under its bar
+//   node tools/palette-check.js --strict     and exit non-zero if a pair is under its bar or
+//                                            a shared silhouette is paid for by neither size
+//                                            nor colour
 //   node tools/palette-check.js --only shard every sight whose id or meaning says the word
 //
 // Why this exists: the game has one colour rule (PLAN section 4 - warm means harm, cool means
@@ -27,7 +29,7 @@ import { PALETTE } from '../src/core/palette.js';
 import { oklch, lightnessStar, STEP_OF } from './colour-lab.js';
 import {
   SIGHTS, SKY, auditSights, auditSky, auditMarks, markNames, measure, visionName, promised,
-  marginOf as margin,
+  sharedSilhouettes, shipBorrowers, marginOf as margin,
 } from './sights.js';
 
 function readArgs(argv) {
@@ -124,6 +126,56 @@ function reportReported(pairs, opts) {
   }
 }
 
+/**
+ * Which bodies are drawn the same shape (tools/sights.js, `sharedSilhouettes`).
+ *
+ * The colour report judges pairs; this one asks the other half of PLAN section 4's sentence -
+ * "by brightness and shape as well as hue" - and says which bodies the crowd asks the eye to
+ * tell apart with colour and size alone. A shared silhouette is a choice the game is allowed to
+ * make; a shared silhouette paid for by neither size nor colour is one body pretending to be two,
+ * and that is what `--strict` fails on.
+ */
+/** What a pair that shares a silhouette has left to carry the difference, as the report says it. */
+const CARRIED_BY = {
+  both: 'both of them carry it',
+  colour: 'colour carries it',
+  size: 'size carries it',
+  nothing: 'NEITHER of them carries it',
+};
+
+function reportForms() {
+  head('Who shares a silhouette');
+  const groups = sharedSilhouettes();
+  process.stdout.write('  Two bodies drawn the one shape leave colour and size to say which one it is.\n');
+  process.stdout.write('  The crowd is allowed to do that - nine bodies cannot all be a different shape as\n');
+  process.stdout.write('  well as a different colour - but it has to be a choice, so this is where the game\n');
+  process.stdout.write('  says what it chose, and what each pair has left to carry the difference.\n\n');
+  if (groups.length === 0) {
+    process.stdout.write('  every body in the crowd has a silhouette of its own.\n');
+    return 0;
+  }
+  let unpaid = 0;
+  for (const group of groups) {
+    process.stdout.write('  ' + pad(group.form, 12) + group.members.join(', ') + '\n');
+    for (const pair of group.pairs) {
+      if (!pair.carries) unpaid++;
+      process.stdout.write('      ' + pad(pair.a + ' / ' + pair.b, 24)
+        + num(pair.sizeRatio, 2) + 'x apart in size, '
+        + num(pair.colour, 2) + ' of a step apart in colour on ' + pair.eyes.toLowerCase()
+        + ' - ' + CARRIED_BY[pair.carriedBy] + '\n');
+    }
+  }
+  const borrowers = shipBorrowers();
+  if (borrowers.length > 0) {
+    process.stdout.write('\n  wearing the ship\'s own silhouette: '
+      + borrowers.map((sight) => sight.id + ' (' + num(sight.size, 0) + ' px)').join(', ') + '\n');
+    process.stdout.write('  This is the one sharing that can cost a run - a thing in your own shape, coming\n');
+    process.stdout.write('  at you - so they are promised a whole step against the ship on every axis an eye\n');
+    process.stdout.write('  keeps, which is what says "that one is not you". See the pairs above.\n');
+  }
+  return unpaid;
+}
+
 function reportSky(sky) {
   head('Can a body be seen at all');
   const bad = sky.filter((row) => row.worst.ratio < row.need);
@@ -213,11 +265,13 @@ process.stdout.write('STARFALL palette check - ' + sights.length + ' sights, '
 reportSights(sights);
 reportPairs(pairs, opts);
 reportReported(pairs, opts);
+const unpaidForms = reportForms();
 reportSky(sky);
 const marks = auditMarks(sights);
 reportMarks(marks, opts);
 
 const failures = promised(pairs).filter((p) => !p.pass).length
+  + unpaidForms
   + sky.filter((r) => r.worst.ratio < r.need).length
   + marks.reduce((sum, one) => sum + one.failures.length + one.sky.length
     + (one.needed.length - one.bought.length), 0);

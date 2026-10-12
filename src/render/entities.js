@@ -160,13 +160,18 @@ const FACE_GLOW = 9;
 const FACE_LIGHT = 0.45;
 
 // The swarm (PLAN 3.3's pack of twenty). A swarmling is seven pixels across, so the
-// whole of its look is one long thin dart and one light at its nose: the dart so that
-// twenty of them read as a shoal and not as a crowd, the light because a pack that is
-// bunching up to dive has to say so out loud (game/flock.js).
+// whole of its look is one long point and one light at its nose: the point is the ship's own
+// silhouette with its nose pulled further out, so that twenty of them read as a shoal and not
+// as a crowd, and the light is because a pack that is bunching up to dive has to say so out
+// loud (game/flock.js). Borrowing the ship's shape is a decision and not an accident -
+// tools/sights.js measures what it costs the palette, and test/palette-read.test.mjs holds it.
 const SWARM_SPIKE = 2.1;          // how far the nose reaches out from a swarmling's body
 const SWARM_CHARGE = 6;           // px of light at its nose while its pack braces
 const SWARM_BLUR_LENGTH = 18;     // px of blur a diving swarmling drags behind it
 const SWARM_BLUR_WIDTH = 6;
+// The weaver wears the same silhouette with a shorter nose, so it reads as one of the crowd
+// and not as a second ship - which is what tools/sights.js calls 'ship' for both of them.
+const WEAVER_SPIKE = 1.7;
 
 /**
  * How bright a bomber's death ring is right now, 0..1. It is a function of the
@@ -1121,7 +1126,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   else if (isDiving(enemy)) paintStreak(ctx, swarmBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   ctx.fillStyle = look.fill;
-  if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, 1.7);
+  if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, WEAVER_SPIKE);
   else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
   else if (enemy.type === 'shielder') bulwarkPath(ctx, enemy.r);
   else if (enemy.type === 'swarmling') shipPath(ctx, 0, 0, enemy.r, 0, SWARM_SPIKE);

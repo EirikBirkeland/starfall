@@ -121,7 +121,7 @@ const NO_BRIGHTNESS_PROMISE = 0;
 const FILL_STEP = 0.6;
 
 /** Two things within this ratio of each other's size are the same size to the eye. */
-const SAME_SIZE_RATIO = 1.3;
+export const SAME_SIZE_RATIO = 1.3;
 
 /** Every meaning a sight can carry, in the words the report prints them in. */
 export const MEANINGS = {
@@ -134,23 +134,53 @@ export const MEANINGS = {
 /**
  * The silhouette the eye is actually given, per body.
  *
- * Not the `sides` number in the balance table: three kinds ask for a triangle there and
- * then draw themselves something else entirely (render/entities.js gives the weaver a
- * ship silhouette, the darter a dart, the sniper a lens), and it is the drawing that an
- * eye is being asked to read. Where two bodies share one of these strings the crowd is
- * leaning on colour and size alone, which is what the report's last section is for.
+ * Not the `sides` number in the balance table: four kinds ask for a triangle or a hexagon
+ * there and then draw themselves something else entirely, and it is the drawing an eye is
+ * being asked to read. `render/entities.js` picks one silhouette per kind in `drawEnemy` -
+ * `shipPath` for the weaver and the swarmling, its own `dartPath` for the darter, a
+ * `bulwarkPath`, a `lensPath`, and a plain `polygon` for the rest - and
+ * `test/palette-read.test.mjs` reads that branch and fails this table the day it
+ * disagrees, for the reason every other number here is pinned: an audit of a shape nobody
+ * draws is a formality. (Session 109 wrote this table by eye and got three of it wrong - it
+ * called the weaver, the darter and the swarmling three darts, where the renderer gives one
+ * of them a dart and two of them the ship. A wrong shape is a different mistake from a wrong
+ * colour and needs a different remedy, which is what the pin is.)
+ *
+ * Two bodies share the ship's own form, and that is worth saying out loud: the weaver and
+ * the swarmling are drawn with `shipPath`, the generic pointed-ship silhouette this game
+ * paints its own ships with, ten and seven pixels across. They wear the player's family,
+ * so colour and size are all that says "that one is not you" - which is why `promiseOf`
+ * asks them for a whole step against the ship and not the 0.55 it asks of a pair whose
+ * shapes already differ. `sharedSilhouettes` is the same question asked of the crowd, and
+ * the report prints both.
  */
-const FORMS = {
+export const BODY_FORMS = {
   drifter: 'triangle',
-  weaver: 'dart',
+  weaver: 'ship',
   darter: 'dart',
   spitter: 'pentagon',
   tank: 'hexagon',
   bomber: 'octagon',
   shielder: 'bulwark',
-  swarmling: 'dart',
+  swarmling: 'ship',
   sniper: 'lens',
 };
+
+/**
+ * What each silhouette the renderer can pick is called in this table.
+ *
+ * The test that reads `drawEnemy`'s branch asks this what it means, so the words are in one
+ * place: the renderer owns which shape a kind gets, this file owns what that shape is named.
+ */
+export const PATH_FORMS = {
+  shipPath: 'ship',
+  dartPath: 'dart',
+  bulwarkPath: 'bulwark',
+  lensPath: 'lens',
+};
+
+/** The same, for the kinds that fall through to a plain polygon: `sides`, named. */
+export const POLYGON_FORMS = { 3: 'triangle', 4: 'square', 5: 'pentagon', 6: 'hexagon', 8: 'octagon' };
 
 /** One crowd body, as the balance sheet and the renderer draw it. */
 function body(type) {
@@ -161,7 +191,7 @@ function body(type) {
     id: type,
     name: type.toUpperCase(),
     meaning: 'harm',
-    form: FORMS[type],
+    form: BODY_FORMS[type],
     size: stats.radius,
     colour: stats.color,
     fill: stats.fill,
@@ -297,6 +327,66 @@ export function promiseOf(a, b) {
   if (want === 'place') return { why, redGreen: SOME_OF_IT, hueless: NO_BRIGHTNESS_PROMISE };
   if (want === 'full') return { why, redGreen: FULL, hueless: FULL };
   return { why, redGreen: MOST_OF_IT, hueless: NO_BRIGHTNESS_PROMISE };
+}
+
+/** The crowd's sights, in the order the table lists them. */
+function crowdSights() {
+  return SIGHTS.filter((sight) => BALANCE.kinds[sight.id] !== undefined);
+}
+
+/**
+ * Which bodies are drawn the same shape, and what each of them has left to say which is which.
+ *
+ * Sharing a silhouette is allowed - the crowd is nine bodies in the warm half of the wheel and the
+ * promise is about harm against help, not about bodies being unlike one another. What is not allowed
+ * is sharing a shape and then paying for it with neither size nor colour: two bodies of one shape,
+ * one size and one colour are one body, whoever painted them. So every pair in here has to clear a
+ * step of colour for the eye with the least to work with, or stand further apart in size than
+ * SAME_SIZE_RATIO (which is what `howMuch` calls "the same size"). The report prints this and
+ * `--strict` fails it, so the list cannot be quietly grown by a new kind given an old silhouette.
+ */
+export function sharedSilhouettes() {
+  const groups = [];
+  for (const sight of crowdSights()) {
+    const group = groups.find((each) => each.form === sight.form);
+    if (group === undefined) groups.push({ form: sight.form, members: [sight] });
+    else group.members.push(sight);
+  }
+  return groups.filter((group) => group.members.length > 1).map((group) => {
+    const pairs = [];
+    for (let i = 0; i < group.members.length; i++) {
+      for (let j = i + 1; j < group.members.length; j++) {
+        const a = group.members[i];
+        const b = group.members[j];
+        const worst = worstVision(measure(a).lab, measure(b).lab, RED_GREEN_EYES);
+        const sizeRatio = Math.max(a.size, b.size) / Math.min(a.size, b.size);
+        pairs.push({
+          a: a.id,
+          b: b.id,
+          sizeRatio,
+          colour: worst.ratio,
+          eyes: visionName(worst.vision),
+          carries: worst.ratio >= FULL || sizeRatio > SAME_SIZE_RATIO,
+          carriedBy: worst.ratio >= FULL
+            ? (sizeRatio > SAME_SIZE_RATIO ? 'both' : 'colour')
+            : (sizeRatio > SAME_SIZE_RATIO ? 'size' : 'nothing'),
+        });
+      }
+    }
+    return { form: group.form, members: group.members.map((member) => member.id), pairs };
+  });
+}
+
+/**
+ * The bodies drawn with the ship's own silhouette.
+ *
+ * The one sharing of a shape that can cost a run - a thing wearing your own shape, coming at you -
+ * and the reason `howMuch` promises them a whole step against the ship on every axis an eye keeps
+ * instead of the 0.55 it asks of a pair whose shapes already differ.
+ */
+export function shipBorrowers() {
+  const ship = SIGHTS.find((sight) => sight.id === 'ship');
+  return crowdSights().filter((sight) => sight.form === ship.form);
 }
 
 /**

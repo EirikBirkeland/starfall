@@ -1166,7 +1166,15 @@ When every item above is ticked, go back to the first unchecked item of mileston
       audit cannot measure a picture nobody paints). It changes nothing about a run - the same seed
       played with every row at both ends of its travel is the same run, 1970 tests and a reference run
       that traces the same bytes as before it.)
-- [ ] Release.
+- [x] Release. (**0.9.0 - 0.10.18** is this whole milestone: the title that writes itself, the pause
+      and the give-up, the wreck's card that says what took the run down, the settings rack, the two
+      assists, the CONTROLS rack, the pad, the thumb, and the palette measured with MARKS laid over it.
+      The last release is the shape half of that measurement, which had a bug in it: the audit had
+      three bodies sharing one silhouette when `drawEnemy` gives one of them a dart and two of them
+      the ship's own shape, so the table is read out of the renderer now and the report says who shares
+      a shape and what pays for it. Nothing on the screen moved, and the honest numbers are the reason:
+      the two bodies that borrow the ship's silhouette clear a whole step from the ship on every axis
+      every eye keeps, which is what says "that one is not you".)
 
 ### Milestone 10: balance and polish
 - [x] An upgrade that widens the shard magnet (**the owner's request of 2026-10-10**, left in

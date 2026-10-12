@@ -1,5 +1,31 @@
 # Starfall — changelog
 
+## 0.10.18 — 2026-10-12
+Milestone 9 closes here, and this one ships nothing you can see, on purpose. What it fixes is the
+instrument the last few releases were measured with. The palette is audited by shape as well as by
+colour - "does this read as the same thing as that" - and while every colour in it is read out of the
+game's own numbers, the shapes were written down by eye and three of them were wrong: the table said
+the weaver, the darter and the swarmling are all little darts, where the renderer draws the darter a
+dart and draws the other two with the ship's own silhouette, their noses pulled out long.
+- **The shape table is read out of the renderer now.** A test opens `render/entities.js`, finds which
+  silhouette each kind is given, and fails the audit the day the two disagree. That rule already held
+  the sizes, which is why the sizes were never wrong.
+- **What the honest numbers say**: the weaver (10 px) and the swarmling (7 px) borrow the shape your own
+  ship is drawn with, so colour and size are all that says "that one is not you". Where a pair of
+  different shapes is asked for half a step of colour, a body that borrows the ship's shape is asked for
+  a whole step on every axis an eye keeps - and both clear it, the swarmling by 2.49 and the weaver by
+  1.77, so they stay. Two bodies of one shape, one size and one colour would not, and now cannot.
+- **A new section in the report** - *Who shares a silhouette* - prints which bodies are drawn the same
+  shape and what each pair has left to carry the difference. Today it prints one pair, the weaver and
+  the swarmling, 1.43x apart in size and 0.72 of a step apart in colour: size's job, and not colour's.
+  Asking the report for `--strict` now exits on a shared shape that neither size nor colour pays for.
+- **Nothing about a run moved.** The reference run - one seed, ten minutes, every frame hashed - is
+  what it was, and the suite is 1985 tests with three new ones in it.
+- **What milestone 9 shipped**, for the record: a title that writes itself, a pause worth reading, a
+  wreck's card that says what took the run down, a settings rack, two assists that make a keyboard
+  alone enough to fly with, thirteen keys you can move, a gamepad, a thumb on the glass, and a colour
+  language measured instead of hoped for.
+
 ## 0.10.17 — 2026-10-12
 The hangar reported this one on itself, and it was right: open it and the title screen kept shining
 through - the key line, the big score on a wreck's card, the mark itself - so the panel you were reading

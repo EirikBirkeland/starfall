@@ -22,8 +22,9 @@ import { PALETTE, parseColor } from '../src/core/palette.js';
 import { BALANCE } from '../src/game/balance.js';
 import { oklab, oklch, separation } from '../tools/colour-lab.js';
 import {
-  SIGHTS, SKY, MEANINGS, auditSights, auditSky, auditPair, auditMarks, markFor, markNames,
-  marked, measure, promiseOf, promised, marginOf,
+  SIGHTS, SKY, MEANINGS, BODY_FORMS, PATH_FORMS, POLYGON_FORMS, SAME_SIZE_RATIO,
+  auditSights, auditSky, auditPair, auditMarks, markFor, markNames,
+  marked, measure, promiseOf, promised, marginOf, sharedSilhouettes, shipBorrowers,
 } from '../tools/sights.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -85,6 +86,34 @@ test('the sizes the table measures are the sizes the renderer draws', () => {
   assert.equal(sightOf('enemyShot').size, BALANCE.kinds.spitter.spit.shot.radius);
 });
 
+test('the silhouettes the table measures are the silhouettes the renderer draws', () => {
+  // The same rule as the sizes, for the other half of the shape: `tools/` may not import the
+  // renderer, so the forms are written down again in `BODY_FORMS` and read out of the source
+  // here. Session 109 wrote that table by eye and got three rows of it wrong - it called the
+  // weaver, the darter and the swarmling three darts, where `drawEnemy` gives one of them a dart
+  // and two of them the ship - and everything built on it was about a picture nobody paints.
+  const source = fs.readFileSync(path.join(ROOT, 'src/render/entities.js'), 'utf8');
+  // The branch is `if (enemy.type === 'weaver') shipPath(...)`. The other four places the file
+  // asks a body's type name are followed by a block and not a call, so they do not answer here.
+  const drawn = new Map();
+  for (const [, kind, paint] of source.matchAll(/enemy\.type === '(\w+)'\)\s+(\w+)\(/g)) {
+    assert.ok(PATH_FORMS[paint] !== undefined, 'drawEnemy gives the ' + kind + ' a ' + paint
+      + ', which tools/sights.js has no name for');
+    drawn.set(kind, PATH_FORMS[paint]);
+  }
+  assert.ok(drawn.size >= 4, 'drawEnemy has stopped choosing silhouettes by kind');
+  // Everything else falls through to a plain polygon, whose form is its side count.
+  assert.match(source, /else polygon\(ctx, 0, 0, enemy\.r, look\.sides, 0\);/,
+    'drawEnemy no longer falls through to a polygon, so this test has to learn what it falls through to');
+  for (const [kind, stats] of Object.entries(BALANCE.kinds)) {
+    const form = drawn.has(kind) ? drawn.get(kind) : POLYGON_FORMS[stats.sides];
+    assert.ok(form !== undefined, 'the ' + kind + ' asks for ' + stats.sides
+      + ' sides, which has no name in tools/sights.js');
+    assert.equal(BODY_FORMS[kind], form,
+      'the ' + kind + ' is measured as a ' + BODY_FORMS[kind] + ' and drawn as a ' + form);
+  }
+});
+
 test('nothing that can hurt you is the colour of nothing that can help you', () => {
   // The promise, whole: every pair that carries one clears it. This is the line a palette change
   // trips over, and the only one that has to hold for the game to ship.
@@ -144,6 +173,59 @@ test('what is promised, and what is not', () => {
   const alike = promiseOf(sightOf('enemyShot'), sightOf('shard'));
   assert.equal(alike.redGreen, 1);
   assert.equal(alike.hueless, 1);
+});
+
+test('what shares a silhouette pays for it with size or with colour', () => {
+  // Nine bodies in the warm half of the wheel cannot all be a different shape as well as a
+  // different colour, and the promise is about harm against help and not about bodies being
+  // unlike one another. What is not allowed is a shared silhouette paid for by neither: two
+  // bodies of one shape, one size and one colour are one body whoever painted them. So every
+  // pair here has to clear a step of colour, or stand further apart in size than the audit
+  // calls "the same size" - and the list is pinned, because a new kind given an old silhouette
+  // has to be written down in words rather than join a group unnoticed.
+  const groups = sharedSilhouettes();
+  assert.deepEqual(groups.map((group) => group.form + ': ' + group.members.join(', ')), [
+    'ship: weaver, swarmling',
+  ]);
+  const unpaid = [];
+  for (const group of groups) {
+    for (const pair of group.pairs) {
+      if (pair.carries) continue;
+      unpaid.push(pair.a + ' / ' + pair.b + ' are ' + pair.sizeRatio.toFixed(2)
+        + 'x apart in size and ' + pair.colour.toFixed(2) + ' of a step in colour');
+    }
+  }
+  assert.deepEqual(unpaid, []);
+  // And the size bar is the audit's own and not a number invented here.
+  for (const group of groups) {
+    for (const pair of group.pairs) {
+      if (pair.carriedBy !== 'size') continue;
+      assert.ok(pair.sizeRatio > SAME_SIZE_RATIO, pair.a + ' / ' + pair.b
+        + ' is carried by size and the audit does not even call them the same size');
+      assert.ok(pair.colour < 1, pair.a + ' / ' + pair.b
+        + ' is called a size pair but colour does the job on its own (a step is 1)');
+    }
+  }
+});
+
+test("what wears the ship's own silhouette is a whole step from the ship", () => {
+  // The one sharing of a shape that can cost a run: a warm body drawn with `shipPath`, the
+  // generic pointed ship the game paints its own ships with (render/entities.js), coming at the
+  // ship ten and seven pixels across. `howMuch` sees one form and asks for a full step on every
+  // axis every eye keeps - hue for the colour-blind eye and brightness for the one with no hue at
+  // all - and this is where a re-coloured crowd trips over it.
+  const borrowers = shipBorrowers();
+  assert.ok(borrowers.length >= 1, 'the table says nothing wears the shape the ship wears');
+  const ship = sightOf('ship');
+  for (const sight of borrowers) {
+    const pair = auditPair(sight, ship);
+    assert.ok(pair.promised, sight.id + ' borrows the shape the ship wears and carries no promise');
+    assert.equal(pair.need.redGreen, 1, sight.id + ' is promised less than a step of hue');
+    assert.equal(pair.need.hueless, 1, sight.id + ' is promised less than a step of brightness');
+    assert.ok(pair.pass, sight.id + ' is ' + pair.redGreen.ratio.toFixed(2)
+      + ' from the ship for a red-green eye and ' + pair.hueless.ratio.toFixed(2)
+      + ' for an eye with no hue at all: ' + pair.need.why);
+  }
 });
 
 test('the promise can fail - it is a guard and not a formality', () => {

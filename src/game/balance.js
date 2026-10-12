@@ -989,6 +989,9 @@ export const BALANCE = {
     weaver: {
       radius: 10, speed: 172, hull: 1, score: 15, drop: 1,
       from: 0, cost: 3, weight: 5,
+      // `sides` is the fallback shape; the weaver is drawn with the ship's own pointed
+      // silhouette (render/entities.js, WEAVER_SPIKE) - tools/sights.js says what that costs
+      // the palette and what it buys.
       color: PALETTE.pink, fill: PALETTE.pinkFill, sides: 3, glow: 14,
       wobble: { amount: 0.42, rate: 5.5 },
       spin: { rate: 9, amount: 0.35 },
@@ -1190,9 +1193,10 @@ export const BALANCE = {
     swarmling: {
       radius: 7, speed: 190, hull: 1, score: 10, drop: 1,
       from: 540, cost: 1, weight: 1,
-      // `sides` is the fallback shape; the swarmling is drawn as a long thin dart
-      // (render/entities.js), because the only way twenty of them can be told apart
-      // from a drifter at seven pixels is the shape and the colour.
+      // `sides` is the fallback shape; the swarmling is drawn with the ship's own pointed
+      // silhouette, its nose pulled out past twice the body (render/entities.js,
+      // SWARM_SPIKE), because at seven pixels the point and the colour are the whole of what
+      // twenty of them can be told by - and by the fact that they come as a pack.
       color: PALETTE.swarm, fill: PALETTE.swarmFill, sides: 3, glow: 11,
       // The arrival (game/waves.js). A wave that rolls this kind buys a *pack*: one
       // entry in the wave's fan that turns into `into` bodies standing in a `clump`
