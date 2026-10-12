@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.10.18",
+    "date": "2026-10-12",
+    "released": "2026-10-12T04:21:58.580Z",
+    "summary": "Milestone 9 closed: the palette's shapes are measured from the renderer, and two bodies borrow the ship's own silhouette on purpose",
+    "added": 256,
+    "removed": 21,
+    "logBytes": 39190593
+  },
+  {
     "version": "0.10.17",
     "date": "2026-10-12",
     "released": "2026-10-12T00:04:07.834Z",
