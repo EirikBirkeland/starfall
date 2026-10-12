@@ -12936,3 +12936,123 @@ place the effect is measurable at all, and it says so in its header comment.
    aimed at `render/cards.js` text-on-panel), `cageWall` is a thin wall for a protanope (0.13 from the ship,
    deliberately unjudged), and the four crowd pairs that share a colour (`darter`/`swarmling` 0.35 above all)
    want a silhouette rather than a colour.
+
+## Session 112 — The palette's shapes are read out of the renderer now. Released **0.10.18**, which closes milestone 9
+
+Suite **1982 → 1985** (3 in `test/palette-read.test.mjs`); the reference run (`--seed 20261006 --trace`)
+is byte for byte session 111's again (10m00s / 73,982 / level 57 / 3,934 kills / 4,934 shards, 7 vacuums,
+2036 in), which it must be, since the only `src/` edits were comments and one named constant.
+
+Milestone 9's last item was `- [ ] Release.`. It is ticked (PLAN now says 0.9.0 - 0.10.18 is that
+milestone) and 0.10.18 is out. But a release of nothing would have been a lie of a different shape,
+because reading the milestone's colour item back against the tree is what found the bug below.
+
+### What landed
+- **`tools/sights.js`'s form table was wrong, and about the one thing it was there to be honest
+  about.** It called the weaver, the darter and the swarmling three `dart`s. `render/entities.js`'s
+  branch in `drawEnemy` gives the darter its own `dartPath` and gives the other two `shipPath` - the
+  generic pointed-ship silhouette the game paints its own ships with, the weaver at spike 1.7 and the
+  swarmling at 2.1. Session 109 wrote that table by eye; the file's own doc comment, four lines above
+  the table, already said "render/entities.js gives the weaver a ship silhouette, the darter a dart"
+  and the table contradicted it. The sizes were pinned against the renderer's source and the forms
+  were not, so the sizes were never wrong and the forms were.
+- **`BODY_FORMS` is now exported and pinned**: `the silhouettes the table measures are the silhouettes
+  the renderer draws` opens `src/render/entities.js`, matches
+  `/enemy\.type === '(\w+)'\)\s+(\w+)\(/g` (only the five silhouette branches answer to it - the four
+  other `enemy.type ===` tests in the file are followed by a block and not a call), translates each
+  path function through `PATH_FORMS`, falls back to `POLYGON_FORMS[sides]` for whatever reaches the
+  `else polygon(...)`, and fails the table on any disagreement. It also asserts the `else polygon`
+  line is still there, so a rearranged branch is loud instead of quietly measuring nothing.
+- **The corrected promise**: `swarmling / ship` and `weaver / ship` are one form, so `howMuch` calls
+  them alike and asks for a whole step on every axis an eye keeps - previously the swarmling's pair with
+  the ship was asked for 0.55 of hue and nothing of brightness. Both clear it: **swarmling 2.49, weaver
+  1.77**, same on the red-green eyes and on the eye with no hue. Nothing was repainted, and now the
+  reason is a measurement instead of a shrug.
+- **`sharedSilhouettes()`** groups the crowd by form and, for each pair inside a group, reports the
+  size ratio, the colour separation with the worst eye named, and `carriedBy`: `colour`, `size`, `both`
+  or `nothing`. The rule it enforces is one sentence: **two bodies of one shape, one size and one colour
+  are one body, whoever painted them** - so a shared silhouette must be paid for by a step of colour or
+  by more than `SAME_SIZE_RATIO` of size. Today there is one shared pair, `weaver / swarmling` at 1.43x
+  apart in size and 0.72 of a step in colour: size carries it, colour does not, and that is the honest
+  description of what session 109 left as "the crowd shares colours".
+- **`shipBorrowers()`** is the same question aimed at the one sharing that can cost a run - a warm body
+  wearing your own shape, coming at you - and `palette-check.js` prints a *Who shares a silhouette*
+  section with both halves in it. `--strict` now exits non-zero on an unpaid shared silhouette as well
+  as on a broken colour promise, so the section is a guard and not decoration.
+- **`WEAVER_SPIKE = 1.7` named** in `render/entities.js` beside `SWARM_SPIKE`, because two lines that
+  both borrow the ship's silhouette should look like it in the source and not only in a comment. The
+  two balance rows that said "drawn as a long thin dart" (which is the loose wording that caused the
+  whole thing) now say what is drawn: the ship's pointed silhouette, nose pulled out.
+
+### The art decision this session did *not* make, and why
+Four sessions of notes have said "the crowd's small bodies want a silhouette rather than a colour". The
+corrected measurement says the harm-vs-help and harm-vs-self confusions - the only ones that cost a run -
+are already paid for, by a whole step, on every eye. What is left is two harms that are 0.72 of a step
+apart and 1.43x apart in size, which PLAN hands to shape, size and motion and which the audit deliberately
+does not promise. So a new silhouette for the swarmling would be an art job for its own sake, and the one
+thing I cannot check from here is the one thing an art job is: whether it reads. The crowd's most numerous
+body, painted blind, on a geometry argument, is how this game gets worse. **Decision: nobody repaints the
+swarmling from a headless session.** The audit now says precisely which pairs lean on size alone, so a
+session with eyes on a screen has something to repaint *against*; the pinned list in
+`test/palette-read.test.mjs` is what shortens when that happens.
+
+### Things that bit
+- **The edit tool's all-or-nothing multi-hunk behaviour bit again** (session 110's note). One call, two
+  hunks on `balance.js`, the first one's `oldText` did not match (I had the `color:` line two rows too
+  early), so *nothing* was applied. `git diff --stat` before writing anything more is the whole remedy
+  and it costs one second.
+- **A report function that `return`s nothing on its clean path** would have made the verdict print `NaN
+  measurements under the bar`: `reportForms()` returned early with no value when nothing was shared and
+  the caller added that to the failure count. Fixed with `return 0`. Worth remembering for every
+  counting function added to this report - `NaN` is a lie of silence, and the verdict line is the only
+  thing a busy reader looks at.
+- **Every new guard was falsified before it was trusted**, and it is the cheapest useful minute in this
+  project: `BODY_FORMS.weaver` put back to `'dart'` turned two tests red (the parse test, and the pinned
+  group list); `SAME_SIZE_RATIO` and `FULL` both set to 99 made the report print `NEITHER of them
+  carries it` and 238 failures, which is the unpaid path and the `--strict` hook actually working.
+- **A test name with an apostrophe in it needs double quotes** - `test('what wears the ship's own
+  silhouette...', ...)` is a syntax error, and `node --check` says so immediately, which is the only
+  reason it took one run.
+- `tools/` still may not import `src/render/`, which is why the forms and sizes are written down twice
+  and pinned by reading source text. A third copy of anything drawn would be the point to revisit that
+  rule, not to add another `readFileSync`.
+
+### Decisions worth keeping
+- **How the parse could go quietly wrong**: it looks for `enemy.type === 'kind') somePath(`. If a future
+  session chooses silhouettes another way - a per-kind map, a lookup table, a data file - the regex
+  finds nothing and the `drawn.size >= 4` assertion is what shouts. A rearrangement is loud; a new
+  mechanism has to be met by rewriting this test, and that is the intended cost.
+- **`carries` and `carriedBy` are both on every pair** on purpose: `carries` is what a test asserts and
+  `carriedBy` is what the report prints. They are computed from the same two comparisons in one place.
+- **The shape section is not a second promise.** Harm-vs-harm is still reported and not promised - the
+  new rule only refuses a shared shape that *nothing* distinguishes, which is a weaker claim than
+  "every body must be a step from every other" and the one that can actually be met by nine warm bodies.
+- Milestone 9's `- [ ] Release.` was ticked rather than argued with. It is the fifth milestone to end
+  this way and each of the others was ticked with the version that closed it; the work item before it
+  (the colour-blind palette) shipped in 0.10.16 and the milestone's hotfix in 0.10.17.
+
+### The orphan in the tree, part two
+`tools/headless/harness.js` had an uncommitted `tapDash()` (press the right button wherever the pointer
+already is, so a bot can dash without teleporting its aim), with a throwaway `.scratch/dash-probe.mjs` -
+"which way does the bot dash, and what does it cost?" - that was its only caller. Nothing in `test/` or
+`tools/` used it and no session wrote it down, so a previous run ended between the probe and its
+conclusion. **Reverted** (it is dead weight in a tracked file; the helper is ten lines to put back) and
+the probe is left in `.scratch` for whoever picks the dash question up. `test/afterimage-art.test.mjs`
+does drive the dash through the mouse, but it aims on purpose, so it is not the consumer.
+
+### What should come next
+1. **Milestone 10**, which is what is left. The **difficulty band** (`tools/difficulty-arc.js` still
+   fails), `tools/gun-tune.js` owed from session 96, session 101's **`--paint` door** on
+   `tools/alloc-probe.js`, the browser half of the performance pass - and `1.0.0`.
+2. The **dash question**, if the probe's owner wants it back: `--habit old`, `--range`, `--trigger` and
+   `--picks` are all already wired in `.scratch/dash-probe.mjs`; it needs `tapDash` in the harness (or
+   `pressMouse` with the pointer parked) and a conclusion written somewhere. It bears on the difficulty
+   band, because a bot that dashes badly is a bot that dies early and a bot that dies early makes every
+   difficulty measurement a floor and not a shape.
+3. Still owed from session 110 and unchanged: an interface half of the colour audit (a
+   `tools/contrast-check.js` aimed at `render/cards.js` text-on-panel would be the same ruler), and
+   `cageWall` is still a thin wall for a protanope (0.13 from the ship, deliberately unjudged).
+4. Small things this session saw and left: `WEAVER_SPIKE` and `SWARM_SPIKE` are pinned nowhere, so a
+   "how pointed is this body" measure would have to export them the way the sizes are exported; and
+   `POLYGON_FORMS` has a name for 4 and 7 sides but no kind asks for either, which is fine until a new
+   kind asks for a heptagon and finds nothing.
