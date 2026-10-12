@@ -22,14 +22,25 @@
 //
 // **What a byte is here.** The number is how much the young generation grew across a window of steps
 // with nothing collected in it, read twice - once off `process.memoryUsage().heapUsed` and once off
-// `v8.getHeapSpaceStatistics()`'s new space, which agree to a rounding error and disagree with nothing
-// else in here. It is what the collector actually has to carry away, which is not what the source
+// `v8.getHeapSpaceStatistics()`'s new space, which agree to under one percent when the window is
+// honest and are compared with each other for exactly that reason (way number 2 below). It is what the
+// collector actually has to carry away, which is not what the source
 // appears to write: V8 throws a short-lived object away before it ever reaches the heap when it can
 // see the whole of its life from inside one optimised function (escape analysis), so the same line
 // can allocate a lot cold and nothing at all warm - and only the warm number is paid for in a fight
 // that has been going on for nine minutes. Hence: warm up, and take the best of several windows.
 //
-// **The two ways this measurement lies, and what is done about each.**
+// **Warming up is the hard part, and the first way this file warmed is wrong.** A load stepped in one
+// long synchronous run does not get warm: measured on this box, 20,000 steps of uninterrupted stepping
+// left the first reading of the endless wall at 2,660 B a step, and stepping the same crowd with the
+// event loop handed back every 60 steps settled it at 606 B a step from the very first window. The
+// difference is not the number of steps - it is that V8 installs the code it compiles in the background
+// when the event loop turns, so a loop that never turns is timed on whatever it started on. A browser
+// hands the loop back every frame, which is why the settled number - and not the cold one - is the
+// number a player pays. So the warm-up below measures the load in windows of its own until they stop
+// getting cheaper, every one of them a turn of the loop: see `warmWork`.
+//
+// **The three ways this measurement lies, and what is done about each.**
 //
 //   1. A window the collector interrupts reads *low*, because the garbage is gone before the second
 //      reading - and a "best of N" rule would pick the lies out of the set and call them the truth. So
@@ -37,7 +48,14 @@
 //      and a window in which the collector came is thrown away and retried, and the file prints how
 //      many it threw away. It also runs with a young generation 64 MB wide, which is more than a
 //      window can fill.
-//   2. A load reads differently depending on what the same process measured *before* it. That is not
+//   2. A window can read low without the collector saying it came at all. The reading is taken twice,
+//      off `heapUsed` and off the young generation, and the two normally agree to under one percent -
+//      so when old space hands a page back inside a window, quietly, the heap figure falls by more
+//      than the work put into it and only the young generation is still telling the truth. About one
+//      window in a hundred does this, and "best of N" is a magnet for exactly that: the endless wall
+//      read 574 B a step at six windows and 189 B at twenty-four until the two readings were compared
+//      and a window where they differ by more than a fifth was refused (`oneWindow`).
+//   3. A load reads differently depending on what the same process measured *before* it. That is not
 //      noise, it is the optimiser: a step that has only ever seen empty pools gets compiled for empty
 //      pools, and the first live bullet deoptimises it and everything starts boxing numbers. Measured,
 //      the same 60 shots threw away 479 B a step when they were the first load the process had ever
@@ -98,17 +116,61 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 //                 four thousand bytes a step the day the wall moves. Measured per body against an arena
 //                 with none, so it is the walk and the broad phase and nothing else.
 //
-// Where the two load budgets stood when they were last moved: the four gated loads read 1.1 KB, 1.4 KB,
-// 1.8 KB and 1.6 KB a step at these windows (1.2 KB at the tool's own default), a body 5-8 B, and the
-// empty arena 219-414 depending on the day. The budgets are over the dearest of those with a third to
-// spare, and both came down by more than half on the commit that removed `Math.hypot` from the game -
-// which is the point of a ratchet: it goes down when the game does, or it is only a ceiling.
-export const FLOOR_BYTES = 512;
-export const STEP_BYTES = 2560;
-export const BODY_BYTES = 16;
+// Where the three budgets stood when they were last moved: measured on a load that has actually been
+// warmed (see `warmWork`), on this box and reproducible to under one percent, the empty arena throws
+// away **64 B** a step, the schedule crowd **436 B**, the endless wall **574 B**, the same crowd dying
+// **984 B** and spread out **582 B**; a body costs **3-5 B** and 900 sparks and 60 shots together cost
+// the step *nothing* over an empty arena. All three budgets came down when the warm-up was fixed - by
+// 4x on the floor, 2x on a load and 2x on a body - because what the old numbers were mostly measuring
+// was V8 still compiling the step, and a ratchet set against a compiler cannot be tightened by anything
+// the game does. That is the point of a ratchet: it goes down when the game does, or it is only a
+// ceiling.
+//
+// The dearest gated load is the crowd dying, at 984 B: a body being killed and replaced costs about
+// twice what a body walking costs, which is the first place the next cut should go.
+export const FLOOR_BYTES = 128;
+export const STEP_BYTES = 1280;
+export const BODY_BYTES = 8;
 
-/** How many steps a load is stepped before it is believed - see the header on warming up. */
-export const WARM_STEPS = 2400;
+/**
+ * How a load is warmed up. `WARM_PROBE_STEPS` is the window the warm-up measures - wider than a
+ * measuring window on purpose, because what a load needs is steps and every window pays for two full
+ * collections to get them. `WARM_MIN_STEPS` is the floor on the warm-up (a load that looks flat after
+ * two probes has not started getting cheap yet) and `WARM_MAX_STEPS` the ceiling, so a box that never
+ * settles gets a complaint instead of a hang. Measured on these six loads with these settings: the
+ * empty arena and the two pools want about 23,000 steps, the 100-body crowd 27,000, the two 200-body
+ * walls 20,000-47,000 and PLAN section 2's impossible scene 42,000 - so a full ladder is about a
+ * minute, which is the price of a number that means something. The width is not a free knob: a probe of
+ * 2,000 steps steps further before it decides and reads the same crowd about a fifth cheaper again, so
+ * 1,000 is the width the three budgets above were set against and moving it means moving them.
+ */
+export const WARM_PROBE_STEPS = 1000;
+export const WARM_MIN_STEPS = 12_000;
+export const WARM_MAX_STEPS = 300_000;
+/** Probes that have to agree before the load counts as warm... */
+export const WARM_QUIET = 6;
+/** ... and how far apart they may be. The readings bounce; a band tells a bounce from a fall. */
+export const WARM_BAND = 1.10;
+/**
+ * How far a window's two readings - the heap and its young generation - may disagree before the window
+ * is refused instead of read. This is the absolute half of that bound; the other half is a fifth of the
+ * bigger reading, and `readingsAgree` and `oneWindow` have the measurement that says why a fifth is not
+ * loose. It is there for the tiny windows: the arena on its own grows 19 KB across a window and its two
+ * readings sit within a few hundred bytes of each other, but a page rebate in old space is never a few
+ * hundred bytes.
+ */
+export const WINDOW_DISAGREES_BYTES = 4096;
+
+/**
+ * Whether a window's two readings - the bytes the heap grew, the bytes its young generation filled -
+ * can both be believed. Honest windows sit inside a percent of each other; a page rebate out of old
+ * space moves one of them by tens of kilobytes and the other not at all, so a fifth of the larger (or
+ * `WINDOW_DISAGREES_BYTES`, whichever is more) is far out of the way of the first and catches the
+ * second every time.
+ */
+export function readingsAgree(grown, filled) {
+  return Math.abs(grown - filled) <= Math.max(WINDOW_DISAGREES_BYTES, 0.2 * Math.max(grown, filled));
+}
 
 /** A byte count the way a person reads one: `843 B` under a kilobyte, `4.2 KB` above it. */
 export function bytes(n) {
@@ -236,38 +298,56 @@ function youngUsed() {
 }
 
 /**
+ * One window of `work`: the two readings round `steps` of it, or null when the window is not a
+ * reading. A window starts from an emptied young generation - two forced collections, because one is a
+ * scavenge and only the second is the full mark-and-sweep that actually empties it - and then does the
+ * work with no `await` in it at all. Both readings are taken, and they are the same number: a window
+ * that grows the heap without growing the young generation would be a window something else is paying
+ * for. Three things can stop a window being a reading and each is refused here and counted by the
+ * caller: the collector came inside it, which reads low; the heap went *down*, which means something
+ * was collected without `perf_hooks` saying so; and the two readings disagree by more than
+ * `WINDOW_DISAGREES_BYTES`, which is what a quiet page rebate in old space looks like.
+ */
+async function oneWindow(work, steps, watch) {
+  await watch.settle();
+  global.gc();
+  global.gc();
+  await watch.settle();
+  const from = performance.now();
+  const heapBefore = process.memoryUsage().heapUsed;
+  const youngBefore = youngUsed();
+  for (let i = 0; i < steps; i++) work();
+  const grown = process.memoryUsage().heapUsed - heapBefore;
+  const filled = youngUsed() - youngBefore;
+  const to = performance.now();
+  await watch.settle();
+  if (watch.collectedSince(from, to) > 0) return null;
+  if (grown < 0 || filled < 0) return null;
+  // The two instruments have to agree - the check the header's second lie is about. They agree to well
+  // under a percent on an honest window (`endless`: 567 B a step off the heap, 566 off the young
+  // generation), which is what makes a disagreement worth refusing a window for. The one caught while
+  // writing this had grown 59 KB off `heapUsed` and 176 KB off the new space, and read 197 B a step
+  // against the load's real 560 B.
+  if (!readingsAgree(grown, filled)) return null;
+  return { bytes: grown / steps, young: filled / steps };
+}
+
+/**
  * One window of `work`, repeated `windows` times: the bytes each threw away, and how many windows had
  * to be thrown away because the collector came into them.
- *
- * A window starts from an emptied young generation - two forced collections, because one is a
- * scavenge and only the second is the full mark-and-sweep that actually empties it - and then does
- * the work with no `await` in it at all. Both readings are taken, and they are the same number: a
- * window that grows the heap without growing the young generation would be a window something else is
- * paying for.
  */
 async function measureWindows(work, opts, watch) {
   const good = [];
   let voids = 0;
   const attempts = opts.windows * 2;          // a bound, so a busy box fails rather than hanging
   for (let attempt = 0; attempt < attempts && good.length < opts.windows; attempt++) {
-    await watch.settle();
-    global.gc();
-    global.gc();
-    await watch.settle();
-    const from = performance.now();
-    const heapBefore = process.memoryUsage().heapUsed;
-    const youngBefore = youngUsed();
-    for (let i = 0; i < opts.steps; i++) work();
-    const grown = process.memoryUsage().heapUsed - heapBefore;
-    const filled = youngUsed() - youngBefore;
-    const to = performance.now();
-    await watch.settle();
-    if (watch.collectedSince(from, to) > 0) { voids++; continue; }
-    if (grown < 0 || filled < 0) { voids++; continue; }   // something was collected: not a reading
-    good.push({ bytes: grown / opts.steps, young: filled / opts.steps });
+    const reading = await oneWindow(work, opts.steps, watch);
+    if (reading === null) { voids++; continue; }
+    good.push(reading);
   }
   if (good.length < 2) {
-    throw new Error('the collector came inside every window (' + voids + ' thrown away), so there is no '
+    throw new Error('every window was thrown away (' + voids + ' of them - a collector inside them, or '
+      + 'the two readings of them disagreeing), so there is no '
       + 'honest number to print: ask for fewer --steps, or run the file on a quieter box');
   }
   good.sort((a, b) => a.bytes - b.bytes);
@@ -278,6 +358,43 @@ async function measureWindows(work, opts, watch) {
     voids,
     taken: good.length,
   };
+}
+
+/**
+ * Warm a load up, and stop the moment warming it has stopped working.
+ *
+ * The warm-up is *windows*, not a step loop, and that is the finding: V8 finishes the code it compiles
+ * in the background when the event loop turns, so a warm-up that never turns leaves the load running on
+ * whatever it started on and the reading is two to five times what the load costs. See the header. Each
+ * probe here is one ordinary window - collections, two readings, refused if the collector came into it
+ * - and the load is warm when the last `WARM_QUIET` probes all landed within `WARM_BAND` of each other,
+ * which is the reading itself saying it has stopped falling.
+ *
+ * A *band* of probes and not "this one was near the best" matters: the readings bounce on the way down
+ * (the endless wall dips to 831 B a step, rises to 1,080, and only then settles near 580), and a rule
+ * that stops on a lucky dip stops twice as high as the truth.
+ *
+ * Returns how many steps of warm-up it took, whether it ever settled, and how many probes it had to
+ * refuse; a load still getting cheaper at `WARM_MAX_STEPS` is a broken ruler, and the caller says so out
+ * loud instead of printing its number.
+ */
+export async function warmWork(work, watch) {
+  const probes = [];
+  let steps = 0;
+  let voids = 0;
+  while (steps < WARM_MAX_STEPS) {
+    const probe = await oneWindow(work, WARM_PROBE_STEPS, watch);
+    if (probe === null) { voids++; probes.length = 0; continue; }
+    steps += WARM_PROBE_STEPS;
+    probes.push(probe.bytes);
+    if (probes.length > WARM_QUIET) probes.shift();
+    if (steps >= WARM_MIN_STEPS && probes.length === WARM_QUIET) {
+      const lo = Math.min(...probes);
+      const hi = Math.max(...probes);
+      if (hi <= lo * WARM_BAND) return { steps, settled: true, voids };
+    }
+  }
+  return { steps, settled: false, voids };
 }
 
 /**
@@ -306,9 +423,11 @@ export async function measureLoad(game, scene, opts, watch) {
     drainCues(countCue);
   };
 
-  for (let i = 0; i < WARM_STEPS; i++) step();
+  const warm = await warmWork(step, watch);
   cues = 0;
   const whole = await measureWindows(step, opts, watch);
+  // The holding gets no settle of its own: `holdScene` is the first thing the load's own work calls,
+  // so the warm-up above has already been through it as many times as it needs.
   const held = await measureWindows(() => holdScene(game, scene), opts, watch);
 
   const off = held.best;
@@ -317,8 +436,10 @@ export async function measureLoad(game, scene, opts, watch) {
     worstWindow: Math.max(0, whole.worst - off),
     youngPerStep: Math.max(0, whole.youngBest - held.youngBest),
     holdBytesPerStep: off,
-    cuesPerStep: cues / (opts.steps * whole.taken),
+    warmSteps: warm.steps,
+    warmSettled: warm.settled,
     voids: whole.voids + held.voids,
+    cuesPerStep: cues / (opts.steps * whole.taken),
     taken: Math.min(whole.taken, held.taken),
     youngWidth: youngWidth(),
     bodies: world.enemies.length, shots: world.bullets.count, sparks: world.particles.count,
@@ -328,10 +449,15 @@ export async function measureLoad(game, scene, opts, watch) {
 /**
  * What a played run throws away: the crowd the game chose, the gun it chose, the waves as they
  * arrive. Here the window is one long stretch of frames and the steps are the game's own count, so a
- * frame that caught up after a stall is paid for honestly. The run is warm before the window opens -
- * every system in the game has been through the optimiser at least once by then - and the collector is
- * counted over the stretch rather than pretended absent, so the number is what a young generation of
- * this size costs a player rather than what a single clean window would.
+ * frame that caught up after a stall is paid for honestly, and the collector is counted over the
+ * stretch rather than pretended absent, so the number is what a young generation of this size costs a
+ * player rather than what a single clean window would.
+ *
+ * It is the one number in this file that is played *cold*, and says so when it prints: a stretch is one
+ * synchronous run of frames with no turn of the event loop in it, so it carries its own warm-up inside
+ * itself and reads dearer than the warmed loads above it. `warmWork` cannot be used here the way it is
+ * used on a planted scene, because the thing being measured is a run and a run played warm is a run
+ * that has already ended by the time the window opens.
  */
 export async function measureLiveRun(game, seconds, watch) {
   const at = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1].at;
@@ -518,8 +644,11 @@ async function main() {
     if (r.perBody === null && r.wanted > 0) {
       r.perBody = Math.max(0, (r.bytesPerStep - floor.bytesPerStep) / r.wanted);
     }
+    // A load that never stopped getting cheaper has no number in it to gate: it is a broken ruler, and
+    // it fails the way an over-budget load fails so the report cannot be read as a pass.
     r.ok = r.bytesPerStep <= STEP_BYTES
-      && (r.perBody === null || r.perBody <= BODY_BYTES);
+      && (r.perBody === null || r.perBody <= BODY_BYTES)
+      && r.warmSettled !== false;
   }
 
   const live = opts.live
@@ -534,15 +663,20 @@ async function main() {
       bodies: r.bodies, shots: r.shots, sparks: r.sparks,
       bytesPerStep: Math.round(r.bytesPerStep), perBody: r.perBody === null ? null : Math.round(r.perBody),
       worstWindow: Math.round(r.worstWindow), voids: r.voids,
+      warmSteps: r.warmSteps, warmSettled: r.warmSettled,
     }))) + ' floor ' + Math.round(floor.bytesPerStep));
   } else if (!opts.quiet) {
     const cpus = os.cpus();
     console.log('What a step throws away (PLAN section 2: "no allocation inside the per-frame loops").');
     console.log('  box     ' + (cpus[0].model || 'a cpu').trim() + ', ' + cpus.length
       + ' cores, node ' + process.versions.node);
-    console.log('  method  one process per load; ' + int(opts.steps) + ' steps a window, '
-      + opts.windows + ' windows a load, best taken, and any window the collector came into thrown'
-      + ' away and retried');
+    console.log('  method  one process per load, warmed first: measured in ' + int(WARM_PROBE_STEPS)
+      + '-step windows until ' + int(WARM_QUIET) + ' of them in a row came within '
+      + dec((WARM_BAND - 1) * 100, 0) + '% of each other, each one starting from an emptied young'
+      + ' generation and handing the event loop back on the way - which is the whole of what makes a'
+      + ' load warm. Then ' + int(opts.steps) + ' steps a window, ' + opts.windows + ' windows a load,'
+      + ' best taken, and any window the collector came into - or whose two readings of it disagreed -'
+      + ' thrown away and retried');
     console.log('  budget  a load <= ' + bytes(STEP_BYTES) + ' a step and a body <= ' + bytes(BODY_BYTES)
       + ' a step, and the empty arena <= ' + bytes(FLOOR_BYTES));
     console.log('');
@@ -550,8 +684,15 @@ async function main() {
     console.log('  the arena on its own: ' + bytes(floor.bytesPerStep) + ' a step ('
       + bytes(floor.worstWindow) + ' on its dearest window); this tool holding a load up between the'
       + ' steps costs ' + bytes(floor.holdBytesPerStep) + ' and is taken out of every row');
+    const warmed = results.map((r) => r.warmSteps).filter((n) => Number.isFinite(n));
+    const unwarmed = results.filter((r) => r.warmSettled === false).map((r) => r.name);
+    console.log('  warmed before reading: ' + int(Math.min(...warmed)) + '-' + int(Math.max(...warmed))
+      + ' steps a load, until ' + int(WARM_QUIET) + ' windows in a row stopped beating each other'
+      + (unwarmed.length > 0 ? ' - NEVER SETTLED: ' + unwarmed.join(', ') + ' was still getting cheaper'
+        + ' at ' + int(WARM_MAX_STEPS) + ' steps, so its number is a ceiling and not a measurement' : ''));
     const thrown = results.reduce((m, r) => Math.max(m, r.voids || 0), 0);
-    console.log('  windows thrown away for a collector inside them: ' + int(thrown)
+    console.log('  windows thrown away - a collector inside them, or their two readings disagreeing: '
+      + int(thrown)
       + ' at worst on one load, of ' + int(opts.windows) + ' wanted'
       + (thrown > 0 ? ' - the readings above are the ones that were clean' : ''));
     const slope = results.find((r) => r.id === 'endless') || results.find((r) => r.perBody);

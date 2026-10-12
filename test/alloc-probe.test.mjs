@@ -16,6 +16,15 @@
 //     load in its own process: measured in one shared process, 60 shots threw away 479 bytes a step
 //     when they were the first load the process had seen and 3,145 when an empty arena had come first,
 //     and a ratchet that depends on which row came first is not a ratchet;
+//   - **the reading does not depend on how long a window you ask for**, which is the sign that a load
+//     has been *warmed* rather than measured cold and that no window in the set is lying: asking for six
+//     windows instead of twenty-four used to read the endless wall 4-8x dearer, because the code being
+//     weighed was still the code V8 had started it on and not the code it finished, and once that was
+//     fixed a rarer window - one where the heap and the young generation disagree about what grew - made
+//     the *cheap* reading depend on how many windows you had drawn. Warming needs turns of the event
+//     loop, not a count of steps (`tools/alloc-probe.js` has the measurements); a browser turns the loop
+//     every frame, so the warm number is the one a player pays and the cold one was a ruler measuring
+//     its own compiler;
 //   - **the gated loads are inside both budgets**, which is the ratchet: a change that makes a step
 //     throw away more has to be argued about here, in bytes, and not discovered as a stutter.
 //
@@ -35,7 +44,7 @@ import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
   bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs,
-  FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES,
+  FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES, readingsAgree,
 } from '../tools/alloc-probe.js';
 import { SCENES } from '../tools/perf-probe.js';
 
@@ -58,10 +67,11 @@ function rows(args) {
   return { rows: JSON.parse(parts[0]), floor: Number(parts[1]) };
 }
 
-// Long enough that a load reads the same number twice in a row (there is a test for exactly that) and
-// short enough that the whole file is a handful of seconds. At 150 steps a window the arena on its own
-// reads twice what it does at 300, and a budget set against a number that jangles with the window is a
-// budget somebody will raise out of irritation.
+// Short windows, because a whole ladder is a minute of the suite's life and the warm-up is what spends
+// it: a load is measured in 1,000-step windows until six of them in a row agree, and then read in
+// windows of this size. The window width no longer moves the number - there is a test for that now,
+// where the old numbers moved 4-8x between six windows and forty - so 300 is just the point where a
+// window is cheap and still long enough to average the step out.
 const QUICK = ['--json', '--steps', '300', '--windows', '6'];
 
 // --- the arithmetic in the tool ---------------------------------------------------
@@ -92,6 +102,22 @@ test('the verdict fails on the floor as well as on a load', () => {
   const overFloor = verdictOf(inside, 1e6);
   assert.equal(overFloor.pass, false);
   assert.ok(overFloor.failed.includes('the empty arena'));
+});
+
+test('a window whose two readings disagree is not a reading', () => {
+  // The instrument is really two instruments: what the heap grew across a window, and what its young
+  // generation filled with. On an honest window they are the same number to under a percent, and about
+  // one window in a hundred old space hands a page back mid-window and only one of them notices. Both
+  // pairs below are real, from the box this file was written on: the first is `endless` over 300 steps,
+  // the second is the liar that appeared in one run in twenty - and "best of N" would have kept the
+  // liar and called it the cheapest window.
+  assert.ok(readingsAgree(170_100, 169_800), '567 B a step against 566 B a step is one number');
+  assert.equal(readingsAgree(59 * 1024, 176 * 1024), false,
+    'a window saying the heap grew by a third of what its young generation did was collected in');
+  assert.ok(readingsAgree(19 * 1024, 19 * 1024 + 300), 'the empty arena, read two ways');
+  // The absolute half of the bound, for a window too small to compare percentages over.
+  assert.ok(readingsAgree(4000, 0), 'a tiny window keeps its 4 KB of slack');
+  assert.equal(readingsAgree(5000, 0), false, 'and no more than that');
 });
 
 test('every flag is refused with a sentence before a number can be printed', () => {
@@ -137,8 +163,9 @@ test('a crowd costs the step something, and it is a fraction of what it used to 
     + ' a step, over the ' + bytes(BODY_BYTES) + ' the budget allows');
   // The history of this number, because it is the one that shows what the rule has cost: **94 B** a body
   // while `core/grid.js` emptied its cells with `cell.length = 0`, **31 B** once a cell was a count and a
-  // store and `game/awards.js` stopped listing the ranks table every step, and **6 B** now that the
-  // crowd's walks call `core/math.js`'s `hypot` instead of `Math.hypot`. The bound below is where it sat
+  // store and `game/awards.js` stopped listing the ranks table every step, and **3-5 B** now that the
+  // crowd's walks call `core/math.js`'s `hypot` instead of `Math.hypot` and that the load has been
+  // warmed before it was weighed. The bound below is where it sat
   // before the last of those two fixes, so a regression that puts an allocation back in the walk trips
   // this and a rounding error does not.
   assert.ok(crowd.perBody < 31, 'a body used to cost 31 B a step; it now costs ' + crowd.perBody);
@@ -167,14 +194,32 @@ test('all three together is the crowd, and not the crowd plus the two free lists
 
 test('the same load reads the same number twice', () => {
   // The reason the tool measures every load in its own process. Twice the same command, and the number
-  // has to come back within a quarter - enough for the box to breathe, tight enough that a real change
-  // in what a step throws away shows up.
+  // has to come back close: on a quiet box these two come back identical to the byte, and the slack is
+  // for a suite running eight files at once, not for the ruler itself.
   const first = rows(['--scene', 'endless', ...QUICK]).rows.find((r) => r.id === 'endless');
   const again = rows(['--scene', 'endless', ...QUICK]).rows.find((r) => r.id === 'endless');
   const spread = Math.abs(first.bytesPerStep - again.bytesPerStep)
     / Math.max(first.bytesPerStep, again.bytesPerStep);
-  assert.ok(spread < 0.25, 'the same load read ' + bytes(first.bytesPerStep) + ' and then '
+  assert.ok(spread < 0.15, 'the same load read ' + bytes(first.bytesPerStep) + ' and then '
     + bytes(again.bytesPerStep));
+});
+
+test('the reading does not depend on how many windows you ask for', () => {
+  // The one that would have caught the ruler lying. A load is warmed by being measured in windows, and
+  // if the warm-up has not actually warmed anything then the reading depends on how much stepping the
+  // windows happened to do - so six windows and twenty-four of them disagree. They used to: the endless
+  // wall read 2,410 B a step at six windows and 577 B at forty, and every budget in the file was set
+  // against numbers of that kind, which is how a gate can sit at FAIL for a whole milestone without a
+  // single byte of the game changing.
+  const few = rows(['--scene', 'endless', ...QUICK]).rows.find((r) => r.id === 'endless');
+  const many = rows(['--scene', 'endless', '--json', '--steps', '300', '--windows', '24'])
+    .rows.find((r) => r.id === 'endless');
+  assert.equal(few.warmSettled, true, 'the load never stopped getting cheaper in six-window runs');
+  assert.equal(many.warmSettled, true, 'the load never stopped getting cheaper in twenty-four windows');
+  const spread = Math.abs(few.bytesPerStep - many.bytesPerStep)
+    / Math.max(few.bytesPerStep, many.bytesPerStep);
+  assert.ok(spread < 0.15, bytes(few.bytesPerStep) + ' a step at six windows against '
+    + bytes(many.bytesPerStep) + ' at twenty-four: the reading is still carrying its own warm-up');
 });
 
 test('the gated loads are inside the budgets - the ratchet', () => {
@@ -186,6 +231,8 @@ test('the gated loads are inside the budgets - the ratchet', () => {
   const line = out.stdout.split('\n').find((l) => l.startsWith('ROWS '));
   const parsed = JSON.parse(line.slice('ROWS '.length).split(' floor ')[0]);
   for (const row of parsed.filter((r) => r.gated)) {
+    assert.notEqual(row.warmSettled, false, row.name + ' was still getting cheaper when the warm-up gave'
+      + ' up after ' + row.warmSteps + ' steps: the ruler cannot set a budget against it');
     assert.ok(row.bytesPerStep <= STEP_BYTES, row.name + ' throws away '
       + bytes(row.bytesPerStep) + ' a step, over the ' + bytes(STEP_BYTES) + ' allowed');
     assert.ok(row.perBody <= BODY_BYTES, row.name + ': a body costs ' + bytes(row.perBody)
@@ -196,9 +243,10 @@ test('the gated loads are inside the budgets - the ratchet', () => {
 
 test('the empty arena is inside its own budget', () => {
   // The floor is the noisiest number in the file (it is small, and a short window has less of the step
-  // to hide in): measured 184 B a step at the tool's own window and 219-415 across the short windows
-  // these tests ask for. The budget is over the worst of those, because what it is for is a whole
-  // system's worth of per-step lookups turning up here, not a rounding error.
+  // to hide in): warmed, it reads 64 B a step here and did so on every one of a dozen runs, loaded and
+  // unloaded. It used to read 219-415 across the short windows these tests ask for, and that was the
+  // warm-up not warming. The budget is double the reading because what it is for is a whole system's
+  // worth of per-step lookups turning up here, not a rounding error.
   assert.ok(parts.floor <= FLOOR_BYTES, 'the arena on its own throws away ' + bytes(parts.floor)
     + ' a step, over the ' + bytes(FLOOR_BYTES) + ' allowed - a lookup added to every step belongs in'
     + ' a system that needs it, not in the frame');
