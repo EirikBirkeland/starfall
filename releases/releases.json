@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-10-12",
+    "released": "2026-10-12T21:37:56.692Z",
+    "summary": "The thumb's plate: a PAUSE a finger can press above the dash button, and a rack that comes down when the run comes back",
+    "added": 550,
+    "removed": 36,
+    "logBytes": 43192602
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-12",
     "released": "2026-10-12T20:42:59.502Z",
