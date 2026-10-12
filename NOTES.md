@@ -13885,3 +13885,98 @@ cheap; a panel would have wanted a key, a hint line, a `panels` entry and a fit 
 3. The four items still owed to a screen, unchanged from session 119: the browser half of the performance pass
    (F3 plate against `bodies 200 / 200`), the difficulty band's deliberate FAIL, `tools/gun-tune.js`,
    `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
+
+## Session 121 — The run log says which rule a run was flown under, and the save grew a field it is allowed to lack. Released 1.2.1
+
+**Released v1.2.1**: the second half of the item session 120 left open. A row of the codex's PAST RUNS rack
+read `WISP · 40s · 90,000` whether the run stood on one hull or three, which is the exact thing the harder
+rules were written to stop - a score quoted without its units. Now it reads
+`WISP · 40s · 90,000 · ONE HULL`, and a plain row says nothing because it had nothing.
+
+The PLAN item said this was "store work with a migration in it", and it was half right: the store did grow a
+kind, and the migration turned out to be the half that could be thrown away.
+
+### What shipped
+- `core/save.js` grew **`KINDS.optional(inner)`**, the honest answer to "a field a row written before it
+  existed is allowed to lack". It wraps another kind, and `records` reads the marker it hangs off the
+  function: an absent field is **left off the record** rather than filled with a stand-in, and the reader that
+  owns the field says what absent means. A value that *is* there is judged by `inner` like any other, so
+  "allowed to be absent" is nowhere near "allowed to be nonsense" - `rule: 'ONE HULL'`, `rule: ''`,
+  `rule: null` and `rule: 4` each condemn their row and leave their neighbours alone.
+- `RUN_FIELDS` grew a sixth field, `rule: KINDS.optional(KINDS.name)`, and it is the only optional field in
+  the document. It holds game/challenges.js's **id** and not its display name, for the same reason the hangar
+  stores ship ids: the words belong to the table and can be reworded, the id is what a row means.
+- `game/history.js`'s `recordOf` asks `activeOf(world)` and writes the key **only when there is a rule**. That
+  is the whole trick: a plain run's row is byte for byte `{"seed":…,"won":false}` as it ever was, and a row
+  written before rules existed reads back as exactly that same row - so there is no migration, no version
+  bump, and no first-read write that would break the store's own "a read never destroys" promise.
+- `ui/screens.js`: `logLine` puts the rule **next to the score** (it is the score's units) and `CLEARED` still
+  comes last; a new `logRule` says nothing at all for a row without one, and names an unrecognised id by its
+  own text exactly as `logShip` has always done for a ship this page has never met - a save is allowed to be
+  newer than the page reading it. `LOG_DOT` came out of the three inline copies of `'   ·   '` while I was in
+  there, for the same reason `logShip` exists: one join, said once.
+- Tests, one at each layer the change touches: `test/save.test.mjs` (predecessor rows read whole and stay
+  without a rule, four kinds of rubbish refused, and the *written text* of a plain row proved byte for byte),
+  `test/history-rules.test.mjs` (a ruled run's row keeps its rule while the plain run above it has none, and
+  the document round-trips both), `test/history.test.mjs` (a real visit: rule on, rule off, both rows in the
+  save), and `test/history-saved.test.mjs` now **arrives** with a ruled row and a row under a rule that does
+  not exist in this build, and prints both.
+
+### Decisions, so nobody relitigates them
+- **Absence, not a word for "none".** The alternative PLAN offered - rewrite the log once on the way in with
+  `rule: ''` or `rule: 'plain'` filled in - costs a migration, a write on a read, and a sentinel the store has
+  to be taught to accept (`''` is not a `NAME` and never will be). It also makes a rack that *lies by
+  omission* the other way: a plain row would have to say PLAIN, and every row that predates the field would
+  say it too, about a rule nobody was flying because it did not exist. The absence is the answer, which is how
+  `keys.binds` already spells "this control is on its shipped key".
+- **`''` is refused as a stored rule on purpose.** The game's own vocabulary for "no rule" is `''`
+  (game/challenges.js), so it is tempting to let it through. It would mean the same fact spelled two ways -
+  no key, or an empty one - and every reader would have to check both. A plain row writes no key, full stop.
+- **The id travels; the name is looked up.** A reworded rule (`ONE HULL` → `BRITTLE`) rewords old rows with
+  it, which is right: it is the same rule. A rule *renamed by id* is a different rule and would want its own
+  row, which is what `challenges.js`'s `nameOf('') === ''` and `logRule`'s fallback are there to make loud
+  rather than wrong.
+- **The rack, not the pause and not the card.** Both of those already said the rule (sessions 119 and 120).
+  The log was the one place a run's number outlived its units.
+
+### The measurements
+- Reference run **untouched**: `tools/simulate.js --trace --seed 20261006` diffs empty against a
+  `git worktree` of the previous commit, and the plain numbers still read 73,982 / level 57 / 3,934 kills
+  (seed 1: 73,399 / 56 / 3,890). A mirror written at endings and never in a step is supposed to do exactly
+  this, and `recordOf` gained one `activeOf` call per ending to do it.
+- **2,090 tests pass, 0 fail** (from 2,087). `tools/alloc-probe.js` PASS (4 gated loads, dearest step 761 B),
+  `tools/perf-probe.js` PASS (worst step 0.115 ms, dearest mean 3,407 operations), the stillness check in
+  `release.sh` still 100% against the 95% it needs.
+
+### Things that surprised me
+- **A new record field costs nothing at read time only because `records` builds the row it returns field by
+  field.** It does not copy the object, so an absent optional field simply never appears - I had braced for
+  having to delete a key back off. The one place that assumption could leak is `normalise`, which copies a
+  section key when `value !== null`; a top-level optional field would have written `key: undefined` into the
+  document. It skips `undefined` too now, with a line saying why, because `KINDS.optional` exists and the
+  next person will reach for it at the top level sooner or later.
+- **`playOneRun` inherits the rule the last run chose.** My new visit test flew a plain run after a ruled one
+  and got a second `brittle` row, because `world.challenge` outlives a run on purpose (it is a choice about
+  the *next* run, like the ship pick). The test now says `challenge: ''` out loud, which is the same lesson
+  tools/challenge-cost.js learned last session - a tool that forgets the pick is sticky measures the same rule
+  twice and calls it a control.
+- Two of the awkward-row indices in `test/history-saved.test.mjs` are hard-coded numbers into `AWKWARD`, so
+  adding rows to that array moves them; one assertion there wanted `[4]` and really wanted `[5]`. Worth
+  knowing before somebody else adds a fourth awkward case.
+- `index.html`'s comment on the codex's racks claims the log's rows are "numbers and short words" and needs no
+  width cap of its own. A rule word plus `CLEARED` on the same row is closer to the edge than before - it
+  wraps under itself inside the 34ch column, which is what `.entry`'s `flex-wrap` is for - so the claim still
+  holds, but it is now a claim about four facts on a line and not three.
+
+### What should come next
+1. **More rules.** They now come with a record *and* a logged row for free, which they would not have had
+   before session 120 and 121. `tools/challenge-cost.js` still refuses to judge a rule it cannot see, and a
+   fourth rule is now one row in each of two tables plus one `CHALLENGES` line.
+2. **Optional fields are available now**, so any other record in the document can grow. There is only one
+   record shape today (`runs.log`); if a second one appears - a per-day history, a replay index - it should
+   be built with `optional` on anything that might arrive later, from the start.
+3. The four items still owed to a screen, unchanged from session 119: the browser half of the performance pass
+   (F3 plate against `bodies 200 / 200`), the difficulty band's deliberate FAIL, `tools/gun-tune.js`,
+   `cageWall` as a thin wall for a protanope, and silhouettes for the crowd pairs that share a colour.
+4. The afterimage's fourth and fifth ranks still buy very little over its third (PLAN's open item). It wants a
+   decision about how a card feels, and this session did not grow eyes for that either.
