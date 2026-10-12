@@ -6,14 +6,14 @@
 // **A cue is a record off a pool, and every record a drain hands out is on loan.** A cue used
 // to be a fresh object per sound. That looks free and is not: a busy step asks for several - a
 // darter's beat, two shots landing, a death and the shards it paid out - and the sound queue
-// turned out to be the dearest allocator left in the game once `Math.hypot` was gone. Measured
-// with `tools/alloc-probe.js`, switching these four pushes off takes the crowd dying from
-// **984 B to 689 B** a step and the same 200 bodies standing still from **574 B to 507 B**, which
-// is three quarters of what separated the two loads. So a record is taken from a pool, filled,
-// and handed back the moment the drain that read it is over; once the queue has seen its busiest
-// frame it builds nothing again (a real two-minute fight: 4,968 sounds, 15 records). It is not
-// free - the pool's bookkeeping and a hand of field writes cost some 46 B a step more than
-// making no sound at all - which is the price of keeping the fight audible.
+// turned out to be the dearest allocator left in the game once the crowd's distances went through
+// `core/math.js`'s own `hypot`. Measured with `tools/alloc-probe.js`, switching these four pushes
+// off takes the crowd dying from **984 B to 689 B** a step and the same 200 bodies standing still
+// from **574 B to 507 B**, which is three quarters of what separated the two loads. So a record is
+// taken from a pool, filled, and handed back the moment the drain that read it is over; once the
+// queue has seen its busiest frame it builds nothing again (a real two-minute fight: 4,968 sounds,
+// 15 records). It is not free - the pool's bookkeeping and a hand of field writes cost some 46 B a
+// step more than making no sound at all - which is the price of keeping the fight audible.
 //
 // Two rules come with that, and `test/cues.test.mjs` keeps both:
 //
