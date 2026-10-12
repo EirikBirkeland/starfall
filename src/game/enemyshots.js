@@ -17,6 +17,7 @@ import { dist2 } from '../core/math.js';
 import { burst } from './effects.js';
 import { hitPlayer, isInvulnerable } from './player.js';
 import { hurtByShot } from './tally.js';
+import { crowdSpeedOf } from './challenges.js';
 
 /** The shape of an enemy shot. Every spawner writes every one of these fields. */
 export function makeEnemyShot() {
@@ -42,8 +43,8 @@ export function enemyShotAt(world, x, y, dx, dy, spec, from) {
   shot.px = x;
   shot.y = y;
   shot.py = y;
-  shot.vx = dx * spec.speed;
-  shot.vy = dy * spec.speed;
+  shot.vx = dx * spec.speed * crowdSpeedOf(world);
+  shot.vy = dy * spec.speed * crowdSpeedOf(world);
   shot.life = spec.life;
   shot.r = spec.radius;
   shot.color = spec.color;

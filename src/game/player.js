@@ -19,6 +19,7 @@ import { noteDash, noteHullLoss } from './tally.js';
 import { updateOvercharge } from './overcharge.js';
 import { armDash, trailImages } from './afterimage.js';
 import { armTie, tieCords } from './tether.js';
+import { dashIsAllowed } from './challenges.js';
 import { fire, shotsPerSecond } from './weapons.js';
 
 /**
@@ -115,6 +116,10 @@ function dashDirection(ship, input) {
 function beginDash(world, input) {
   const spec = BALANCE.player.dash;
   const ship = world.player;
+  // A rule that took the jump away (game/challenges.js) is refused here and nowhere else, because
+  // this is the one moment a dash is granted - and a press under NO DASH spends nothing but the
+  // press, which is what the interface already says by not drawing a ready ring.
+  if (!dashIsAllowed(world)) return false;
   if (ship.dashCd > 0) return false;
 
   const dir = dashDirection(ship, input);

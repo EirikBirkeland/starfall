@@ -1,5 +1,28 @@
 # Starfall — changelog
 
+## 1.1.0 — 2026-10-12
+A harder rule for the next run, picked with one key and said out loud everywhere a run's facts are said.
+- **Three rules, one at a time**: `X` cycles the next run between nothing, **ONE HULL** (the ship stands on
+  a single hull, whatever the body and whatever the hangar's plating bought), **NO DASH** (the jump is gone,
+  and the two lines that fire off it - the tether and the afterimage - are no longer dealt) and **SWIFT
+  CROWD** (every body and every enemy shot travels 40% faster). One rule at a time on purpose: two rules
+  stacked is a third rule nobody has measured.
+- **A rule is chosen between runs and cannot be changed underfoot.** A run that is flying, held, or waiting
+  for a card keeps the rules it was flown under, and a won run keeps them until its card is answered. Like
+  the ship and the gun, the choice lives for the visit and not in the save - nobody should come back weeks
+  later to a game that is secretly harder.
+- **And it is said everywhere**: on the title before you launch, in the glass beside the clock the whole run
+  long, on the pause's rack, and on the ending's card, death or win. Under NO DASH the dash's ready ring is
+  not drawn at all, because a ring promising a jump that never comes is a lie told sixty times a second.
+- **What each rule costs, measured**: `tools/challenge-cost.js` flies the same eight seeds under every rule
+  with a careless hand (the `human` bot answering its level-ups at random) and reads the price out of the
+  score column - ONE HULL leaves a run worth **0.39x** plain and dead at **1m57s** against plain's 3m53s,
+  a SWIFT CROWD **0.45x** at **2m53s**. NO DASH is printed and deliberately not judged: what the jump is
+  worth is a question about a person's hands, and no bot here presses it ten times a quarter hour.
+- **A run with no rule on it is the run it always was.** `tools/simulate.js` traces byte for byte what 1.0.0
+  traced - same seed, same 73,399, same build - and a player who never touches the key pays nothing for it.
+  2,069 checks now, 26 of them about these rules and about the ladder that prices them.
+
 ## 1.0.0 — 2026-10-12
 The plan is finished. Every item of milestones 0 to 10 is done, and this is the game the plan described -
 ninety-six releases of it, and 2,043 checks that keep it that way.

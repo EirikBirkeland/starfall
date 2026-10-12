@@ -288,6 +288,7 @@ test('the glass table names the colours the renderer actually paints with', () =
     ['render/cards.js', 'drawBanishTab', ['a banish tab, pointed at', 'a banish tab, cold']],
     ['render/cards.js', 'drawSynergyPlate', ['the SYNERGY plate']],
     ['render/hud.js', 'drawBossBar', ['the boss name']],
+    ['render/hud.js', 'drawHUD', ['which rule the run is under']],
   ];
   for (const [file, fn, rows] of pins) {
     const body = sourceOf(file, fn);

@@ -25,6 +25,7 @@ import { BALANCE } from '../game/balance.js';
 import { LINES, lineOf, effectOf, maxRanksOf, isSynergy } from '../game/upgrades.js';
 import { endingWords, hullLedger } from '../game/tally.js';
 import { cardWords, titleWords } from '../game/daily.js';
+import { cardWords as challengeCardWords, titleWords as challengeTitleWords } from '../game/challenges.js';
 import { clockWords } from '../core/words.js';
 import { wordsOf } from '../core/keymap.js';
 import { uiTick } from '../audio/sfx.js';
@@ -326,6 +327,7 @@ export const KEY_LABELS = [
   ['titleKeysSettings', 'settings'],
   ['titleKeysMute', 'mute'],
   ['titleKeysToday', 'daily'],
+  ['titleKeysChallenge', 'challenge'],
   ['hangarKeysBack', 'hangar'],
   ['hangarKeysSettings', 'settings'],
   ['codexKeysBack', 'codex'],
@@ -410,6 +412,11 @@ export function initScreens() {
     titleDust: document.getElementById('titleDust'),
     titleToday: document.getElementById('titleToday'),
     titleShip: document.getElementById('titleShip'),
+    // Which harder rule the next run stands under (game/challenges.js). Empty - and so gone - the way
+    // the day's line is, because a title with no challenge on it is the title it always was.
+    titleChallenge: document.getElementById('titleChallenge'),
+    finalChallenge: document.getElementById('finalChallenge'),
+    winChallenge: document.getElementById('winChallenge'),
     nextShip: document.getElementById('nextShip'),
     finalDust: document.getElementById('finalDust'),
     winDust: document.getElementById('winDust'),
@@ -667,6 +674,18 @@ export function showShip(id) {
 }
 
 /**
+ * Paint which harder rule the next run stands under, on the title's own column (game/challenges.js).
+ *
+ * Written at boot and again on every press of the key that cycles the choice - the only two things in
+ * the game that can change the answer - so the line cannot be stale in the one place a player looks
+ * for it before launching. Empty means no rule, and an empty line takes its space with it: a title
+ * with nothing on it is the title it always was.
+ */
+export function showChallenge(world) {
+  el.titleChallenge.textContent = challengeTitleWords(world);
+}
+
+/**
  * Paint which rows the purse has bought and which it has not (game/hangar.js). Called once when
  * the visit opens and again after every purchase - a row that stayed dim after being paid for
  * would be the shop taking the money and not handing over the ship.
@@ -878,6 +897,9 @@ function factLines(run) {
   // A run flown on today's arena says which day, beside the seed that made it (game/daily.js). A run
   // flown on an arena of its own has no row here at all, which is how the rack stayed the rack it was.
   if (run.daily !== null && run.daily !== undefined) rows.push(run.daily);
+  // ...and the same promise about the rule it was flown under (game/challenges.js): the row is there
+  // or the rack never mentions a rule that was not in play.
+  if (run.challenge !== null && run.challenge !== undefined) rows.push(run.challenge);
   return rows;
 }
 
@@ -1142,6 +1164,9 @@ export function showGameOver(summary) {
   // Which day this run was flown on, under the best it is measured against (game/daily.js). '' for a
   // run that flew an arena of its own, and an empty line takes its space with it.
   el.finalDaily.textContent = cardWords(summary);
+  // ...and the rule it was flown under, above the day: the rule is the bigger fact about the run, and
+  // a score won under one means nothing without it (game/challenges.js).
+  el.finalChallenge.textContent = challengeCardWords(summary);
   // What ended the run, under the heading it happened to, and what every hull of it went to (game/
   // tally.js). A run that was given up has no cause and says so. The rack keeps the last hull out of
   // its own rows only when the headline above has just named it - a give-up's line names the giving-up
@@ -1190,6 +1215,9 @@ export function showVictory(summary) {
   if (summary.newBest) el.winNewBest.classList.remove('hidden');
   else el.winNewBest.classList.add('hidden');
   el.winDaily.textContent = cardWords(summary);   // a won daily run is a daily run (game/daily.js)
+  // ...and which rule it was flown under, above the day (game/challenges.js). A won run under a rule is
+  // the bigger claim of the two, and it is the one a score quoted from this card would be missing.
+  el.winChallenge.textContent = challengeCardWords(summary);
   // What the run lost on the way to winning it. No cause line: nothing took a win down, and the tally
   // keeps no cause for a run that finished (game/run.js `winRun`) - which is also why the rack here
   // says everything it has, down to a single hull, because there is no headline above it to have said

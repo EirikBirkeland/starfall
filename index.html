@@ -435,6 +435,17 @@
     text-shadow: 0 0 14px rgba(255,179,64,.4);
   }
   .daily-line:empty { display: none; }
+  /* Which harder rule a run was flown under (game/challenges.js). Above the day's line and in the
+     arena's own warning colour, because the rule is the bigger fact about the run: a score won under
+     NO DASH or on ONE HULL is not the same score, and a card that let you forget that would be a card
+     quoting a number without its units. Empty - and so gone - for every run nobody made harder, like
+     the day's line beside it. Warm ink, like the cause line above it: the arena's colour language says
+     warm is the thing that hurt you. */
+  .challenge-line {
+    margin-top: 8px; font-size: 11px; letter-spacing: .2em; color: #ffb2d0;
+    text-shadow: 0 0 14px rgba(255,94,196,.5);
+  }
+  .challenge-line:empty { display: none; }
   /* What ended the run, said under the card's own heading (game/tally.js `causeWords`), because it
      is the one fact a death is asked for and the one nobody outside the tally has ever said out
      loud. Warm pink like the title above it: the arena's colour language says warm is the thing that
@@ -500,6 +511,7 @@
     .dust-line { margin-top: 8px; }
     .award-line { margin-top: 4px; }
     .daily-line { margin-top: 4px; }
+    .challenge-line { margin-top: 4px; }
     .next-line { margin-top: 8px; }
   }
   /* Last, so it outvotes every `animation:` above it without a fight: a visitor who has asked their
@@ -532,6 +544,7 @@
     <div class="row"><span class="key" id="titleKeysGiveUp">G</span><span>GIVE THE RUN UP WHILE PAUSED</span></div>
     <div class="row"><span class="key" id="titleKeysHangar">H</span><span>HANGAR &#183; BUY SHIPS AND PERKS</span></div>
     <div class="row"><span class="key" id="titleKeysCodex">C</span><span>CODEX &#183; WHAT YOU HAVE MET AND FLOWN</span></div>
+    <div class="row"><span class="key" id="titleKeysChallenge">X</span><span>A HARDER RULE FOR THE NEXT RUN</span></div>
     <div class="row"><span class="key" id="titleKeysSettings">O</span><span>SETTINGS &#183; SHAKE, SOUND, KEYS, AUTO-FIRE, AUTO-AIM</span></div>
     <div class="row"><span class="key"><span id="titleKeysMute">M</span> &#183; [ ] &#183; - =</span><span>MUTE &#183; MUSIC AND SOUND VOLUME</span></div>
     <div class="row"><span class="key">F3</span><span>FRAME COST, COUNTS AND POOLS</span></div>
@@ -548,6 +561,9 @@
       <span id="titleDust">0</span><span id="titleToday"></span></div>
     <div class="standing-line" id="titleAwards">AWARDS 0 OF 0</div>
     <div class="flying" id="titleShip">FLYING</div>
+    <!-- Which harder rule the next run stands under, when it stands under one (game/challenges.js).
+         Empty - and so gone - until the key puts one on. -->
+    <div class="challenge-line" id="titleChallenge"></div>
   </div>
   <!-- The day's key is written where the other launch keys are, because it is one: one press and the
        run is flying the arena everybody else is flying today (game/daily.js). -->
@@ -683,6 +699,9 @@
   <div class="score-big" id="finalScore">0</div>
   <div class="best-line">BEST <span id="finalBest">0</span></div>
   <div class="newbest hidden" id="newBest">&#9733; NEW BEST &#9733;</div>
+  <!-- Which rule this run was flown under, when it was flown under one (game/challenges.js). Above the
+       day, because it is the bigger fact about the score above it. -->
+  <div class="challenge-line" id="finalChallenge"></div>
   <!-- Which day this run was flown on, when it was flown on one (game/daily.js). Empty - and so gone,
        space and all - for a run that flew an arena of its own. -->
   <div class="daily-line" id="finalDaily"></div>
@@ -705,6 +724,8 @@
   <div class="score-big" id="winScore">0</div>
   <div class="best-line">BEST <span id="winBest">0</span></div>
   <div class="newbest hidden" id="winNewBest">&#9733; NEW BEST &#9733;</div>
+  <!-- Which rule this win was flown under, when it was flown under one (game/challenges.js). -->
+  <div class="challenge-line" id="winChallenge"></div>
   <!-- The same line the death's card gets (game/daily.js): a won daily run is a daily run. -->
   <div class="daily-line" id="winDaily"></div>
   <div class="dust-line" id="winDust"></div>

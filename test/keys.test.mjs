@@ -53,7 +53,7 @@ const keys = () => game.stats().keys;
 const NAME_OF = {
   up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', dash: 'DASH', pause: 'PAUSE',
   giveup: 'GIVE UP', hangar: 'HANGAR', codex: 'CODEX', settings: 'SETTINGS',
-  daily: "TODAY'S ARENA", reroll: 'REROLL', mute: 'MUTE',
+  daily: "TODAY'S ARENA", challenge: 'CHALLENGE', reroll: 'REROLL', mute: 'MUTE',
 };
 
 /** The row the amber light is on, or -1 when no row is waiting for a key. */
@@ -168,11 +168,11 @@ test('the settings panel has one door onto the keys, and one press walks through
   assert.equal(settingsAreUp(), false, 'one panel at a time - the settings go down on its way up');
 
   const printed = game.screen.keysRows;
-  assert.equal(printed.length, 13, 'one row per control a hand can move');
+  assert.equal(printed.length, 14, 'one row per control a hand can move');
   assert.deepEqual(printed.map((row) => row.name), Object.values(NAME_OF),
     'the whole table, in order');
   assert.deepEqual(printed.map((row) => row.value),
-    ['W', 'S', 'A', 'D', 'SPACE', 'P', 'G', 'H', 'C', 'O', 'T', 'R', 'M'],
+    ['W', 'S', 'A', 'D', 'SPACE', 'P', 'G', 'H', 'C', 'O', 'T', 'X', 'R', 'M'],
     'every row shows the key it is on, spelled the way the glass spells it');
   for (const row of printed) assert.ok(row.says.length > 0, row.name + ' says what it is');
   assert.equal(chosenRow(), 0, 'one cursor, on the top row');
@@ -232,7 +232,7 @@ test('the cursor walks the rack and stops at both ends', async () => {
   await heldRun();
   openRack();
   for (let i = 0; i < 20; i++) press('ArrowDown');
-  assert.equal(chosenRow(), 12, 'the last row is the last place the cursor can be');
+  assert.equal(chosenRow(), 13, 'the last row is the last place the cursor can be');
   assert.equal(keys().mute, 'M', 'and walking onto a row changes nothing about it');
   for (let i = 0; i < 20; i++) press('ArrowUp');
   assert.equal(chosenRow(), 0);
@@ -357,7 +357,7 @@ test('a key the game cannot take is refused, and the row keeps waiting', async (
   openRack();
   askFor('reroll');
   const at = waitingRow();
-  assert.equal(at, 11, 'the reroll row is the one waiting');
+  assert.equal(at, 12, 'the reroll row is the one waiting');
   press('F5');
   assert.equal(waitingRow(), at,
     'still waiting, because a function key is not a key a page can be given');
@@ -366,7 +366,7 @@ test('a key the game cannot take is refused, and the row keeps waiting', async (
   assert.equal(waitingRow(), at, 'and the row is still waiting');
   press('ArrowDown');
   assert.equal(waitingRow(), -1, 'moving the cursor gives up the asking');
-  assert.equal(chosenRow(), 12, 'the cursor moved, and the row it left is unlit again');
+  assert.equal(chosenRow(), 13, 'the cursor moved, and the row it left is unlit again');
   letItGo();
 });
 
@@ -462,15 +462,15 @@ test('not one place the game prints a key is left behind', async () => {
   await heldRun();
   openRack();
   const letters = ['KeyB', 'KeyE', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyQ', 'KeyU', 'KeyV',
-    'KeyX', 'KeyY', 'KeyZ'];
-  assert.equal(letters.length, ROW_NAMES.length, 'one letter per row, and no row without one');
+    'KeyI', 'KeyY', 'KeyZ', 'Backquote'];
+  assert.equal(letters.length, ROW_NAMES.length, 'one key per row, and no row without one');
   for (let i = 0; i < ROW_NAMES.length; i++) {
     goTo(ROW_NAMES[i]);
     press('ArrowRight');
     press(letters[i]);
   }
-  assert.equal(changedCount(), ROW_NAMES.length, 'thirteen rows, thirteen moved');
-  assert.equal(rackIsUp(), true, 'and not one of those thirteen letters escaped into the game');
+  assert.equal(changedCount(), ROW_NAMES.length, 'fourteen rows, fourteen moved');
+  assert.equal(rackIsUp(), true, 'and not one of those fourteen keys escaped into the game');
 
   for (const entry of KEY_LABELS) {
     assert.equal(game.text(entry[0]), wordsOf(entry[1]), entry[0] + ' says what the table says');

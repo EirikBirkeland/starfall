@@ -78,6 +78,12 @@ function createWorld() {
     // above, and is deliberately not cleared by a new run: what you picked is what you fly on,
     // the same way the seed is what you get.
     weapon: defaultWeapon(),
+    // Which harder set of rules the runs of this world stand under (game/challenges.js): '' is the
+    // game as it shipped. Chosen between runs with one key and, like the ship and the gun above, not
+    // cleared by a new one - the next run stands under whatever the last decision said, and the visit
+    // takes its own back when the page is reloaded. Nothing in a step asks it a question except through
+    // the three levers in that file, so an ordinary run never notices it exists.
+    challenge: '',
     time: 0,          // wall clock of the session, for animations
     elapsed: 0,       // this run's clock
     steps: 0,         // how many fixed steps this run has been asked for (a hit-stop step counts)

@@ -549,7 +549,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, at, dash }
+ * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, challenge, at, dash }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -574,6 +574,11 @@ export function playOneRun(game, options) {
   // gun ladder is for (tools/power-ladder.js), and game/ships.js says the same about the
   // order of the two calls.
   if (opts.weapon !== undefined) game.chooseWeapon(opts.weapon);
+  // Which harder rule to fly under (game/challenges.js), pressed through the same door the title's
+  // key uses and, like the ship and the gun, before the launch. Leaving it out is the game as it
+  // shipped; `''` says so out loud. A rule is chosen between runs and cannot be changed mid-flight,
+  // which is exactly why a tool can set it here and forget about it.
+  if (opts.challenge !== undefined) game.chooseChallenge(opts.challenge);
 
   startBotRun(game);
   // The dice for this run's cards, cut from the run's own seed: the same seed is the same
@@ -760,7 +765,7 @@ export function endingItAt(seconds) {
  * of work and a silent terminal cannot be told apart from a stuck one.
  *
  * A batch is `playRuns`' options object: { seeds: [..], maxSeconds, every, policy, picks, dial,
- * ship, weapon, at, onRun }.
+ * ship, weapon, challenge, at, onRun }.
  */
 export async function playBatches(batches, onBatch) {
   const first = batches[0] || {};
@@ -794,7 +799,7 @@ export async function playBatches(batches, onBatch) {
 
 /**
  * Boot one game and play several runs on it, one per seed.
- * Options: { seeds: [..], maxSeconds, every, policy, picks, dial, ship, weapon, at, onRun }
+ * Options: { seeds: [..], maxSeconds, every, policy, picks, dial, ship, weapon, challenge, at, onRun }
  */
 export async function playRuns(options) {
   const results = await playBatches([options || {}]);

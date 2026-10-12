@@ -14,6 +14,7 @@ import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './ga
 import { loggedFromSave, runLedger } from './game/history.js';
 import { promptWords, tipsFromSave } from './game/tutorial.js';
 import { beginDailyRun, endDailyRun, pauseWords } from './game/daily.js';
+import { cycleChallenge, setChallenge, pauseWords as challengePauseWords } from './game/challenges.js';
 import { windOf } from './game/lance.js';
 import {
   bossHullShare, bossName, bossPhase, cellsStanding, bossSummons, bossWarning, coresStanding,
@@ -57,7 +58,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -253,6 +254,33 @@ function answerChoice(x, y) {
 function onToday() {
   initAudio();      // same reason as `onPickCard`: this can be the first press of the visit
   beginRun('today');
+}
+
+/**
+ * X: a harder rule for the next run (game/challenges.js).
+ *
+ * One press rounds the cycle - nothing, then one hull, then no dash, then a swift crowd - and the
+ * title's own line says which of the four the next launch will stand under. It is a choice about the
+ * *next* run and nothing else, which is why it is answered on the two screens a run is launched from
+ * and nowhere else:
+ *
+ *   * a run that is flying, or is being held, or is waiting for a card keeps the rules it was flown
+ *     under. Changing them mid-run would be rewriting the game the player is playing, and the outcome
+ *     of a fight you already fought would move with it.
+ *   * a run that is won may still be handed back and flown on (game/run.js `continueRun`), so its
+ *     rules are still its own until the card is answered one way or the other.
+ *   * a settings panel or a controls rack on the glass owns the keys, as they own the launch - and a
+ *     choice made behind a panel you cannot see through is a choice made in the dark.
+ */
+function onChallenge() {
+  initAudio();      // same reason as `onToday`
+  if (ownsTheScreen()) return;
+  if (world.state !== STATE.START && world.state !== STATE.OVER) return;
+  const id = cycleChallenge(world);
+  showChallenge(world);
+  // Up when a rule went on and down when the last one came off, which is the pair every other press
+  // in this interface is written in (BALANCE.ui): a yes and a going-away.
+  uiTick(id === '' ? 'down' : 'pick');
 }
 
 /**
@@ -856,6 +884,9 @@ function describePause() {
     // Which day this run is being flown on, in the pause's own row shape - null for a run flying an
     // arena of its own, which is how the rack leaves the row out (game/daily.js).
     daily: pauseWords(world),
+    // ...and which rule it is being flown under, in the same row shape - null for a run standing under
+    // no rule at all, which is how that row stays off the rack (game/challenges.js).
+    challenge: challengePauseWords(world),
     shipId: world.ship,
     // What the run would be paid if it stopped this second (game/stardust.js) - which, with a "give
     // up" key on this very panel, it might.
@@ -968,6 +999,9 @@ function describeRun() {
     // line empty rather than wrong.
     dailyDay: world.dailyDay,
     newDailyBest: world.newDailyBest,
+    // Which harder rule this run was flown under ('' for none), so the card can say so and say nothing
+    // when there was nothing to say (game/challenges.js `cardWords`).
+    challenge: world.challenge,
     // How much of this run was flown past its own win, and so whether it was endless at all
     // (game/endless.js). The death card says so when there is something to say.
     endlessPast: endlessTime(world),
@@ -1231,6 +1265,7 @@ function boot() {
   showLog(world.pastRuns);
   showAwards(world.awards);
   showShip(world.ship);
+  showChallenge(world);
   saveNote = saveProblem();
   saveWritable = saveIsWritable();
   resetRun(world);
@@ -1253,6 +1288,7 @@ function boot() {
     onGiveUp: onGiveUp,
     onSettings: onSettings,
     onToday: onToday,
+    onChallenge: onChallenge,
     onDebug: onDebug,
     onRowMove: onRowMove,
     onRowChange: onRowChange,
@@ -1314,6 +1350,13 @@ window.STARFALL = {
    * around, in one call. An unknown id throws.
    */
   chooseShip: function (id) { return setShip(world, id); },
+  /**
+   * Put a harder rule on the runs this world flies (game/challenges.js), the way the title's key
+   * does - `''` takes it off again. An unknown id throws. A tool that wants to *cycle* the choice the
+   * way a hand does calls `cycleChallenge` on the module itself; this is the door that says which
+   * rule a run is measured under, and it says it in one call.
+   */
+  chooseChallenge: function (id) { return setChallenge(world, id); },
   stats: function () {
     return {
       state: world.state,
@@ -1356,6 +1399,9 @@ window.STARFALL = {
       // of what the day's key does - 0 for a run that flew an arena of its own.
       dailyDay: world.dailyDay,
       newDailyBest: world.newDailyBest,
+      // Which harder rule this run is standing under ('' for none, game/challenges.js) - the fact a
+      // tool measures a run under and has to be able to say afterwards.
+      challenge: world.challenge,
       score: world.score,
       // The purse, and what this run is worth into it (game/stardust.js). A headless run cannot
       // read a card, and the costs milestone 8 puts on ships and perks have to be priced against

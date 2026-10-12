@@ -281,6 +281,24 @@ export const BALANCE = {
     banish:   { ranks: 5, step: 1,  says: 'BANISH',   cost: [80, 200, 500, 1000, 1500] },
   },
 
+  // The challenge modifiers (game/challenges.js): the harder sets of rules a run can be flown under,
+  // picked between runs and impossible to change once it is flying. The names, the sentences and the
+  // cycle are game/challenges.js's, in the same split game/perks.js and BALANCE.perks strike; this is
+  // the number sheet, and every number here is what a lever in that file reads.
+  //
+  // `hull` replaces the starting hull and its ceiling, whatever the ship's row and whatever the hangar
+  // bought. `dash: false` refuses the jump where the jump is granted. `speedMul` multiplies a body's
+  // walk and an enemy shot's velocity, at the two places those are worked out.
+  //
+  // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
+  // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
+  challenges: {
+    brittle:  { hull: 1 },
+    grounded: { dash: false },
+    swift:    { speedMul: 1.4 },
+    gatedOn:  { grounded: ['tether', 'afterimage'] },
+  },
+
   // The awards (PLAN 3.7): what a run did that this save remembers, and the little stardust it pays
   // for doing it. The table - the id, the name, the line, and the rule - is game/awards.js; this is
   // the price sheet, in the same split game/perks.js and BALANCE.perks strike.

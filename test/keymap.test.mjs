@@ -117,7 +117,7 @@ test('nothing stored is the shipped table, and nothing is written', () => {
   const table = shipped();
   assert.deepEqual(table, {
     up: 'W', down: 'S', left: 'A', right: 'D', dash: 'SPACE', pause: 'P', giveup: 'G',
-    hangar: 'H', codex: 'C', settings: 'O', daily: 'T', reroll: 'R', mute: 'M',
+    hangar: 'H', codex: 'C', settings: 'O', daily: 'T', challenge: 'X', reroll: 'R', mute: 'M',
   }, 'the whole table as it ships, in the words a panel prints');
   assert.equal(changedCount(), 0, 'and nothing has been moved');
   assert.deepEqual(storedBinds(), {}, 'reading the shipped table wrote nothing to the save');

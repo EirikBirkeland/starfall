@@ -29,6 +29,7 @@ import { beamReach } from '../game/beams.js';
 import { braceProgress, isBraced, isDiving } from '../game/flock.js';
 import { fieldRadius, guardOf, isGuarded, shieldShare, shieldWaiting } from '../game/shields.js';
 import { chargeOf, hasOvercharge, isLoaded } from '../game/overcharge.js';
+import { dashIsAllowed } from '../game/challenges.js';
 // The field's own two readings, under names that do not collide with the gun's charge above - both
 // are "how full is the thing round this ship", and the whole point of the two rings is that they
 // are not the same thing (game/magnetar.js, game/overcharge.js).
@@ -1429,6 +1430,11 @@ function drawDashStreak(ctx, ship) {
  * Drawn in the unrotated frame, so the arc always starts at the top.
  */
 function drawDashRing(ctx, ship) {
+  // Under a rule that took the jump away there is no ring at all (game/challenges.js). A breathing
+  // circle would promise a dash that never comes and an arc would promise one that is on its way;
+  // the honest drawing is nothing, which is also the only drawing that tells a player who had
+  // forgotten what they picked that the jump has gone for good.
+  if (!dashIsAllowed(world)) return;
   const radius = ship.drawR + DASH_RING_GAP;
   ctx.lineWidth = 1;
 

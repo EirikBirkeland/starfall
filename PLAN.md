@@ -1945,6 +1945,28 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [x] Challenge modifiers: a harder set of rules for the next run, chosen between runs. Three of them,
+      one at a time — **one hull** (the ship stands on a single hull, whatever the body and whatever the
+      hangar's plating bought), **no dash** (the jump is gone, and the two lines gated on it are not
+      dealt), and **a swift crowd** (every body and every enemy shot travels some share faster than it
+      shipped). Each is a row in `BALANCE.challenges` plus a flag on the world that the simulation reads
+      where the number is already read — nothing is cached into a ship and nothing is kept in two places.
+      Chosen with one key that cycles them, on every screen the launch key launches from, remembered for
+      the visit like the ship pick is and for the same reason: it is a choice about the next run, not a
+      thing a save has to remember. Said out loud everywhere a run's facts are said — the title, the HUD
+      beside the clock, the pause's rack, and the ending's card — because a rule the player has forgotten
+      is a rule the game cheated with. Checked headlessly with the bot's yardstick: does the careless
+      build die sooner under each one, by how much, and does the careful one still stand?
+      A record per challenge (a best under each line, the way the day keeps its own) is a separate item,
+      because it wants a save section and a panel of its own and this does not.
+      Shipped as `game/challenges.js` (the table, the cycle, the four levers, the words) over
+      `BALANCE.challenges`, with `tools/challenge-cost.js` as the ladder: a careless hand's middle score
+      reads 0.39x plain under ONE HULL and 0.45x under a SWIFT CROWD of 1.4x speed, and both die sooner
+      — while NO DASH is reported and never judged, because what the jump is worth is a question about a
+      person's hands and no bot here presses it ten times a quarter hour. The ladder refuses to pass a
+      rule that scores above 0.95x plain, and says out loud when a batch was blind to a rule instead of
+      passing it as free.
+
 - [x] The bot's dash habit is a dive in and not a get-out. `dashEscape` (`tools/headless/bot.js`) presses
       the dash at the screen point of the nearest body, and a dash taken with no movement key held goes
       the way the cursor points - at it. Measured on the same seeds it is a *negative* habit: the aware

@@ -390,6 +390,7 @@ const GLASS_ROWS = [
   ['the best score', 'uiDim', 1, 'sky', 11, ''],
   ['the clock line', 'uiFaint', 1, 'sky', 11, '`TIME 15m02s - LV 12`'],
   ['which gun, and HULL', 'uiDim', 1, 'sky', 11, ''],
+  ['which rule the run is under', 'pink', 1, 'sky', 11, '`ONE HULL`, beside the clock, for a run flown under one'],
   ['the leech meter', 'uiFaint', 1, 'sky', 10, 'the word beside the meter, when none is held'],
   ['the level and XP line', 'xpText', 1, 'sky', 11, ''],
   ['the boss name', 'uiText', 1, 'sky', 11, 'above the bar, and the phase beside it'],

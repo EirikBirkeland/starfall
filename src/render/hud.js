@@ -16,6 +16,7 @@ import { dueOf as crewDue } from '../game/turret.js';
 import { vacuumLeftOf } from '../game/vacuum.js';
 import { endlessTime } from '../game/endless.js';
 import { hudWords } from '../game/daily.js';
+import { hudWords as challengeHudWords } from '../game/challenges.js';
 import { polygon, roundRect } from './shapes.js';
 import { drawIcon, tintOf } from './icons.js';
 import { fitOneLine } from './fit.js';
@@ -261,6 +262,16 @@ export function drawHUD(ctx, fps) {
   if (day !== '') {
     ctx.fillStyle = PALETTE.uiDim;
     ctx.fillText('   ' + day, markAt, PAD + 64);
+    markAt += ctx.measureText('   ' + day).width;
+  }
+  // ...and which harder rule the run stands under, for a run that stands under one
+  // (game/challenges.js). Pink, the arena's own colour for the thing that hurts you, and not the
+  // gold of ENDLESS or the dim blue of the day: the rule is neither a reward nor a fact about where
+  // the arena came from - it is a warning that stays true for the whole of the run.
+  const rule = challengeHudWords(world);
+  if (rule !== '') {
+    ctx.fillStyle = PALETTE.pink;
+    ctx.fillText('   ' + rule, markAt, PAD + 64);
   }
 
   // Which primary the run is flying (game/weapons.js). It is picked once, on the title,

@@ -19,6 +19,7 @@ import { firstLevelXp } from './progress.js';
 import { resetRanks, resetAsks } from './upgrades.js';
 import { applyShip } from './ships.js';
 import { extraBanishesOf, extraRerollsOf, startingHullOf } from './perks.js';
+import { hullOverrideOf } from './challenges.js';
 import { resetOrbitals } from './orbitals.js';
 import { resetNova } from './nova.js';
 import { resetArc } from './arc.js';
@@ -168,6 +169,16 @@ export function resetRun(world) {
   const plating = startingHullOf(world);
   ship.hull += plating;
   ship.maxHull += plating;
+  // ...and a challenge that speaks about the hull has the last word (game/challenges.js). After both
+  // of the hands that normally write it, for the same reason the plating is after the ship: the last
+  // thing written to the hull wins, and a rule that says "one hull" means one hull whatever the body
+  // and whatever the purse bought. 0 is the answer for every run with no challenge on it, and then
+  // nothing here happened at all.
+  const oneHull = hullOverrideOf(world);
+  if (oneHull > 0) {
+    ship.hull = oneHull;
+    ship.maxHull = oneHull;
+  }
   world.offer.length = 0;
   world.pendingLevels = 0;
   world.offerTime = 0;

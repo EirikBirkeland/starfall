@@ -385,6 +385,10 @@ const ELEMENT_IDS = [
   'titleBest', 'titleDust', 'titleAwards', 'titleShip', 'hangarScreen', 'hangarDust', 'hangarBody',
   // ...and the fourth of them, which resets by itself (index.html, game/daily.js).
   'titleToday',
+  // Which harder rule the next run stands under - on the title, and on both of the cards that end one
+  // (index.html, game/challenges.js). Empty for a run flown under no rule, and empty is what a test
+  // reads back as "the card never mentioned one".
+  'titleChallenge', 'finalChallenge', 'winChallenge',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
@@ -414,7 +418,7 @@ const ELEMENT_IDS = [
   // They are the readouts a rebinding has to leave no one of behind, so a test has to be able to read
   // all of them.
   'titleKeysFly', 'titleKeysDash', 'titleKeysPause', 'titleKeysGiveUp', 'titleKeysHangar',
-  'titleKeysCodex', 'titleKeysSettings', 'titleKeysMute', 'titleKeysToday',
+  'titleKeysCodex', 'titleKeysSettings', 'titleKeysMute', 'titleKeysToday', 'titleKeysChallenge',
   'hangarKeysBack', 'hangarKeysSettings', 'codexKeysBack', 'codexKeysSettings',
   'settingsKeysClose', 'keysKeysBack',
   'pauseKeysGiveUp', 'pauseKeysSettings', 'overKeysSettings', 'winKeysReroll',
@@ -983,6 +987,8 @@ export async function bootGame(options) {
     chooseWeapon: (id) => game.chooseWeapon(id),
     /** Choose the ship it flies, and take the primary that ship brings with it. */
     chooseShip: (id) => game.chooseShip(id),
+    /** Put a harder rule on the runs it flies (game/challenges.js); '' takes it off again. */
+    chooseChallenge: (id) => game.chooseChallenge(id),
     stats() { return game.stats(); },
     /**
      * What one element of the stub page says right now, by id. The generic version of the `screen`
@@ -1047,6 +1053,11 @@ export async function bootGame(options) {
         // arena of its own - the line is not painted, space and all). game/daily.js.
         finalDaily: elements.finalDaily.textContent,
         winDaily: elements.winDaily.textContent,
+        // Which harder rule the run was flown under, on the title and on both cards ('' when it was
+        // flown under none - the line is not painted, space and all). game/challenges.js.
+        titleChallenge: elements.titleChallenge.textContent,
+        finalChallenge: elements.finalChallenge.textContent,
+        winChallenge: elements.winChallenge.textContent,
         // The hangar: whether it is up, and what its purse says.
         hangarHidden: elements.hangarScreen.classList.contains('hidden'),
         hangarDust: elements.hangarDust.textContent,

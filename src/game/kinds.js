@@ -42,6 +42,7 @@ import { collapseField } from './shields.js';
 import { isBraced, isDiving, packOf } from './flock.js';
 import { noteArrival } from './tally.js';
 import { hullGrowth, speedGrowth } from './endless.js';
+import { crowdSpeedOf } from './challenges.js';
 
 /**
  * Every enemy in the game, one row each. `stats` points at the kind's numbers in
@@ -186,7 +187,11 @@ export function makeEnemy(world, type, x, y, opts) {
     r: chosen(opts, 'r', stats.radius),
     hp: chosen(opts, 'hp', Math.ceil(stats.hull * mul.hullMul * hpScale)),
     maxhp: 0,
-    speed: chosen(opts, 'speed', stats.speed * speedScale) * chosen(opts, 'speedMul', 1) * mul.speedMul,
+    speed: chosen(opts, 'speed', stats.speed * speedScale) * chosen(opts, 'speedMul', 1) * mul.speedMul
+      // ...and whatever a challenge says every body travels faster by (game/challenges.js). Last of
+      // the multipliers and applied to the whole of what came before it, so a swift crowd is a swift
+      // crowd whoever it is - plain, elite, a hatchling, or a cell off a wall.
+      * crowdSpeedOf(world),
     drop: chosen(opts, 'drop', stats.drop) * mul.dropMul,
     score: chosen(opts, 'score', stats.score) * mul.scoreMul,
     // What this body is worth out of the wave director's budget, and therefore what

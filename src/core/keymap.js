@@ -65,6 +65,9 @@ export const ACTIONS = [
   { id: 'settings', name: 'SETTINGS', says: 'THE PANEL THAT SETS ALL OF THIS', shipped: 'KeyO' },
   { id: 'daily', name: "TODAY'S ARENA", says: 'THE LAUNCH THAT FLYS THE DAY EVERYONE ELSE IS FLYING',
     shipped: 'KeyT' },
+  { id: 'challenge', name: 'CHALLENGE',
+    says: 'A HARDER RULE FOR THE NEXT RUN \u00b7 ONE PRESS, ONE RULE, ROUND AGAIN',
+    shipped: 'KeyX' },
   { id: 'reroll', name: 'REROLL', says: 'DEAL THE CARDS AGAIN', shipped: 'KeyR' },
   { id: 'mute', name: 'MUTE', says: 'THE WHOLE GAME, QUIET', shipped: 'KeyM' },
 ];

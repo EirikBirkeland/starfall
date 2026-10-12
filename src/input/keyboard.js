@@ -100,6 +100,7 @@ export function captureKeys(fn) {
  * handlers.onGiveUp    - the run was given up, from the pause screen and nowhere else
  * handlers.onSettings  - the settings panel was asked for, or asked to go away
  * handlers.onToday     - today's arena was asked for (game/daily.js)
+ * handlers.onChallenge - the next run's harder rule was cycled (game/challenges.js)
  * handlers.onDebug     - the developer's panel was asked for, or asked to go away (F3)
  * handlers.onRowMove   - the panel cursor was moved one row: +1 down the panel, -1 up
  * handlers.onRowChange - the row the cursor is on was changed: -1 down its travel, +1 up
@@ -179,6 +180,9 @@ function runAction(action, handlers) {
       break;
     case 'daily':
       if (handlers.onToday) handlers.onToday();
+      break;
+    case 'challenge':
+      if (handlers.onChallenge) handlers.onChallenge();
       break;
     case 'reroll':
       if (handlers.onReroll) handlers.onReroll();

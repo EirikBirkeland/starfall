@@ -35,6 +35,7 @@
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
+import { cardIsUsable } from './challenges.js';
 
 const PERCENT = 100;
 
@@ -595,6 +596,10 @@ function linesWithRoom(world) {
     // cards face up are three cards that would do something. The promise below about "something
     // new" honours the same list, or a dead line would be dealt by the back door.
     if (!spendableBy(world, line.id)) continue;
+    // And the same argument about the rules the run is being flown under: the tether and the
+    // afterimage both fire off a dash, so a run flying NO DASH is not shown either of them
+    // (game/challenges.js `cardIsUsable`).
+    if (!cardIsUsable(world, line.id)) continue;
     room.push(line);
   }
   return room;
@@ -688,6 +693,7 @@ function guaranteeSomethingNew(world, offer, off) {
     if (isSynergy(line.id)) continue;
     if (isBanished(world, line.id) || off.indexOf(line.id) >= 0) continue;
     if (!spendableBy(world, line.id)) continue;
+    if (!cardIsUsable(world, line.id)) continue;      // the rules the run stands under (game/challenges.js)
     fresh.push(line.id);
   }
   if (fresh.length === 0) return;
