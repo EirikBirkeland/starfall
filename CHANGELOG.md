@@ -1,5 +1,18 @@
 # Starfall — changelog
 
+## 1.6.1 — 2026-10-13
+The three lines that send you off now speak to the hand that arrived.
+- **TAP TO LAUNCH · TAP TO FLY AGAIN · TAP TO KEEP FLYING.** The title, the wreck's card and the win's card each
+  said `PRESS SPACE OR CLICK …` and then a letter — `T` for today's arena, `O` for the settings, `R` for a new
+  run. A thumb has no letters and no click; it taps the glass, which was always answered by the very launch key
+  those lines were naming. It was the last place in the game that pointed a phone visitor at a keyboard.
+- **The key clauses are put away, not thrown out.** Each line is two clauses and only the first is rewritten, so
+  a visit with a keyboard reads precisely the words the page ships — and a rebound key still has somewhere to
+  land. A test reads the shipped markup back and fails the day the two disagree.
+- **What a thumb cannot do is simply not mentioned any more.** The settings, the hangar and the codex are still
+  keyboard country; the lines used to name three letters at them, and saying nothing is the honest shape of it
+  until they get their own thumb shape.
+
 ## 1.6.0 — 2026-10-13
 A thumb can give a run up, the wreck's card lands once, and every past release has a page of its own.
 - **GIVE UP, on the pause rack.** `G` was the only way to give a run up and a phone has no `G`. The rack a thumb
