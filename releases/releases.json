@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-10-13",
+    "released": "2026-10-13T00:17:53.461Z",
+    "summary": "A thumb can give a run up, the wreck's card lands once, and every release has a page",
+    "added": 1180,
+    "removed": 16,
+    "logBytes": 44212673
+  },
+  {
     "version": "1.5.0",
     "date": "2026-10-12",
     "released": "2026-10-12T21:37:56.692Z",
