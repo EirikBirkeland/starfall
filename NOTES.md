@@ -14421,3 +14421,110 @@ Consequences the next session has to deal with, in order:
    wall for a protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the
    ladder, and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against the
    50% "usually" asks for).
+
+## Session 126 — The tree cleaned itself up, twice: the release-notes feature got its tests and a release, then a thumb was told to tap. Released **1.6.0** and **1.6.1**
+
+Suite **2,141 → 2,271** (9 in `test/release-notes.test.mjs`, 113 in `test/version-menu.test.mjs`, 4 in
+`test/thumb-hints.test.mjs`, 3 in `test/thumb-hints-mouse.test.mjs`, one changed assertion in
+`test/daily.test.mjs`). `node --test` green, `tools/simulate.js --seed 20261006` reaches the 10 m cap with every
+fingerprint it has had since session 118 (`score 73982`, level 57, 3934 kills, 4934 shards, 1 boss, 7 vacuums),
+`tools/contrast-check.js` (nothing under its bar) and `tools/palette-check.js` (every pair clears its rule)
+clean. Neither the sight tool nor the ghost tool was re-run: no pixel of the arena changed, and nothing that runs
+on a flying frame changed either.
+
+### The tree was not clean, and this time it was mine to deal with
+Session 125's last note said the working tree had grown, from under it, a **release-notes feature it had not
+written** - `tools/release-notes.js`, `releases/notes/*.md` for every past version, an edit to
+`tools/release.sh`, and a rewrite of `releases/index.html`, which is the owner's menu and which `AGENTS.md` tells
+me to leave alone. Its instruction was: read it, run the tools, then either commit it as its own change or put it
+back, and only then release.
+
+I read all of it. It is good work and it is complete, so it is committed as its own change (`33c8b87`) with the
+thing it was missing: **tests**. It is now in the menu as v1.6.0.
+
+- **What it does.** Every release gets a page in the version menu: `releases/index.html` still lists them all,
+  and opening one (`?v=1.2.3`) gives its full `CHANGELOG.md` entry - paragraphs, bullets one deep, `code`,
+  **bold**, *italic* - beside a PLAY button and links to the releases either side of it. The entry is *copied*
+  into `releases/notes/v<version>.md` at release time, because the published site is `releases/` and nothing
+  else, so the menu cannot read a changelog. `tools/release-notes.js` does the copying and `release.sh` asks it
+  after the game is copied, stepping over a failure for the same reason the line counts do: a description is a
+  nicety, and a nicety does not call off a release.
+- **`test/release-notes.test.mjs` (9)** holds the cutting (where an entry stops, that `0.2` is not `0.2.0`, that
+  the date after a version does not stop it being found), the CLI in a repository of its own (the tool finds its
+  root beside its own file, so the test copies it into a temp dir - nothing is written into the tree by a test),
+  the error a missing version must give, and three promises about the real folder: every release listed has a
+  note, a note is its changelog entry where the changelog still has one, and the folder holds one file per
+  release and nothing else.
+- **`test/version-menu.test.mjs` (113)** boots the menu's own `<script>` in a `vm` against a page made of
+  stubs - 40 lines of DOM that understands `getElementById`, `createElement`, `append`, `replaceChildren`,
+  `textContent`, `hidden`, `href` and nothing else. That is the point: a page that starts reaching for
+  `querySelector` or `innerHTML` fails here, and whoever wrote it has to decide whether the menu needs another
+  dependency-shaped thing to do its job. It holds the routing (overview / `?v=` / unknown version / empty list),
+  the facts line (badge, `+added`, `-removed`, `≈250k tok`, and that the oldest release says nothing about
+  tokens because it has no previous one to measure against), the neighbours, the markdown, and a render of every
+  one of the 103 real notes. **Seven mutations** of the menu script were tried - drop bold, point the rows at
+  `#`, never unhide the release section, swap the neighbours, flatten nested bullets, unbadge the newest, stop
+  wrapped lines joining - and every one of them reddened a test.
+- Two things worth remembering about the changelog: **`CHANGELOG.md` keeps only the last 49 releases**, so 54 of
+  the 103 notes cannot be checked against it and stand on their own (they were back-filled from the tags). That
+  is why the test compares "where the changelog still has it" and not everywhere. And `AGENTS.md`'s "leave the
+  menu alone" is about not tinkering with it, not about never shipping a finished feature that arrives in it -
+  but the next session that touches `releases/index.html` should be as sure as this one was that it is finished.
+
+### Then the item: a thumb was told to tap, on the three biggest lines in the game
+Session 123, 124 and 125 each left the same "next" note, and it is now done: **the title's, the wreck's card's
+and the win's card's hint lines were still written as a letter and a mouse.** `PRESS SPACE OR CLICK TO RESTART ·
+O SETTINGS`, on a phone. A thumb has no letters and no click; it taps the glass, which `onCanvasPressed` has
+always folded into `pressAction` on every screen a launch launches from - so the lines were naming keys the
+visitor's machine does not have, and the one thing a hint must not be is a lie.
+
+- **`ui/screens.js` `paintLaunchHints(onGlass)`**, called once per visit from `boot()` beside `showChips`, on
+  the same fact (`input/touch.js` `hasFinger()`, which asks the browser and not `thumbUsed()` - session 123's
+  lesson, and it is the right fact here too: a phone sitting on its title has never been asked to do anything).
+  It writes `TAP TO LAUNCH`, `TAP TO FLY AGAIN` and `TAP TO KEEP FLYING`, and puts the key clauses away.
+- **Each line is two clauses in `index.html`, and only the first is rewritten.** That is what makes it safe:
+  the launch clause changes, the key clause is `display: none`d, and the middle dot lives *inside* the second
+  clause so it is put away with it instead of dangling. The letters are still painted by `paintKeyWords`, so a
+  rebind has somewhere to land and a keyboard visit cannot tell any of this happened - which `test/thumb-hints-mouse.test.mjs`
+  proves by reading the shipped words back out of `index.html` and comparing them with what the game wrote. If
+  the markup and the code's keyboard branch ever drift apart, that test says so.
+- **What a thumb cannot do is now simply not mentioned.** `O SETTINGS` and `R FOR A NEW RUN` came off, because
+  the settings and the codex are still keyboard country (the panels' thumb shape is the open item). Saying
+  nothing beats naming a letter nobody owns - which is exactly the decision session 124 made for the pause rack.
+- Tests: `test/thumb-hints.test.mjs` (4) boots a finger visit and holds the words, the `gone` clauses, that the
+  letters are written-but-put-away, and - the part that makes it more than a string test - that **the words are
+  true**: a tap on the glass flies the run, and a tap on the wreck's card flies another one.
+  `test/thumb-hints-mouse.test.mjs` (3) is the shipped wording, unchanged, read back off the page.
+
+### The trap that ate an hour, and it is worth writing large
+**A `game.stop()` at the top level of a test file runs before any test body does.** I copied the line from
+`test/restart.test.mjs`, where it sits inside the last test; at module level it runs the moment the file is
+imported, and every `game.step()` afterwards is a **no-op** - `step()` drains the rAF queue and the loop is
+already stopped. The visit looked alive (`state` changed on keypresses, because those are event handlers, not
+steps) while the world never stepped: `steps: 0`, `t: 0`, and the death card never came up because the frame that
+puts it up never ran. Three of my four tests were asserting against a frozen game. Symptom to remember: **a thumb
+test where `game.stats().steps` stays 0 no matter how many frames you ask for.** There is no guard for this; if a
+future session wants one, `game.step()` silently doing nothing is the thing to make noisy.
+
+Two smaller ones: **`G` gives a run up from the pause rack and nowhere else** (`onGiveUp` returns unless
+`pauseIsUp()`), so a test that wants a death has to press `P` and then `G`; and the stub DOM gives every element
+the class `screen` and starts only `overScreen`/`winScreen`/`winHint` hidden, so an assertion that some element
+"is not hidden" proves nothing unless the game is what unhid it. I dropped a test for exactly that reason.
+
+### What should come next
+1. **The panels' thumb shape**, unchanged from 123, 124 and 125: a settings row that steps when it is tapped, a
+   CLOSE chip on a panel, and a controls rack refused on a finger visit rather than opened into rows that ask
+   for a key. Then the hangar, where a tap has to mean *buy* without a Shift, and where a phone player is still
+   earning stardust they cannot spend. This is the last big shape the thumb is missing; the hints and the rails
+   and the pause and the giving-up are all done now.
+2. **The once-per-screen audit, half done.** The read half is clean: `main.js` has four `Shown`/`Revealed`/`Asked`
+   flags and one `saveWritable`, and after session 125's fix none of them is forgotten on the screen it was set
+   for. The half nobody has done is the guard: give `tools/headless/harness.js`'s `makeElement` a write counter
+   (a `textContent` accessor plus a tally in `appendChild`/`removeChild`, exported as `domWrites()`), then hold
+   that a settled screen - title, wreck's card, win's card, pause, settings, codex, hangar - writes **nothing**
+   per frame. That would have caught the death card's 60 repaints a second in the general case instead of the
+   specific one, and it would catch the next one on the day it is written.
+3. Still owed, unchanged: the browser half of the performance pass (including a THICK CROWD run standing 150
+   bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for
+   the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
+   difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
