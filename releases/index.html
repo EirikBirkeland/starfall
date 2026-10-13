@@ -45,23 +45,30 @@
     text-transform: uppercase;
     color: var(--muted);
   }
-  a.version {
-    display: block;
+
+  /* One row of the overview: the text opens the release's own page, the button plays it. */
+  .version {
+    display: flex;
+    align-items: stretch;
     margin-bottom: 10px;
-    padding: 16px 18px;
     border: 1px solid var(--card-border);
     border-radius: 10px;
     background: var(--card);
-    color: inherit;
-    text-decoration: none;
-    transition: border-color 120ms, background 120ms, transform 120ms;
+    transition: border-color 120ms, background 120ms;
   }
-  a.version:hover, a.version:focus-visible {
+  .version:hover, .version:focus-within {
     border-color: var(--cyan);
     background: rgba(94, 246, 255, 0.08);
-    transform: translateX(3px);
+  }
+  .version-details {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 18px;
+    color: inherit;
+    text-decoration: none;
     outline: none;
   }
+  a.version-details:focus-visible .version-name { text-decoration: underline; }
   .version-line { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .version-name { font-size: 20px; font-weight: 600; }
   .version-date { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -78,40 +85,101 @@
   }
   .version-summary { margin: 6px 0 0; color: var(--muted); }
   .empty { color: var(--muted); }
+
+  .play {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    color: var(--cyan);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 120ms, color 120ms;
+  }
+  .play:hover, .play:focus-visible {
+    background: var(--cyan);
+    color: #04121c;
+    outline: none;
+  }
+  .version .play { align-self: center; margin-right: 14px; padding: 10px 16px; }
+
+  /* The page of one release. */
+  .back { display: inline-block; margin-bottom: 28px; color: var(--muted); text-decoration: none; }
+  .back:hover, .back:focus-visible { color: var(--cyan); outline: none; }
+  .release-name { margin: 0; font-size: 44px; font-weight: 300; letter-spacing: 0.06em; color: var(--cyan); }
+  .release-facts { margin-top: 10px; }
+  .release-summary { margin: 22px 0 26px; font-size: 20px; line-height: 1.45; }
+  .release .play { padding: 14px 30px; font-size: 18px; }
+  .notes { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--card-border); line-height: 1.6; }
+  .notes p { margin: 0 0 16px; }
+  .notes ul { margin: 0 0 16px; padding-left: 22px; }
+  .notes li { margin-bottom: 12px; }
+  .notes li ul { margin-top: 10px; }
+  .notes strong { color: #ffffff; }
+  .notes code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.92em;
+  }
+  .neighbours { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; }
+  .neighbours a { color: var(--muted); text-decoration: none; }
+  .neighbours a:hover, .neighbours a:focus-visible { color: var(--cyan); outline: none; }
 </style>
 </head>
 <body>
 <main>
-  <h1>STARFALL</h1>
-  <p class="tagline">Pick a version to play.</p>
+  <section id="overview" hidden>
+    <h1>STARFALL</h1>
+    <p class="tagline">Pick a version to play, or open one to read what it brought.</p>
 
-  <h2>In development</h2>
-  <a class="version" id="development" href="../">
-    <div class="version-line">
-      <span class="version-name">Development build</span>
+    <h2>In development</h2>
+    <div class="version">
+      <div class="version-details">
+        <div class="version-line">
+          <span class="version-name">Development build</span>
+        </div>
+        <p class="version-summary">The newest code in the repository. May be mid-change.</p>
+      </div>
+      <a class="play" id="development" href="../">▶ Play</a>
     </div>
-    <p class="version-summary">The newest code in the repository. May be mid-change.</p>
-  </a>
 
-  <h2>Releases</h2>
-  <div id="releases"><p class="empty">Loading…</p></div>
+    <h2>Releases</h2>
+    <div id="releases"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section id="release" class="release" hidden></section>
 </main>
 
 <script>
 // The version menu for visitors. It lives in releases/ and reads the releases.json beside it, so it works
-// wherever the repository is served from. Everything it shows is in that one file.
+// wherever the repository is served from. The overview lists every release; ?v=<version> is the page of one,
+// which adds that release's full description from notes/v<version>.md (written by tools/release-notes.js).
+const overviewElement = document.getElementById('overview');
 const releasesElement = document.getElementById('releases');
+const releaseElement = document.getElementById('release');
 
 // In the repository this page sits in releases/, with the development build one folder up. On the published
 // site it is the front page and the development build is copied to dev/ (.github/workflows/pages.yml).
 const insideReleasesFolder = /\/releases\/(index\.html)?$/.test(location.pathname);
 document.getElementById('development').href = insideReleasesFolder ? '../' : 'dev/';
 
-function addText(parent, className, text) {
-  const element = document.createElement('span');
-  element.className = className;
-  element.textContent = text;
+function addElement(parent, tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  if (text) element.textContent = text;
   parent.append(element);
+  return element;
+}
+
+function addLink(parent, className, href, text) {
+  const link = addElement(parent, 'a', className, text);
+  link.href = href;
+  return link;
 }
 
 // Shown in the visitor's own time zone. Old entries without the exact moment fall back to the day.
@@ -128,39 +196,145 @@ function releaseTime(release) {
   return `${day} · ${time}`;
 }
 
-/** previous is the release before this one, or undefined for the first. */
-function createReleaseLink(release, isNewest, previous) {
-  const link = document.createElement('a');
-  link.className = 'version';
-  link.href = `v${release.version}/`;
-
-  const line = document.createElement('div');
-  line.className = 'version-line';
-  addText(line, 'version-name', `v${release.version}`);
-  if (isNewest) addText(line, 'badge', 'Newest');
-  addText(line, 'version-date', releaseTime(release));
+/** The line of facts under a version's name. previous is the release before this one, or undefined for the first. */
+function addFacts(line, release, isNewest, previous) {
+  if (isNewest) addElement(line, 'span', 'badge', 'Newest');
+  addElement(line, 'span', 'version-date', releaseTime(release));
 
   // Lines changed since the previous release.
   if (Number.isFinite(release.added) && Number.isFinite(release.removed)) {
-    addText(line, 'lines-added', `+${release.added}`);
-    addText(line, 'lines-removed', `-${release.removed}`);
+    addElement(line, 'span', 'lines-added', `+${release.added}`);
+    addElement(line, 'span', 'lines-removed', `-${release.removed}`);
   }
 
   // How much the agent wrote to its log between the previous release and this one, at about four bytes a token.
   if (Number.isFinite(release.logBytes) && Number.isFinite(previous?.logBytes)) {
     const tokens = Math.max(0, release.logBytes - previous.logBytes) / 4;
-    addText(line, 'version-date', `≈${Math.round(tokens / 1000)}k tok`);
+    addElement(line, 'span', 'version-date', `≈${Math.round(tokens / 1000)}k tok`);
+  }
+}
+
+function createReleaseRow(release, isNewest, previous) {
+  const row = document.createElement('div');
+  row.className = 'version';
+
+  const details = addLink(row, 'version-details', `?v=${release.version}`);
+  const line = addElement(details, 'div', 'version-line');
+  addElement(line, 'span', 'version-name', `v${release.version}`);
+  addFacts(line, release, isNewest, previous);
+  addElement(details, 'p', 'version-summary', release.summary);
+
+  addLink(row, 'play', `v${release.version}/`, '▶ Play');
+  return row;
+}
+
+// The notes are the release's CHANGELOG.md entry, which uses a small part of Markdown: paragraphs,
+// bullets (one level nested), **bold**, *italic* and `code`.
+const inlinePattern = /`([^`]+)`|\*\*(.+?)\*\*|\*([^*]+)\*/g;
+
+function addInline(parent, text) {
+  let position = 0;
+  for (const match of text.matchAll(inlinePattern)) {
+    parent.append(text.slice(position, match.index));
+    const [whole, code, bold, italic] = match;
+    if (code !== undefined) addElement(parent, 'code', '', code);
+    if (bold !== undefined) addInline(addElement(parent, 'strong'), bold);
+    if (italic !== undefined) addInline(addElement(parent, 'em'), italic);
+    position = match.index + whole.length;
+  }
+  parent.append(text.slice(position));
+}
+
+/** Groups the lines into blocks: a paragraph, or a bullet with how deep it sits. Wrapped lines join their block. */
+function readBlocks(markdown) {
+  const blocks = [];
+  let open = null;
+
+  for (const line of markdown.split('\n')) {
+    const bullet = line.match(/^(\s*)- (.*)$/);
+    if (line.trim() === '') {
+      open = null;
+    } else if (bullet) {
+      open = { kind: 'bullet', depth: bullet[1].length > 0 ? 1 : 0, text: bullet[2] };
+      blocks.push(open);
+    } else if (open) {
+      open.text += ` ${line.trim()}`;
+    } else {
+      open = { kind: 'paragraph', text: line.trim() };
+      blocks.push(open);
+    }
+  }
+  return blocks;
+}
+
+function renderNotes(parent, markdown) {
+  let list = null;
+  let nestedList = null;
+  let lastItem = null;
+
+  for (const block of readBlocks(markdown)) {
+    if (block.kind === 'paragraph') {
+      list = nestedList = lastItem = null;
+      addInline(addElement(parent, 'p'), block.text);
+    } else if (block.depth === 1 && lastItem) {
+      nestedList = nestedList || addElement(lastItem, 'ul');
+      addInline(addElement(nestedList, 'li'), block.text);
+    } else {
+      list = list || addElement(parent, 'ul');
+      nestedList = null;
+      lastItem = addElement(list, 'li');
+      addInline(lastItem, block.text);
+    }
+  }
+}
+
+async function loadNotes(version) {
+  try {
+    const response = await fetch(`notes/v${version}.md`, { cache: 'no-store' });
+    return response.ok ? await response.text() : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+async function showRelease(releases, index) {
+  const release = releases[index];
+  const newer = releases[index - 1];
+  const older = releases[index + 1];
+  document.title = `Starfall v${release.version}`;
+
+  addLink(releaseElement, 'back', location.pathname, '← All versions');
+  addElement(releaseElement, 'h1', 'release-name', `v${release.version}`);
+  addFacts(addElement(releaseElement, 'div', 'version-line release-facts'), release, index === 0, older);
+  addElement(releaseElement, 'p', 'release-summary', release.summary);
+  addLink(releaseElement, 'play', `v${release.version}/`, '▶ Play this version');
+
+  const notes = addElement(releaseElement, 'div', 'notes');
+  const neighbours = addElement(releaseElement, 'nav', 'neighbours');
+  if (older) addLink(neighbours, '', `?v=${older.version}`, `← v${older.version}`);
+  else addElement(neighbours, 'span');
+  if (newer) addLink(neighbours, '', `?v=${newer.version}`, `v${newer.version} →`);
+  releaseElement.hidden = false;
+
+  const markdown = await loadNotes(release.version);
+  if (markdown.trim()) renderNotes(notes, markdown);
+  else addElement(notes, 'p', 'empty', 'No description was written for this release.');
+}
+
+function showOverview(releases) {
+  overviewElement.hidden = false;
+  if (releases.length === 0) {
+    showMessage('No releases yet.');
+    return;
   }
 
-  const summary = document.createElement('p');
-  summary.className = 'version-summary';
-  summary.textContent = release.summary;
-
-  link.append(line, summary);
-  return link;
+  // Newest first, so the release before this one is the next in the list.
+  const rows = releases.map(($_, index) => createReleaseRow($_, index === 0, releases[index + 1]));
+  releasesElement.replaceChildren(...rows);
 }
 
 function showMessage(text) {
+  overviewElement.hidden = false;
   const message = document.createElement('p');
   message.className = 'empty';
   message.textContent = text;
@@ -178,14 +352,11 @@ async function loadReleases() {
     return;
   }
 
-  if (releases.length === 0) {
-    showMessage('No releases yet.');
-    return;
-  }
-
-  // Newest first, so the release before this one is the next in the list.
-  const links = releases.map(($_, index) => createReleaseLink($_, index === 0, releases[index + 1]));
-  releasesElement.replaceChildren(...links);
+  // ?v=<version> is the page of that release. Anything else, or a version that is not listed, is the overview.
+  const wanted = new URLSearchParams(location.search).get('v');
+  const index = releases.findIndex($_ => $_.version === wanted);
+  if (index >= 0) showRelease(releases, index);
+  else showOverview(releases);
 }
 
 loadReleases();

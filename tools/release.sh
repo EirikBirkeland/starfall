@@ -96,6 +96,14 @@ if [ -f tools/release-stats.js ]; then
     || echo "warning: could not count this release; releases.json has no numbers for $version"
 fi
 
+# The full description, for the page the menu gives each release: the CHANGELOG.md entry of this version, copied
+# to releases/notes/ because the menu is published from releases/ alone. Like the numbers, it must
+# never be the reason a release did not happen.
+if [ -f tools/release-notes.js ]; then
+  node tools/release-notes.js "$version" \
+    || echo "warning: could not write the notes for $version; its page in the menu has no description"
+fi
+
 git add -A
 git commit -q -m "Release $tag: $summary"
 git tag -a "$tag" -m "$summary"
