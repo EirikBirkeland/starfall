@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.1",
+    "date": "2026-10-13",
+    "released": "2026-10-13T00:46:53.822Z",
+    "summary": "A thumb is told to tap: the title, the wreck's card and the win's card stopped naming keys a phone has no keyboard for",
+    "added": 248,
+    "removed": 6,
+    "logBytes": 44367739
+  },
+  {
     "version": "1.6.0",
     "date": "2026-10-13",
     "released": "2026-10-13T00:17:53.461Z",
