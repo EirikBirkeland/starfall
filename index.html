@@ -461,6 +461,8 @@
      animation always beats a declaration. The space is kept either way, so the card does not jump
      when the invitation finally arrives. */
   .hint.hidden { visibility: hidden; }
+  /* The half of a hint that names a key this visit does not have (ui/screens.js `paintLaunchHints`). */
+  .hint .gone { display: none; }
   .stats { margin-top: 20px; font-size: 12px; letter-spacing: .18em; color: #7fa8c8; }
   .build { margin-top: 10px; font-size: 12px; letter-spacing: .16em; color: #9dffcb; text-shadow: 0 0 14px rgba(88,255,161,.35); }
   /* What a run paid that it can spend, and what the purse holds now: gold like the best above it,
@@ -619,8 +621,12 @@
     <div class="challenge-line" id="titleChallenge"></div>
   </div>
   <!-- The day's key is written where the other launch keys are, because it is one: one press and the
-       run is flying the arena everybody else is flying today (game/daily.js). -->
-  <div class="hint">PRESS SPACE OR CLICK TO LAUNCH &#183; <span id="titleKeysToday">T</span> FOR TODAY&#39;S ARENA</div>
+       run is flying the arena everybody else is flying today (game/daily.js).
+       The line is two parts and not one sentence because a thumb owns neither of them: `paintLaunchHints`
+       writes the first as a tap and puts the second away, and the chips under it are already the day, the
+       rule and the sound - a chip has its own word on it and needs no legend above it. -->
+  <div class="hint"><span id="titleHintLaunch">PRESS SPACE OR CLICK TO LAUNCH</span><span
+    id="titleHintKeys"> &#183; <span id="titleKeysToday">T</span> FOR TODAY&#39;S ARENA</span></div>
   <!-- The thumb's rail (ui/chips.js). It is put up for a visit that arrived with a finger and never
        for any other, so a keyboard visit never sees it; and every word in here is one the page writes
        once, because a chip is the name of a key and not a readout. MUTE is the whole of what the key
@@ -790,7 +796,8 @@
   <div class="hull-list" id="finalHulls"></div>
   <div class="build" id="finalBuild"></div>
   <div class="next-line" id="nextShip"></div>
-  <div class="hint">PRESS SPACE OR CLICK TO RESTART &#183; <span id="overKeysSettings">O</span> SETTINGS</div>
+  <div class="hint"><span id="overHintLaunch">PRESS SPACE OR CLICK TO RESTART</span><span
+    id="overHintKeys"> &#183; <span id="overKeysSettings">O</span> SETTINGS</span></div>
 </div>
 
 <div id="winScreen" class="screen hidden">
@@ -817,7 +824,8 @@
        rest of the guard unreadable-but-visible (game/run.js `victoryCardIsAnswerable`), and a line
        saying "press" while the game is refusing every press would be the one thing the guard was
        asked to stop. -->
-  <div class="hint hidden" id="winHint">PRESS SPACE TO KEEP FLYING &#183; <span id="winKeysReroll">R</span> FOR A NEW RUN</div>
+  <div class="hint hidden" id="winHint"><span id="winHintLaunch">PRESS SPACE TO KEEP FLYING</span><span
+    id="winHintKeys"> &#183; <span id="winKeysReroll">R</span> FOR A NEW RUN</span></div>
 </div>
 
 <script type="module" src="src/main.js"></script>

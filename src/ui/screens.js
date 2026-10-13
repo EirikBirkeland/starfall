@@ -359,6 +359,35 @@ export function paintKeyWords() {
   }
 }
 
+/**
+ * The three lines that mean *press to go*, written for the hand that arrived.
+ *
+ * Each of the three - the title's, the wreck's card and the win's - was written as a letter and a mouse,
+ * because for a hundred and twenty-four sessions that was the only hand here. A visit that came in on a
+ * finger (`input/touch.js` `hasFinger`) has neither: it taps the glass, which is answered by the very
+ * launch key everywhere (`main.js` `onCanvasPressed` ends on `pressAction` on every screen a launch
+ * launches from), and it owns no `T` for the day, no `O` for the settings and no `R` for a new run.
+ * Naming a letter this hand does not have is the mistake session 124 took out of the pause rack, and the
+ * same mistake was still sitting on the three biggest lines of the game.
+ *
+ * So each line is two clauses and only the first is rewritten: the tap clause takes the launch clause's
+ * words - *TAP*, where the other hand reads *PRESS SPACE OR CLICK* - and the key clause is put away, and
+ * the middle dot between the two clauses goes with it because it lives inside it. A thumb's own version of
+ * the day, the rule and the sound is the rail of chips under the title (ui/chips.js), and a chip already
+ * has its word written on it.
+ *
+ * Once per visit, beside `showChips`, because a finger is a fact about the machine and not about the
+ * screen: nothing later can change which hand this visitor arrived with.
+ */
+export function paintLaunchHints(onGlass) {
+  el.titleHintLaunch.textContent = onGlass ? 'TAP TO LAUNCH' : 'PRESS SPACE OR CLICK TO LAUNCH';
+  el.overHintLaunch.textContent = onGlass ? 'TAP TO FLY AGAIN' : 'PRESS SPACE OR CLICK TO RESTART';
+  el.winHintLaunch.textContent = onGlass ? 'TAP TO KEEP FLYING' : 'PRESS SPACE TO KEEP FLYING';
+  for (const clause of [el.titleHintKeys, el.overHintKeys, el.winHintKeys]) {
+    clause.classList.toggle('gone', onGlass === true);
+  }
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -376,6 +405,13 @@ export function initScreens() {
     winStats: document.getElementById('winStats'),
     winBuild: document.getElementById('winBuild'),
     winHint: document.getElementById('winHint'),
+    // The three "press to go" lines, each in the two clauses `paintLaunchHints` writes (index.html).
+    titleHintLaunch: document.getElementById('titleHintLaunch'),
+    titleHintKeys: document.getElementById('titleHintKeys'),
+    overHintLaunch: document.getElementById('overHintLaunch'),
+    overHintKeys: document.getElementById('overHintKeys'),
+    winHintLaunch: document.getElementById('winHintLaunch'),
+    winHintKeys: document.getElementById('winHintKeys'),
     // Which day the run was flown on, on each of the two cards that end one (game/daily.js).
     finalDaily: document.getElementById('finalDaily'),
     winDaily: document.getElementById('winDaily'),

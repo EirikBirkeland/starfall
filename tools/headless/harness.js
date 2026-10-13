@@ -427,6 +427,9 @@ const ELEMENT_IDS = [
   'hangarKeysBack', 'hangarKeysSettings', 'codexKeysBack', 'codexKeysSettings',
   'settingsKeysClose', 'keysKeysBack',
   'pauseKeysGiveUp', 'pauseKeysSettings', 'overKeysSettings', 'winKeysReroll',
+  // The two clauses of each of the three "press to go" lines (index.html, ui/screens.js
+  // `paintLaunchHints`): the clause a visit reads, and the clause that names a key it may not have.
+  'titleHintLaunch', 'titleHintKeys', 'overHintLaunch', 'overHintKeys', 'winHintLaunch', 'winHintKeys',
   // The thumb's rail (index.html, ui/chips.js): the three chips a finger can press on the title, and
   // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
   // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.

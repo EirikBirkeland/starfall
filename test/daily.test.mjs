@@ -366,7 +366,7 @@ test('the key that flies the day is said where the launch keys are said', () => 
   // key - has to carry it, or the key does not exist.
   assert.match(
     markup,
-    /PRESS SPACE OR CLICK TO LAUNCH &#183; <span id="titleKeysToday">T<\/span> FOR TODAY&#39;S ARENA/,
+    /PRESS SPACE OR CLICK TO LAUNCH<\/span><span\s+id="titleHintKeys"> &#183; <span id="titleKeysToday">T<\/span> FOR TODAY&#39;S ARENA/,
     'the day\'s key is written where the launch keys are, and written as a live one');
   assert.ok(markup.indexOf('id="titleToday"') > 0, 'and the day has somewhere on the title to be banked');
 });

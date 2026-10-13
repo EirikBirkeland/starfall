@@ -2194,6 +2194,18 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       unanswered, and every rack that goes up is a plain one. `test/thumb-giveup.test.mjs` holds all of it,
       including that a cursor on a both-hands machine is allowed the same two presses.
 
+      **The three "press to go" lines are written for the hand that arrived (session 126).** The title's,
+      the wreck's card's and the win's each said a letter and a mouse - `PRESS SPACE OR CLICK TO RESTART · O
+      SETTINGS` - and a thumb owns neither, so the biggest lines in the game were pointing a phone visitor at
+      keys its machine does not have. `ui/screens.js` `paintLaunchHints`, once per visit beside `showChips`
+      and on the same fact (`input/touch.js` `hasFinger`), writes the clause that means *go* as a tap and puts
+      the clause that names a key away; each line is two clauses in `index.html` for exactly that, and the
+      middle dot lives inside the second one so it is put away with it. A keyboard visit cannot tell it ran:
+      the words the code writes for that hand are the words the page already shipped, which is what
+      `test/thumb-hints-mouse.test.mjs` reads back off the markup. What a thumb is *not* offered is still the
+      same list - the settings, the hangar and the codex - and the lines now say nothing about them instead of
+      naming three letters.
+
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

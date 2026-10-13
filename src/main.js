@@ -58,7 +58,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, fitHangar, fitOpenPanel } from './ui/screens.js';
 import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -1289,6 +1289,9 @@ function boot() {
   // finger (input/touch.js). They are measured against the glass, so they are built after it.
   initChips(view.canvas);
   showChips(hasFinger());
+  // ...and the three lines that say *press to go* are written for the same hand, so a visit that came in
+  // on a finger is never told to find a letter it does not have (ui/screens.js `paintLaunchHints`).
+  paintLaunchHints(hasFinger());
   onResize();
   // Whether this visitor asked for as little movement as the machine can give (the same query the
   // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the
