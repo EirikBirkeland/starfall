@@ -15441,3 +15441,80 @@ game, and PLAN's 4:00-9:00 sentence does not fit it.
    power-ladder) re-measured, not just the careless arc.
 3. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
    afterimage's flat top of the ladder.
+
+## Session 140 — the afterimage's ranks buy ground. Found a finished-looking tree that had never met its own ruler; fixed that, shipped 1.9.1
+
+### What the tree looked like when I sat down
+Uncommitted changes in six files: the afterimage trail had been rewritten to lay one image every
+`spacing` px of the way the ship *came* (dash and engines together) instead of spreading them over a
+plan the dash wrote up front. That is the After-1.0 item "the fourth and fifth ranks buy very little
+over the third", and the code, the tests and the tool flag were all in place and green. What was not
+in place was the measurement: `spacing: 100` had never been through `tools/ghost-grid.js --strict`.
+
+It failed. **At 100 px rank 5 turns aside 41.6% of the walking near crowd, over the 40% ceiling** —
+the "crowd stops coming" bar session 42 wrote and the tool enforces. A session that had only run the
+unit tests would have shipped a ladder that trips its own check on the first real batch. (Which is
+also the whole reason the check exists: `test/afterimage.test.mjs` was green the whole time, because
+it measures what the code says, not what the crowd does.)
+
+### The sweep, which is the session
+`node tools/ghost-grid.js --spacing N`, ten seeds of five minutes, the shipped escape habit,
+diverted at rank 1 / 3 / 5. Three runs in parallel take ~3.6 min each on this box:
+
+| spacing | rank 1 | rank 3 | rank 5 | verdict |
+|---|---|---|---|---|
+| 100 | 16.5% | 33.3% | 41.6% | over the ceiling |
+| 105 | 16.5% | 30.2% | 37.3% | **PASS, slope 2.26x** |
+| 110 | 16.5% | 35.8% | 33.6% | passes; rank 5 read *under* rank 3 |
+| 115 | 16.5% | 31.9% | 39.0% | passes on one point of headroom |
+| 120 | 16.5% | 29.8% | 32.5% | slope breaks (1.97x) |
+| 140 | 16.5% | 33.3% | 32.2% | slope breaks; r5 under r3 again |
+
+105 is the shipped number: 2.7 points under the ceiling and a quarter over the slope, the only row
+with room at both ends. The shape of the table is worth keeping: below ~100 the discs are one blob
+again at the top rank (ceiling), above ~120 the trailing images stand outside the 250 px near ring
+the tool counts and a rank "buys distance the fight never sees" (slope). The window between is the
+card, which is more proof that spacing must be its own number and not a share of anything.
+
+The noise is honest and it is in the row: the rank-5 cells saw 21-72 presses across the batch and
+the 110 row came out *inverted* (r5 under r3) — session 139's warning about windows applies at full
+force inside a single rung. Nobody should read a one-point delta between two of these rows; the
+decision was made on which rows pass with margin, not on which decimal is biggest.
+
+### What is in the tree
+- `spacing: 105` in `BALANCE.upgrades.afterimage` with the sweep on it, and the bait row now says so
+  too (its session-117 paragraph ended "written up as an After 1.0 item"; it names the closure).
+- The trail machinery itself is the incoming session's (unchanged): `travelled`/`due`/`left` paced by
+  ground, `trailImages(world, moved)` called once a step from `updatePlayer` off `px`/`py`, so a
+  wall-stopped ship lays what it got and a stopped ship lays nothing. The dash's own 220 px covers
+  the first three images; ranks 4 and 5 are paid for by keeping on running.
+- `tools/ghost-grid.js --spacing N` sweeps the ladder at any spacing and the grid header now says
+  which spacing it was read at (also fixed `gridTable` printing `undefined` when a caller omits the
+  opts key — a table that doesn't say its spacing is unreadable, so a test pins the line).
+- New tests: the spacing geometry pins in `afterimage.test.mjs` (spacing < bait; no image due at
+  exactly the dash's end — the 220 % 105 coin flip the old 110 idea would have hit; a dash cannot
+  spend the whole ladder), the `--spacing` refusals and header claims in `ghost-grid.test.mjs`.
+  **2407 pass** (was 2403 before the session: the incoming tree brought +1 net, this one +2).
+- The reference run (`--seed 20261006 --trace`) is byte for byte what it was: 10m00s / 73,982 /
+  level 57. The aware bot never presses the dash, so it cannot spend this card at all — which is
+  the same fact the balance row has always admitted, now true of the reference run too.
+- PLAN's item ticked with the numbers on it; released as **1.9.1**.
+
+### Surprises and costs
+- An interrupted session's tree can be *all green and still wrong*: every unit test passed before the
+  ruler ever ran. "run the tool that measures the claim, not just the tests that describe it" is
+  worth a sentence somewhere; it is the reason --strict exists.
+- `node --test test/` (with the path) fails with one opaque synthetic failure on this Node version;
+  `node --test` from the root is the way (`npm test`).
+- The full suite is ~5 minutes, one ghost-grid grid ~3.6; three grids in parallel is free.
+- The dash's laid-count is floor(220/spacing)+1 because the first image is due at 0 px — the dash's
+  start is already the first image. Easy to miscount by one; the tests pin 3 for 105.
+
+### What should come next
+1. Unchanged from session 139: the late game wants a *fight*, not a crowd (boss phase tables, not
+   hull), and the XP curve is a decision to take on purpose with the hangar re-priced after it.
+2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour.
+   (Session 139's third item, "the afterimage's flat top of the ladder", is what this session was.)
+3. `tools/power-ladder.js` prices the deck including afterimage; its numbers were read on the old
+   geometry. Nothing in it is quoted as a ladder claim the way ghost-grid's were, so nothing is
+   *wrong*, but a future power-ladder session should re-run it and say so.
