@@ -1,5 +1,21 @@
 # Starfall — changelog
 
+## 1.6.2 — 2026-10-15
+The keyboard answers the key you are looking at, not the place it happens to sit on.
+- **Fixed: `D` doing nothing on some machines while the right arrow flew the ship.** A key event arrives with
+  two names for the same key — `code`, a *place on the keyboard*, and `key`, *what that key prints*. The game
+  read the place. A browser or an input method that reports no place had every letter of the control table go
+  deaf while its arrows carried on working, because a browser spells an arrow the same way in both fields and
+  spells nothing else twice. That is the whole of "D does not work for me, right-arrow does though".
+- **A press is heard by what it prints now, and by its place only when it prints nothing the game can name.**
+  Bindings are still *kept* as places, so a save means the same thing on somebody else's machine, and a board
+  with no latin letters still flies the ship on exactly the keys the controls rack prints.
+- **And the half nobody reported.** On a board whose letters do not sit where QWERTY puts them — Dvorak,
+  Colemak, a Mac with an odd input source — the shipped table pointed at the wrong keycaps: the key that says
+  D sits somewhere else, so the word on the screen named a key wearing someone else's letter while your own D
+  key did whatever owns that place. Now the word beside a row is the word on the key, and a rebinding made by
+  pressing a key remembers the key that was pressed.
+
 ## 1.6.1 — 2026-10-13
 The three lines that send you off now speak to the hand that arrived.
 - **TAP TO LAUNCH · TAP TO FLY AGAIN · TAP TO KEEP FLYING.** The title, the wreck's card and the win's card each
