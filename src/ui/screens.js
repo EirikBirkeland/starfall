@@ -75,6 +75,14 @@ let logRows = [];
 // can name and no more - three rows today, and a fourth rule is a row in a table, not a rack.
 let ruleRows = [];
 
+// The five racks of the codex, in the order the page paints them, and which one of them a thumb is
+// looking at. They are kept here because the codex is painted from two doors - the visit opening, and a
+// run's card landing (ui/screens.js `showGameOver`) - and both of them have to show the same rack the
+// player turned to, not the whole panel back again.
+let codexRacks = [];
+let codexPage = 0;
+let codexPaged = false;
+
 // The pause's two racks (game/run.js `pauseRun`): the run's numbers, and the lines it has taken.
 // Both of them are as long as the run is, so both are grown and trimmed as they are painted, like the
 // log above, and for the same reason - a rack of rows that a run has to be shorter or longer than is
@@ -427,6 +435,51 @@ export function paintHangarHints(onGlass) {
   el.hangarKeysLine.classList.toggle('gone', onGlass === true);
 }
 
+/**
+ * The line under the codex's racks, written for the hand that arrived - and with it, whether the racks
+ * are walked one at a time.
+ *
+ * The codex is five racks and forty-odd rows. Side by side they fit the window a keyboard is used on;
+ * stacked in one column, which is what a phone's width makes of them, they are taller than any phone is
+ * long, and these panels are scaled to fit rather than scrolled, so the floor of `RACK_MIN` would leave
+ * the bottom of the panel - the log, and the rules under it - unreadable rather than merely off the
+ * glass. So a thumb is given one rack at a time and a chip to turn to the next - the same reason the
+ * settings panel fits a phone and this one never could: that page is short, and this one is forty rows.
+ *
+ * Once per visit, on the same fact as every other line here (`input/touch.js` `hasFinger`). It is set
+ * here and not somewhere louder because this is the one call that is made once per visit about the
+ * codex, and the racks are only paged for the hand this line is written for.
+ */
+export function paintCodexHints(onGlass) {
+  codexPaged = onGlass === true;
+  codexPage = 0;
+  el.codexHintLaunch.textContent = onGlass ? 'CLOSE TO LAUNCH' : 'SPACE TO LAUNCH';
+  el.codexHintBack.classList.toggle('gone', onGlass === true);
+  el.codexHintSettings.classList.toggle('gone', onGlass === true);
+  showCodexRack();
+}
+
+/** Put the rack this visit turned to on the glass, and the other four away. */
+function showCodexRack() {
+  for (let i = 0; i < codexRacks.length; i++) {
+    codexRacks[i].classList.toggle('gone', codexPaged && i !== codexPage);
+  }
+}
+
+/**
+ * Turn to the next rack of the codex, and fit the panel to what it is showing now.
+ *
+ * It wraps: this is a reading panel, and a visitor who has reached the bottom of the rules has not
+ * finished reading the hosts. The fit is asked on the way because a rack is a shorter column than five
+ * of them, and a panel that was scaled down to make all five fit does not need the scale any more.
+ */
+export function turnCodexRack() {
+  codexPage = (codexPage + 1) % codexRacks.length;
+  showCodexRack();
+  fitOpenPanel();
+  return codexPage;
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -470,6 +523,16 @@ export function initScreens() {
     codex: document.getElementById('codexScreen'),
     codexBody: document.getElementById('codexBody'),
     codexTally: document.getElementById('codexTally'),
+    // The two lines under the codex's racks, in the clauses `paintCodexHints` writes (index.html).
+    codexHintLaunch: document.getElementById('codexHintLaunch'),
+    codexHintBack: document.getElementById('codexHintBack'),
+    codexHintSettings: document.getElementById('codexHintSettings'),
+    // ...and the five racks themselves, which is what a thumb is walked through one at a time.
+    rackHosts: document.getElementById('rackHosts'),
+    rackLines: document.getElementById('rackLines'),
+    rackSyn: document.getElementById('rackSyn'),
+    rackLog: document.getElementById('rackLog'),
+    rackRules: document.getElementById('rackRules'),
     hostRow: document.getElementById('hostRow'),
     lineRow: document.getElementById('lineRow'),
     synRow: document.getElementById('synRow'),
@@ -532,6 +595,10 @@ export function initScreens() {
   synRows = SYNERGIES.map(() => buildEntryRow(el.synRow));
   ruleRows = CHALLENGES.map(() => buildEntryRow(el.ruleRow));
   awardRows = AWARDS.map(buildAwardRow);
+  codexRacks = [el.rackHosts, el.rackLines, el.rackSyn, el.rackLog, el.rackRules];
+  for (const rack of codexRacks) {
+    if (rack === null) throw new Error('the codex has no rack element to show or hide');
+  }
   // The five panels, in the one list everything that is true of "a panel" walks: taking them all
   // down, and fitting whichever one is up. Built here, beside the elements themselves, because
   // `initScreens` is the first thing the boot does.
@@ -643,8 +710,14 @@ export function openHangar() {
 }
 
 /** ...and the codex, which is a panel of its own for its own reason (game/codex.js: rows nobody
-    sells). A plain number key still means the ship it means everywhere else, panel up or not. */
+    sells). A plain number key still means the ship it means everywhere else, panel up or not.
+
+    It comes up on its first rack: a thumb that turned to the synergies last time and has come back for
+    the hosts should not have to turn five times to find them, which is the same reasoning that puts the
+    settings panel's cursor back at the top. */
 export function openCodex() {
+  codexPage = 0;
+  showCodexRack();
   raisePanel('codex', el.codex, el.codexBody);
 }
 
@@ -870,6 +943,7 @@ export function showCodex(found) {
   paintEntries(hostRows, HOSTS, found.hosts, 'NOT MET YET');
   paintEntries(cardRows, CARDS, found.lines, 'NOT TAKEN YET');
   paintEntries(synRows, SYNERGIES, found.lines, 'NOT FOUND YET');
+  showCodexRack();
   const share = metShare(found);
   el.codexTally.textContent = 'MET ' + share.met + ' OF ' + share.of;
 }

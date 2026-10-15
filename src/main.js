@@ -58,7 +58,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, paintHangarHints, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, paintHangarHints, paintCodexHints, turnCodexRack, fitHangar, fitOpenPanel } from './ui/screens.js';
 import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt, showPanelChips, panelChipAt, settingRowAt, shipRowAt, perkRowAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -205,6 +205,7 @@ function pressChip(id) {
   else if (id === 'mute') onMuteSwitch();
   else if (id === 'settings') onSettings();
   else if (id === 'hangar') onHangar();
+  else if (id === 'codex') onCodex();
 }
 
 /**
@@ -306,6 +307,27 @@ function pressHangarPanel() {
   uiTick('ask');
 }
 
+/**
+ * A press landed on the codex.
+ *
+ * Two things it can be, and neither is a row. The CLOSE chip is `C` (the same `onCodex` toggle). The NEXT
+ * RACK chip turns the panel to the next of its five racks, wrapping, because this is a page you read to
+ * the bottom of and then start again. And a row answers nothing, which is the whole difference between
+ * this panel and the other two: the codex sells nothing and changes nothing, so there is nothing for a
+ * tap on one of its lines to mean.
+ *
+ * The two chips exist because the five racks do not fit a phone in the first place (ui/screens.js
+ * `paintCodexHints` says why), so this is the one panel whose thumb shape is about *seeing* it rather
+ * than about doing anything in it.
+ */
+function pressCodexPanel() {
+  if (panelChipAt('codex', mouse.x, mouse.y)) { onCodex(); return; }
+  if (panelChipAt('codexNext', mouse.x, mouse.y)) {
+    turnCodexRack();
+    uiTick('page');
+  }
+}
+
 function onCanvasPressed() {
   initAudio();
   // The pause rack's GIVE UP chip, asked before anything else on this screen and before the thumb's own
@@ -341,6 +363,8 @@ function onCanvasPressed() {
   // ...and the shop answers a press with its own rows (see `pressHangarPanel`): a ship row to fly, and a
   // row that costs stardust to buy, which asks first.
   if (hangarIsOpen()) { pressHangarPanel(); return; }
+  // ...and the codex answers with its two chips and nothing else (see `pressCodexPanel`).
+  if (codexIsOpen()) { pressCodexPanel(); return; }
   // Over a panel a click is not a launch. The title's click-to-go is worth having and the
   // death's card's is worth having, but a panel you are meant to be able to look round is not a
   // screen that throws you into a run because you aimed at a ship and missed - and there are two of
@@ -1465,6 +1489,9 @@ function boot() {
   paintSettingsHints(hasFinger());
   // ...and the two under the shop's racks (ui/screens.js `paintHangarHints`).
   paintHangarHints(hasFinger());
+  // ...and the one under the codex's racks, which also decides whether that panel is walked a rack at a
+  // time (ui/screens.js `paintCodexHints`).
+  paintCodexHints(hasFinger());
   onResize();
   // Whether this visitor asked for as little movement as the machine can give (the same query the
   // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the

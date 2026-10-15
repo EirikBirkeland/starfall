@@ -2121,7 +2121,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       verdict judges the rule like the other two; `test/challenge-thick.test.mjs` is seven checks over
       the lever, the endless wall, and the director filling the taller arena and not overflowing it.
 
-- [ ] A thumb can fight and nothing else. The touch layer (`input/touch.js`) puts a stick and a dash
+- [x] A thumb can fight and nothing else. The touch layer (`input/touch.js`) puts a stick and a dash
       button on the glass and, when a run is not flying, hands a tap to the same handler a click uses -
       which is enough to launch and to answer a card. Every other action in the game is a letter: the
       day (`T`), the harder rule (`X`), the codex, the hangar, the settings, the controls rack, the
@@ -2254,7 +2254,23 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       also where a finger's rows stop saying `SHIFT + 2 BUYS IT` and start saying `TAP TO BUY IT`). The two
       lines under the racks are written for the hand that arrived, like every other line here
       (`paintHangarHints`). Eighteen tests: `test/thumb-hangar.test.mjs` and `test/hangar-rows-mouse.test.mjs`.
-      Still open in the item: the codex, which is the one reading panel left.
+
+      **The codex has a thumb shape, and the item is closed (session 130).** The record is the one panel with no
+      verb on it at all - a row of it answers nothing in either hand, because there is nothing to do to a thing
+      you have already met - so what it wanted was not a press but a *shape*. Its five racks and forty-odd rows
+      sit side by side in the window a keyboard is used on and stack into one column taller than a phone is long
+      in a phone's, and these panels are scaled to fit rather than scrolled, so the honest reading of `RACK_MIN`
+      is that the bottom of the panel - the log, and the rules under it - was never going to be legible. So
+      `CODEX` is the sixth chip, and a thumb's record comes up on one rack with two chips under it: `NEXT RACK`,
+      which walks the five and wraps, and `CLOSE`, which is `C`. `paintCodexHints` decides the paging once per
+      visit on `hasFinger`, `openCodex` puts it back on the first rack, and the page is asked to fit itself again
+      on every turn, because one rack is a shorter column than five. A keyboard visit sees all five at once, in
+      the words the page ships, with no chips anywhere.
+
+      Thirteen tests: `test/thumb-codex.test.mjs` and `test/codex-rows-mouse.test.mjs`. **The item is closed:**
+      the fight, the pause, the giving-up, the settings, the shop and the record all have a thumb shape, and the
+      one thing still not offered to a finger is the controls rack, deliberately - every verb behind that door
+      is a key press (session 128).
 
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,

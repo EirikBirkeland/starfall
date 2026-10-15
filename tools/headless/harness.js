@@ -394,6 +394,11 @@ const ELEMENT_IDS = [
   'hangarHintPick', 'hangarHintLaunch', 'hangarHintBack', 'hangarKeysLine',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
+  // ...and the five racks those rows are laid in, which a thumb is walked through one at a time
+  // (index.html, ui/screens.js `showCodex`), and the two lines under them (ui/screens.js
+  // `paintCodexHints`).
+  'rackHosts', 'rackLines', 'rackSyn', 'rackLog', 'rackRules',
+  'codexHintLaunch', 'codexHintBack', 'codexHintSettings',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
   'logRow',
   // ...and the fifth, what they have managed under each harder rule (index.html, game/challenges.js).
@@ -436,13 +441,23 @@ const ELEMENT_IDS = [
   // The thumb's rail (index.html, ui/chips.js): the three chips a finger can press on the title, and
   // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
   // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.
-  'thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'chipHangar',
+  'thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'chipHangar', 'chipCodex',
   // ...and the one chip on the pause rack, which is pressed the same way and needs a box of its own for
   // the same reason (index.html, ui/chips.js, main.js `pressGiveUpChip`).
   'pauseGiveUp',
-  // ...and the two chips that stand on panels, for the same reason again (index.html, ui/chips.js,
-  // main.js `pressSettingsPanel`, main.js `pressHangarPanel`).
-  'settingsClose', 'hangarClose',
+  // ...and the chips that stand on panels, for the same reason again (index.html, ui/chips.js,
+  // main.js `pressSettingsPanel`, main.js `pressHangarPanel`, main.js `pressCodexPanel`). The codex's two
+  // are pressed one at a time even though the page hides them as one row.
+  'settingsClose', 'hangarClose', 'codexClose', 'codexNext', 'codexChips',
+];
+
+/** The codex's five racks: the element the page gives each one, and the title a player reads above it. */
+const CODEX_RACKS = [
+  { id: 'rackHosts', title: 'HOSTS' },
+  { id: 'rackLines', title: 'CARD LINES' },
+  { id: 'rackSyn', title: 'SYNERGIES' },
+  { id: 'rackLog', title: 'PAST RUNS' },
+  { id: 'rackRules', title: 'HARDER RULES' },
 ];
 
 /**
@@ -455,7 +470,7 @@ const ELEMENT_IDS = [
  * against the window on purpose (render/logo.js), which is what the title's own tests hold.
  */
 const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'chipHangar',
-  'pauseGiveUp', 'settingsClose', 'hangarClose'];
+  'chipCodex', 'pauseGiveUp', 'settingsClose', 'hangarClose', 'codexClose', 'codexNext', 'codexChips'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -1162,6 +1177,13 @@ export async function bootGame(options) {
         codexHidden: elements.codexScreen.classList.contains('hidden'),
         codexTally: elements.codexTally.textContent,
         codexScale: elements.codexBody.style.transform || '',
+        // Which of the codex's five racks are on the glass, in the order the page paints them and under
+        // the titles it writes above them. A thumb is walked through them one at a time and a wider visit
+        // sees all five (ui/screens.js `showCodex`), so this is the difference between "the panel is up"
+        // and "the player can read it".
+        codexShown: CODEX_RACKS
+          .filter((rack) => !elements[rack.id].classList.contains('gone'))
+          .map((rack) => rack.title),
         codexPanels: {
           hosts: elements.hostRow.children.map(entryRow),
           lines: elements.lineRow.children.map(entryRow),

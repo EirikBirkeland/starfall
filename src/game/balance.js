@@ -4014,6 +4014,11 @@ export const BALANCE = {
     // decision and this is a payment, and a payment that is not heard is a payment you think the
     // game ate. Nothing at all is played for a buy the purse could not cover.
     buy: { freq: 520, dur: 0.13, wave: 'triangle', vol: 0.06, slide: 1170 },
+    // The codex turned to its next rack (main.js `pressCodexPanel`, ui/screens.js `turnCodexRack`). A
+    // page turn, and it sounds like one: quieter and shorter than the panel opening, because the panel is
+    // already there and only the rack inside it changed, and flatter than the pick - nothing was chosen
+    // and nothing was spent, which is the whole difference between this panel and the shop beside it.
+    page: { freq: 430, dur: 0.07, wave: 'triangle', vol: 0.04, slide: 500 },
   },
 
   // The three prompts that teach the hand (game/tutorial.js, PLAN milestone 10). There is no tutorial

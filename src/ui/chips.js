@@ -37,19 +37,19 @@
 // trap and not a control.
 
 /**
- * The five chips, in the order the rail paints them.
+ * The six chips, in the order the rail paints them.
  *
  * The first three are a whole action in one press, which was the bar a chip had to clear to be on this
  * rail: the day launches a run, the rule changes the next one and says so on the title, and the sound
  * turns off and on again with a plate on the glass to prove it.
  *
- * The other two are not, and they are here because that bar turned out to be the wrong one for panels
- * that have since been given a thumb shape of their own. SETTINGS opens the settings panel and HANGAR the
- * shop, and both of those pages now answer a tap: a row moves or a row is bought from the tap that lands
- * on it, and the CLOSE chip standing on each takes it back down (main.js `pressSettingsPanel`,
- * `pressHangarPanel`). Neither chip opens a page a finger can neither use nor leave, which is the only
- * reason either was left off the rail. The codex is still a page that only shows things, with rows a press
- * does not answer, and it stays off it for the old reason.
+ * The other three are not, and they are here because that bar turned out to be the wrong one for panels
+ * that have since been given a thumb shape of their own. SETTINGS opens the settings panel, HANGAR the
+ * shop and CODEX the record, and each of those pages can now be walked from the glass: a row moves or a
+ * row is bought from the tap that lands on it, the codex's five racks are turned by a chip, and the CLOSE
+ * chip standing on each takes the page back down (main.js `pressSettingsPanel`, `pressHangarPanel`,
+ * `pressCodexPanel`). None of the three opens a page a finger can neither use nor leave, which is the only
+ * reason any of them was left off the rail.
  */
 const CHIPS = [
   { id: 'today', el: 'chipToday' },
@@ -57,6 +57,7 @@ const CHIPS = [
   { id: 'mute', el: 'chipMute' },
   { id: 'settings', el: 'chipSettings' },
   { id: 'hangar', el: 'chipHangar' },
+  { id: 'codex', el: 'chipCodex' },
 ];
 
 /**
@@ -72,16 +73,22 @@ const GIVE_UP = { plain: 'GIVE UP', asking: 'TAP AGAIN TO GIVE UP' };
 
 /**
  * The chips that stand *on* a panel instead of on the title's rail: the way out of a page a finger got
- * into by tapping.
+ * into by tapping, and the one page-turn the codex needs.
  *
  * They are one list because one fact puts them all up (`input/touch.js` `hasFinger`, once per visit) and
- * one question gets asked of them - a press that landed on a panel has to know whether it landed on that
- * panel's way out. Each is answered by the very key that panel is opened and closed with (main.js), which
- * is why a visit with a keyboard is not shown one.
+ * one question gets asked of them - a press that landed on a panel has to know whether it landed on one
+ * of that panel's chips. Each entry names the box the page hides (`paint`) and the box the press is
+ * answered against (`press`), which are the same element except on the codex, where the two chips are
+ * laid side by side in a row that goes with them.
+ *
+ * Every one of them is answered by the very key the panel already answers (`main.js`), which is why a
+ * visit with a keyboard is not shown any of them.
  */
 const PANEL_CHIPS = [
-  { which: 'settings', el: 'settingsClose' },
-  { which: 'hangar', el: 'hangarClose' },
+  { which: 'settings', paint: 'settingsClose', press: 'settingsClose' },
+  { which: 'hangar', paint: 'hangarClose', press: 'hangarClose' },
+  { which: 'codex', paint: 'codexChips', press: 'codexClose' },
+  { which: 'codexNext', paint: 'codexChips', press: 'codexNext' },
 ];
 
 // The rail, its chips, and the canvas the press point is measured against. Filled once by `initChips`,
@@ -126,9 +133,14 @@ export function initChips(canvas) {
   }
   giveUp = document.getElementById('pauseGiveUp');
   if (giveUp === null) throw new Error('the page has no give-up chip to put on the pause rack');
-  panelChips = PANEL_CHIPS.map((chip) => ({ which: chip.which, el: document.getElementById(chip.el) }));
+  panelChips = PANEL_CHIPS.map((chip) => ({
+    which: chip.which,
+    paint: document.getElementById(chip.paint),
+    press: document.getElementById(chip.press),
+  }));
   for (const chip of panelChips) {
-    if (chip.el === null) throw new Error('the page has no #' + chip.el + ' chip to put on a panel');
+    if (chip.paint === null) throw new Error('the page has no #' + chip.paint + ' chip to put on a panel');
+    if (chip.press === null) throw new Error('the page has no #' + chip.press + ' chip to press');
   }
   settingsList = document.getElementById('settingRow');
   if (settingsList === null) throw new Error('the page has no settings rows to press');
@@ -220,7 +232,7 @@ export function chipAt(x, y) {
  */
 export function showPanelChips(on) {
   panelChipsUp = on === true;
-  for (const chip of panelChips) chip.el.classList.toggle('gone', !panelChipsUp);
+  for (const chip of panelChips) chip.paint.classList.toggle('gone', !panelChipsUp);
 }
 
 /**
@@ -233,7 +245,7 @@ export function showPanelChips(on) {
 export function panelChipAt(which, x, y) {
   if (!panelChipsUp) return false;
   for (const chip of panelChips) {
-    if (chip.which === which) return landedOn(chip.el.getBoundingClientRect(), windowPoint(x, y));
+    if (chip.which === which) return landedOn(chip.press.getBoundingClientRect(), windowPoint(x, y));
   }
   return false;
 }

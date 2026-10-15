@@ -243,6 +243,16 @@
      words, and a row that runs long already wraps under itself (.entry). */
   .codex .rack { max-width: 34ch; }
   .codex .entry-list { margin-top: 14px; }
+  /* A rack of the codex this visit is not looking at (ui/screens.js `showCodex`). A thumb gets the five
+     racks one at a time: stacked in one column they are taller than any phone window, and these panels
+     are scaled to fit rather than scrolled, so "fit" at the floor of `RACK_MIN` would be words nobody
+     can read. A visit with a window wide enough for them side by side has every rack up at once. */
+  .codex .rack.gone { display: none; }
+  /* The two chips standing under the codex's racks: the way to the next rack, and the way out. They are
+     one row because they are one fact - a visit with a keyboard has `C` and is shown neither (ui/chips.js
+     `showPanelChips`), and a row of two 44px chips is what a thumb needs to turn a page. */
+  .codex .chip-row { display: flex; justify-content: center; gap: 14px; margin-top: 22px; }
+  .chip-row.gone { display: none; }
   .entry-list { display: grid; gap: 7px; }
   /* One row of the codex: a name, and one line about it - no key and no price, which is the whole
      difference between this panel and the hangar's. Nobody can buy anything here. */
@@ -656,14 +666,17 @@
        to its next value when it is tapped and a CLOSE chip takes the panel back down (main.js
        `pressSettingsPanel`), so the chip opens a page a finger can use and leave. HANGAR is the fifth, for the
        same reason and on the same bargain: the shop's rows answer a tap, and a row that spends stardust asks
-       before it spends it (main.js `pressHangarPanel`). The five wrap onto two rows on a window too narrow
-       for one. -->
+       before it spends it (main.js `pressHangarPanel`). CODEX is the sixth, and its bargain is a different one:
+       nothing on that panel can be pressed, but its five racks do not fit a phone in a column, so the page it
+       opens comes up on one rack and a chip on it turns to the next (main.js `pressCodexPanel`). The six wrap
+       onto two rows on a window too narrow for one. -->
   <div class="rail hidden" id="thumbRail">
     <span class="chip" id="chipToday">TODAY</span>
     <span class="chip" id="chipRule">RULE</span>
     <span class="chip" id="chipMute">MUTE</span>
     <span class="chip" id="chipSettings">SETTINGS</span>
     <span class="chip" id="chipHangar">HANGAR</span>
+    <span class="chip" id="chipCodex">CODEX</span>
   </div>
 </div>
 
@@ -709,28 +722,33 @@
 <!-- The codex (PLAN 3.7): what the runs of this save have met, which rows are still empty, and what
      they have flown. Read and not bought, which is why it is a panel of its own on a key of its own
      with no numbers on its rows at all (game/codex.js, game/history.js). Like the hangar it is an
-     overlay and not a state. -->
+     overlay and not a state.
+     A finger gets the same record, but not the same page: five racks of forty-odd rows do not fit a phone
+     in a column, and these panels are scaled to fit rather than scrolled, so a thumb is walked through them
+     one rack at a time by the two chips under them (ui/screens.js `paintCodexHints`, `turnCodexRack`,
+     main.js `pressCodexPanel`). A row of the codex answers no press at all, in either hand: there is
+     nothing to do here. -->
 <div id="codexScreen" class="screen codex hidden">
  <div class="codex-body" id="codexBody">
   <h2 class="codex-title">CODEX</h2>
   <div class="codex-tally" id="codexTally">MET 0 OF 0</div>
   <div class="racks">
-   <div class="rack">
+   <div class="rack" id="rackHosts">
     <p class="rack-title">HOSTS</p>
     <div class="entry-list" id="hostRow"></div>
    </div>
-   <div class="rack">
+   <div class="rack" id="rackLines">
     <p class="rack-title">CARD LINES</p>
     <div class="entry-list" id="lineRow"></div>
    </div>
-   <div class="rack">
+   <div class="rack" id="rackSyn">
     <p class="rack-title">SYNERGIES</p>
     <div class="entry-list" id="synRow"></div>
    </div>
    <!-- The fourth rack is not part of "met n of 30" above it: it is what this save has *flown* and not
         what it has met (game/history.js). Same row shape and same panel for the same reason - a row
         with no key and no price has nothing to do among rows that can be bought. -->
-   <div class="rack">
+   <div class="rack" id="rackLog">
     <p class="rack-title">PAST RUNS</p>
     <div class="entry-list" id="logRow"></div>
    </div>
@@ -740,12 +758,20 @@
         asks "what has this save flown" is one press away - and a record is read and not bought, which
         is the whole difference between this panel and the hangar. A rule nobody has flown yet keeps its
         row and gives up its glow, the way a thing not met does. -->
-   <div class="rack">
+   <div class="rack" id="rackRules">
     <p class="rack-title">HARDER RULES</p>
     <div class="entry-list" id="ruleRow"></div>
    </div>
   </div>
-  <div class="hint">SPACE TO LAUNCH &#183; <span id="codexKeysBack">C</span> TO GO BACK &#183; <span id="codexKeysSettings">O</span> SETTINGS</div>
+  <!-- The two chips a thumb walks this panel with (ui/chips.js, main.js `pressCodexPanel`). A visit with a
+       keyboard is shown neither: it has `C`, and a window wide enough for all five racks at once. -->
+  <div class="chip-row gone" id="codexChips">
+   <div class="chip" id="codexNext">NEXT RACK</div>
+   <div class="chip" id="codexClose">CLOSE</div>
+  </div>
+  <div class="hint"><span id="codexHintLaunch">SPACE TO LAUNCH</span><span
+    id="codexHintBack"> &#183; <span id="codexKeysBack">C</span> TO GO BACK</span><span
+    id="codexHintSettings"> &#183; <span id="codexKeysSettings">O</span> SETTINGS</span></div>
  </div>
 </div>
 
