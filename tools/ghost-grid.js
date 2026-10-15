@@ -5,6 +5,7 @@
 //
 //   node tools/ghost-grid.js                       the rank ladder at the shipped bait
 //   node tools/ghost-grid.js --baits 72,110,150    the grid NOTES session 42 printed, re-read
+//   node tools/ghost-grid.js --spacing 74          the ladder at another spacing between the images
 //   node tools/ghost-grid.js --ranks 1,5           two rungs instead of the ladder
 //   node tools/ghost-grid.js --seeds 12 --seconds 300
 //   node tools/ghost-grid.js --habit dive          the habit the number was first read with
@@ -13,15 +14,20 @@
 //
 // WHY THIS FILE EXISTS. `BALANCE.upgrades.afterimage.bait` is not a tuning number, it is the card's
 // identity: it says which bodies the trick is played on ("the ones already on top of you", and not
-// "the arena"), and the worth of a rank is a function of it, because images are spread down the
-// dash's 220 px and a rank buys *length* - more images fooling bodies along a longer line. Session
-// 42 chose 110 px from a grid of three radii read on the dash habit of the time, which pressed the
+// "the arena"), and the worth of a rank is a function of it, because images are laid every `spacing`
+// px along the way the ship came and a rank buys *length* - more images fooling bodies along a longer
+// line. Session 42 chose 110 px from a grid of three radii read on the dash habit of the time, which pressed the
 // dash *at* whatever frightened the bot and pressed it whenever anything came within 170 px - about
 // twenty times a minute. Session 114 replaced that habit with a get-out pressed at one body-reach,
 // which presses about ten times a *quarter-hour* and leaves its images behind a fleeing ship
 // instead of dropping them inside the crowd. Both halves of the instrument changed - how often a
 // ghost stands, and where it stands - and a radius is exactly the number that changes meaning when
 // the crowd you show it to changes.
+//
+// The other half of the geometry is `spacing` - how far apart the images stand - and that is what a
+// rank actually buys. It used to be the dash's 220 px divided by the rank, which put the fifth
+// rank's images 44 px apart inside a 110 px reach: the ladder's slope read 2.24x and its last two
+// cards were nearly free. It is its own number now, and `--spacing` reads the ladder at any other.
 //
 // WHAT IS MEASURED, and why the denominator is the near crowd. A ghost only ever competes with the
 // ship for the bodies close enough to reach it, so the honest denominator is the crowd standing
@@ -99,6 +105,7 @@ export const DEFAULTS = {
   seeds: 10,
   seconds: 300,
   baits: null,
+  spacing: null,
   ranks: '1,3,5',
   habit: DEFAULT_DASH_HABIT,
   trigger: null,
@@ -113,6 +120,7 @@ export function readArgs(argv) {
     if (arg === '--seeds') opts.seeds = parseInt(next(), 10);
     else if (arg === '--seconds') opts.seconds = Number(next());
     else if (arg === '--baits') opts.baits = next();
+    else if (arg === '--spacing') opts.spacing = Number(next());
     else if (arg === '--ranks') opts.ranks = next();
     else if (arg === '--habit') opts.habit = next();
     else if (arg === '--trigger') opts.trigger = Number(next());
@@ -130,6 +138,10 @@ export function readArgs(argv) {
   }
   if (opts.trigger !== null && !Number.isFinite(opts.trigger)) {
     console.error('--trigger wants a number of pixels');
+    process.exit(2);
+  }
+  if (opts.spacing !== null && !(opts.spacing > 0)) {
+    console.error('--spacing wants a number of pixels above zero');
     process.exit(2);
   }
   opts.baitList = opts.baits === null
@@ -251,7 +263,9 @@ export function gridTable(rows, bait, shippedBait, opts) {
   const head = 'afterimage: the share of the near crowd walking at a ghost, on ' + opts.seeds
     + ' seeds of ' + Math.round(opts.seconds) + ' s, `' + opts.habit + '` dash habit'
     + (opts.trigger === null ? '' : ' pressed within ' + opts.trigger + ' px')
-    + '. The shipped bait is ' + shippedBait + ' px.';
+    + '. The shipped bait is ' + shippedBait + ' px, one image every '
+    + (Number.isFinite(opts.spacing) ? opts.spacing : BALANCE.upgrades[LINE].spacing)
+    + ' px of ground.';
   const note = 'Every figure is over the frames a ghost was standing; `lit` is how many of those there\n'
     + 'were. `walkers` counts only bodies that can walk (a rooted body cannot be diverted) and `all`\n'
     + 'counts every body in the ' + NEAR + ' px ring, which is how session 42 read it. `fooled/frame`\n'
@@ -355,6 +369,10 @@ async function main() {
   const opts = readArgs(process.argv.slice(2));
   if (opts.trigger !== null) setDashDial({ trigger: opts.trigger });
   const shippedBait = BALANCE.upgrades[LINE].bait;
+  // The spacing is put on the live table for the whole grid: the sim reads it every step it lays an
+  // image, and a ladder measured at one spacing while the table says another is a ladder nobody can
+  // read back.
+  if (opts.spacing !== null) BALANCE.upgrades[LINE].spacing = opts.spacing;
 
   const sheets = [];
   const batches = [];

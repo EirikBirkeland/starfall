@@ -2955,6 +2955,50 @@ export const BALANCE = {
       // time. It is the nova's rule again - a rank buys another front, not a shorter cycle
       // (BALANCE.upgrades.nova).
       step: 1,
+      // px of ground between one image and the next. This is the number that decides what a *rank*
+      // buys, and it is written as a spacing rather than derived from the dash on purpose.
+      //
+      // It used to be derived: the images were spread over `player.dash.distance` divided by the rank,
+      // so rank 2 stood 110 px apart, rank 3 at 73 and rank 5 at 44 - and `bait` is 110. From the
+      // third rank on the discs were not a line of lures but one blob with more lures in it, which is
+      // exactly what the row above forbids a rank from buying, and the ruler caught it: the share of
+      // the walking near crowd turned aside runs 16.5% at rank 1, 35.7% at rank 3 and 37.0% at rank 5
+      // (the grid `tools/ghost-grid.js` prints). Nearly all of the ladder's work was in its first two
+      // cards.
+      //
+      // So a rank buys *ground*: one image every `spacing` px of the way the ship came, which tiles
+      // the discs - each one covers ground the one before it does not. The dash itself covers 220 px,
+      // so it lays the first three by itself (due at 0, 105 and 210 px of the way gone), and ranks 4
+      // and 5 are paid for by *keeping on going* after the get-out - which is the situation the card
+      // was always for: the trail keeps being laid as long as the ship is running, and a ship that
+      // dashes back into the mob to stand and shoot spends three of its five.
+      //
+      // A hair under `bait`, and the ruler chose the hair. At 105 every image stands inside the reach
+      // of the images on either side of it, so the discs are one continuous line and not separate
+      // islands with unfooled ground between them; and the count a dash lays by itself does not hang
+      // on where its last (short) step happens to land - at 110 the third image is due at exactly
+      // 220 px of travel, which is a contract written in floating point (a dash's ground is measured
+      // off `hypot`s of unit vectors, so it lands at about 220 and not at it).
+      //
+      // What the hair is worth, measured with `tools/ghost-grid.js --spacing N` on the shipped habit
+      // (ten seeds of five minutes, `diverted` at rank 1 / 3 / 5):
+      //
+      //   100 px  16.5% / 33.3% / 41.6%  - over the 40% ceiling: five discs in 400 px stand so thick
+      //           that the fifth rank stops a third of the near crowd by itself
+      //   105 px  16.5% / 30.2% / 37.3%  - PASS, slope 2.26x, peak 28
+      //   110 px  16.5% / 35.8% / 33.6%  - passes, but rank 5 read under rank 3: the two readings are
+      //           one batch's noise (39 and 64 presses in the top cell), and it is the coin-flip
+      //           count above anyway
+      //   115 px  16.5% / 31.9% / 39.0%  - passes on one point of headroom, which is no headroom
+      //   120 px  16.5% / 29.8% / 32.5%  - the slope breaks (1.97x): from here the third and later
+      //           images stand so far behind a running ship that they are outside the near crowd the
+      //           tool counts, and a rank buys distance the fight never sees
+      //
+      // 105 is the only reading of the four real ones that passes every promise with ground to spare
+      // at both ends - 2.7 points under the ceiling and a quarter over the slope - and it is written
+      // as its own number rather than a share of the dash so a future session can re-run that sweep
+      // without re-litigating what a dash is.
+      spacing: 105,
       // s. PLAN's number, unchanged, and the whole of the second half of the sentence: an image
       // is chased for two seconds and then the crowd looks up and finds the ship again. It is
       // not a slow fade and not a hard pop either: the image thins over its last half-second and
@@ -2987,10 +3031,10 @@ export const BALANCE = {
       // ever revisited it is re-read against the shipped habit and not against that one.
       //
       // It is also the number the rank's value depends on, and that is the second half of why it
-      // sits here: images are 220/rank px apart, so at 110 the two of the second rank just touch
-      // and every rank after it lays the discs out into a line. At 150 they overlap so heavily
-      // that the fifth rank buys almost nothing over the first (54% of frames against 66%), which
-      // is what `step` above is not allowed to be.
+      // sits here: images stand `spacing` px apart, so at 105 the discs of consecutive ranks overlap
+      // a little and every rank lays another 105 px of lures into the line. At 150 they overlap so
+      // heavily that the fifth rank buys almost nothing over the first (54% of frames against 66%),
+      // which is what `step` above is not allowed to be.
       //
       // And what the deck says, which is the honest half: nothing moves. Ten seeds at the 900 s
       // cap on the instrument that dashes like a person (session 114's habit, `tools/dash-habit.js`),
@@ -3028,6 +3072,13 @@ export const BALANCE = {
       // same habit on eight seeds of two minutes reads 36.9% and 57.1%, because a short batch is
       // nothing but the opening knot. The window moves the figure more than the radius does, so the
       // tool refuses to verdict on fewer than 25 presses of the dash.
+      //
+      // That After 1.0 item is now closed, and closed on `spacing` rather than on this radius: the
+      // ladder it was priced on (16.5% / 35.7% / 37.0%) is the derived-spacing one, and the shipped
+      // ladder now reads **16.5% / 30.2% / 37.3%** at `spacing: 105` - the same top rung under the
+      // same ceiling, but with the whole 2.26x of the slope between the rungs instead of all but
+      // 0.6x of it in the first two cards (the sweep that chose 105 is on `spacing` below). The
+      // radius itself did not move an inch, which is what session 42's promise was always for.
       bait: 110,
       // An image going out: one ring closing in on the place it stood, and a note thin enough to
       // be a hiss. No light when it is *born*, because the image itself is the light and a dash

@@ -28,7 +28,7 @@ import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import { scriptedRun, enemyAt } from '../tools/headless/scripted.js';
 import {
-  readFrame, newSheet, reportOf, verdictOf, gridTable, NEAR, FLOOR, CEILING, SLOPE, LINE,
+  readFrame, newSheet, reportOf, verdictOf, gridTable, readArgs, NEAR, FLOOR, CEILING, SLOPE, LINE,
 } from '../tools/ghost-grid.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -242,6 +242,15 @@ test('the grid prints one row a rung and stars the shipped radius', () => {
   assert.match(text, /rank 5/);
   assert.match(text, /30\.2%/, 'the fifth rank reads as the grid measured it');
   assert.match(text, /dash habit/);
+  assert.match(text, new RegExp('one image every ' + AI.spacing + ' px of ground'),
+    'a grid that does not say what spacing it was read at is a grid nobody can read back');
+});
+
+test('a grid asked for another spacing says so in its own header', () => {
+  const text = gridTable(SESSION_42, 110, 110, {
+    seeds: 10, seconds: 300, habit: 'escape', trigger: null, spacing: 140,
+  });
+  assert.match(text, /one image every 140 px of ground/);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -256,7 +265,15 @@ test('a habit, a rung, a radius or a seed count that is nonsense is refused befo
     assert.equal(ghostGrid(['--baits', 'wide']).status, 2);
     assert.equal(ghostGrid(['--seeds', '0']).status, 2);
     assert.equal(ghostGrid(['--trigger', 'soon']).status, 2);
+    assert.equal(ghostGrid(['--spacing', 'soon']).status, 2);
+    assert.equal(ghostGrid(['--spacing', '0']).status, 2);
+    assert.equal(ghostGrid(['--spacing', '-40']).status, 2);
   });
+
+test('--spacing is a number of px or nothing at all', () => {
+  assert.equal(readArgs([]).spacing, null, 'unset means the ladder is read at what ships');
+  assert.equal(readArgs(['--spacing', '105']).spacing, 105);
+});
 
 test('a tiny grid still prints every rung and names the shipped radius', () => {
   const run = ghostGrid(['--seeds', '1', '--seconds', '10', '--ranks', '0,1,5']);
@@ -273,6 +290,12 @@ test('--baits without the shipped radius says so instead of passing on somebody 
   assert.match(run.stdout, /90 px/);
   assert.match(run.stdout, /to verdict on/);
   assert.doesNotMatch(run.stdout, /PASS/);
+});
+
+test('--spacing puts the asked spacing on the ladder it prints', () => {
+  const run = ghostGrid(['--seeds', '1', '--seconds', '10', '--spacing', '60']);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /one image every 60 px of ground/);
 });
 
 test('a batch where nothing ever dashed is a failure and not a clean run', () => {

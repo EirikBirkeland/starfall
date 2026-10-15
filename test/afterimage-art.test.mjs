@@ -11,7 +11,8 @@
 //     bargain a bomber's zone and the orbital track make;
 //   an image costs strokes and nothing built mid-frame: no gradient, no blur, and no sprite of
 //     its own, because the glow is the house trick of a wide faint pass under a thin bright one;
-//     and five of them cost five times what one does, which is the whole point of a rank;
+//   and five of them cost five times what one does, which is the whole point of a rank - and a
+//     rank is bought with ground, so standing five is a dash and then running on;
 //   and the card is on the rack: the thirteenth icon exists, paints, and asks for nothing a frame
 //     has to build.
 //
@@ -66,13 +67,32 @@ function dashRight() {
 }
 
 /**
- * Stand `ranks` images in the arena in one dash, and let the frames settle so whatever the
- * drawing needs to bake has been baked before anything is counted.
+ * Stand `ranks` images in the arena, and let the frames settle so whatever the dash threw up has
+ * died down before anything is counted. A dash lays what its own 220 px covers, so a stand of more
+ * than that is a dash and then running on until the trail is spent - which is how the upper ranks
+ * are actually paid for (game/afterimage.js).
+ *
+ * The ship is put back in the middle first. The trail needs 400 px of arena to be laid in, and a
+ * stand that measures what a frame costs has to start where the last one started, or the fourth one
+ * in a row is measured against a wall.
  */
+const SETTLE = 25;        // frames: past the dash's longest particle (0.32 s), well inside 2 s
+
 function stand(ranks) {
+  const ship = field.player;
   field.upgrades.afterimage = ranks;
   field.afterimage.trail.clear();
-  if (ranks > 0) dashRight();
+  ship.x = field.arena.w / 2;
+  ship.y = field.arena.h / 2;
+  ship.vx = 0;
+  ship.vy = 0;
+  if (ranks > 0) {
+    dashRight();
+    game.key('KeyD', true);
+    for (let i = 0; i < 120 && field.afterimage.left > 0; i++) game.step(16.7);
+    game.key('KeyD', false);
+  }
+  for (let i = 0; i < SETTLE; i++) game.step(16.7);
   paintFrame();
   return field.afterimage.trail.items.slice();
 }

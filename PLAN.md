@@ -2169,7 +2169,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       one that dashes every cooldown never stops moving long enough to. The line now counts its own
       loaded steps and loaded pulls (`overchargeLoaded`, `overchargeSpent`), so that claim can be
       re-read with a command instead of a guess.
-- [ ] The afterimage's fourth and fifth ranks buy very little over its third. The same ruler, ten
+- [x] The afterimage's fourth and fifth ranks buy very little over its third. The same ruler, ten
       seeds of five minutes on the habit that ships: the share of the walking near crowd turned aside
       is 16.5% at rank 1, **35.7% at rank 3 and 37.0% at rank 5** - the ladder does nearly all of its
       work in the first three cards. The reason is the geometry the row already admits: five images
@@ -2183,6 +2183,21 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       gave the card, which is PLAN's number and would have to be argued out of existence first. Both
       are decisions about how a card feels, and the one thing a headless session does not have is eyes
       on a screen to make them with.
+      **Closed on the first of the two: a rank now buys ground. The dash arms the trail and the ship's
+      own going lays it - one image every `BALANCE.upgrades.afterimage.spacing` px of the way the
+      ship actually came, dash and engines together, so a trail that runs into a wall lays what it got
+      to and a ship that stops still stops laying (the unspent images are not banked; the next dash
+      arms afresh). The dash's own 220 px covers the first three, so ranks 4 and 5 are paid for by
+      *keeping on running* after the get-out - the situation the card was always for. The spacing is
+      its own number and not a share of the dash on purpose, and the ghost-grid chose it: on the
+      shipped habit, 100 px reads 16.5/33.3/**41.6** (over the ceiling - five discs in 400 px stop a
+      third of the near crowd by themselves), 105 px reads 16.5/30.2/**37.3** - PASS, slope 2.26x -
+      and 120 px reads 16.5/29.8/**32.5** (the slope breaks at 1.97x: the later images fall outside
+      the near crowd, and a rank buys distance the fight never sees). The second hand of the item -
+      buying the two seconds instead - was not needed and PLAN's number stands untouched. The trail
+      is now paced by ground in `game/afterimage.js` (`travelled`/`due`/`left`, not `gap`),
+      `tools/ghost-grid.js --spacing N` sweeps the ladder at any spacing, and the afterimage tests
+      measure what one dash lays, what the flying after it lays, and that nothing is banked.**
 - [x] A fourth challenge rule: **THICK CROWD** — the arena holds more of the crowd than it ships. One
       row in `BALANCE.challenges` (`holdMul`), one lever (`crowdHoldOf`), and it is applied in the two
       places the arena's two walls are already read: the wave director's budget and its ceiling on

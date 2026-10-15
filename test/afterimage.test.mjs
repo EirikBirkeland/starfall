@@ -2,8 +2,9 @@
 //
 // Ten things are measured here, in the order `game/afterimage.js` argues for itself:
 //
-//   the price - one image per rank, spread down the streak the dash covered, and rank 0 leaving
-//     nothing at all rather than an image that does nothing;
+//   the price - one image every `spacing` px of the way the ship came, a dash laying what its own
+//     220 px covers and the ranks above that paid for by running on, and rank 0 leaving nothing at
+//     all rather than an image that does nothing;
 //   what an image is - a place and not a body: it stands where the ship was, it never moves, it
 //     is not in the crowd, nothing can shoot it and it cannot hurt the ship;
 //   the reach - a body inside `bait` of an image chases it and a body outside it does not, and
@@ -22,8 +23,9 @@
 //     floor, which can only ever answer by turning its eye;
 //   and the thing the card is for - a knot of bodies coming up behind you, measured a second and a
 //     half after one dash away from them, with the line taken and with it not;
-//   and the edges - a rank taken between two dashes is spent on the next one, and a new run does
-//     not inherit the last one's ghosts.
+//   and the edges - a rank taken between two dashes is spent on the next one, a ship that stops
+//     still stops laying images and does not bank the ones it never got to, and a new run does not
+//     inherit the last one's ghosts.
 //
 // Everything runs in the scripted world on the game's own fixed step, with the wave director off
 // and the XP ceiling out of reach, so no level-up can pause a measured window.
@@ -71,6 +73,13 @@ function dashNorth(field) {
   for (let i = 0; i < DASH_STEPS; i++) stepTheWorld({});
 }
 
+/** Hold the same direction down for `seconds`: the running-on that pays for the upper ranks. */
+function flyNorth(field, seconds) {
+  const ship = field.player;
+  const steps = Math.round(seconds / STEP);
+  for (let i = 0; i < steps; i++) stepTheWorld({ moveY: -1, moving: true, aimX: ship.x, aimY: ship.y - 300 });
+}
+
 /** The images standing in the arena, closest to where the dash began first. */
 function images(field) {
   return field.afterimage.trail.items.slice();
@@ -92,37 +101,90 @@ test('PLAN is one decoy for two seconds, and a rank is one more decoy', () => {
   assert.equal(AI.step, 1, 'a rank is one whole image and not a share of one');
   assert.equal(effectOf('afterimage'), '+1 image left behind');
 
+  // The geometry the row argues for, pinned so a retune has to break it on purpose rather than by
+  // accident: the discs overlap (no unfooled gap along the line), no image is ever due at exactly
+  // the end of a dash (that count must not be a floating-point coin flip), and the dash alone
+  // cannot spend the whole ladder (or a rank buys thickness again).
+  assert.ok(AI.spacing < AI.bait, 'neighbouring images must stand inside each other\u2019s reach');
+  assert.ok(DASH.distance % AI.spacing !== 0,
+    'an image must not be due at exactly the dash\u2019s last step');
+
   const field = armed(1, 0);
   assert.equal(imagesOf(field), 0, 'rank 0 is no images at all');
   field.upgrades.afterimage = 4;
   assert.equal(imagesOf(field), 4);
 });
 
-test('a dash leaves one image per rank, spread down the streak it covered', () => {
-  for (const ranks of [1, 2, 3, 5]) {
-    const field = armed(2, ranks);
-    const ship = field.player;
-    const startX = ship.x;
-    const startY = ship.y;
+test('a dash lays its own images, and the flying after it lays the rest', () => {
+  // The trail is paced by ground, not by the dash: one image every `spacing` px of the way the ship
+  // came. A dash covers 220 px, so it lays what *that* much ground covers on its own, and the ranks
+  // above that are paid for by keeping on running - which is the situation the card is for, and what
+  // a rank is supposed to buy. Spreading them over the dash's own 220 px instead put the fifth rank's
+  // images 44 px apart inside a 110 px reach, where a rank bought thickness and not ground.
+  const fromOneDash = Math.floor(DASH.distance / AI.spacing) + 1;
+  assert.ok(fromOneDash < AI.ranks, 'a dash alone must not be able to spend the whole ladder, or a '
+    + 'rank buys another lure in ground another lure already covers');
 
+  for (const ranks of [1, 2, 3, AI.ranks]) {
+    const field = armed(2, ranks);
     dashNorth(field);
     const left = images(field);
-    assert.equal(left.length, ranks, 'rank ' + ranks + ' left ' + left.length + ' images');
-
-    const gap = DASH.distance / ranks;
-    left.sort((a, b) => b.y - a.y);       // the dash went up, so the first one left is the lowest
-    left.forEach((image, i) => {
-      const travelled = startY - image.y;
-      assert.ok(Math.abs(travelled - i * gap) <= REACH_PER_STEP + 1e-9,
-        'image ' + i + ' came down at ' + travelled.toFixed(1) + ' px along a streak of '
-        + (i * gap).toFixed(1) + ' (one step is ' + REACH_PER_STEP.toFixed(1) + ')');
-      assert.equal(image.x, startX, 'the streak is the way the ship went and no other way');
-      assert.ok(image.y > ship.drawR && image.y < field.arena.h - ship.drawR,
-        'an image never stands outside the arena');
-    });
-    assert.ok(ship.y < left[0].y - REACH_PER_STEP,
-      'the ship is still ahead of the last of them: an image is where it was, not where it is');
+    assert.equal(left.length, Math.min(ranks, fromOneDash),
+      'rank ' + ranks + ' laid ' + left.length + ' images on a dash of ' + DASH.distance + ' px');
   }
+
+  // And the rest of the fifth rank comes from going on: the same trail, no second dash. The ship is
+  // put near the bottom first so there is 600 px of arena to run up - the trail needs 400 px of it.
+  const field = armed(2, AI.ranks);
+  const ship = field.player;
+  ship.y = field.arena.h - 80;
+  const startX = ship.x;
+  const startY = ship.y;
+  dashNorth(field);
+  const laidByDash = images(field).length;
+  flyNorth(field, 1);          // 180 px more of ground is enough, and an image only lives 2 s
+  const all = images(field);
+  assert.equal(all.length, AI.ranks,
+    'the two images the dash could not reach came from the flying after it');
+
+  all.sort((a, b) => b.y - a.y);       // the dash went up, so the first one left is the lowest
+  all.forEach((image, i) => {
+    const travelled = startY - image.y;
+    assert.ok(Math.abs(travelled - i * AI.spacing) <= REACH_PER_STEP + 1e-9,
+      'image ' + i + ' came down at ' + travelled.toFixed(1) + ' px along a trail of ' + (i * AI.spacing)
+      + ' px (one step of a dash is ' + REACH_PER_STEP.toFixed(1) + ')');
+    assert.equal(image.x, startX, 'the trail is the way the ship went and no other way');
+    assert.ok(image.y > ship.drawR && image.y < field.arena.h - ship.drawR,
+      'an image never stands outside the arena');
+  });
+  assert.ok(laidByDash === fromOneDash, 'the dash itself laid ' + laidByDash);
+  assert.ok(ship.y < all[all.length - 1].y - REACH_PER_STEP,
+    'the ship is still ahead of the last of them: an image is where it was, not where it is');
+});
+
+test('a ship that stops still stops laying images, and the unspent ones are not banked', () => {
+  // The trail is bought with ground, so a ship that dashes and then stands and shoots spends what its
+  // dash reached and nothing more - and the images it never got to are not saved up for later.
+  const field = armed(4, AI.ranks);
+  const ship = field.player;
+  ship.y = field.arena.h - 80;
+  dashNorth(field);
+  const fromDash = Math.floor(DASH.distance / AI.spacing) + 1;
+  assert.equal(images(field).length, fromDash);
+  assert.equal(field.afterimage.left, AI.ranks - fromDash, 'two of them are still owed');
+
+  pass(field, 1);
+  assert.equal(images(field).length, fromDash, 'standing still laid nothing');
+  assert.equal(field.afterimage.left, AI.ranks - fromDash, 'and owed nothing more');
+
+  // The next dash is a whole new trail, not the old one finished off: it is armed with the ladder
+  // again, so it owes the same two it would have owed anyway rather than the two the last one never
+  // got to on top.
+  pass(field, DASH.cooldown);
+  dashNorth(field);
+  assert.equal(images(field).length, fromDash, 'the new dash laid its own three');
+  assert.equal(field.afterimage.left, AI.ranks - fromDash,
+    'and it is owed two, not the four an old debt would have left');
 });
 
 test('a run that has not taken the line leaves nothing behind', () => {

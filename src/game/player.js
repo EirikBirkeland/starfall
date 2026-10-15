@@ -220,9 +220,6 @@ function dashStep(world, ship, dt) {
 
   spray(world, ship.x, ship.y, PALETTE.player, spec.streak.count, spec.streak.speed,
     spec.streak.life, Math.atan2(-ship.dashDirY, -ship.dashDirX), spec.streak.spread);
-  // And whatever images this much of the streak has reached (game/afterimage.js). After the
-  // ship has moved, because an image is a copy of where the ship got to.
-  trailImages(world);
   // And the same for the knots the tether is tied at (game/tether.js): a place the dash has actually
   // got to, and not a plan it never reached.
   tieCords(world);
@@ -251,6 +248,12 @@ export function updatePlayer(world, dt, input) {
 
   if (ship.dashLeft > 0) dashStep(world, ship, dt);
   else fly(world, ship, spec, input, dt);
+
+  // Whatever images this much of the ship's going has reached (game/afterimage.js). Asked here
+  // rather than inside the dash because the trail is paced by ground covered, not by the dash's own
+  // 220 px: the dash arms it and the ship's flying keeps laying it, which is what a fourth and fifth
+  // rank buy. Measured off `px`/`py`, so a ship the wall stopped lays what it got to.
+  trailImages(world, hypot(ship.x - ship.px, ship.y - ship.py));
 
   ship.angle = Math.atan2(input.aimY - ship.y, input.aimX - ship.x);
   // The flame answers the engines, and nothing else: a dash coasts, and it is the

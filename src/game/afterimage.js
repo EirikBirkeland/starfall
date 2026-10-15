@@ -28,9 +28,12 @@
 //   **`bait` is small, and that is the card.** Seventy-two px is "the bodies that were already on
 //     top of you", not "the arena". The reach is measured round the *image*, not round the ship,
 //     because an image is a lure standing in one place. Small is also what makes a rank of this
-//     line worth taking: images are spread down the length of the streak the dash covered, so
-//     more ranks fool the bodies along a longer line, where a bigger `bait` would fool the same
-//     bodies however many images there were (BALANCE.upgrades.afterimage has the arithmetic).
+//     line worth taking: an image is left every `spacing` px along the way the ship came, so more
+//     ranks fool the bodies along a longer line, where a bigger `bait` would fool the same bodies
+//     however many images there were (BALANCE.upgrades.afterimage has the arithmetic). The trail is
+//     armed by the dash and laid by the ship's own going, which is what keeps a rank buying ground
+//     instead of thickness: spread over the dash's 220 px, the fifth rank's images would stand 44 px
+//     apart inside a 110 px reach and buy nothing over the third.
 //
 //   **A chase is not a stun, and a promise is not broken.** A fooled body walks at full pace -
 //     the frost, the shoves and the separation all apply to it exactly as they do to one that is
@@ -63,56 +66,62 @@ export function makeImage() {
 }
 
 /**
- * A fresh afterimage: the images standing in the arena, and the three numbers the dash is
- * paced by - how many this dash still has to leave, how far apart they are, and the distance
- * along the streak the next one is due at. All three are written afresh every time a dash
- * starts, so a rank taken between two dashes is felt by the next one and not by a stale plan.
+ * A fresh afterimage: the images standing in the arena, and the three numbers the trail is
+ * paced by - how many this trail still has to leave, how far the ship has gone since it was
+ * armed, and the distance along the way it came the next one is due at. All three are written
+ * afresh every time a dash starts, so a rank taken between two dashes is felt by the next one and
+ * not by a stale plan.
  */
 export function newAfterimage() {
-  return { trail: new Pool(makeImage), gap: 0, due: 0, left: 0 };
+  return { trail: new Pool(makeImage), travelled: 0, due: 0, left: 0 };
 }
 
 /** Put every image back to nothing, with the rest of the run's resetting. */
 export function resetAfterimage(world) {
   world.afterimage.trail.clear();
-  world.afterimage.gap = 0;
+  world.afterimage.travelled = 0;
   world.afterimage.due = 0;
   world.afterimage.left = 0;
 }
 
 /**
- * Say how many images a dash that starts now will leave, and how far down the streak they
- * will be spread. Called by game/player.js the moment a dash is granted, and a run that has
- * not taken the line is told `left: 0` here, which costs one compare on every dash after it.
+ * Say how many images a trail started now will leave. Called by game/player.js the moment a dash
+ * is granted, and a run that has not taken the line is told `left: 0` here, which costs one
+ * compare on every dash after it.
  *
- * The spread is the whole dash divided into as many pieces as there are images, which puts
- * the first of them where the ship was and the last of them one gap short of where it ends up
- * - so an image is never standing on top of the ship that is still moving, and the streak of
- * them covers the way the ship came.
+ * The count is settled here, once, by whatever ranks the ship has now; the *ground* they go on is
+ * decided a step at a time by `trailImages`, because the trail is laid along the way the ship
+ * actually came rather than along a plan it might not reach.
  */
 export function armDash(world) {
-  const dash = world.afterimage;
-  const count = imagesOf(world);
-  dash.left = count;
-  dash.gap = count > 0 ? BALANCE.player.dash.distance / count : 0;
-  dash.due = 0;
+  const trail = world.afterimage;
+  trail.left = imagesOf(world);
+  trail.travelled = 0;
+  trail.due = 0;
 }
 
 /**
- * Leave whatever images this step of a dash has reached. Called by game/player.js from
- * `dashStep`, after the ship has been moved, with the ship standing at the place the image is
- * copied from - so the images are laid as the dash goes, and a dash that runs into a wall and
- * stops early leaves the images it actually got to rather than a plan it never reached.
+ * Leave whatever images this much of the ship's going has reached. Called by game/player.js once a
+ * step with `moved` - the px the ship got to this step, by the dash or by the engines - so the
+ * images are laid as the ship goes, and a dash that runs into a wall and stops early leaves the
+ * images it actually got to rather than a plan it never reached.
+ *
+ * The trail does not stop when the dash does. A dash covers 220 px, which at `spacing` lays three
+ * images; the fourth and fifth of the fifth rank come from *keeping on running* afterwards, which
+ * is the situation the card is for and the reason a rank buys ground rather than another lure in
+ * the same 110 px. A ship that stops still stops laying them, and the ones it never got to are not
+ * banked: the next dash arms the trail afresh.
  */
-export function trailImages(world) {
-  const dash = world.afterimage;
-  if (dash.left === 0) return;
+export function trailImages(world, moved) {
+  const trail = world.afterimage;
+  if (trail.left === 0) return;
 
-  const travelled = BALANCE.player.dash.distance - world.player.dashLeft;
-  while (dash.left > 0 && travelled >= dash.due) {
+  trail.travelled += moved;
+  const spacing = BALANCE.upgrades.afterimage.spacing;
+  while (trail.left > 0 && trail.travelled >= trail.due) {
     leaveImage(world);
-    dash.due += dash.gap;
-    dash.left--;
+    trail.due += spacing;
+    trail.left--;
   }
 }
 
