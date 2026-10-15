@@ -1366,6 +1366,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
       it, which is a feature and not a dial and belongs after the weapon ladder. Nothing here made the
       bot worse: its rungs are untouched and every number above is the middle of a batch of them, 48
       seeds where a single reading would have been a coin flip.
+
+      **The mechanism of the cliff, measured afterwards** (session 136, by the hit-rate column
+      `tools/run-shape.js` now prints - the middle run's own hull losses since the previous row, read
+      off each run rather than off the difference of two slices' medians). On 48 seeds those losses a
+      minute run 0, 1, 1, 2, 2.5, 0.5, 1.5, then 0, 0.5, and then **nothing at all from the tenth
+      minute to the cap**, at level 46 through 63 with 12 to 29 bodies on the screen - while bodies on
+      the screen fall from 55 at 4m to 12 at 14m against a wall of 100. So the late game is not a
+      crowd the survivor outruns, it is a crowd that stops existing: a ship that reaches the fifth
+      minute out-kills the spawn rate, and a crowd that cannot reach the ship cannot hurt it.
+      `waves.maxBodies` is a ceiling, and nothing in the game puts a floor under what the crowd is
+      landing - which is the shape the mechanic named above has to be aimed at.
 - [x] Tune every weapon so that none is over 25% better than the others in the balance report. One
       warning the item above leaves behind: raising the whole ladder is not how the difficulty arc gets
       fixed, because a stronger gun was measured to leave a careless batch's middle of deaths exactly

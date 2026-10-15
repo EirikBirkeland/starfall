@@ -1832,6 +1832,11 @@ window.STARFALL = {
       // worth asking: is it the swarm that is killing the run, or the mass it walks into?
       killedBy: world.tally.killedBy,
       hurtBy: world.tally.hurtBy,
+      // ...and how many hulls the run has lost in all: the same tally read as a count instead of a
+      // breakdown. A tool that asks how *often* a run is being hit, rather than by what, has no other
+      // way to ask - and the rate is the question the difficulty shape asks minute by minute
+      // (tools/run-shape.js).
+      hullLost: world.tally.hullLost,
       caged: fieldIsCaged(world),
       // The nova (game/nova.js): how many fronts are in the air, and how long until the
       // next one. The F3 overlay wants both, and a test that cannot see a front can at

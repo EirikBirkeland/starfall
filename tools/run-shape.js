@@ -3,9 +3,12 @@
 //
 // `tools/difficulty-arc.js` answers *when* a batch of careless runs dies and *who* does it. This
 // answers what those runs were doing at the time: how many bodies were on the screen, how many
-// lines the ship had bought, how much hull and score it had, at each slice of the clock. That is
-// the only way to tell a batch that died because it was overrun from one that died because it never
-// got strong enough, and the two want opposite fixes.
+// lines the ship had bought, how much hull and score it had, and how many hulls the middle run was
+// losing, at each slice of the clock. That is the only way to tell a batch that died because it was
+// overrun from one that died because it never got strong enough, and the two want opposite fixes -
+// and the hit rate is what tells the third case apart from both of those: a batch that stops being
+// hit at all once a handful of ships have out-scaled the crowd, which is the mechanism of the cliff
+// `tools/difficulty-arc.js` reports as a FAIL.
 //
 // It exists because of session 90, which was asked to make a careless build last four minutes
 // instead of two and a half. Every way of thinning the opening that was tried made the runs
@@ -19,6 +22,16 @@
 // about 25 minutes of wall clock: `--shards 8` splits the seeds over eight processes and pools what
 // they wrote, which is the same batch in about four of this box's idle cores. That is the difference
 // between an arc measurement a session repeats after every change and one it skips.
+//
+// What the hit-rate column found the day it was added (48 seeds, the person bot, cards by die, the
+// 15-minute cap, `--shards 8`, session 136). The batch goes 48 flying at 0m, 34 at 2m, 10 at 4m, 6 at
+// 5m, 4 from 6m on - and the middle run's hulls lost a minute run 0, 1, 1, 2, 2.5, 0.5, 1.5, then 0,
+// 0.5, and then **nothing at all from 10m to the cap**, at level 46 through 63 with 12 to 29 bodies on
+// the screen. So the cliff session 105 described has a mechanism, and it is not that the crowd stops
+// existing: a ship that reaches the fifth minute out-kills the spawn rate (bodies fall from 55 at 4m
+// to 12 at 14m while the wall is 100), and a crowd that cannot reach the ship cannot hurt it.
+// `waves.maxBodies` is a ceiling and not a floor, and nothing in the game puts a floor under what the
+// crowd is *landing*.
 //
 // usage
 //   node tools/run-shape.js                        48 seeds, the person-shaped bot, cards by die
@@ -76,7 +89,7 @@ export function splitShards(seeds, shards) {
 /**
  * One run, as the harness hands it back, kept down to the columns this tool reads.
  *
- * `samples` is `[second, bodies on screen, level, hull left, score]` per slice. Arrays and not
+ * `samples` is `[second, bodies on screen, level, hull left, score, hulls lost so far]` per slice. Arrays and not
  * objects because there are ~15 of these per run at the default slice and every byte of a 48-run
  * file is paid 48 times over.
  */
@@ -119,33 +132,70 @@ export function summaryOf(row) {
  * may be two runs left out of forty-eight, and their median level is a fact about survivors and not
  * about the batch - which is the difference between reading this as the game's plan for a player and
  * reading it as a handful of survivors' luck.
+ *
+ * `hulls lost` is the one column that is a rate and not a state, and it is read off each run rather
+ * than off the slice: it is the middle **run's own** hull losses between this slice and the previous
+ * one a run was flying in. Taking the difference of two slices' medians would subtract one batch of
+ * ships from another - the twelfth minute's median is over six survivors and the fifth's over twelve
+ * - and the answer would be a fact about arithmetic. This is the column that answers whether the late
+ * crowd can still touch a ship that has gotten strong, which is the mechanism of the cliff
+ * `tools/difficulty-arc.js` reports as a FAIL: bodies at the wall and nobody losing anything.
  */
 export function shapeRows(rows, every) {
   const atEach = rows.map((row) => new Map(row.samples.map((sample) => [sample[0], sample])));
   const last = rows.reduce((top, row) => Math.max(top, row.samples.length === 0 ? 0
     : row.samples[row.samples.length - 1][0]), 0);
   const out = [];
+  // The previous slice anyone was flying in, not simply `at - every`: a minute nobody reached is not
+  // a row, and a run that was flying in both of the rows that bracket it still lost hull between them.
+  let before = null;
   for (let at = 0; at <= last; at += every) {
-    const here = atEach.map((at2) => at2.get(at)).filter((sample) => sample !== undefined);
+    const here = atEach.map((seen) => ({ now: seen.get(at), was: before === null
+      ? undefined : seen.get(before) })).filter((pair) => pair.now !== undefined);
     if (here.length === 0) continue;
+    const samples = here.map((pair) => pair.now);
     out.push([
       clock(at),
       String(here.length),
-      String(median(here.map((sample) => sample[1]))),
-      String(median(here.map((sample) => sample[2]))),
-      String(median(here.map((sample) => sample[3]))),
-      String(Math.round(median(here.map((sample) => sample[4])))),
+      String(median(samples.map((sample) => sample[1]))),
+      String(median(samples.map((sample) => sample[2]))),
+      String(median(samples.map((sample) => sample[3]))),
+      String(Math.round(median(samples.map((sample) => sample[4])))),
+      hullsBetween(here),
     ]);
+    before = at;
   }
   return out;
+}
+
+/**
+ * The middle run's hull losses since the previous row, or `-` when it cannot be answered.
+ *
+ * It cannot be answered in the first row of the table (there is no before to read against) and in a
+ * batch whose rows were played before the tally was being sampled (`--in` over a file written by an
+ * older tool), and both print the same dash rather than a zero: a zero here is the claim that nobody
+ * was hit, which is the most load-bearing number on the page and should never be an artefact.
+ */
+function hullsBetween(pairs) {
+  const lost = [];
+  for (const pair of pairs) {
+    if (pair.was === undefined) continue;
+    if (pair.now[5] === undefined || pair.was[5] === undefined) return '-';
+    lost.push(pair.now[5] - pair.was[5]);
+  }
+  if (lost.length === 0) return '-';
+  return String(median(lost));
 }
 
 export function shapeTable(rows, every) {
   return table(
     'the shape of the batch',
     rows.length + ' runs, one row per ' + every + 's, each one the median of whichever runs were'
-    + ' still flying at that moment: bodies on the screen, lines bought, hull left, score earned.',
-    'llrrrr', ['at', 'flying', 'bodies', 'level', 'hull', 'score'], shapeRows(rows, every));
+    + ' still flying at that moment: bodies on the screen, lines bought, hull left, score earned.'
+    + ' `hulls lost` is a rate and not a state - the middle run\'s own hull losses since the previous'
+    + ' row - and it is the column that says whether the crowd is still landing anything.',
+    'llrrrrr', ['at', 'flying', 'bodies', 'level', 'hull', 'score', 'hulls lost'],
+    shapeRows(rows, every));
 }
 
 /** The rows of one or more files written by `--out`, in the order the files were given. */
@@ -221,7 +271,7 @@ async function play(seeds, opts) {
       if (s.hull <= 0) return;
       const at = Math.floor(s.t / opts.every) * opts.every;
       if (samples.length === 0 || samples[samples.length - 1][0] !== at) {
-        samples.push([at, s.enemies, s.level, s.hull, s.score]);
+        samples.push([at, s.enemies, s.level, s.hull, s.score, s.hullLost]);
       }
     },
     // The run is over: its samples belong to it and to nobody after it.

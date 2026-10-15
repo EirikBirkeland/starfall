@@ -90,7 +90,7 @@ test('the flags mean what they say, and the ones that contradict each other are 
 });
 
 test('a row survives the trip through a file, fields and all', () => {
-  const samples = [[0, 10, 1, 3, 0], [60, 12, 2, 2, 500]];
+  const samples = [[0, 10, 1, 3, 0, 0], [60, 12, 2, 2, 500, 1]];
   const row = rowOf(run({}), samples);
   assert.equal(row.seed, 7);
   assert.equal(row.killedBy, 'body:tank');
@@ -137,25 +137,73 @@ test('a file that is not there, or that is empty, is refused and not played as a
 test('each slice is the middle of the runs still flying in it', () => {
   const rows = [
     // Three runs at 0m00s; two of them are still there at 1m00s; one of those two at 2m00s.
-    flown([[0, 10, 1, 3, 0], [60, 12, 2, 2, 500], [120, 20, 3, 1, 900]]),
-    flown([[0, 8, 1, 3, 100], [60, 20, 3, 2, 900]]),
-    flown([[0, 5, 1, 1, 200]]),
+    flown([[0, 10, 1, 3, 0, 0], [60, 12, 2, 2, 500, 1], [120, 20, 3, 1, 900, 2]]),
+    flown([[0, 8, 1, 3, 100, 0], [60, 20, 3, 2, 900, 1]]),
+    flown([[0, 5, 1, 1, 200, 0]]),
   ];
   assert.deepEqual(shapeRows(rows, 60), [
-    ['0m00s', '3', '8', '1', '3', '100'],
-    ['1m00s', '2', '16', '2.5', '2', '700'],
-    ['2m00s', '1', '20', '3', '1', '900'],
+    ['0m00s', '3', '8', '1', '3', '100', '-'],
+    ['1m00s', '2', '16', '2.5', '2', '700', '1'],
+    ['2m00s', '1', '20', '3', '1', '900', '1'],
   ]);
 });
 
+test('`hulls lost` is each run\u2019s own losses, not the difference of two slices\u2019 medians', () => {
+  // The wrong arithmetic is tempting: median hull at 2m minus median hull-lost at 1m. But the two
+  // slices are medians of *different batches of ships* - the second minute is over three runs and the
+  // third over one - so the difference is a fact about which runs survived, not about whether anyone
+  // was hit. Read each run against itself instead, and a run that was untouched says so.
+  const rows = [
+    flown([[0, 10, 1, 3, 0, 0], [60, 12, 2, 2, 500, 3]]),   // hit three times in the minute
+    flown([[0, 8, 1, 3, 100, 0], [60, 20, 3, 2, 900, 0]]),  // and not once
+    flown([[0, 5, 1, 1, 200, 0], [60, 20, 3, 1, 900, 0]]),  // and not once
+  ];
+  const at = shapeRows(rows, 60);
+  assert.equal(at[0][6], '-', 'the first row has no before to read against');
+  assert.equal(at[1][6], '0', 'the middle run of the minute was not hit');
+
+  // And the same batch with the untouched runs taken out says the opposite, which is the whole point
+  // of the column: it is the crowd landing things, counted off the ships it was landing them on.
+  const hit = shapeRows([rows[0]], 60);
+  assert.equal(hit[1][6], '3');
+});
+
+test('a batch played before the hull tally was sampled prints a dash and not a zero', () => {
+  // A zero in that column is the claim that nobody was hit, which is the most load-bearing number on
+  // the page. Rows off an older `--out` file simply do not have the field, and that has to read as
+  // "not answered" rather than as the finding.
+  const rows = [flown([[0, 6, 1, 3, 0], [60, 9, 4, 2, 4000]])];
+  assert.deepEqual(shapeRows(rows, 60).map((row) => row[6]), ['-', '-']);
+});
+
 test('a slice nobody was flying in is not a row, and neither is a minute nobody reached', () => {
-  const rows = [flown([[0, 6, 1, 3, 0], [120, 9, 4, 2, 4000]])];
+  const rows = [flown([[0, 6, 1, 3, 0, 0], [120, 9, 4, 2, 4000, 2]])];
   assert.deepEqual(shapeRows(rows, 60), [
-    ['0m00s', '1', '6', '1', '3', '0'],
-    ['2m00s', '1', '9', '4', '2', '4000'],
+    ['0m00s', '1', '6', '1', '3', '0', '-'],
+    // The 2m00s row reads against 0m00s and not against a 1m00s nobody flew in: a run that was
+    // flying in both of the rows on either side of a gap still lost its hulls across it.
+    ['2m00s', '1', '9', '4', '2', '4000', '2'],
   ], 'the table invented a 1m00s the run had no sample for');
   assert.deepEqual(shapeRows([flown([])], 60), []);
   assert.match(shapeTable(rows, 60), /at\s+flying/);
+});
+
+test('a played batch answers the question the column is there for', () => {
+  // Four careless runs at a two minute window: they lose hulls, and the table has to say so with a
+  // number rather than a dash. This is the end-to-end trip - the tally off the world (`stats()`),
+  // into the sample, through the slice, on to the page.
+  const run = shape(['--seeds', '1-4', '--seconds', '120', '--every', '30']);
+  // The exit code of this tool is the difficulty arc's verdict, and the arc's band is a documented
+  // FAIL (NOTES, session 105), so a non-zero here is expected and is not what this is checking. A
+  // usage error would be, and that is the one status this refuses.
+  assert.notEqual(run.status, 2, run.stderr);
+  assert.match(run.stdout, /hulls lost/);
+  const rows = run.stdout.split('\n').filter((line) => /^\d+m\d\ds\s/.test(line));
+  assert.ok(rows.length >= 3, 'the batch was sliced: ' + rows.length + ' rows');
+  const answered = rows.map((line) => line.trim().split(/\s+/).pop());
+  assert.equal(answered[0], '-', 'the first row has no before, so a dash there is right');
+  assert.ok(answered.slice(1).some((value) => value !== '-' && Number(value) > 0),
+    'a careless batch at two minutes is being hit, and the table says: ' + answered.join(' '));
 });
 
 test('the shards are waited for, and what they played is what gets reported', () => {
