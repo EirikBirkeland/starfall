@@ -14740,3 +14740,75 @@ call did not - and the new test caught it as an empty line. Re-read the diff, no
    scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for the crowd
    pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
    difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
+
+## Session 129 — The shop answers a thumb: the HANGAR chip, and a row that asks before it takes the purse. Released **1.8.0**
+
+### What shipped
+A phone visitor has been earning stardust for every run of every visit and could not spend a coin of it: the
+shop opens with `H`, its ships are picked with number keys, and buying is a `SHIFT + digit` chord. Now:
+
+* `HANGAR` is the **fifth chip** on the thumb rail, and `hangarClose` is the second chip standing *on* a panel.
+* A tap on a **bought ship row** is the number key: the next run flies it, free, lit by the same `showShip`.
+* A row that **costs stardust asks**. First tap: `TAP AGAIN TO BUY IT` in the row's own price line, warm amber.
+  Second tap on that row: the purchase. Another row, the glass between the rows, and the way out all take it
+  off, and it never outlives the panel.
+* A cursor gets the same two taps and the row says `CLICK AGAIN TO BUY IT`.
+
+### The ask is the shape
+Buying is the only press in the game that takes something from the purse, and a finger has no chord to lean on.
+So the confirmation did not move into a dialog or a second screen — it moved into the row that was already
+printing the price. Three things make that safe and all three are tested: the ask is only ever put on a row the
+purse could actually pay for (`game/hangar.js` `priceAt` answers "what would this row cost, or is there nothing
+to sell"), it is cancelled by every other press, and it is forgotten when the panel goes down. A purse too short
+is a **silent press**: the shop does not ask a question it already knows the answer to.
+
+`buyWords` in `ui/screens.js` is where the two hands part: the price is always first and always stays (the rule
+that money only moves while the price is on the glass predates this), and only the second clause changes —
+`SHIFT + 2 BUYS IT` for a hand with keys, `TAP TO BUY IT` / `TAP AGAIN TO BUY IT` for a finger, `CLICK AGAIN
+TO BUY IT` for a cursor that took the two taps.
+
+### `PANEL_CHIPS`, so there is one fact and not two
+`showSettingsClose`/`settingsCloseAt` became `showPanelChips`/`panelChipAt(which, x, y)` over a list of the chips
+that stand on panels. One fact puts them up (`hasFinger`, once per visit) and one question gets asked of them
+(did this press land on *this* panel's way out). The awards rack is deliberately not among the pressable lists:
+it sells nothing, so a press on an award row is a press on a line of words.
+
+### Two real bugs the tests found, both in code that had been shipped for a while
+1. **`openRack` never repainted the racks.** Ownership only ever changed through `buyFromRack`, which repaints,
+   so nothing had ever been seen stale — but the ask lives in the same rows, and a shop that came back up had
+   the previous visit's row still lit amber. `openRack` now clears the ask and paints both racks from their
+   owners on the way up, which is what the doc above those functions always claimed they did.
+2. **The `CHIPS` array never got the hangar entry** even though `index.html` and the harness both had the chip.
+   The tap fell through to the title's click-to-launch and started a run. Caught by the second test of the new
+   file, which asserts the tap does *not* launch.
+
+### One test bug worth remembering
+The tests in a file share one world, and **purchases persist across `resetToTitle`** (as they should — it is the
+save). A test that bought ship 2 left every later test's ship 2 bought, which turned an "ask" into a "pick" and
+sent me hunting through the wrong functions. Each test now uses its own row. The general lesson for the codex
+file: `resetToTitle` resets the *run*, not the *visit*.
+
+I also lost an hour to stdout ordering: `node --test` does not guarantee that a `console.log` from the module
+under test interleaves in real order with one from the test file. The "impossible" trace was two tests' logs
+printed next to each other. Put the probe in the test, next to the assert, not in the code under test.
+
+### Verified
+18 new tests (`test/thumb-hangar.test.mjs` for the finger, `test/hangar-rows-mouse.test.mjs` for the cursor),
+all reading the **owners** — `world.dust`, `world.ownedShips`, `world.perkRanks` via `perkLedger`, `priceOf` —
+and not just the glass. Mutation-checked twice: dropping the `cost > world.dust` guard reddens exactly the
+purse test; dropping `askingRow = NOT_ASKING` from `openRack` reddens three. Full suite **2322/2322**,
+`tools/simulate.js --seed 20261006` traces the same fingerprint as before, released as **1.8.0**.
+
+### What should come next
+1. **The codex's thumb shape** — the last reading panel, and the cheapest of the three: it only reads, so it
+   wants a chip, rows a tap can walk (its rows expand? decide whether a tap does anything at all beyond
+   scrolling), and a way out. `layOutRows`, `rowAt` and `PANEL_CHIPS` are all ready for it. Decide honestly
+   whether a codex row has a verb at all: if it has none, a chip plus a CLOSE chip may be the whole item, and
+   the panel is scrollable, which is a thumb shape of its own.
+2. **The once-per-screen audit's guard half**, unchanged from 124-126: give the harness's `makeElement` a write
+   counter (`domWrites()`) and hold that a settled screen writes nothing per frame.
+3. **Make the harness send events the way a real browser does** (from 127): both names, and sometimes only one.
+4. Still owed, unchanged: the browser half of the performance pass (a THICK CROWD run standing 150 bodies on a
+   scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for the crowd
+   pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the difficulty
+   band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
