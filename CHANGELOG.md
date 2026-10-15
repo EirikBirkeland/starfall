@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 1.9.0 — 2026-10-15
+The codex has a thumb shape, and every screen in the game now has one: a phone visitor can read the record.
+- **`CODEX` is the sixth chip on the title rail.** Nothing on that panel can be pressed in either hand — a row
+  of the record answers no press, because there is nothing to do to a thing you have already met. What a finger
+  was missing was not a verb but a shape.
+- **A thumb is walked through the five racks one at a time.** Hosts, card lines, synergies, past runs and harder
+  rules sit side by side in the window a keyboard is used on, and stack into a single column taller than a phone
+  is long in a phone's. These panels are scaled to fit rather than scrolled, so the bottom of the record — the
+  log, and the rules under it — was never going to be legible. Now the panel comes up on the hosts and `NEXT
+  RACK` turns to the next, wrapping, with the panel re-fitted on every turn so one rack is shown at the size it
+  is written at rather than shrunk to make five fit.
+- **`CLOSE` stands on the record**, the same chip the settings and the shop have. A visit with a keyboard is
+  shown neither chip: it has `C`, and a window wide enough for all five racks at once.
+- **The line under the racks is written for whichever hand arrived.** A thumb reads `CLOSE TO LAUNCH` and is
+  told nothing about `C` or `O`; a keyboard visit reads precisely the words the page already shipped.
+- With this, the thumb's own milestone closes: the fight, the pause, the giving-up, the settings, the shop and
+  the record all answer a finger. The one thing still not offered is the controls rack, deliberately — every
+  verb behind that door is a key press.
+
 ## 1.8.0 — 2026-10-15
 The hangar has a thumb shape: a phone visitor can open the shop, pick a ship, and spend the stardust a run has
 been putting in its purse.
