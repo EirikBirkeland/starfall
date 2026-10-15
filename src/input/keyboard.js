@@ -114,6 +114,27 @@ function heard(event) {
 }
 
 /**
+ * Has this visit ever pressed a key?
+ *
+ * Sticky, and asked before anything is offered that can only be answered with a key. The controls rack is
+ * such a thing - every verb on it is a key press, including the one that puts a shipped key back - and the
+ * door to it sits on the settings panel, which a finger can now walk (main.js `pressSettingsPanel`). A
+ * phone has no keys to move and is not shown a row that asks for one.
+ *
+ * It is answered from the keyboard rather than from the browser because it is the only honest answer
+ * available: `ontouchstart` and `maxTouchPoints` say a machine *has* a finger, which a touchscreen laptop
+ * answers yes to while holding a keyboard, and nothing in a browser says whether one is plugged in. A
+ * visit that has pressed a key has a keyboard - that is not an inference, it is the press. And a visit
+ * that has not may still grow one: the row appears on the panel's next repaint, which is the worst this
+ * can cost anybody, on a machine that has both.
+ */
+let keyHeard = false;
+
+export function hasKeyboard() {
+  return keyHeard;
+}
+
+/**
  * handlers.onConfirm   - "start / restart", whatever the screen means by it
  * handlers.onPickCard  - the number of an upgrade card, or of a ship on the rack, and whether it
  *                        was asked for with Shift (banish the card, or buy the ship)
@@ -136,6 +157,7 @@ function heard(event) {
  */
 export function initKeyboard(handlers) {
   window.addEventListener('keydown', function (event) {
+    keyHeard = true;
     const code = heard(event);
 
     // A panel that is asking for a key owns the keyboard for exactly one keypress, and it gets the

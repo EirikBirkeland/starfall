@@ -388,6 +388,26 @@ export function paintLaunchHints(onGlass) {
   }
 }
 
+/**
+ * The two lines under the settings panel's rows, written for the hand that arrived.
+ *
+ * The same mistake `paintLaunchHints` took out of the three biggest lines of the game was still sitting on
+ * this panel: one line telling a hand to use the arrow keys and another naming `O`, `Esc`, `M` and `[ ]`
+ * `- =`, on the one panel a finger can now use - the SETTINGS chip puts it up, a tap on a row moves that
+ * row, and the CLOSE chip takes it down (ui/chips.js, main.js `pressSettingsPanel`). A thumb reads its own
+ * one line and is not told about four keys its machine does not have; a keyboard visit reads precisely the
+ * words the page already shipped, which is what a test reads back off the markup.
+ *
+ * Once per visit, beside `showChips` and on the same fact (`input/touch.js` `hasFinger`), for the same
+ * reason: which hand arrived is a fact about the machine and not about the screen.
+ */
+export function paintSettingsHints(onGlass) {
+  el.settingsHint.textContent = onGlass
+    ? 'TAP A ROW TO CHANGE IT'
+    : '\u2191 \u2193 PICK A ROW \u00b7 \u2190 \u2192 CHANGE IT';
+  el.settingsKeysLine.classList.toggle('gone', onGlass === true);
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -412,6 +432,9 @@ export function initScreens() {
     overHintKeys: document.getElementById('overHintKeys'),
     winHintLaunch: document.getElementById('winHintLaunch'),
     winHintKeys: document.getElementById('winHintKeys'),
+    // The two lines under the settings panel's rows, in the two shapes `paintSettingsHints` writes.
+    settingsHint: document.getElementById('settingsHint'),
+    settingsKeysLine: document.getElementById('settingsKeysLine'),
     // Which day the run was flown on, on each of the two cards that end one (game/daily.js).
     finalDaily: document.getElementById('finalDaily'),
     winDaily: document.getElementById('winDaily'),

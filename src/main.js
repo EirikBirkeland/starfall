@@ -31,7 +31,7 @@ import { section, saveIsWritable, saveProblem } from './core/save.js';
 import { storedDust, dustForRun } from './game/stardust.js';
 import {
   ROWS as PICTURE_ROWS, loadFromSave as loadPicture, stepRow as stepPictureRow,
-  wordsOf as pictureWords, stepIdOf as pictureStep,
+  cycleRow as cyclePictureRow, wordsOf as pictureWords, stepIdOf as pictureStep,
 } from './game/settings.js';
 import {
   ROWS as ASSIST_ROWS, loadFromSave as loadAssists, stepRow as stepAssistRow,
@@ -49,7 +49,7 @@ import { updateNebula } from './render/nebula.js';
 import { renderFrame } from './render/renderer.js';
 import { choiceHit } from './render/cards.js';
 import { arrowCount, resetIndicators } from './render/indicators.js';
-import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys, hasFinger, onPausePlate } from './input/index.js';
+import { initInput, readInput, consumeInput, mouse, thumb, pad, captureKeys, hasFinger, hasKeyboard, onPausePlate } from './input/index.js';
 import { initAudio, openAudioDevice, wakeAudio, restoreAudio, nudgeLevel, toggleMuted, musicLevel, effectsLevel, isMuted, VOLUME } from './audio/engine.js';
 import { consumeCues, uiTick } from './audio/sfx.js';
 import { auditionMusic, updateMusic } from './audio/music.js';
@@ -58,8 +58,8 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, fitHangar, fitOpenPanel } from './ui/screens.js';
-import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt } from './ui/chips.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt, showSettingsClose, settingsCloseAt, settingRowAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -203,6 +203,36 @@ function pressChip(id) {
   if (id === 'today') onToday();
   else if (id === 'rule') onChallenge();
   else if (id === 'mute') onMuteSwitch();
+  else if (id === 'settings') onSettings();
+}
+
+/**
+ * A press landed on the settings panel.
+ *
+ * Two things it can be, and each is the very thing a key already does somewhere else. The CLOSE chip is
+ * `O` - the same `onSettings` toggle, so a panel shut from a chip over a held run puts the pause back up
+ * exactly as the key does, with the same tick and the same refusal of a screen it is not offered on.
+ *
+ * A row is its own next value: the cursor goes to the row that was pressed and the row's `cycle` answers it,
+ * so a picture row moves to the next step of its table and back round to its first, a slider goes through
+ * the door the slider keys use (heard on the bus it moved, with the canvas readout lighting beside the
+ * panel), and the two switches a thumb run has turned on go off. A tap is deliberately *not* the right
+ * arrow: a thumb has no other direction to ask in, and most of these rows ship at the top of their travel,
+ * where the right arrow answers nothing at all (see `settingRows`, where both verbs live and why).
+ *
+ * The one row on that panel that is not a setting - the door onto the controls rack - is not painted for a
+ * visit that has never pressed a key (see `settingRows`), so a press here can never open a rack whose every
+ * verb is a key press on a machine that has no keys to press.
+ */
+function pressSettingsPanel() {
+  if (settingsCloseAt(mouse.x, mouse.y)) { onSettings(); return; }
+  const at = settingRowAt(mouse.x, mouse.y);
+  if (at < 0 || at >= paintedRows.length) return;
+  const row = paintedRows[at];
+  settingCursor = at;
+  // A door is a door whichever hand comes to it (`onRowChange` sends an arrow through the same door).
+  if (row.opens !== undefined) { row.opens(); return; }
+  if (row.cycle()) paintSettings();
 }
 
 function onCanvasPressed() {
@@ -231,6 +261,11 @@ function onCanvasPressed() {
     onPauseKey();
     return;
   }
+  // The settings panel is the one panel here that *changes* something, so it answers a press with its own
+  // rows rather than refusing it (see `pressSettingsPanel`). It is asked before the rule below, which takes
+  // a press away from every panel and answers nothing with it - the right answer for the panels that only
+  // show things, and the wrong one for this one now that a finger has a chip to get in with.
+  if (settingsIsUp()) { pressSettingsPanel(); return; }
   // Over a panel a click is not a launch. The title's click-to-go is worth having and the
   // death's card's is worth having, but a panel you are meant to be able to look round is not a
   // screen that throws you into a run because you aimed at a ship and missed - and there are two of
@@ -511,6 +546,14 @@ function sliderWords(level) {
  * A `step` answers whether anything moved, which is how a press at the end of a row's travel stays
  * as silent as a press of a key that nothing on the screen answers.
  *
+ * Each row carries a `cycle` beside it, for the hand that has no left and no right: a tap on a row is
+ * that row's next value, coming back round to its first after its last. Without it the panel would be
+ * almost dead to a finger, because most of these rows ship at the top of their travel and `step(+1)`
+ * answers nothing there - including the two switches a thumb run has turned *on* for it. The arrow keys
+ * keep their no-wrapping rule (game/settings.js `stepRow` says why); a tap is a different gesture, on a
+ * row the player is looking at, and it is answered by whoever owns the table rather than by the panel
+ * counting steps of its own.
+ *
  * The two assists come last, and that is a decision rather than an accident. Everything above them is
  * the game's *report* about a run and cannot change one - which is the promise the whole panel is
  * built on, and the one `test/settings.test.mjs` plays a seed twice to pay for. These two rows can,
@@ -529,44 +572,72 @@ function settingRows() {
         uiTick(delta > 0 ? 'up' : 'down');    // the same answer a slider gives, at the same moment
         return true;
       },
+      cycle: function () {
+        const at = row.steps.findIndex(function (step) { return step.id === pictureStep(row.id); });
+        if (cyclePictureRow(row.id) === null) return false;
+        // The tick rises on the way up the table and falls on the one step that comes back round to the
+        // beginning of it, because the word on the row falls there too.
+        uiTick(at + 1 >= row.steps.length ? 'down' : 'up');
+        return true;
+      },
     });
   }
   // The door to the keys. It is not a setting - nothing it steps through changes a number, it puts up
   // another rack - so it carries an `opens` instead of a `step` and `onRowChange` sends it a different
   // way (see that function). Its value says whether this save has moved anything at all, which is the
   // one thing about the keymap a player can be told without opening it.
-  const moved = keysChangedCount();
-  rows.push({
-    name: 'KEYS',
-    says: 'EVERY KEY THE SHIP ANSWERS \u00b7 PRESS LEFT OR RIGHT',
-    value: moved === 0 ? 'ALL SHIPPED' : moved + ' CHANGED',
-    opens: openKeysPanel,
-  });
+  //
+  // And it is only on the panel for a visit that has pressed a key (input/keyboard.js `hasKeyboard`).
+  // Every verb behind that door is a key press - take a key, put the shipped one back - and a rack of them
+  // on a phone is a page nothing on it can be answered. A keyboard visit cannot notice the difference: it
+  // reached this panel with `O`, which is itself a press of a key, so the row is there whenever the panel
+  // can be reached by a key at all.
+  if (hasKeyboard()) {
+    const moved = keysChangedCount();
+    rows.push({
+      name: 'KEYS',
+      says: 'EVERY KEY THE SHIP ANSWERS \u00b7 PRESS LEFT OR RIGHT',
+      value: moved === 0 ? 'ALL SHIPPED' : moved + ' CHANGED',
+      opens: openKeysPanel,
+    });
+  }
+  const music = function (delta) { return onVolume('music', delta); };
   rows.push({
     name: 'MUSIC', says: 'THE SEQUENCER UNDER THE ARENA',
     value: sliderWords(musicLevel()),
-    step: function (delta) { return onVolume('music', delta); },
+    step: music,
+    // Past the top of a slider is its bottom: the whole travel is one tap away in either direction, and
+    // a thumb has only the one direction to ask in.
+    cycle: function () { return music(1) || music(-VOLUME.steps); },
   });
+  const effects = function (delta) { return onVolume('effects', delta); };
   rows.push({
     name: 'SOUND', says: 'EVERY SHOT, HIT AND EXPLOSION',
     value: sliderWords(effectsLevel()),
-    step: function (delta) { return onVolume('effects', delta); },
+    step: effects,
+    cycle: function () { return effects(1) || effects(-VOLUME.steps); },
   });
   rows.push({
     name: 'MUTE', says: 'THE WHOLE GAME, QUIET',
     value: isMuted() ? 'ON' : 'OFF',
     step: function () { return onMuteSwitch(); },
+    // Two values, so the next one is the other one however it is asked for.
+    cycle: function () { return onMuteSwitch(); },
   });
   for (const row of ASSIST_ROWS) {
+    const step = function (delta) {
+      if (stepAssistRow(row.id, delta) === null) return false;
+      uiTick(delta > 0 ? 'up' : 'down');    // the same answer every other row gives, at the same moment
+      return true;
+    };
     rows.push({
       name: row.name,
       says: row.says,
       value: assistWords(row.id),
-      step: function (delta) {
-        if (stepAssistRow(row.id, delta) === null) return false;
-        uiTick(delta > 0 ? 'up' : 'down');    // the same answer every other row gives, at the same moment
-        return true;
-      },
+      step: step,
+      // ...and these two are on for a run flown on a thumb (game/assists.js), so the way a thumb turns one
+      // off has to be the way round and not the way up.
+      cycle: function () { return step(1) || step(-1); },
     });
   }
   return rows;
@@ -591,9 +662,23 @@ function assistSteps() {
 function paintSettings() {
   const rows = settingRows();
   for (let i = 0; i < rows.length; i++) rows[i].chosen = i === settingCursor;
+  paintedRows = rows;
   showSettings({ note: SETTINGS_NOTE, rows: rows });
   fitSettings();
 }
+
+/**
+ * The rows exactly as the panel was last painted.
+ *
+ * The panel is printed from its owners and then walked by the arrow keys, by a tap and by the cursor, and
+ * all of them have to be walking the list the player is looking at rather than a fresh one built a moment
+ * later. The two are not always the same list: `hasKeyboard` turns the door to the controls rack on at the
+ * visit's first key press, and a key press on its own does not repaint the panel - so a list rebuilt after
+ * one is a row longer than the glass says it is, and a tap on the eighth row an eye can see would step the
+ * ninth. What is kept here is only the shape that was printed; every row still asks its owner live for the
+ * word it shows and the step it takes.
+ */
+let paintedRows = [];
 
 /**
  * May the settings panel be put up at all right now?
@@ -823,7 +908,7 @@ function onDebug() {
 function onRowMove(delta) {
   if (keysIsUp()) { moveKeysRow(delta); return; }
   if (!settingsIsUp()) return;
-  const last = settingRows().length - 1;
+  const last = paintedRows.length - 1;
   const next = Math.max(0, Math.min(last, settingCursor + delta));
   if (next === settingCursor) return;
   settingCursor = next;
@@ -847,7 +932,7 @@ function onRowMove(delta) {
 function onRowChange(delta) {
   if (keysIsUp()) { changeKeysRow(delta); return; }
   if (!settingsIsUp()) return;
-  const row = settingRows()[settingCursor];
+  const row = paintedRows[settingCursor];
   // One row on that panel is not a setting at all: it is a door onto the rack below it, and a door is
   // opened the same way whichever arrow is pressed (see `settingRows`, where the row lives).
   if (row.opens !== undefined) { row.opens(); return; }
@@ -1289,9 +1374,15 @@ function boot() {
   // finger (input/touch.js). They are measured against the glass, so they are built after it.
   initChips(view.canvas);
   showChips(hasFinger());
+  // ...and the settings panel's way out, on the same fact: a visit that came in on a finger gets a chip to
+  // close a panel it can now walk, and a visit with a keyboard has `O` and no plate where the letter is.
+  showSettingsClose(hasFinger());
   // ...and the three lines that say *press to go* are written for the same hand, so a visit that came in
   // on a finger is never told to find a letter it does not have (ui/screens.js `paintLaunchHints`).
   paintLaunchHints(hasFinger());
+  // ...and the two lines under the settings panel's rows, on the same fact again (ui/screens.js
+  // `paintSettingsHints`).
+  paintSettingsHints(hasFinger());
   onResize();
   // Whether this visitor asked for as little movement as the machine can give (the same query the
   // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the

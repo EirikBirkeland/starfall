@@ -2206,6 +2206,37 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       same list - the settings, the hangar and the codex - and the lines now say nothing about them instead of
       naming three letters.
 
+      **The settings panel has a thumb shape (session 128, v1.7.0).** It is the first panel a finger can walk.
+      `SETTINGS` joins the rail - the fourth chip, and the first one that is not a whole action in one press,
+      which was the bar the other three cleared and the reason it was left off: the panel it opens now answers
+      a tap, so the chip no longer opens a page a finger can neither use nor leave. `ui/chips.js` grew
+      `settingRowAt` and `settingsCloseAt`, answering a press against the box the browser laid the row out in
+      exactly as it answers a chip, and `main.js` `pressSettingsPanel` says what each press means: the CLOSE
+      chip is `O` (the same toggle, so a panel shut over a held run puts the pause back up as the key does),
+      and a row is its own **next value** - `cycle`, a verb beside the `step` the arrow keys use, answered by
+      whoever owns the table (game/settings.js `cycleRow`, the sliders wrapped through their own door, the two
+      switches flipped). A tap is deliberately not the right arrow: most of these rows ship at the top of their
+      travel, where `step(+1)` answers nothing at all, and the two switches a thumb run turns *on* would never
+      go off. The arrow keys keep their no-wrapping rule, and the reason is written beside it.
+
+      Two decisions came out of writing it. The panel's two lines under the rows are now written for the hand
+      that arrived (`ui/screens.js` `paintSettingsHints`, once per visit on `hasFinger`, beside `showChips` and
+      on the same fact): a thumb reads `TAP A ROW TO CHANGE IT` and is not told about `O`, `Esc`, `M` and
+      `[ ] - =`. And the door to the controls rack is painted only for a visit that has pressed a key
+      (`input/keyboard.js` `hasKeyboard`, sticky, answered from the keyboard rather than from the browser
+      because a press of a key is not an inference about a keyboard, it is one) - every verb behind that door
+      is a key press, and a phone that has never pressed one is not offered a rack it can enter and cannot
+      answer. That gate is also what keeps a thumb out of a trap: the rack has no chip and no press, so a
+      finger that could not press `O` would have had no way back out of it.
+
+      Eighteen tests: `test/thumb-settings.test.mjs` boots a browser with fingers and lays the panel's rows out
+      (`layOutRows` in the harness, the same bargain as `layout: { logoBox: ... }` for a stub with no layout
+      engine), then taps rows and reads the owners rather than the glass; `test/settings-rows-mouse.test.mjs`
+      holds what did not move for a visit with no fingers - no rail, no CLOSE chip, the arrow words the page
+      ships, the KEYS row present, and a rack that answers no press at all. Still open in the item: the codex
+      and the hangar, which are reading panels with rows a press does not answer, and the hangar is where a
+      phone player still cannot spend a coin of the stardust they have been earning.
+
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over

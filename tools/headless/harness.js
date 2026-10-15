@@ -415,7 +415,7 @@ const ELEMENT_IDS = [
   // The settings: what the game does to the eyes and the ears (index.html, game/settings.js,
   // audio/engine.js). One rack, and a row on it has three parts instead of two - the value is the
   // bright middle of the line, which is the part a press changes.
-  'settingsScreen', 'settingsBody', 'settingsNote', 'settingRow',
+  'settingsScreen', 'settingsBody', 'settingsNote', 'settingsHint', 'settingsKeysLine', 'settingRow',
   // ...and the rack of keys behind the door that panel has (index.html, core/keymap.js). Same row
   // shape, and a row can be `waiting` for a key as well as chosen.
   'keysScreen', 'keysBody', 'keysNote', 'keysHint', 'keyRow',
@@ -433,10 +433,13 @@ const ELEMENT_IDS = [
   // The thumb's rail (index.html, ui/chips.js): the three chips a finger can press on the title, and
   // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
   // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.
-  'thumbRail', 'chipToday', 'chipRule', 'chipMute',
+  'thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings',
   // ...and the one chip on the pause rack, which is pressed the same way and needs a box of its own for
   // the same reason (index.html, ui/chips.js, main.js `pressGiveUpChip`).
   'pauseGiveUp',
+  // ...and the settings panel's way out, for the same reason again (index.html, ui/chips.js,
+  // main.js `pressSettingsPanel`).
+  'settingsClose',
 ];
 
 /**
@@ -448,7 +451,8 @@ const ELEMENT_IDS = [
  * `ui/chips.js` is written to answer nothing about. `logoBox` is not in here: the mark is measured
  * against the window on purpose (render/logo.js), which is what the title's own tests hold.
  */
-const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'pauseGiveUp'];
+const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'pauseGiveUp',
+  'settingsClose'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -479,6 +483,19 @@ function makeElement(tag, classes) {
       list() { return [...this._set]; },
     },
     appendChild(child) { this.children.push(child); return child; },
+    /**
+     * Where the browser laid this out. An element the game built itself - a row of a rack - has no box
+     * until a test says it has one (`layOutRows` below), and a zero box is the honest answer for a page
+     * with no layout engine: `ui/chips.js` `landedOn` answers nothing about one, which is exactly what a
+     * test that has not laid the panel out should get.
+     */
+    rect: null,
+    getBoundingClientRect() {
+      const rect = this.rect;
+      return rect === null || rect === undefined
+        ? { left: 0, top: 0, width: 0, height: 0 }
+        : { left: rect.left || 0, top: rect.top || 0, width: rect.width || 0, height: rect.height || 0 };
+    },
     /**
      * The DOM's other half of `appendChild`, and just as strict: a child that is not in here is a
      * bug in the caller, and the stub says so rather than agreeing. The codex's run log takes its own
@@ -1044,6 +1061,23 @@ export async function bootGame(options) {
      */
     classes(id) {
       return elements[id] === undefined ? [] : elements[id].classList.list();
+    },
+    /**
+     * Say where the browser laid out the rows of a list, in window pixels, in order.
+     *
+     * The stub has no layout engine, so an element the game built at runtime - a row of the settings
+     * panel - has no box at all, and `ui/chips.js` rightly answers nothing about a box that is not there.
+     * A test that is about pressing one says where it came to rest, the same way a test says where the
+     * title's mark did (`layout: { logoBox: ... }`); this is that, for rows, which have no id of their own
+     * to be named by. It is called after the panel has been painted, because that is when the rows exist.
+     */
+    layOutRows(id, boxes) {
+      const list = elements[id];
+      if (list === undefined) throw new Error('the stub DOM has no #' + id);
+      if (list.children.length < boxes.length) {
+        throw new Error('#' + id + ' has ' + list.children.length + ' rows and the test laid out ' + boxes.length);
+      }
+      for (let i = 0; i < boxes.length; i++) list.children[i].rect = boxes[i];
     },
     get STATE() { return game.STATE; },
     get world() { return game.world; },

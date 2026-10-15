@@ -142,6 +142,9 @@ export { keys, mouse, thumb, pad };
 // A panel that is being given a key needs the keyboard for one press (core/keymap.js, main.js), and
 // the input layer is the only door anything has to it.
 export { captureKeys } from './keyboard.js';
+// ...and whether this visit has ever pressed one, which is the only honest way to answer whether it has a
+// keyboard at all (input/keyboard.js, main.js `settingRows`).
+export { hasKeyboard } from './keyboard.js';
 // ...and the one question a screen asks the glass before anybody has touched it: did this visit arrive
 // with a finger (input/touch.js, ui/chips.js).
 export { hasFinger } from './touch.js';

@@ -254,6 +254,28 @@ export function stepIdOf(id) {
   return stepOf(id).id;
 }
 
+/**
+ * The next step of a row, coming back round to the first after the last - or null when the row has only
+ * one step to be on.
+ *
+ * This is the one place where a row *does* come back round, and it is for the settings panel's other hand:
+ * a thumb has no left and no right, it taps the row it is looking at, and a row that ships at the top of
+ * its travel would otherwise never move for it at all. The no-wrapping rule above is about an arrow key,
+ * which is pressed again and again while no hand is watching the word on the row; a tap is one press on one
+ * row whose word is on the glass in front of the player, and coming back round to the beginning is what
+ * makes the beginning reachable.
+ */
+export function cycleRow(id) {
+  const row = rowOf(id);
+  if (row === null) throw new Error('the game has no setting called ' + id);
+  const at = row.steps.indexOf(stepOf(id));
+  const next = row.steps[(at + 1) % row.steps.length];
+  if (next === row.steps[at]) return null;
+  choices[id] = next.id;
+  remember('view', choicesAsStored());
+  return next;
+}
+
 // --- what the eye and the cosmetics read ---------------------------------------
 // Five small functions rather than the raw choices, because every reader wants the number of *its*
 // thing and nothing else, and a painter that could read a stranger's row could quietly start

@@ -313,7 +313,7 @@
   .rail {
     position: absolute; left: 0; right: 0;
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    display: flex; justify-content: center; gap: 10px;
+    display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
     padding: 0 10px;
   }
   .chip {
@@ -337,6 +337,11 @@
      is measured and fitted to the window as one thing (ui/screens.js `fitPanel`), and a chip pinned
      under it would be fitted outside it. */
   .pause .chip { margin-top: 26px; }
+  /* ...and the settings panel's own chip, which is the same plate in the same place in that panel's own
+     column: the way out of a panel a finger got into by tapping (ui/chips.js, main.js `pressSettingsPanel`).
+     It is inside the column for the same reason the pause's is - the column is measured and fitted as one
+     thing, and a chip pinned under it would be fitted outside it. */
+  .settings .chip { margin-top: 22px; }
   /* A chip that is not on this visit's rack is not on it at all: a keyboard visit has the letter `G`
      written under the hint and needs no plate to find it, and a gap where a control would have been
      reads as a control that failed to arrive. */
@@ -398,6 +403,10 @@
      not `visibility`, because the clause carries the separator that followed it: a clause that is only
      invisible would leave that separator behind and the line would open on one. */
   .keys .gone { display: none; }
+  /* A whole keys line that this visit has no keys for (ui/screens.js `paintSettingsHints`). The rule
+     above takes a clause out of a line; this one takes the line, which is what is left when every clause
+     of it names a letter. The control it was describing is on the glass in its own words instead. */
+  .keys.gone { display: none; }
   /* A short window. The title, ten rows of controls, what the visit has banked and the launch line
      are a tall column, and a centred column that does not fit is cut at both ends at once - which is
      the worst way to lose any of it. The breakpoint is where a 16:9 window of any useful size is
@@ -630,11 +639,17 @@
   <!-- The thumb's rail (ui/chips.js). It is put up for a visit that arrived with a finger and never
        for any other, so a keyboard visit never sees it; and every word in here is one the page writes
        once, because a chip is the name of a key and not a readout. MUTE is the whole of what the key
-       does - off, then back - and the plate on the glass says which of the two it just did. -->
+       does - off, then back - and the plate on the glass says which of the two it just did.
+       SETTINGS is the fourth and it is not a whole action in one press, which was the bar the other three
+       cleared. It is here because the panel it opens now has a thumb shape of its own: every row on it moves
+       to its next value when it is tapped and a CLOSE chip takes the panel back down (main.js
+       `pressSettingsPanel`), so the chip opens a page a finger can use and leave. The four wrap onto two rows
+       on a window too narrow for one. -->
   <div class="rail hidden" id="thumbRail">
     <span class="chip" id="chipToday">TODAY</span>
     <span class="chip" id="chipRule">RULE</span>
     <span class="chip" id="chipMute">MUTE</span>
+    <span class="chip" id="chipSettings">SETTINGS</span>
   </div>
 </div>
 
@@ -746,14 +761,21 @@
      the death's card, or over a run that is being held - never over a run that is flying - and every
      row on it is kept for the next visit (game/settings.js, audio/engine.js, game/assists.js). No
      numbers on the rows, and that is the point: the arrows pick a row and move it, while the numbers go
-     on meaning the ship they mean on every other screen. -->
+     on meaning the ship they mean on every other screen.
+     A finger gets the same panel with its own words and its own two presses: the SETTINGS chip puts it
+     up, a tap on a row moves that row to its next value, and the CLOSE chip takes it down (ui/chips.js,
+     main.js `pressSettingsPanel`). The two lines under the rows are written for whichever hand arrived
+     (ui/screens.js `paintSettingsHints`), and the KEYS row is not on the panel at all for a visit that
+     has never pressed a key - it is a door onto a rack whose every verb is a key press (main.js
+     `settingRows`). -->
 <div id="settingsScreen" class="screen settings hidden">
  <div class="settings-body" id="settingsBody">
   <h2 class="settings-title">SETTINGS</h2>
   <div class="settings-note" id="settingsNote">EVERY ROW IS KEPT FOR THE NEXT VISIT</div>
   <div class="setting-list" id="settingRow"></div>
-  <div class="hint">&#8593; &#8595; PICK A ROW &#183; &#8592; &#8594; CHANGE IT</div>
-  <div class="keys"><span id="settingsKeysClose">O</span> CLOSES THIS PANEL &#183; ESC LETS A HELD RUN GO &#183; M AND [ ] - = WORK ANYWHERE</div>
+  <div class="hint" id="settingsHint">&#8593; &#8595; PICK A ROW &#183; &#8592; &#8594; CHANGE IT</div>
+  <div class="keys" id="settingsKeysLine"><span id="settingsKeysClose">O</span> CLOSES THIS PANEL &#183; ESC LETS A HELD RUN GO &#183; M AND [ ] - = WORK ANYWHERE</div>
+  <div class="chip gone" id="settingsClose">CLOSE</div>
  </div>
 </div>
 
