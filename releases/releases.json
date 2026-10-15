@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.8.0",
+    "date": "2026-10-15",
+    "released": "2026-10-15T11:43:03.052Z",
+    "summary": "A thumb can spend the stardust it has been earning",
+    "added": 715,
+    "removed": 75,
+    "logBytes": 44426943
+  },
+  {
     "version": "1.7.0",
     "date": "2026-10-15",
     "released": "2026-10-15T11:05:34.277Z",
