@@ -40,7 +40,7 @@ import {
 import {
   ACTIONS as KEY_ACTIONS, loadFromSave as loadKeys, tableAsWords as keyTable,
   wordsOf as keyWords, bindable as keyIsBindable, rebind as rebindKey, restore as restoreKey,
-  changedCount as keysChangedCount,
+  changedCount as keysChangedCount, CANCEL_KEY,
 } from './core/keymap.js';
 import { initCanvas, resizeCanvas, view, calmMotion } from './render/canvas.js';
 import { camera, resolveAim, screenX, screenY, snapCamera } from './render/camera.js';
@@ -729,7 +729,7 @@ function startListening() {
  */
 function takeCapturedKey(code) {
   if (!keysIsUp()) { stopListening(); return; }
-  if (code === 'Escape') {
+  if (code === CANCEL_KEY) {
     stopListening();
     paintKeys();
     uiTick('close');

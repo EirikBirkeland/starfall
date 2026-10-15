@@ -25,12 +25,25 @@
 //   key cannot be stale in one place and fresh in another. That is the same rule `main.js` already
 //   keeps for the mute switch: a readout that has not noticed the change is a readout that is lying.
 //
-// A key is named by `KeyboardEvent.code` (`KeyW`, `Space`, `BracketLeft`), which names a *place on
-// the keyboard* rather than the letter printed on it. That is the honest choice for a game: it is what
-// the browser is willing to promise for any layout, and it is what a code can be compared against
-// later. The cost is that on a non-QWERTY keyboard the word beside a row spells the QWERTY name of
-// the key the player is looking at - which is why the panel puts the word in a key chip and lets the
-// player press whatever is under their finger, once, rather than asking them to spell it.
+// A binding is *kept* as a `KeyboardEvent.code` (`KeyW`, `Space`, `BracketLeft`): it names a *place on
+// the keyboard*, it is what a save can mean on somebody else's machine, and it is the one name two
+// visits can compare. A press is *heard* the other way round - by the letter the browser says that key
+// prints (`event.key`) when it says one, and by its place when it does not. See `codeForWord`, and the
+// one place that reads an event, `input/keyboard.js`.
+//
+// The letter goes first because that is the key the player is looking at. On a Dvorak board the key
+// that says D does not sit at the place QWERTY calls D, and a game that only ever read the place would
+// tell that player to press a key wearing somebody else's letter - and answer their own D key with
+// whatever owns that place. Hearing the letter means the word beside a row is the word on the key.
+//
+// It also covers the browsers and input methods that hand over a `key` and no `code` at all, which used
+// to leave every letter of this table deaf while the arrows went on working - a browser spells an arrow
+// the same way in both fields, and spells nothing else twice. That is the bug this order fixes, and it
+// is why `codeForWord` knows the arrows and the rest by name as well as the letters.
+//
+// A word this game cannot name (`æ`, `∂`, `Dead`, a Cyrillic letter) is not a name at all: the press
+// falls back to its place, so a layout with no latin letters still flies the ship on the keys the rack
+// prints, and the rack is still there to move them onto keys that do.
 
 import { section, remember } from './save.js';
 
@@ -113,6 +126,62 @@ export function wordFor(code) {
   if (spelled !== undefined) return spelled;
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   return String(code);
+}
+
+// The other direction: what the browser writes in `KeyboardEvent.key` for the keys this game can bind.
+// A character, for the keys that print one - and the space bar is a character, which is why it is here
+// and not in the list of names below.
+const WORDS = {
+  ' ': 'Space',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  ';': 'Semicolon',
+  "'": 'Quote',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+  '-': 'Minus',
+  '=': 'Equal',
+  '`': 'Backquote',
+};
+
+// Keys that print nothing and are already spelled the way the game spells them, so they need
+// recognising rather than translating. Only the ones the game can be asked about: a browser that gives
+// no `code` still gives one of these words in `key`, and an arrow that came in unnamed would be an
+// arrow the ship never hears. The modifiers are left out because `key` spells them `Shift`, `Alt`,
+// `Control` - a modifier is never a binding, and `bindable` refuses these anyway.
+const NAMED = /^(?:Arrow(?:Up|Down|Left|Right)|Home|End|PageUp|PageDown|Insert|Delete|Backspace|Enter|Escape|Tab|CapsLock|F(?:[1-9]|1[0-2]))$/;
+
+/**
+ * The one key that is never a row on the rack. It holds the run from any screen (input/keyboard.js
+ * `ALWAYS_PAUSE`) and it leaves a rebinding the way it was (main.js `takeCapturedKey`), and it is not
+ * in `ACTIONS` and `bindable` refuses it - which is the same bargain twice over: a key that always gets
+ * you out of something cannot be a key a hand can move somewhere else.
+ *
+ * It is spelled here rather than in the two places that answer it for the same reason every other key
+ * is: the rack prints `P` and says on its own line that this one does it too, and a word typed out in
+ * two files is a word that can stop matching the one the glass prints.
+ */
+export const CANCEL_KEY = 'Escape';
+
+/**
+ * Which key a printed word names, as a code - or '' when the word names nothing this game can bind.
+ *
+ * This is `wordFor` read backwards, and it is deliberately narrower than it: a letter answers the code
+ * that letter is printed by on the layout the words were written for, a digit the number above it (a
+ * numpad digit prints the same character, and both answer a card the same way), and a character the
+ * punctuation code it belongs to. Everything else - `æ`, `∂`, `Dead`, `中`, a word of more than one
+ * character - answers nothing, and the caller falls back to the place on the keyboard.
+ */
+export function codeForWord(word) {
+  if (typeof word !== 'string' || word === '') return '';
+  const spelled = WORDS[word];
+  if (spelled !== undefined) return spelled;
+  if (/^[a-z]$/i.test(word)) return 'Key' + word.toUpperCase();
+  if (/^[0-9]$/.test(word)) return 'Digit' + word;
+  if (NAMED.test(word)) return word;
+  return '';
 }
 
 /** The action an id names, or null when nobody has heard of it. */

@@ -6,7 +6,7 @@
 // the numbers that answer a card or a ship, the two volume pairs, `F3`, and the arrows that drive a
 // panel's cursor. Why those stay put is written out beside the table in `core/keymap.js`.
 
-import { actionFor } from '../core/keymap.js';
+import { actionFor, codeForWord, CANCEL_KEY } from '../core/keymap.js';
 
 export const keys = Object.create(null);
 
@@ -18,7 +18,7 @@ const CONFIRM = ['Space', 'Enter', 'NumpadEnter'];
 // is not bindable either - a key that cancels a rebinding cannot be the key a rebinding takes - so the
 // PAUSE row prints `P` and says on its own line that `ESC` does it too, which is the only way those two
 // can stay true at once. One key, one meaning, still: `Esc` never closes a panel.
-const ALWAYS_PAUSE = ['Escape'];
+const ALWAYS_PAUSE = [CANCEL_KEY];
 
 // The upgrade cards are picked with a number (PLAN section 4), and the screens that are not a run
 // use the same numbers to pick the ship to fly (game/hangar.js `pickShipByIndex`, and the rack is
@@ -90,6 +90,30 @@ export function captureKeys(fn) {
 }
 
 /**
+ * Which key this event answers to, spelled the way the game keeps its table.
+ *
+ * The letter the browser says the key prints comes first, and the place on the keyboard second - the
+ * whole argument is in core/keymap.js's header, and the short version is that a player looks at their
+ * keycaps and not at the wiring under them. `codeForWord` answers '' for a word it cannot name, which
+ * is where a layout with no latin letters lands: on its place, which is what the old code used and is
+ * still the only thing a Cyrillic or a Greek board can be handed.
+ *
+ * Both halves matter on their own. A browser or an input method that reports no `code` at all used to
+ * have every letter of the table go deaf - `event.key` is `'d'`, and nothing in the game is filed under
+ * `'d'` - while its arrows kept working, because a browser spells an arrow the same way in both fields.
+ * That is the report this answers: "D does not work for me, right-arrow does though".
+ *
+ * One name per event, and the same one on the way up as on the way down: `keys` is a table of held
+ * state, so a keydown filed under one name and a keyup under another is a key that is held forever.
+ */
+function heard(event) {
+  const printed = codeForWord(event.key);
+  if (printed !== '') return printed;
+  if (typeof event.code === 'string' && event.code !== '') return event.code;
+  return typeof event.key === 'string' ? event.key : '';
+}
+
+/**
  * handlers.onConfirm   - "start / restart", whatever the screen means by it
  * handlers.onPickCard  - the number of an upgrade card, or of a ship on the rack, and whether it
  *                        was asked for with Shift (banish the card, or buy the ship)
@@ -112,7 +136,7 @@ export function captureKeys(fn) {
  */
 export function initKeyboard(handlers) {
   window.addEventListener('keydown', function (event) {
-    const code = event.code || event.key;
+    const code = heard(event);
 
     // A panel that is asking for a key owns the keyboard for exactly one keypress, and it gets the
     // press before anything else does - including the launch, including the dash, including the pause
@@ -156,7 +180,7 @@ export function initKeyboard(handlers) {
   });
 
   window.addEventListener('keyup', function (event) {
-    keys[event.code || event.key] = false;
+    keys[heard(event)] = false;
   });
 }
 

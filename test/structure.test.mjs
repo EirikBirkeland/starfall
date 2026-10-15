@@ -96,6 +96,39 @@ test('only the save module touches storage', () => {
   assert.deepEqual(offenders, []);
 });
 
+test('only the keyboard module hears a key event', () => {
+  // A key has two names - `code`, a place on the board, and `key`, what it prints - and the game hears
+  // one and keeps the other, for the reasons written out in core/keymap.js's header. That rule only
+  // holds while exactly one place in the game reads an event at all: a second listener is a second
+  // opinion about which name wins, and the report this is written against - "D does not work for me,
+  // right-arrow does though" - is what two doors disagreeing looks like from the player's chair.
+  const offenders = [];
+  for (const file of allJsIn('src')) {
+    if (file === 'src/input/keyboard.js') continue;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    if (/addEventListener\(\s*['"]key(?:down|up)['"]/.test(source)) {
+      offenders.push(file + ' listens for a key');
+    }
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('a key is named in the keymap and the keyboard, and nowhere else', () => {
+  // The corollary of the door above: a feature may not settle the question "which key means the dash"
+  // for itself, because the rack that lets a player move that key would then be painting a lie. Every
+  // key name in the game sits in core/keymap.js's table, or in the handful of keys input/keyboard.js
+  // says out loud and explains (the launch, the card numbers, the volume pairs, F3, the panel arrows).
+  const NAMED_KEY = /['"](?:Key[A-Z]|Digit[0-9]|Numpad[0-9A-Za-z]+|Arrow(?:Up|Down|Left|Right)|Space|Enter|Escape|F[0-9]+)['"]/g;
+  const offenders = [];
+  for (const file of allJsIn('src')) {
+    if (file === 'src/core/keymap.js' || file === 'src/input/keyboard.js') continue;
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const spelled = source.match(NAMED_KEY);
+    if (spelled) offenders.push(file + ' names a key: ' + spelled.join(', '));
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test('every tuning number sits in balance.js or a named constant', () => {
   // game/ modules may not hard-code a speed, a rate, or a damage value inline.
   // Allowed: 0, 1, 2 (counting and halving), and numbers on a line that names
