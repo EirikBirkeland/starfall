@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.1",
+    "date": "2026-10-15",
+    "released": "2026-10-15T22:32:59.745Z",
+    "summary": "the afterimage trail is laid along the way the ship came, so its upper ranks buy ground",
+    "added": 2577,
+    "removed": 284,
+    "logBytes": 44558521
+  },
+  {
     "version": "1.9.0",
     "date": "2026-10-15",
     "released": "2026-10-15T12:01:56.696Z",
