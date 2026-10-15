@@ -635,10 +635,79 @@ function keyRow(row) {
  * same event - because a mouse machine can be handed a stylus; what the option decides is only what the
  * browser *says about itself* before anybody has touched anything.
  */
+/**
+ * What a browser prints for a key, by the place on the keyboard it was pressed on.
+ *
+ * A real key event carries two names for the same press: `code`, where the key sits, and `key`, what it
+ * prints. The stub used to send only the place, which quietly meant that two thousand tests never once
+ * exercised the half of the game that reads the printing first - and the half it reads first is the half
+ * a tester's browser was actually using when `D` went dead on them (session 127).
+ *
+ * This is the browser's table and not the game's: it is deliberately written out here rather than borrowed
+ * from `core/keymap.js`, because a harness that asks the game what a key prints can only ever agree with
+ * it. A code that is not in here is an error and says so, rather than quietly sending an event no browser
+ * would send.
+ *
+ * The word is the *unshifted* one, and the modifier travels where a browser puts it - in `shiftKey`, which
+ * is what the game reads for a chord. Printing `@` for `SHIFT + 2` would need a shift table for its own
+ * sake and would land in the same place anyway: the game cannot name `@`, so it falls back to the place.
+ */
+const PRINTED = (() => {
+  const words = new Map();
+  for (let i = 0; i < 26; i++) words.set('Key' + String.fromCharCode(65 + i),
+    String.fromCharCode(97 + i));
+  for (let i = 0; i <= 9; i++) words.set('Digit' + i, String(i));
+  for (let i = 1; i <= 12; i++) words.set('F' + i, 'F' + i);
+  // The keys a browser spells the same way in both fields. This is why an arrow kept working on a browser
+  // that reported no place at all while every letter on it went deaf.
+  for (const name of ['Escape', 'Enter', 'Tab', 'Backspace', 'Delete', 'Insert', 'Home', 'End',
+    'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight']) {
+    words.set(name, name === 'ShiftLeft' || name === 'ShiftRight' ? 'Shift'
+      : name === 'ControlLeft' || name === 'ControlRight' ? 'Control'
+        : name === 'AltLeft' || name === 'AltRight' ? 'Alt' : name);
+  }
+  // The punctuation, the way a US layout prints it.
+  words.set('Space', ' ');
+  words.set('Minus', '-');
+  words.set('Equal', '=');
+  words.set('BracketLeft', '[');
+  words.set('BracketRight', ']');
+  words.set('Backslash', '\\');
+  words.set('Semicolon', ';');
+  words.set('Quote', "'");
+  words.set('Comma', ',');
+  words.set('Period', '.');
+  words.set('Slash', '/');
+  words.set('Backquote', '`');
+  // The numpad, which a browser prints as digits while Num Lock is on - and which a test has always been
+  // free to press, because a `code` is a place and this one is a real place on a real keyboard.
+  for (let i = 0; i <= 9; i++) words.set('Numpad' + i, String(i));
+  words.set('NumpadEnter', 'Enter');
+  words.set('NumpadAdd', '+');
+  words.set('NumpadSubtract', '-');
+  words.set('NumpadMultiply', '*');
+  words.set('NumpadDivide', '/');
+  words.set('NumpadDecimal', '.');
+  return words;
+})();
+
+/** The word a browser prints for that place, or an error for a place no keyboard has. */
+export function printedFor(code) {
+  const word = PRINTED.get(code);
+  if (word === undefined) throw new Error('the harness has no printing for a key called ' + code);
+  return word;
+}
+
+/** Every place the harness knows how to print. A test holds this list against the game's own keymap. */
+export function printedCodes() { return [...PRINTED.keys()]; }
+
 export async function bootGame(options) {
   const opts = options || {};
   const root = opts.root || process.cwd();
   const seed = opts.seed === undefined ? 1 : opts.seed;
+  // Which of the two names a key event carries. See `PRINTED` for why the default is both.
+  const events = opts.events || 'both';
   let width = opts.width || 1280;
   let height = opts.height || 720;
   // Has a hand pressed anything yet? A browser decides whether a page may make a sound by asking
@@ -829,6 +898,17 @@ export async function bootGame(options) {
     devicePixelRatio: opts.dpr === undefined ? 2 : opts.dpr,
     location: { search: opts.url || '' },
     addEventListener(type, handler) { (listeners[type] = listeners[type] || []).push(handler); },
+    /**
+     * ...and the other half of it. A listener list you cannot take a handler back out of is not a listener
+     * list: a test that watches the wire for two events would otherwise leave its handler on every event
+     * the rest of the file sends.
+     */
+    removeEventListener(type, handler) {
+      const queue = listeners[type];
+      if (queue === undefined) return;
+      const at = queue.indexOf(handler);
+      if (at >= 0) queue.splice(at, 1);
+    },
     localStorage: {
       getItem: (key) => (key in store ? store[key] : null),
       setItem: (key, value) => { store[key] = String(value); },
@@ -900,12 +980,20 @@ export async function bootGame(options) {
      * Hold or release a key, skipping the no-change repeats. `extra` is anything else the
      * event would have carried - `{ shiftKey: true }` is how a test asks for the banish
      * chord, which is a modifier and not a key of its own.
+     *
+     * The event carries both names a browser carries, `code` and `key` (see `PRINTED`).
+     * `events` on the boot takes one of them away, which is the only way to test the two
+     * halves of a keyboard apart: `'place'` sends the bare place, which is what the browser that
+     * broke `D` was doing, and `'print'` sends only what the key prints, which is what an input
+     * method or a screen keyboard does.
      */
     key(code, down, extra) {
       if (!!held[code] === !!down) return;
       held[code] = down;
-      controller.fire(down ? 'keydown' : 'keyup',
-        Object.assign({ code: code, preventDefault() {} }, extra));
+      const event = { preventDefault() {} };
+      if (events !== 'print') event.code = code;
+      if (events !== 'place') event.key = printedFor(code);
+      controller.fire(down ? 'keydown' : 'keyup', Object.assign(event, extra));
     },
     moveMouse(x, y) {
       pointer.x = x;
