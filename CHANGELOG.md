@@ -1,5 +1,24 @@
 # Starfall — changelog
 
+## 1.8.0 — 2026-10-15
+The hangar has a thumb shape: a phone visitor can open the shop, pick a ship, and spend the stardust a run has
+been putting in its purse.
+- **`HANGAR` is the fifth chip on the title rail**, and `CLOSE` stands on the shop for a finger to get out with.
+  A visit with a keyboard is shown neither: it has `H`.
+- **A tap on a bought ship row flies that ship.** One press, free, immediate, and the row lights with the same
+  light the number key lights it with.
+- **A row that costs stardust asks.** The first tap puts `TAP AGAIN TO BUY IT` in the row's own price line and
+  turns it warm; the second tap on that row is the purchase. Another row, the glass between the rows, and the
+  way out all take the ask off, and it never outlives the shop. This is the only press in the game that takes
+  something from the purse, and a finger has no `SHIFT` to lean on, so the confirmation moved into the row.
+- **An ask is only put on a row the purse could pay for**, and a purse too short is a silent press: the shop
+  does not ask a question it already knows the answer to. The price stays on the row throughout, and buying is
+  still not picking — paying for a ship never changes the one about to be flown.
+- **A cursor gets the same two taps**, and the row says `CLICK AGAIN TO BUY IT` rather than claiming a finger
+  it does not have. A keyboard visit's rows keep saying `SHIFT + 2 BUYS IT`, and the two lines under the racks
+  are written for whichever hand arrived: a thumb reads `TAP A SHIP TO FLY IT · CLOSE TO LAUNCH` and is told
+  nothing about `H`, `SPACE` or the Shift chords.
+
 ## 1.7.0 — 2026-10-15
 The settings panel has a thumb shape: a phone visitor can open it, change it, and get out again.
 - **`SETTINGS` is the fourth chip on the title rail.** It was left off the first three because a chip that
