@@ -14986,3 +14986,57 @@ see changed, and `releases/v1.9.0` is the same playable build (same call as sess
    performance pass has a number for "the page is quiet" instead of a hope.
 3. A thought worth writing down before someone rediscovers it: the harness now *is* a US layout. A test that
    wants a different one says so by hand, the way `key-names.test.mjs` does with its Dvorak-style event.
+
+## Session 133 — The palette audit measures the two energy walls as they are painted. Not released (tools and tests only)
+
+### The owed item turned out to be a measurement artefact, not a colour
+`cageWall` has been on every session's owed list since 108: "a thin wall for a protanope, 0.13 from the
+ship, deliberately unjudged". Measured properly it is **2.44 steps** from the ship on the red-green eyes -
+nowhere near a problem. The 0.13 was an artefact.
+
+`PALETTE.cageWall` is `#bfe9ff`, a near-white. It is never painted as a near-white: `render/boss.js` lays it
+down at **62% over a near-black sky**, where it lands around `#7a99ad` - a mid grey-blue, far darker and far
+greyer than the entry reads. `tools/sights.js` composites a *fill* over the sky before measuring it and says
+so in its own doc ("A translucent colour is not a colour until it has been put on the thing behind it, so
+every measurement composites first") - but it never composited a **line**. Every line in the table was
+measured at full opacity. For the 40-odd bodies that is fine, because they are painted opaque. For the two
+energy walls it is wrong by a mile.
+
+### What changed
+* `tools/sights.js`: a sight may carry `alpha`, the opacity it is painted at, and `measure()` composites the
+  line over the sky when it does. Applied to `wall` (`LINE_LIGHT` 0.5, from `render/walls.js`) and `cage`
+  (`CAGE_LINE_LIGHT` 0.62, from `render/boss.js`). Every other sight is unchanged, because every other sight
+  is painted opaque - checked, not assumed: the bomber's zone ring and the mine's trigger ring are both drawn
+  at `globalAlpha` near 1, so measuring them as written is right.
+* `test/palette-read.test.mjs`: the two alphas are read out of the two renderers' source, the same way the
+  shard/mine sizes already are, so a change in a renderer fails the audit's own test the day it happens. Plus
+  a test that says the effect out loud: composited, the cage is more than a whole step further from the ship
+  than it looked, and an eye with no red cone is handed a difference to see.
+* `tools/palette-check.js`: the COLOUR column now says `#bfe9ff at 0.62 on the sky` for a sight measured
+  composited, so a near-white hex is not printed beside a mid-grey measurement with no explanation.
+
+All 84 promised pairs still pass. `ship / cage` fell out of the "pairs with nothing at stake, near zero"
+shortlist on its own, which is the report telling the same story the tests now hold.
+
+Mutation-checked: dropping `alpha` from the cage sight reddens both new tests.
+
+### The part worth keeping in mind
+A tool that measures the wrong thing does not fail - it **reports**, and the report gets read into the
+notes and re-copied for twenty sessions. The number was never wrong; the question was. Before re-copying an
+owed item, ask what was actually measured.
+
+### Verified
+Full suite **2352/2352**, `tools/simulate.js --seed 20261006` unchanged, `node tools/palette-check.js` clean.
+Not released: nothing on the glass changed.
+
+### What should come next
+1. **The rest of the owed list**: the browser half of the performance pass (a THICK CROWD run standing 150
+   bodies on a scheduled run), `tools/gun-tune.js`, silhouettes for the crowd pairs that share a colour, the
+   afterimage's flat top of the ladder, and the deliberate FAIL on the difficulty band (13% of 48 seeds die
+   between 4 m and 9 m against the 50% "usually" asks for).
+2. **The same question for the other marks the audit makes**: `tools/sights.js` measures a shot by its body
+   and promises nothing about its core, and measures a mark as an area-weighted mean. Both are stated and
+   deliberate - but the alpha discovery suggests walking the whole table once and asking, for each row, "is
+   this the colour an eye is handed?" `render/entities.js` has the answer for every one of them.
+3. `domWrites()` per frame during a busy 150-body fight, so the performance pass has a number for "the page
+   is quiet" instead of a hope.
