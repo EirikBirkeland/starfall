@@ -15040,3 +15040,20 @@ Not released: nothing on the glass changed.
    this the colour an eye is handed?" `render/entities.js` has the answer for every one of them.
 3. `domWrites()` per frame during a busy 150-body fight, so the performance pass has a number for "the page
    is quiet" instead of a hope.
+
+### Addendum, same session: the walk continued, and one more row was measuring a colour nobody paints
+Session 133's own "what should come next" asked whether every row of `tools/sights.js` is the colour an eye
+is handed. Walked it against the renderers:
+
+* **The sniper's beam was not.** `PALETTE.beamEdge` is measured as the band's line, but `bandPasses` paints
+  the band's full width at `BAND_FILL` (0.3) and only the narrower middle at `BAND_HOT` (0.6), with a nearly
+  white axis on top. The row declares the full width as its size, so it is now measured at 0.3 - the least of
+  the three, which is the harsh and correct pairing of that size with that colour. All 84 promised pairs still
+  pass at 0.3 (and did at 0.6, so this row was never carrying a promise on its translucency alone).
+* **The crowd, the shots, the mine and the shard are fine.** Bodies are stroked opaque (`look.color`); the
+  mine's shell and the bomber's thin ring are opaque; a shard's outline is `shardLine` but its glow - the
+  biggest thing it paints, and the colour the row names - is `shard`, which is what the row measures.
+* The test now also holds that **no other row claims an opacity the table has not checked against a
+  renderer**, so a future row cannot quietly invent one.
+
+Suite still **2352/2352**.
