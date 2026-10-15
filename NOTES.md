@@ -14528,3 +14528,110 @@ the class `screen` and starts only `overScreen`/`winScreen`/`winHint` hidden, so
    bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for
    the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
    difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
+
+## Session 127 — The keyboard hears the letter, not only the place: an edict answered. Released **1.6.2**
+
+Suite **2,271 → 2,285** (11 in `test/key-names.test.mjs`, 2 guards in `test/structure.test.mjs`).
+`node --test` green, `tools/simulate.js --seed 20261006` reaches the 10 m cap with every fingerprint it has
+had since session 118 (`score 73982`, level 57, 3934 kills, 4934 shards, 1 boss, 7 vacuums) - the bot never
+touches a keyboard, so an input change is expected to trace the same bytes and did.
+
+### The tree was dirty again, and again it was not mine
+An uncommitted rename: `OVERLORDS_REQUESTS` is now **`EDICT.md`** (the owner's word, and the file carried a
+new open request under it), with the matching line in `PLAN.md` changed to point at the new name. Read it,
+committed it as its own change (`4e1bb4e`), and worked the request. `EDICT.md` is the file to check at the
+start of a session now - it holds the urgent hotfixes, and it was not empty.
+
+### The edict
+> A friend tested Starfall and said: **"'D' fungerer ikke hos meg, right-arrow fungerer dog."**
+> (D does not work for me, right-arrow does though.) Most likely it may need to expand support.
+
+That sentence is a diagnosis, not just a complaint, and it is what made the bug findable. `D` and the right
+arrow are two rows of *one* flight control (`input/index.js` folds both into the same `dx`), so a visit where
+one works and the other does not is a visit where the game reads one of the two names a keyboard event
+arrives with and not the other. There is exactly one such mechanism in the code, and it was this:
+
+```js
+const code = event.code || event.key;      // input/keyboard.js, the whole of how a key was named
+```
+
+`code` (`KeyD`) names a **place on the keyboard**; `key` (`'d'`) names **what that key prints**. The game kept
+bindings by the place - which is right, and still true: it is layout-independent and it is the one name a save
+can mean on somebody else's machine. But when a browser or an input method reports no `code` at all, the
+fallback wrote `'d'` into the held-key table, and nothing in the game is filed under `'d'`. Every letter of
+the control table goes deaf; the arrows keep working, because a browser spells an arrow the same way in both
+fields. That is the report, exactly, down to which half was missing.
+
+### The rule, and where it lives
+**A press is heard by what it prints, and by its place when it prints nothing the game can name.**
+
+- `core/keymap.js` grew **`codeForWord(word)`**, `wordFor` read backwards: a letter answers the code that
+  letter wears, a digit the number above it, a character its punctuation code, and an arrow / `Escape` / `F3`
+  spells itself (that is why the arrows were never the problem, and `codeForWord` has to know them or a
+  nameless browser loses them too). Anything it cannot name - `æ`, `∂`, `Dead`, `中`, a word of two
+  characters - answers `''`.
+- `input/keyboard.js` has one **`heard(event)`**, used for keydown *and* keyup (a keydown filed under one
+  name and a keyup under another is a key held forever), feeding everything: the held table, the bound
+  actions, the launch, the card numbers, the volume pairs, `F3`, the panel arrows, and the one-press capture
+  the controls rack uses.
+- A word the game cannot name falls back to its place, so a Cyrillic or Greek board still flies the ship on
+  precisely the keys the rack prints - and the rack takes whatever key it presses.
+
+### The half nobody reported, fixed on the way
+Hearing the letter first also repairs a thing a Dvorak or Colemak player would simply have put up with: on a
+board whose letters are not where QWERTY puts them, the shipped table pointed at the wrong keycaps. On Dvorak
+the key that says **D** sits at the place QWERTY calls **H**, so that player was told to press `D` - a key
+wearing someone else's letter - and their own D key **opened the hangar**. Now the word beside a row is the
+word on the key, and a rebinding made by pressing a key remembers the key that was pressed (the rack stores
+the resolved code, so the row and the press agree on every layout that prints latin letters).
+
+### Tests: 11, and six of them redden on the old line
+`test/key-names.test.mjs` boots the real game and sends events the way the two broken visits send them, then
+looks at the **world** rather than at the table - a name the input layer understands but the ship never
+notices is not a fix. A visit with no `code` flies all four letters, *lets go* of them (the keyup half),
+launches on a spacebar, pauses, mutes, answers a card by its number, and walks the settings → rack → "press
+the key you mean" loop and then **flies on the key it rebounded**. A visit whose letter and place disagree
+goes right on its own D and keeps the hangar shut, and does not go right on the key that merely sits on the
+D place. A letter the game cannot name falls back to its place. Verified by mutation: putting
+`return event.code || event.key || ''` back reddens six of the eleven (the five that stay green are the word
+table, the arrows and the fallback, which are all true of the old code as well).
+
+### Two guards, and the one real thing the second one found
+`test/structure.test.mjs`: **only `input/keyboard.js` may listen for a key**, and **no file outside the
+keymap and the keyboard may spell a key name out**. The second found exactly one offender in the whole game -
+`main.js` comparing against `'Escape'` to leave a rebinding the way it was. That is now **`CANCEL_KEY`**,
+exported once from `core/keymap.js`, which is the file that already says that key is never a row;
+`input/keyboard.js`'s `ALWAYS_PAUSE` reads it too.
+
+The first attempt at these guards was a regex over `event.code|event.key|.keyCode|.which` across all of
+`src/`, and it produced two false positives - a *comment* in keymap.js and `panel.which` in `ui/screens.js`.
+A guard that fires on prose and on an unrelated field is a guard nobody will keep. Both replacements are
+precise: an `addEventListener('keydown'` call, and a quoted key name.
+
+### What this says about the fake browser, and it is worth remembering
+**`tools/headless/harness.js` has always sent `code` and never `key`.** That is why 2,271 tests, several of
+them about keys, never saw this: the harness is a more generous browser than any real one. If a future
+session wants a broader lesson here, it is that a harness which only ever exercises the easy shape of an
+event hides the class of bug where the browser sends the other shape. `game.fire('keydown', { key: 'd',
+code: '' })` is one line and it is now in the suite; the same trick is available for any other event field a
+real browser sometimes leaves out.
+
+### Released **v1.6.2**
+The edict's entry moved to `archive/COMPLETED_OVERLORDS_REQUESTS` with its note, and `EDICT.md` says there
+are no open requests.
+
+### What should come next
+1. **The panels' thumb shape**, unchanged from 123, 124, 125 and 126: a settings row that steps when it is
+   tapped, a CLOSE chip on a panel, and a controls rack refused on a finger visit rather than opened into rows
+   that ask for a key. Then the hangar, where a tap has to mean *buy* without a Shift and where a phone player
+   is still earning stardust they cannot spend. Note that this session makes the rack *more* correct for a
+   keyboard hand and no more reachable for a thumb: the rack is still the one place a phone cannot go.
+2. **The once-per-screen audit's guard half**, unchanged: give the harness's `makeElement` a write counter
+   (`domWrites()`) and hold that a settled screen writes nothing per frame.
+3. **Consider making the harness send events the way a real browser does** - both names, and sometimes only
+   one. One flag (`events: 'spare'`) on `bootGame` would let a few existing key tests run twice, once with
+   each shape, instead of relying on a new file to remember the second shape exists.
+4. Still owed, unchanged: the browser half of the performance pass (including a THICK CROWD run standing 150
+   bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for
+   the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
+   difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
