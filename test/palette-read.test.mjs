@@ -87,10 +87,9 @@ test('the sizes the table measures are the sizes the renderer draws', () => {
 });
 
 test('the opacity the table measures is the opacity the renderer paints', () => {
-  // The two energy walls are the only sights in the table that are not painted at full opacity, and
-  // the whole point of measuring them is that the palette entry is not what an eye gets. So the
-  // opacity is written down in the table and read back out of both renderers here, the same way the
-  // sizes above are read out of `render/entities.js`.
+  // Three sights in the table are not painted at full opacity, and for them the palette entry is not
+  // what an eye gets. So the opacity is written down in the table and read back out of the renderer
+  // here, the same way the sizes above are read out of `render/entities.js`.
   const read = (file, name) => {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
     const found = new RegExp('const ' + name + ' = ([\\d.]+);').exec(source);
@@ -99,6 +98,13 @@ test('the opacity the table measures is the opacity the renderer paints', () => 
   };
   assert.equal(sightOf('wall').alpha, read('src/render/walls.js', 'LINE_LIGHT'));
   assert.equal(sightOf('cage').alpha, read('src/render/boss.js', 'CAGE_LINE_LIGHT'));
+  assert.equal(sightOf('beam').alpha, read('src/render/entities.js', 'BAND_FILL'));
+  // Everything else in the table is painted opaque, and says nothing about an opacity. A row that grew
+  // one without a renderer change behind it would be measuring a colour nobody paints.
+  for (const sight of SIGHTS) {
+    if (sight.id === 'wall' || sight.id === 'cage' || sight.id === 'beam') continue;
+    assert.equal(sight.alpha, undefined, sight.id + ' claims an opacity the table has not checked');
+  }
 });
 
 test('a translucent sight is measured as painted, not as written', () => {

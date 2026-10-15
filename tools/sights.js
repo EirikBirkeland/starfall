@@ -219,6 +219,12 @@ const WALL_LINE = 3;
 // the same way the sizes above are.
 const WALL_LINE_LIGHT = 0.5;
 const CAGE_LINE_LIGHT = 0.62;
+// A band - the sniper's beam, a boss's spoke - is three passes down one axis: the full width faint, a
+// narrower middle hot, and a nearly white axis on top (render/entities.js `bandPasses`). The row below
+// declares the full width as its size, so it is measured at the opacity the full width is painted at,
+// which is the least of the three. The hot middle and the axis are brighter and are reported as the
+// sight's `core`, and promised nothing, as they always were.
+const BAND_FILL = 0.3;
 // The mine's shell plus the four spikes standing off its corners (MINE_BODY + MINE_SPIKE):
 // the shell is the thing a body can hit, and the dashed ring round it is floor paint.
 const MINE_SHELL = 10.5;
@@ -250,7 +256,7 @@ export const SIGHTS = [
     'kinds.spitter.spit.shot + PALETTE.enemyShotCore'),
   {
     id: 'beam', name: 'A SNIPER BEAM', meaning: 'harm', form: 'band',
-    size: BALANCE.kinds.sniper.lock.beam.halfWidth, colour: PALETTE.beamEdge,
+    size: BALANCE.kinds.sniper.lock.beam.halfWidth, colour: PALETTE.beamEdge, alpha: BAND_FILL,
     core: PALETTE.beamCore, from: 'kinds.sniper.lock.beam',
   },
   {
