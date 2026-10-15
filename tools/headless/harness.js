@@ -477,13 +477,32 @@ const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSet
  * the browser - a class list, text, and children - so a test can read what a screen is
  * actually showing rather than hope the code that wrote it was right.
  */
+/**
+ * How many times the game has changed the page rather than the glass.
+ *
+ * Every element the stub hands out counts its own writes here, and the count is the whole point of the
+ * number: a screen that has *settled* - the title with nothing happening on it, a card that has already
+ * been painted - should not be touching the DOM once per frame. Session 125 found the death's card doing
+ * exactly that, sixty repaints a second behind its own fade, by noticing; this is the half that notices
+ * on the day it happens again. What counts is what a browser would charge for: text put in, a child
+ * added, a child taken away. A class toggled to the value it already had is not counted, because the
+ * DOM's own `classList.toggle` does nothing in that case either.
+ */
+let domWriteCount = 0;
+
+/** The count, and the same count put back to zero for a test that wants to measure a window of frames. */
+function domWrites() { return domWriteCount; }
+function resetDomWrites() { domWriteCount = 0; }
+
 function makeElement(tag, classes) {
+  let text = '';
   const el = {
     tag: tag,
     width: 0,
     height: 0,
     style: {},
-    textContent: '',
+    get textContent() { return text; },
+    set textContent(value) { text = value; domWriteCount++; },
     children: [],
     classList: {
       _set: new Set(classes),
@@ -500,7 +519,7 @@ function makeElement(tag, classes) {
       // with rather than betting on one (`classes(id)` below).
       list() { return [...this._set]; },
     },
-    appendChild(child) { this.children.push(child); return child; },
+    appendChild(child) { this.children.push(child); domWriteCount++; return child; },
     /**
      * Where the browser laid this out. An element the game built itself - a row of a rack - has no box
      * until a test says it has one (`layOutRows` below), and a zero box is the honest answer for a page
@@ -524,6 +543,7 @@ function makeElement(tag, classes) {
       const at = this.children.indexOf(child);
       if (at < 0) throw new Error('this element has no such child to take away');
       this.children.splice(at, 1);
+      domWriteCount++;
       return child;
     },
   };
@@ -1080,6 +1100,17 @@ export async function bootGame(options) {
     classes(id) {
       return elements[id] === undefined ? [] : elements[id].classList.list();
     },
+    /**
+     * How many times the game has written to the page since the last reset, and the reset itself.
+     *
+     * A test measures a window of frames: reset, step, read. What it holds is that a screen which has
+     * settled writes nothing - the title with nothing on it, a card already painted, a panel already
+     * fitted - because a page rewritten sixty times a second is the arena's own frame time given away to
+     * work nobody asked for (session 125 found the death's card doing this; see the note above
+     * `makeElement` for what counts as a write).
+     */
+    domWrites() { return domWrites(); },
+    resetDomWrites() { resetDomWrites(); },
     /**
      * Say where the browser laid out the rows of a list, in window pixels, in order.
      *
