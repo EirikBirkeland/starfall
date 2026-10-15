@@ -1,5 +1,23 @@
 # Starfall — changelog
 
+## 1.9.1 — 2026-10-15
+The afterimage's upper ranks buy ground now: the trail is laid along the way you actually came, and the fourth and fifth images are paid for by running on.
+- **The dash arms the trail; the ship's own going lays it.** One image is left every 105 px of the way
+  the ship actually came — dash and engines together. A trail that ran into a wall lays what it got to;
+  a ship that stops still stops laying, and what it never got to is not banked for later.
+- **Why that mattered**: all five images used to be spread over the dash's own 220 px, which put them
+  44 px apart inside a 110 px lure reach — from the third rank on the line was one fat blob with more
+  lures in it, and the ruler read 16.5% of the near crowd fooled at rank 1 against 37.0% at rank 5.
+  Nearly all of the ladder's work was in its first two cards.
+- **The shipped ladder now reads 16.5% / 30.2% / 37.3%** — same top rung, still under the bar at which
+  the crowd stops coming, but with the whole 2.26x of the slope spread across the rungs. 105 px was
+  chosen by sweep: at 100 px the fifth rank alone stops a third of the near crowd (over the ceiling),
+  and at 120 px the trailing images stand outside the crowd the card is played on and the slope breaks.
+  `tools/ghost-grid.js --spacing N` re-runs that sweep; `--strict` now passes on the shipped state.
+- **PLAN's two seconds stand untouched.** The item had two candidate answers — a rank that buys ground,
+  or a rank that buys the decoy's lifetime. The first one worked, so the card's timing is exactly what
+  PLAN says it is.
+
 ## 1.9.0 — 2026-10-15
 The codex has a thumb shape, and every screen in the game now has one: a phone visitor can read the record.
 - **`CODEX` is the sixth chip on the title rail.** Nothing on that panel can be pressed in either hand — a row
