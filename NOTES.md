@@ -15186,3 +15186,65 @@ reddens four tests, including the two new ones.
    deliberate FAIL on the difficulty band.
 3. `tools/line-ab.js` and `tools/gun-tune.js` now both carry a `--set` knob over different tables; if
    a third tool wants one, move the patch/restore/label machinery into `tools/headless/`.
+
+## Session 136 — the shape table counts what the crowd is landing. The cliff has a mechanism. Not released
+
+### What was added
+`tools/run-shape.js` printed the state of a batch minute by minute (bodies, level, hull left, score).
+It now prints a **rate**: `hulls lost` — the middle **run's own** hull losses since the previous row.
+It rides on a new field in `stats()`, `hullLost: world.tally.hullLost`, which the tally already kept
+(`game/tally.js noteHullLoss`) and no headless tool could read as a count.
+
+The one design decision worth keeping: the column is **not** the difference of two slices' medians.
+The fifth minute's median is over six survivors and the first's over forty-eight, so subtracting them
+is a fact about which runs survived, not about whether anyone was being hit. Each run is read against
+itself, and a run that was untouched says so.
+
+### What it says — the owed difficulty band finally has a mechanism
+48 seeds, the person bot, cards by die, the 15-minute cap, `--shards 8` (52 seconds of wall clock):
+
+| at | flying | bodies | level | hull | hulls lost |
+|---|---|---|---|---|---|
+| 1m | 46 | 19 | 4 | 3 | 0 |
+| 2m | 34 | 31 | 5.5 | 2 | 1 |
+| 3m | 21 | 45 | 6 | 3 | 1 |
+| 4m | 10 | 55.5 | 8 | 3 | 2 |
+| 5m | 6 | 38.5 | 33.5 | 3 | 2.5 |
+| 6m | 4 | 22.5 | 38.5 | 3 | 0.5 |
+| 7m | 4 | 19 | 43.5 | 3 | 1.5 |
+| 8m | 4 | 19 | 46.5 | 3 | 0 |
+| 9m | 4 | 24 | 50 | 3 | 0.5 |
+| 10m–14m | 4 | 12–21 | 54 → 63.5 | 3 | **0, 0, 0, 0, 0** |
+
+Session 105 wrote "it is not a ramp, it is a cliff" from the death histogram and left it there. Now
+the mechanism is on the page: **from the tenth minute the survivors are not touched at all**, at level
+46–63, with 12–29 bodies on the screen. And the crowd is thinning, not because the director stopped
+spawning — the wall is 100 — but because a strong ship **out-kills the spawn rate**: bodies fall from
+55 at 4m to 12 at 14m. A crowd that cannot reach the ship cannot hurt it, and a ship that kills it
+faster than it arrives makes that self-reinforcing.
+
+`waves.maxBodies` is a ceiling. Nothing in the game puts a floor under what the crowd is *landing*.
+That is the shape the mechanic PLAN's item already calls for ("punishes being cornered instead of
+killing for it") has to be aimed at, and it is now a number rather than a guess. **No balance was
+changed this session** — the fix is a feature, and it should be one deliberate session with the band
+re-measured after it, not a dial nudged at 2 a.m.
+
+A note on reading the `hull` column: it stays at 3 for the survivors even where hulls *are* being
+lost, because the `hull` upgrade line (5 ranks, `step: 1`) puts hull back. That is exactly why the
+rate column is needed — state does not answer "is anything landing".
+
+### Verified
+Full suite **2379/2379** (3 new tests in `test/run-shape.test.mjs`, two of them end-to-end through a
+played batch), `tools/simulate.js --seed 20261006` unchanged. Mutation-checked: making a missing hull
+tally print `0` instead of `-` reddens the test that holds that a dash is not a finding.
+
+### What should come next
+1. **The late-game floor**, now that it is measured. Not a dial: something that keeps the crowd
+   arriving at a rate a level-60 ship cannot outrun, or that makes distance to the ship the thing that
+   kills. Re-run `tools/run-shape.js --shards 8` (under a minute) and `tools/difficulty-arc.js` after
+   it — the band is the check, and the hangar's prices are priced off these scores, so a change that
+   moves a survivor's 108,113 moves the shop too.
+2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
+   afterimage's flat top of the ladder.
+3. If a third tool wants a `--set` knob, move the patch/restore/label machinery out of `line-ab.js`
+   and `gun-tune.js` into `tools/headless/`.
