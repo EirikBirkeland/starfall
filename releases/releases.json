@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.7.0",
+    "date": "2026-10-15",
+    "released": "2026-10-15T11:05:34.277Z",
+    "summary": "A thumb can open the settings, change a row, and get out",
+    "added": 737,
+    "removed": 35,
+    "logBytes": 44426943
+  },
+  {
     "version": "1.6.2",
     "date": "2026-10-15",
     "released": "2026-10-15T10:24:08.053Z",
