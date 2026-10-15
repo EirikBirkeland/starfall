@@ -239,3 +239,54 @@ one.
 
 Eight new tests, and the reference run traces the same bytes as before it - nothing here can touch a run,
 because nothing here is in one.
+
+------------------------------------------------------------
+
+BUG-HOTFIX:
+A friend tested Starfall and said:
+"'D' fungerer ikke hos meg, right-arrow fungerer dog."
+(Norwegian: "'D' does not work for me, right-arrow does though.")
+Most likely it may need to expand support.
+
+Finished? YES
+Shipped in 1.6.2. The report described the failure precisely, which is what made it findable: `D` and the
+right arrow are two rows of one flight control, so a visit where one of them works and the other does not
+is a visit where the game is reading one of the two names a keyboard event arrives with, and not the other.
+
+Every key event carries two names for the same key. `code` (`KeyD`) names a *place on the keyboard*: it is
+the same whatever the keys are printed with, and it is what the game keeps its bindings by, because it is
+the one name a save can mean on somebody else's machine. `key` (`'d'`) is *what that key prints*, and it is
+the only name the person standing at the keyboard has. The game read the first, and fell back on the second
+only as a string it could then match against nothing. So a browser or an input method that reports no
+`code` at all had every letter of the control table go deaf - `event.key` is `'d'`, and nothing in the game
+is filed under `'d'` - while its arrows carried on working, because a browser spells an arrow the same way
+in both fields. That is the whole of "D does not work for me, right-arrow does though".
+
+The rule is now one line, in one place: **a press is heard by what it prints, and by its place when it
+prints nothing the game can name.** `core/keymap.js` grew `codeForWord`, which is `wordFor` read backwards
+- a letter answers the code that letter wears, a digit the number above it, a character its punctuation
+code, and an arrow or `Escape` or `F3` spells itself, which is why the arrows were never the problem. A word
+the game has no key for (`æ`, `∂`, `Dead`, a Cyrillic letter) answers nothing and the press falls back to its
+place, so a board with no latin letters still flies the ship on the keys the rack prints.
+
+Hearing the letter first fixes a second thing that had never been reported, because it is the kind of thing
+nobody reports: on a board whose letters do not sit where QWERTY puts them, the shipped table pointed at the
+wrong keycaps. On Dvorak the key that says D sits at the place QWERTY calls H, so that player was told to
+press `D` - a key wearing someone else's letter - and their own D key opened the hangar. Now the word beside
+a row is the word on the key, on every layout that prints latin letters, and a rebinding made by pressing a
+key remembers the key that was pressed.
+
+Eleven tests in `test/key-names.test.mjs` send events the way the two broken visits send them and then look
+at the world rather than at the table: a visit with no `code` flies the ship on all four letters, lets go of
+them, launches, pauses, mutes, answers a card and can rebind through the rack; a visit whose letter and
+place disagree goes right on its own D and keeps the hangar shut; and a letter the game cannot name falls
+back to its place. Six of the eleven redden when the old one-line naming is put back.
+
+Two guards went into `test/structure.test.mjs` so the two doors cannot grow again: only `input/keyboard.js`
+may listen for a key at all, and no file outside the keymap and the keyboard may spell a key name out. The
+second one turned up the only hard-coded key in the rest of the game - `main.js` comparing against `'Escape'`
+to leave a rebinding the way it was - which is now `CANCEL_KEY`, spelled once in the table that already says
+that key is never a row.
+
+Eleven new tests and two guards, and the reference run traces the same bytes as before it: nothing here is
+in a run, and the bot never touches a keyboard.
