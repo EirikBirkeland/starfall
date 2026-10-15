@@ -1,5 +1,0 @@
-No open requests. The last one - the root menu shining through the hangar, asked for on 2026-10-12 - is
-in `archive/COMPLETED_OVERLORDS_REQUESTS`, and what it produced shipped in 0.10.17.
-
-When a request is completely finished, move it out of this file: the whole entry, with your note on
-what shipped, goes to the end of archive/COMPLETED_OVERLORDS_REQUESTS. Only open requests stay here.
