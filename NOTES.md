@@ -15333,6 +15333,10 @@ not be parallelised, and a 48-seed arc is now a ~1-minute command instead of a ~
 - `tools/simulate.js --seed 20261006` unchanged; no game file touched.
 - Both refactored sharding paths run for real: `weapon-ladder --shards 2` and `gun-tune --shards 2`.
 
+The whole 48-seed arc, sharded: **48 seconds**, and it reproduces the shipped numbers exactly
+(13% in the band FAIL, DRIFTER widest at 39% PASS) — the same report the ~25-minute unsharded run
+gave in sessions 136 and 137.
+
 ### What should come next
 1. **The late-game mechanic** — see session 136's mechanism and session 137's eleven refused dials. It
    has to make a ship that is not being touched *lose* something. Now that a 48-seed arc is a minute,
