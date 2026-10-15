@@ -15300,3 +15300,42 @@ different death counts.
    than something that sends more bodies to be killed.
 2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
    afterimage's flat top of the ladder.
+
+## Session 138 — the shard plumbing, written once instead of four times. Not released
+
+### What was duplicated
+`parseSeeds`, `splitShards`, `readRows`, `writeRows` and a ~28-line `playSharded` existed in
+`tools/run-shape.js`, `tools/weapon-ladder.js` and `tools/gun-tune.js` — the last two importing the
+first's seed helpers, which is the wrong direction anyway. They had already drifted: `gun-tune`'s
+`readRows` was missing the "held no runs" check the other two had, so an empty `--in` there reported a
+batch of none.
+
+### What there is now
+`tools/headless/shards.js`: `parseSeeds`, `splitShards`, `writeRows`, `readRows`, `playSharded`. The
+module cannot know whose child it is starting, so a caller passes its own `import.meta.url` as `tool` —
+a child that ran the module instead of the tool would play nothing at all. The rules are written down
+in its header (round-robin dealing, a dead shard is an error naming its seeds, an empty pool is
+refused, the tmp files are removed).
+
+**And the arc tool can shard now**, which it could not before: `--seeds 1-96 --shards 8`, plus
+`--out/--play-only` and `--in` for pooling. That is why this refactor was worth doing rather than
+tidying: session 137's dial probes had to be run through `run-shape` because `difficulty-arc` could
+not be parallelised, and a 48-seed arc is now a ~1-minute command instead of a ~25-minute one.
+
+### Verified
+- Full suite **2401/2401** (7 new in `test/shards.test.mjs`, 2 in `test/difficulty-arc.test.mjs`).
+- The promise that makes sharding legal at all is a test now: **the same four seeds give a byte-identical
+  report sharded and unsharded** (`a sharded batch is the same batch as one played in a single
+  process`). Before this session that was an assumption.
+- The shard module's own tests use a stand-in tool that writes what it is handed, so "a shard that dies
+  is an error naming its seeds", "every seed played exactly once" and "no file left behind" are checked
+  without playing a game.
+- `tools/simulate.js --seed 20261006` unchanged; no game file touched.
+- Both refactored sharding paths run for real: `weapon-ladder --shards 2` and `gun-tune --shards 2`.
+
+### What should come next
+1. **The late-game mechanic** — see session 136's mechanism and session 137's eleven refused dials. It
+   has to make a ship that is not being touched *lose* something. Now that a 48-seed arc is a minute,
+   the loop for trying one is short, which is the most it can be said to have got easier.
+2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
+   afterimage's flat top of the ladder.
