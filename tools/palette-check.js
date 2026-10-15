@@ -67,9 +67,16 @@ function reportSights(sights) {
   for (const sight of sights) {
     const m = measure(sight);
     const lch = oklch(m.rgb);
+    // The colour column names the palette entry, and the L/C/H beside it are what an eye is handed -
+    // which for the two energy walls is not the same thing, because they are painted translucent and
+    // the number is read after the colour has been laid on the sky. Say so on the row rather than
+    // leaving a near-white hex next to a mid-grey measurement.
+    const painted = sight.alpha === undefined
+      ? sight.colour
+      : sight.colour + ' at ' + sight.alpha + ' on the sky';
     process.stdout.write('  ' + pad(sight.id, 22) + pad(sight.meaning, 8) + pad(sight.form, 10)
       + pad(num(sight.size, 1), 5) + pad(num(lch.L, 3), 7) + pad(num(lch.C, 3), 7)
-      + pad(num(lch.h, 0), 6) + sight.colour + '\n');
+      + pad(num(lch.h, 0), 6) + painted + '\n');
   }
 }
 

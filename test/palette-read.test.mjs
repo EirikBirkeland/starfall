@@ -86,6 +86,53 @@ test('the sizes the table measures are the sizes the renderer draws', () => {
   assert.equal(sightOf('enemyShot').size, BALANCE.kinds.spitter.spit.shot.radius);
 });
 
+test('the opacity the table measures is the opacity the renderer paints', () => {
+  // The two energy walls are the only sights in the table that are not painted at full opacity, and
+  // the whole point of measuring them is that the palette entry is not what an eye gets. So the
+  // opacity is written down in the table and read back out of both renderers here, the same way the
+  // sizes above are read out of `render/entities.js`.
+  const read = (file, name) => {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const found = new RegExp('const ' + name + ' = ([\\d.]+);').exec(source);
+    assert.ok(found !== null, file + ' no longer has a const ' + name + ' to read');
+    return Number(found[1]);
+  };
+  assert.equal(sightOf('wall').alpha, read('src/render/walls.js', 'LINE_LIGHT'));
+  assert.equal(sightOf('cage').alpha, read('src/render/boss.js', 'CAGE_LINE_LIGHT'));
+});
+
+test('a translucent sight is measured as painted, not as written', () => {
+  // The reason the cage spent six sessions looking like a colour problem. `PALETTE.cageWall` is a
+  // near-white; it is laid down at 62% over a near-black sky, where it lands far darker and far
+  // greyer than the entry reads. Measured as written it sat 0.13 of a step from the ship for an eye
+  // with no red cone. Measured as painted it is nowhere near the ship, and the number that gets
+  // printed is the one an eye is actually given.
+  const cage = sightOf('cage');
+  const ship = sightOf('ship');
+  assert.ok(cage.alpha !== undefined && cage.alpha > 0 && cage.alpha < 1,
+    'the cage is painted translucent, so the table has to say at what opacity');
+
+  const painted = measure(cage);
+  const asWritten = { colour: cage.colour, form: cage.form, size: cage.size, meaning: cage.meaning };
+  const worse = worstOf(ship, painted.lab);
+  const written = worstOf(ship, measure(asWritten).lab);
+  assert.ok(worse.ratio > written.ratio + 1,
+    'compositing the cage over the sky is worth a real difference, not a rounding: '
+    + written.ratio.toFixed(2) + ' as written, ' + worse.ratio.toFixed(2) + ' as painted');
+  assert.ok(worse.ratio >= 1, 'and an eye with no red cone is handed a difference to see');
+});
+
+/** The worst red-green eye for a sight against an already-measured colour. */
+function worstOf(sight, lab) {
+  const m = measure(sight);
+  let worst = null;
+  for (const eye of ['protanopia', 'deuteranopia', 'tritanopia']) {
+    const s = separation(eye, m.lab, lab);
+    if (worst === null || s.ratio < worst.ratio) worst = Object.assign({ vision: eye }, s);
+  }
+  return worst;
+}
+
 test('the silhouettes the table measures are the silhouettes the renderer draws', () => {
   // The same rule as the sizes, for the other half of the shape: `tools/` may not import the
   // renderer, so the forms are written down again in `BODY_FORMS` and read out of the source

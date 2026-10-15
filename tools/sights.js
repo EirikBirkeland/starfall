@@ -212,6 +212,13 @@ function shot(id, name, meaning, colour, size, core, from) {
 const SHARD_SMALL = 5.4;
 const SHARD_BIG = 9;
 const WALL_LINE = 3;
+// The opacity the two energy walls are painted at. A wall is not a body: `render/walls.js` and
+// `render/boss.js` each lay three strokes down - a soft wash, a mid glow, and the bright line an eye
+// actually reads - and all three are translucent. The number here is the bright line's, which is the
+// colour an eye is being asked to identify. Held against both renderers by `test/palette-read.test.mjs`,
+// the same way the sizes above are.
+const WALL_LINE_LIGHT = 0.5;
+const CAGE_LINE_LIGHT = 0.62;
 // The mine's shell plus the four spikes standing off its corners (MINE_BODY + MINE_SPIKE):
 // the shell is the thing a body can hit, and the dashed ring round it is floor paint.
 const MINE_SHELL = 10.5;
@@ -280,8 +287,8 @@ export const SIGHTS = [
   },
 
   // The room.
-  { id: 'wall', name: 'THE ENERGY WALL', meaning: 'place', form: 'wall', size: WALL_LINE, colour: PALETTE.wall, from: 'PALETTE.wall' },
-  { id: 'cage', name: "A BOSS'S CAGE", meaning: 'place', form: 'wall', size: WALL_LINE, colour: PALETTE.cageWall, from: 'PALETTE.cageWall' },
+  { id: 'wall', name: 'THE ENERGY WALL', meaning: 'place', form: 'wall', size: WALL_LINE, colour: PALETTE.wall, alpha: WALL_LINE_LIGHT, from: 'PALETTE.wall' },
+  { id: 'cage', name: "A BOSS'S CAGE", meaning: 'place', form: 'wall', size: WALL_LINE, colour: PALETTE.cageWall, alpha: CAGE_LINE_LIGHT, from: 'PALETTE.cageWall' },
 ];
 
 /**
@@ -395,10 +402,21 @@ export function shipBorrowers() {
  * after it has been laid on the sky, `coreLab` for the highlight in the middle of a shot.
  * A translucent colour is not a colour until it has been put on the thing behind it, so
  * every measurement composites first.
+ *
+ * A line composites too, and this is the half that used to be missing. Most bodies are painted at full
+ * opacity, so their palette entry is what an eye gets; the two energy walls are not - `PALETTE.cageWall`
+ * is a near-white and it is laid down at 62% over a near-black sky, where it lands far darker and far
+ * greyer than the entry reads. Measured as written, the cage sat 0.13 of a step from the ship for an eye
+ * with no red cone, which is what made it look for six sessions like a colour problem. Measured as
+ * painted it is 2.3 steps away, which is what it is. An entry says the opacity it is painted with in
+ * `alpha`; an entry that says nothing is painted opaque, as it always was.
  */
 export function measure(sight) {
   const read = parseColor(sight.colour);
-  const out = { lab: oklab(read), rgb: read };
+  const line = sight.alpha === undefined
+    ? read
+    : over(read, sight.alpha, SKY);
+  const out = { lab: oklab(line), rgb: line };
   if (sight.fill !== undefined) {
     out.fillLab = oklab(over(parseColor(sight.fill), alphaOf(sight.fill), SKY));
   }
