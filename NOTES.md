@@ -14812,3 +14812,68 @@ purse test; dropping `askingRow = NOT_ASKING` from `openRack` reddens three. Ful
    scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for the crowd
    pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the difficulty
    band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
+
+## Session 130 — The record turns a page: the CODEX chip, and five racks a thumb walks. Released **1.9.0**
+
+### What shipped
+The last panel a phone could not reach. It is also the only one with **no verb at all**: a codex row answers
+no press in either hand, because there is nothing to do to a thing you have already met. So the thumb shape
+here is not a press, it is a *shape* - the panel has to fit the window it is opened on.
+
+* `CODEX` is the **sixth chip** on the rail.
+* A thumb's record comes up on **one rack** - hosts - and two chips stand under it: `NEXT RACK` (walks the
+  five, wraps) and `CLOSE` (is `C`, the same toggle).
+* A keyboard visit sees all five at once, in the words the page ships, with no chips anywhere.
+
+### Why paging and not scrolling
+Five racks, forty-odd rows: side by side they fit a desktop; in a phone's width `.racks` wraps them into one
+column roughly 1400px tall against a window of ~780. `fitPanel` scales a panel to fit with a floor of
+`RACK_MIN` (0.6), and past the floor it simply overflows - the doc above `fitHangar` already says these
+panels do not scroll and a rack that does not fit is a rack nobody sees. So the honest options were scroll or
+page, and scrolling is not available: **every screen is `pointer-events: none`** and the press comes in
+through the canvas, which is what makes a tap and a click one press in the first place. Turning that off for
+one panel would put a second input path back into a game that spent sessions removing it. Paging is the shape
+that keeps the one press handler.
+
+### Where the page number lives
+In `ui/screens.js`, not `main.js`. The codex is painted from **two doors** - the visit opening, and a run's
+card landing (`showGameOver`/`showVictory` call `showCodex`, `showLog`, `showAwards`, `showRules`
+themselves) - and if `main.js` held the page, the death's card would have been showing all five racks again
+under a thumb. `paintCodexHints(onGlass)` sets `codexPaged` once per visit (it is the only once-per-visit
+call about the codex), `openCodex` puts the page back to 0, and `turnCodexRack()` asks the panel to fit
+itself again because one rack is a shorter column than five.
+
+### `PANEL_CHIPS` grew a paint/press pair
+The codex's two chips are laid side by side in a `.chip-row` that is hidden as a unit, but they are pressed
+one at a time. So each entry now names `paint` (the box the page hides) and `press` (the box the press is
+answered against) - the same element except here. `panelChipAt('codex', x, y)` is the CLOSE chip and
+`panelChipAt('codexNext', x, y)` the turn.
+
+### A style test caught a harness mistake, and it was right to
+`test/words.test.mjs` walks **every string in the harness's screen snapshot** and holds that the interface
+voice in it is caps. My first `codexShown` reported the racks as `['hosts', 'lines', ...]` and the test
+failed on `"hosts"`. That is the guard doing its job: a test label had started to look like page copy. The
+snapshot now reports the rack **titles** the player actually reads - `['HOSTS', 'CARD LINES', ...]` - which
+is both legal under the voice rule and better in a test failure.
+
+### One test of my own was wrong, and it was the interesting one
+I asserted that tapping the shop's chip while the record is up opens the shop. It does not and must not: a
+panel owns the glass it is up on, chips included. The test now says that out loud, then closes the record and
+opens the shop - which is the actual navigation a phone has.
+
+### Verified
+13 new tests (`test/thumb-codex.test.mjs`, `test/codex-rows-mouse.test.mjs`). Mutation-checked: forcing
+`codexPaged = false` reddens five. Full suite **2336/2336**, `tools/simulate.js --seed 20261006` traces the
+same fingerprint, released as **1.9.0**.
+
+### What should come next
+1. **The once-per-screen audit's guard half**, owed since 124: give the harness's `makeElement` a write
+   counter (`domWrites()`) and hold that a settled screen writes nothing per frame. Session 125 found a card
+   painting itself sixty times a second by accident; nothing yet fails a test if that happens again.
+2. **Make the harness send events the way a real browser does** (from 127): both `code` and `key`, and
+   sometimes only one. The D-key fix is tested by hand; the harness still always sends the same shape.
+3. **The thumb work is closed, so pick from the owed list**: the browser half of the performance pass (a
+   THICK CROWD run standing 150 bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall
+   for a protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the
+   ladder, and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against
+   the 50% "usually" asks for).
