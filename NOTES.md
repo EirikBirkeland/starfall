@@ -14929,3 +14929,60 @@ since 127, and the mutation above.
 3. **Something the new guard makes cheap**: the same measurement on a *live* screen - `domWrites()` per frame
    during a busy fight with 150 bodies - would turn "the page is quiet" into a number the performance pass
    can compare against instead of a rule it hopes is true.
+
+## Session 132 — The harness sends a key the way a browser does. Not released (harness and tests only)
+
+### What shipped
+`game.key(code, down, extra)` now sends **both names a real key event carries**: `code` (the place) and `key`
+(what that key prints). It used to send only the place - which meant that since session 127 shipped the
+"hear the printing first" rule, **the entire suite of ~2300 tests was exercising the fallback half of the
+keyboard** and calling it the primary one. Only `test/key-names.test.mjs`, which builds its own events, had
+ever touched the path every player actually uses.
+
+The suite went green unchanged. That is the result this change was for: the primary path is now the one
+everything runs on, and it was already correct.
+
+### The table is the harness's, not the game's
+`PRINTED` in `tools/headless/harness.js` spells out what a US-layout browser prints for each place: letters,
+digits, F1-F12, the arrows and the named keys, the punctuation, and the numpad. It is deliberately **not**
+borrowed from `core/keymap.js`: a harness that asks the game what a key prints can only ever agree with it,
+and the agreement would prove nothing.
+
+An unknown code throws (`the harness has no printing for a key called Numpad99`) rather than sending an event
+no browser could send. That caught one real case the same day: `test/ship-pick.test.mjs` presses `Numpad5`,
+which the table did not have.
+
+`events` on the boot takes a name away - `'place'` for the browser that reported no place (session 127's
+tester), `'print'` for an input method that reports only the printing. Nothing uses those modes yet; they are
+there so the two halves can be tested apart the day a test wants them.
+
+### The guard that makes it worth having
+`test/harness-events.test.mjs` (5 tests):
+* the wire carries both names, and a chord carries `shiftKey` beside them;
+* an unknown place is an error;
+* **for every place the game can be bound to, the word the harness prints maps back to that same place**
+  (`codeForWord(printedFor(code)) === code`) - if the two tables ever drift, the suite is silently back on
+  the fallback and this says so;
+* and the same from the other end, once per action the game offers.
+
+Mutation-checked: printing `x` for `KeyD` reddens three of the five.
+
+Two small honest notes the tests forced out: the game's own word for a key is a **legend for eyes** (`SPACE`,
+`ESC`) and not the wire's (`' '`, `'Escape'`), so the spelling is only compared where the wire prints a
+character. And the stub window had `addEventListener` but no `removeEventListener` - a listener list you
+cannot take a handler out of leaks the test's own handler into every later event of the file.
+
+### Verified
+Full suite **2350/2350**, `tools/simulate.js --seed 20261006` unchanged. Not released: nothing a player can
+see changed, and `releases/v1.9.0` is the same playable build (same call as session 131).
+
+### What should come next
+1. **The owed list**, now the input and thumb work are closed: the browser half of the performance pass (a
+   THICK CROWD run standing 150 bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for
+   a protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the ladder,
+   and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50%
+   "usually" asks for).
+2. **Something the new guards make cheap**: `domWrites()` per frame during a busy 150-body fight, so the
+   performance pass has a number for "the page is quiet" instead of a hope.
+3. A thought worth writing down before someone rediscovers it: the harness now *is* a US layout. A test that
+   wants a different one says so by hand, the way `key-names.test.mjs` does with its Dvorak-style event.
