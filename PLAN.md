@@ -1355,6 +1355,17 @@ When every item above is ticked, go back to the first unchecked item of mileston
         quarter more of the same gun (5.5) middles at 2m06s with 18 never dying and the weaver back at
         50% of the deaths. Power does not buy a careless run time; it converts some of its deaths into
         immortality, sooner.
+      - the wave clock, `waves.gap` 0.9-1.4 down to 0.5-0.8, nearly twice the arrivals a minute: the
+        middle of a careless batch's deaths **2m13s against the shipped 2m36s**, 45 of 48 dead where 44
+        were, and only **3 of 48 in the band** where 6 were - while the three that get through reach
+        level 87 with 201,419 where the shipped six reach 65 and 110,991. A faster clock kills the weak
+        sooner and feeds the strong, and the survivors lose no hull from the fifth minute on either way.
+      - the wave size, `waves.waveMaxPoints` 30 to 60 (fewer, bigger waves on the same clock):
+        **2m32s** and **7 of 48 in the band**, 15% against the shipped 13%. A nudge, and the cliff is
+        where it was: four survivors, hull whole, nothing landing on them from the fifth minute.
+      Both measured with the `--set` flag both arc tools now carry, which is what makes a dial probe a
+      minute of `tools/run-shape.js --shards 8` instead of an edit to `balance.js` and a prayer that it
+      got put back afterwards.
       So the answer to the item is the thing the item said it was. Every dial in reach moves the tails
       and not the middle: across the ten measurements above the middle of a careless batch's deaths
       sits somewhere between 1m43s and 3m48s - and only the extra hull for the ship gets past three

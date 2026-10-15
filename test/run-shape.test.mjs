@@ -217,3 +217,22 @@ test('the shards are waited for, and what they played is what gets reported', ()
   assert.ok(flying.every((line) => Number(line.trim().split(/\s+/)[1]) > 0),
     'a slice reported zero runs flying:\n' + flying.join('\n'));
 });
+
+test('a number the table does not have is refused before a single run is played', () => {
+  const out = shape(['--runs', '2', '--seconds', '20', '--set', 'waves.crowdBaseee=1']);
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /BALANCE has no number called waves\.crowdBaseee/);
+});
+
+test('--set reaches the shards, and the header says the batch was patched', () => {
+  // Two promises at once. A shape table printed under a patch and not labelled with it would be read
+  // back as the shipped game - and `--shards K` plays the batch in child processes, so a flag that
+  // does not travel to them would patch the parent, which plays nothing, and leave the children on
+  // the shipped numbers.
+  const out = shape(['--runs', '4', '--seconds', '25', '--every', '10', '--shards', '2',
+    '--set', 'waves.gap.1=0.4']);
+  assert.notEqual(out.status, 2, out.stderr);
+  assert.match(out.stdout, /the shape of the batch: 4 runs.*with waves\.gap\.1 0\.4/s);
+  const flying = out.stdout.split('\n').filter((line) => /^\d+m\d\ds\s+\d/.test(line));
+  assert.ok(flying.length >= 2, 'the patched shards never reported a batch:\n' + out.stdout);
+});

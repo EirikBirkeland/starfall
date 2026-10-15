@@ -275,3 +275,29 @@ test('the tool refuses a batch that cannot answer the question', () => {
   assert.equal(runTool(['--bot', 'blind']).status, 2);
   assert.equal(runTool(['--nonsense']).status, 2);
 });
+
+test('a number the table does not have is refused before a single run is played', () => {
+  const done = runTool(['--runs', '3', '--seconds', '30', '--set', 'waves.crowdBaseee=1']);
+  assert.equal(done.status, 2);
+  assert.match(done.out, /BALANCE has no number called waves\.crowdBaseee/);
+  assert.doesNotMatch(done.out, /when the batch ended/, 'nothing was played');
+});
+
+test('--set moves the game the batch is played on, and says so in the header', () => {
+  // The two promises the flag has to keep. A patched batch that does not say it was patched would be
+  // read for years as the shipped game; and a `--set` that quietly missed its field - a misspelling is
+  // silently a *new* field - would print the same table twice and be taken for a null result.
+  //
+  // The patch here is the wave clock, `waves.gap` - the low and high end of how long the director
+  // waits between waves - and it is measured on the same four seeds. Nearly twice the arrivals kills
+  // more of a careless batch inside the same window, which is the direction the number has to move
+  // in for the arc to move at all.
+  const plain = runTool(['--runs', '4', '--seed', '5', '--seconds', '150']);
+  const patched = runTool(['--runs', '4', '--seed', '5', '--seconds', '150',
+    '--set', 'waves.gap.0=0.2', '--set', 'waves.gap.1=0.4']);
+  assert.match(patched.out, /with waves\.gap\.0 0\.2, waves\.gap\.1 0\.4/);
+  const deaths = (out) => Number(/(\d+) of 4 runs died/.exec(out)[1]);
+  assert.ok(deaths(patched.out) > deaths(plain.out),
+    'a faster wave clock is more of a crowd, and the batch has to show it:\n'
+    + plain.out + '\n' + patched.out);
+});

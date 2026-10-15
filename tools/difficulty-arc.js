@@ -9,7 +9,17 @@
 //   node tools/difficulty-arc.js --bot aware         the player that never misses a thing
 //   node tools/difficulty-arc.js --bot naive         the player that does not dodge at all
 //   node tools/difficulty-arc.js --picks wise        the careful build, to compare against
+//   node tools/difficulty-arc.js --set waves.gap.0=0.5   move one number of BALANCE for the batch,
+//   node tools/difficulty-arc.js --set waves.waveMaxPoints=45 --set waves.gap.1=0.8   (repeatable)
 //   node tools/difficulty-arc.js --quiet             the two verdicts and nothing else
+//
+// `--set` is the arc's tuning knob, and it is the reason this file's history is readable: the nine
+// dials the item below lists were each measured by editing `balance.js`, running, and putting it back
+// by hand, which is how a quoted number can end up describing a game nobody can get back to. A path
+// is dotted and may go through an array (`waves.gap.0` is the low end of the wave clock), a path that
+// is not a number is refused before a single run is played, and the header prints what was moved so a
+// table can never be read as the shipped game by mistake. The same reader backs `--set` on
+// tools/line-ab.js and tools/gun-tune.js (tools/headless/patch.js).
 //
 // PLAN asks two things of it:
 //
@@ -59,6 +69,8 @@
 
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
+import { parseNumberPatch, applyPatches, patchWords } from './headless/patch.js';
+import { BALANCE } from '../src/game/balance.js';
 import { clock, share, table } from './headless/tables.js';
 import { hostName } from '../src/game/codex.js';
 
@@ -78,7 +90,7 @@ export const ARC = {
 const DEFAULTS = { seed: 1, runs: 48, seconds: 900, policy: 'human', picks: 'random', quiet: false };
 
 function readArgs(argv) {
-  const opts = Object.assign({}, DEFAULTS);
+  const opts = Object.assign({}, DEFAULTS, { sets: [] });
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -90,9 +102,22 @@ function readArgs(argv) {
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--picks') opts.picks = next();
+    else if (arg === '--set') opts.sets.push(next());
     else if (arg === '--quiet') opts.quiet = true;
     else {
-      console.error('usage: difficulty-arc.js [--seed N] [--runs N] [--seconds N] [--bot NAME] [--picks NAME] [--quiet]');
+      console.error('usage: difficulty-arc.js [--seed N] [--runs N] [--seconds N] [--bot NAME]'
+        + ' [--picks NAME] [--set path=number] [--quiet]');
+      process.exit(2);
+    }
+  }
+  // Checked against the live table before a single run is played, and by the same reader
+  // tools/gun-tune.js and tools/line-ab.js use: a path that does not exist is silently a *new* field,
+  // so the batch would be measured on the unpatched game while the header claimed it was not.
+  for (const assignment of opts.sets) {
+    try {
+      parseNumberPatch(assignment, BALANCE, 'BALANCE');
+    } catch (err) {
+      console.error(err.message);
       process.exit(2);
     }
   }
@@ -331,6 +356,12 @@ export function verdictOf(arc, summaries) {
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const opts = readArgs(process.argv.slice(2));
+  // The patch goes on `BALANCE` for the whole batch. That is the point of the flag: the arc's own
+  // history is a list of dials tried this way (`crowdBase` down a quarter, `waves.minDistance` up, a
+  // cheaper first card), and each one used to mean editing the table, running, and putting it back by
+  // hand - which is how a measured number ends up quoted from a game nobody can get back.
+  const patches = opts.sets.map((assignment) => parseNumberPatch(assignment, BALANCE, 'BALANCE'));
+  applyPatches(patches, BALANCE);
   const summaries = await playRuns({
     seeds: Array.from({ length: opts.runs }, (unused, i) => opts.seed + i),
     maxSeconds: opts.seconds,
@@ -352,7 +383,8 @@ if (isMain) {
     console.log('the difficulty arc: ' + opts.runs + ' runs, seeds ' + opts.seed + '-'
       + (opts.seed + opts.runs - 1) + ', the ' + opts.policy + ' bot'
       + (opts.picks === 'random' ? ' answering the level-up with a die' : ' picking ' + opts.picks)
-      + ', a ' + clock(opts.seconds) + ' window');
+      + ', a ' + clock(opts.seconds) + ' window'
+      + patchWords(patches));
     console.log('');
     console.log(arcTable(arc));
     console.log('');

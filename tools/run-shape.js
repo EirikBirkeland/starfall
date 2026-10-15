@@ -40,11 +40,14 @@
 //   node tools/run-shape.js --ship bulwark --weapon lance   fly something other than the default
 //   node tools/run-shape.js --out /tmp/a.jsonl     one JSON row per run, kept for re-reading
 //   node tools/run-shape.js --in /tmp/a.jsonl --in /tmp/b.jsonl    pool rows already played
+//   node tools/run-shape.js --set waves.gap.1=0.8  move one number of BALANCE for the batch, and say
+//                                                  so in the header (repeatable; see difficulty-arc.js)
 //   node tools/run-shape.js --every 30 --seconds 300 --quiet       coarser, shorter, verdict only
 //
 // The flags are `--seed N` `--runs M` `--seeds 1-24` or `--seeds 1,3,5` `--bot naive|aware|human`
 // `--picks wise|random` `--ship stock|bulwark|skiff` `--weapon pulse|scatter|arc|lance|swarm`
-// `--seconds N` `--every N` `--shards K` `--out FILE` `--in FILE` `--quiet`. The exit code is the
+// `--seconds N` `--every N` `--set path=number` `--shards K` `--out FILE` `--in FILE` `--quiet`.
+// The exit code is the
 // difficulty arc's verdict, same as `tools/difficulty-arc.js`, so either one can gate a release.
 // The ship and the weapon go through the same doors the title screen uses (game/ships.js,
 // game/weapons.js), so a shape table measured on the Bulwark flying the lance is the run a player
@@ -56,6 +59,8 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { playRuns } from './headless/bot.js';
 import { median } from './simulate.js';
 import { arcOf, arcTable, verdictOf, deathsTable, hullsTable } from './difficulty-arc.js';
+import { parseNumberPatch, applyPatches, patchWords } from './headless/patch.js';
+import { BALANCE } from '../src/game/balance.js';
 import { clock, table } from './headless/tables.js';
 
 // The default batch and the default slice, deliberately the arc tool's own defaults, so the two
@@ -218,8 +223,8 @@ export function writeRows(file, rows) {
 /** Read the command line into plain values, and throw on anything it does not understand. */
 export function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS, {
-    seeds: null, infiles: [], outfile: '', ship: undefined, weapon: undefined, quiet: false,
-    playOnly: false,
+    seeds: null, infiles: [], sets: [], outfile: '', ship: undefined, weapon: undefined,
+    quiet: false, playOnly: false,
   });
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -231,6 +236,7 @@ export function readArgs(argv) {
     if (flag === '--seed') opts.seed = Number(value());
     else if (flag === '--runs') opts.runs = Number(value());
     else if (flag === '--seeds') opts.seeds = value();
+    else if (flag === '--set') opts.sets.push(value());
     else if (flag === '--bot') opts.policy = value();
     else if (flag === '--picks') opts.picks = value();
     else if (flag === '--ship') opts.ship = value();
@@ -245,6 +251,11 @@ export function readArgs(argv) {
     else throw new Error('unknown flag: ' + flag);
   }
   if (opts.every <= 0 || opts.seconds <= 0) throw new Error('--seconds and --every have to be above 0');
+  // Checked against the live table before a single run is played, by the same reader
+  // tools/difficulty-arc.js and tools/gun-tune.js use (tools/headless/patch.js). A path that is not
+  // there is silently a new field, and the shape table would then describe the shipped game while
+  // claiming to describe a patched one.
+  for (const assignment of opts.sets) parseNumberPatch(assignment, BALANCE, 'BALANCE');
   if (opts.infiles.length > 0 && opts.shards > 1) {
     throw new Error('--in pools rows that were already played; it has nothing left to shard');
   }
@@ -289,6 +300,7 @@ async function playSharded(seeds, opts) {
   const files = chunks.map((unused, k) => tmpdir() + '/starfall-run-shape-' + process.pid + '-' + k + '.jsonl');
   const pass = ['--seconds', String(opts.seconds), '--every', String(opts.every),
     '--bot', opts.policy, '--picks', opts.picks];
+  for (const assignment of opts.sets) pass.push('--set', assignment);
   if (opts.ship !== undefined) pass.push('--ship', opts.ship);
   if (opts.weapon !== undefined) pass.push('--weapon', opts.weapon);
   const { spawn } = await import('node:child_process');
@@ -316,9 +328,24 @@ async function playSharded(seeds, opts) {
 /** Only run when called as a command, so the tests can import the parts above. */
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
-  const opts = readArgs(process.argv.slice(2));
+  // A flag that does not parse is a usage error and gets a line rather than a stack - the same exit 2
+  // that tools/line-ab.js, tools/difficulty-arc.js and tools/gun-tune.js answer a bad flag with.
+  // Everything past the flags is left to fail loudly: a tool that cannot read its own rows is not a
+  // usage mistake.
+  let opts;
+  try {
+    opts = readArgs(process.argv.slice(2));
+  } catch (err) {
+    console.error(err.message);
+    process.exit(2);
+  }
   const seeds = opts.seeds !== null ? parseSeeds(opts.seeds)
     : Array.from({ length: opts.runs }, (unused, i) => opts.seed + i);
+  // A patch goes on the live table for the length of the batch, and a shard gets the same `--set`
+  // flags so its children patch their own copies the same way. Over `--in` the flag is a label on
+  // rows that were already played, like `--bot` and `--seconds` are, and nothing here checks it.
+  const patches = opts.sets.map((assignment) => parseNumberPatch(assignment, BALANCE, 'BALANCE'));
+  if (opts.infiles.length === 0) applyPatches(patches, BALANCE);
 
   if (opts.playOnly) {
     // A shard at work: play, write, say nothing. Deliberately no verdict and no non-zero exit here -
@@ -342,7 +369,7 @@ if (isMain) {
     if (!opts.quiet) {
       console.log('the shape of the batch: ' + rows.length + ' runs, the ' + opts.policy + ' bot'
         + (opts.picks === 'random' ? ' answering the level-up with a die' : ' picking ' + opts.picks)
-        + ', a ' + clock(opts.seconds) + ' window');
+        + ', a ' + clock(opts.seconds) + ' window' + patchWords(patches));
       console.log('');
       console.log(shapeTable(rows, opts.every));
       console.log('');

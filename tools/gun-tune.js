@@ -62,6 +62,8 @@ import { bootGame } from './headless/harness.js';
 import { playOneRun, POLICIES, PICKS } from './headless/bot.js';
 import { median } from './simulate.js';
 import { parseSeeds, splitShards } from './run-shape.js';
+import { fieldAt, numberFields as numberFieldsOf, parseNumberPatch, applyPatches }
+  from './headless/patch.js';
 import { clock, int, dec, table } from './headless/tables.js';
 
 const DEFAULTS = {
@@ -81,39 +83,23 @@ export const ALL_GUNS = WEAPONS.map((gun) => gun.id);
 /**
  * A field of a gun's row, addressed as `fireRate` or as `muzzle.count`.
  *
- * One level of nesting and no deeper: the only objects on a weapon row are the muzzle and the sound,
- * both flat, and a path language nobody needs is a bug waiting to be mis-typed at 2 a.m.
+ * A thin wrapper over the shared patch module (tools/headless/patch.js), kept because this file's
+ * notes and tests talk about a row's fields and the module talks about any table's.
  */
 export function fieldOf(row, path) {
-  const parts = String(path).split('.');
-  if (parts.length > 2) return undefined;
-  let at = row;
-  for (const part of parts) {
-    if (at === undefined || at === null || typeof at !== 'object' || !(part in at)) return undefined;
-    at = at[part];
-  }
-  return at;
+  return fieldAt(row, path);
 }
 
 /**
- * Read one `key=value` and check it against the row before a single run is played.
+ * Read one `path=value` and check it against the row before a single run is played.
  *
- * A batch of twenty long runs is the wrong place to find out the field was spelled `firerate`, and
- * a field that is not a number (`name`, `sound.wave`) would put a string into a multiplication.
+ * A batch of twenty long runs is the wrong place to find out the field was spelled `firerate`, and a
+ * field that is not a number (`name`, `sound.wave`, the list of lines a gun cannot spend) would put a
+ * string into a multiplication somewhere else, minutes later.
  */
 export function parseSet(gun, assignment) {
-  const parts = String(assignment).split('=');
-  const path = parts[0];
-  const value = Number(parts[1]);
-  if (parts.length !== 2 || !Number.isFinite(value)) {
-    throw new Error('--set wants <field>=<number>, for example fireRate=2.6: ' + assignment);
-  }
-  const was = fieldOf(BALANCE.weapons[gun], path);
-  if (was === undefined || typeof was !== 'number') {
-    throw new Error('--set: the ' + BALANCE.weapons[gun].name + ' row has no number called '
-      + path + '; it has ' + numberFields(gun).join(', '));
-  }
-  return { path, value, was };
+  return parseNumberPatch(assignment, BALANCE.weapons[gun],
+    'the ' + BALANCE.weapons[gun].name + ' row');
 }
 
 /** `--sweep fireRate=0.9,1.4,1.8,2.6` - one field, the values to walk it through. */
@@ -133,51 +119,7 @@ export function parseSweep(gun, spec) {
 
 /** Every number on the row, spelled the way `--set` wants it. */
 export function numberFields(gun) {
-  const row = BALANCE.weapons[gun];
-  const out = [];
-  for (const key of Object.keys(row)) {
-    const at = row[key];
-    if (typeof at === 'number') out.push(key);
-    else if (plainObject(at)) {
-      for (const inner of Object.keys(at)) {
-        if (typeof at[inner] === 'number') out.push(key + '.' + inner);
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * A thing that is neither an array nor a primitive.
- *
- * The distinction is not pedantry here: a weapon row holds `cannotSpend`, which is a list of line
- * ids and is read with `indexOf` (game/upgrades.js `spendableBy`). Treating it as a plain object -
- * which is what `Object.assign({}, list)` does - turns it into `{0: 'pierce', ...}`, and the run
- * then dies three minutes in on `indexOf is not a function`, in the middle of a batch, in the one
- * place a tool cannot afford to die.
- */
-function plainObject(at) {
-  return at !== null && typeof at === 'object' && !Array.isArray(at);
-}
-
-/** A copy of a row deep enough for the muzzle, the sound and the lists on it. */
-export function copyRow(gun) {
-  const row = BALANCE.weapons[gun];
-  const out = {};
-  for (const key of Object.keys(row)) out[key] = cloneValue(row[key]);
-  return out;
-}
-
-function cloneValue(at) {
-  if (Array.isArray(at)) return at.slice();
-  if (plainObject(at)) return Object.assign({}, at);
-  return at;
-}
-
-/** Put the row back as it was shipped, so condition three is not measured on condition two. */
-export function restoreRow(gun, shipped) {
-  const row = BALANCE.weapons[gun];
-  for (const key of Object.keys(shipped)) row[key] = cloneValue(shipped[key]);
+  return numberFieldsOf(BALANCE.weapons[gun]);
 }
 
 /* ------------------------------------------------------------------ the conditions */
@@ -339,27 +281,30 @@ export function readRows(files) {
  * measured on the third value alone. `onRun` is the progress dot: a batch of long runs is minutes of
  * silence without it, and whoever is watching wants to know which seed is taking its time.
  */
-async function playCondition(game, gun, condition, seeds, opts, at, shipped) {
-  restoreRow(gun, shipped);
-  for (const set of condition.sets) {
-    const parts = set.path.split('.');
-    if (parts.length === 1) BALANCE.weapons[gun][parts[0]] = set.value;
-    else BALANCE.weapons[gun][parts[0]][parts[1]] = set.value;
-  }
+async function playCondition(game, gun, condition, seeds, opts, at) {
+  // The patch goes on the row for the length of the condition and comes straight off it again, and it
+  // touches only the leaves it names. Nothing here copies a row: a copied row is a row whose lists can
+  // come back as objects (tools/headless/patch.js, and NOTES session 134 for the lance run that proved
+  // it), and a condition that leaves a number behind measures the next one twice.
+  const restore = applyPatches(condition.sets, BALANCE.weapons[gun]);
   const rows = [];
-  for (let i = 0; i < seeds.length; i++) {
-    // Every run after the very first one gets a title screen that has never seen a frame
-    // (tools/headless/harness.js: one game per process, and a fresh page is what a second run in a
-    // browser gets).
-    if (opts.started) await game.resetToTitle(seeds[i]);
-    opts.started = true;
-    rows.push(rowOf(playOneRun(game, {
-      maxSeconds: opts.seconds,
-      policy: opts.policy,
-      picks: opts.picks,
-      weapon: gun,
-    }), at));
-    if (!opts.quiet) process.stdout.write('.');
+  try {
+    for (let i = 0; i < seeds.length; i++) {
+      // Every run after the very first one gets a title screen that has never seen a frame
+      // (tools/headless/harness.js: one game per process, and a fresh page is what a second run in a
+      // browser gets).
+      if (opts.started) await game.resetToTitle(seeds[i]);
+      opts.started = true;
+      rows.push(rowOf(playOneRun(game, {
+        maxSeconds: opts.seconds,
+        policy: opts.policy,
+        picks: opts.picks,
+        weapon: gun,
+      }), at));
+      if (!opts.quiet) process.stdout.write('.');
+    }
+  } finally {
+    restore();
   }
   return rows;
 }
@@ -514,14 +459,11 @@ async function main(opts) {
     // through that one.
     const game = await bootGame({ seed: seeds[0] });
     const conditions = conditionsOf(opts);
-    const shipped = copyRow(opts.gun);
     rows = [];
     for (let at = 0; at < conditions.length; at++) {
       if (!opts.quiet) process.stdout.write(conditions[at].label + ' ');
-      rows = rows.concat(
-        await playCondition(game, opts.gun, conditions[at], seeds, opts, at, shipped));
+      rows = rows.concat(await playCondition(game, opts.gun, conditions[at], seeds, opts, at));
     }
-    restoreRow(opts.gun, shipped);
     game.stop();
   }
 

@@ -21,9 +21,9 @@ import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  ALL_GUNS, readArgs, conditionsOf, seedList, copyRow, restoreRow, numberFields, fieldOf, rowWords,
-  standingOf, notesFor,
+  ALL_GUNS, readArgs, conditionsOf, seedList, numberFields, fieldOf, rowWords, standingOf, notesFor,
 } from '../tools/gun-tune.js';
+import { applyPatches } from '../tools/headless/patch.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'gun-tune.js');
@@ -92,8 +92,9 @@ test('an unknown flag is refused with a line and not a stack', () => {
   assert.equal(run.stderr.trim(), 'unknown flag: --swept');
 });
 
-test('a field is only addressable one level deep', () => {
-  // The muzzle and the sound are the only objects on a row, and both are flat.
+test('a field is addressable through an object and past one', () => {
+  // The muzzle and the sound are objects on a row, and the shared patch module does not cap its depth
+  // (a `gap.0` on the waves table has to work for `tools/difficulty-arc.js --set`).
   assert.equal(fieldOf(BALANCE.weapons.pulse, 'muzzle.count'), BALANCE.weapons.pulse.muzzle.count);
   assert.equal(fieldOf(BALANCE.weapons.pulse, 'muzzle.count.deep'), undefined);
   assert.equal(fieldOf(BALANCE.weapons.pulse, 'nope'), undefined);
@@ -138,20 +139,24 @@ test('the seeds are the same batch for every condition', () => {
 
 /* ------------------------------------------------------------------ putting the row back */
 
-test('putting a row back puts back its lists as lists', () => {
-  // The bug this holds: `Object.assign({}, ['pierce', 'ricochet'])` is `{0: 'pierce', ...}`, which
-  // has no `indexOf`, and game/upgrades.js `spendableBy` reads the list with `indexOf`. So a copy
-  // that treated every object the same way killed a lance run three minutes into a batch, in the one
-  // place a tuning tool cannot afford to die - and it only showed on the three guns that carry the
-  // list at all, which is why it survived a whole afternoon of pulse probes.
-  const shipped = copyRow('lance');
-  BALANCE.weapons.lance.cannotSpend.push('mines');
-  BALANCE.weapons.lance.damage = 99;
-  restoreRow('lance', shipped);
+test('a patch touches the leaf it names and nothing else on the row', () => {
+  // The bug this holds, from session 134: the first version of this tool copied the whole row and
+  // restored the copy, and `Object.assign({}, ['pierce', 'ricochet'])` is `{0: 'pierce', ...}` - an
+  // object with no `indexOf`, which game/upgrades.js `spendableBy` reads at every level-up. A lance
+  // run died three minutes into a batch over it, and it only happened on the three guns that carry a
+  // list, which is why a whole afternoon of pulse probes never saw it. Nothing copies a row now, so
+  // the class of mistake is gone rather than merely tested for.
   const row = BALANCE.weapons.lance;
-  assert.ok(Array.isArray(row.cannotSpend), 'cannotSpend is still a list');
-  assert.deepEqual(row.cannotSpend, ['pierce', 'ricochet', 'bulletSpeed']);
-  assert.equal(row.damage, 3);
+  const list = row.cannotSpend;
+  const before = JSON.stringify(row);
+  const patches = conditionsOf(readArgs(['--gun', 'lance', '--set', 'beam.halfWidth=40',
+    '--sweep', 'damage=1,9'])).map((condition) => condition.sets).flat();
+  const restore = applyPatches(patches, row);
+  assert.notEqual(JSON.stringify(row), before, 'the patch really landed');
+  assert.ok(Array.isArray(row.cannotSpend) && row.cannotSpend.length === 3);
+  restore();
+  assert.equal(JSON.stringify(row), before, 'the row is back as it was shipped');
+  assert.equal(row.cannotSpend, list, 'and the list is the same list, not a copy of it');
 });
 
 test('a swept value that equals the shipped one reads exactly like the control', () => {
@@ -179,8 +184,7 @@ test('a swept value that equals the shipped one reads exactly like the control',
 
 test('every gun can be patched and put back, including the three that carry a list', () => {
   for (const gun of ALL_GUNS) {
-    const shipped = copyRow(gun);
-    assert.equal(shipped.name, BALANCE.weapons[gun].name);
+    assert.equal(BALANCE.weapons[gun].name !== '', true);
     for (const field of numberFields(gun)) {
       const was = fieldOf(BALANCE.weapons[gun], field);
       assert.equal(typeof was, 'number', gun + '.' + field + ' is a number');

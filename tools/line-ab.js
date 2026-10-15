@@ -67,6 +67,7 @@
 import { BALANCE } from '../src/game/balance.js';
 import { WEAPONS } from '../src/game/weapons.js';
 import { bootGame } from './headless/harness.js';
+import { parseNumberPatch, applyPatches } from './headless/patch.js';
 import { playOneRun, POLICIES, DEFAULT_POLICY, DEFAULT_DASH_HABIT } from './headless/bot.js';
 import { median } from './simulate.js';
 import { clock, int, dec, table } from './headless/tables.js';
@@ -127,12 +128,11 @@ function readArgs(argv) {
     process.exit(2);
   }
   for (const assignment of opts.sets) {
-    const parts = assignment.split('=');
-    const key = parts[0];
-    const value = Number(parts[1]);
-    if (parts.length !== 2 || !Number.isFinite(value) || !(key in BALANCE.upgrades[opts.line])) {
-      console.error('--set wants <key>=<number>, a key of BALANCE.upgrades.' + opts.line
-        + ' (one of: ' + Object.keys(BALANCE.upgrades[opts.line]).join(', ') + ')');
+    try {
+      parseNumberPatch(assignment, BALANCE.upgrades[opts.line],
+        'BALANCE.upgrades.' + opts.line);
+    } catch (err) {
+      console.error(err.message);
       process.exit(2);
     }
   }
@@ -155,17 +155,16 @@ function readArgs(argv) {
  * numbers are argued about in runs, and the way to argue is to change one and see what the middle of
  * a batch does - which is worth writing down as a command rather than a throwaway script, because a
  * printed table that does not say it was measured with `weight=0.6` is a number nobody can use.
+ *
+ * The patching itself is the shared one (tools/headless/patch.js): a patch remembers the leaf it
+ * covered, so a tool that measures three conditions over one boot can put a number back instead of
+ * leaving it on the table for whoever runs next.
  */
 function applySets(opts) {
-  const changed = [];
-  for (const assignment of opts.sets) {
-    const parts = assignment.split('=');
-    const key = parts[0];
-    const value = Number(parts[1]);
-    changed.push(key + ' ' + BALANCE.upgrades[opts.line][key] + ' -> ' + value);
-    BALANCE.upgrades[opts.line][key] = value;
-  }
-  return changed;
+  const patches = opts.sets.map((assignment) => parseNumberPatch(assignment,
+    BALANCE.upgrades[opts.line], 'BALANCE.upgrades.' + opts.line));
+  applyPatches(patches, BALANCE.upgrades[opts.line]);
+  return patches.map((patch) => patch.path + ' ' + patch.was + ' -> ' + patch.value);
 }
 
 const CONDITIONS = {
