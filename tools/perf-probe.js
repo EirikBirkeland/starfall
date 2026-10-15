@@ -27,6 +27,13 @@
 //   moves - and it is the currency every previous measurement in this file's family was written in
 //   (the note on `BALANCE.endless.growth.bodiesCeil` quotes draw calls and nothing else).
 //
+//   **the page, in writes a frame.** The arena is a canvas and every word of the interface is DOM, so
+//   the same frames are counted a third way: text put into an element, children added or taken away,
+//   which is what a browser charges for and what nothing above can see. It is measured on the painter's
+//   frames because those are the frames the interface is painted on, and it is the number that turns
+//   "the page is quiet" from a hope into a reading - the arena is a canvas and the score, the purse and
+//   the level line are painted on it (render/hud.js), so a busy fight writes the page not at all.
+//
 // Why the target itself is part of the answer: PLAN section 2 was written before the arena became
 // 3000x3000 (section 4), before the camera culled everything off the glass (render/camera.js) and
 // before the effect lists were capped (game/effects.js). Three of its numbers are now unreachable by
@@ -102,6 +109,17 @@ export const SIM_STEP_MS = 1.5;
 // re-measures both and fails the project if either goes over.
 export const PAINT_OPS = 4000;
 export const PAINT_WORST_OPS = 4400;
+// The page, in writes a frame. The arena is a canvas and every word of the interface is DOM
+// (render/hud.js paints the score, the purse and the level line *on the canvas*, with the fight), so
+// a frame of a busy arena writes the page not at all - measured 0.00 writes a frame in all four gated
+// scenes, and held screen by screen by test/dom-writes.test.mjs.
+//
+// The budget is 1 and not 0 on purpose. A card that legitimately arrives in the middle of a scene's
+// window is a burst of a couple of dozen writes spread over a hundred and eighty frames, which is
+// what this number is for: it catches a panel that starts being *rebuilt* every frame - session 125
+// found the death's card doing exactly that, with its "press to go" flag forgotten - and a rebuilt
+// panel reads tens a frame, not a fraction of one.
+export const PAGE_WRITES = 1;
 
 // PLAN section 2's sentence, as numbers, so the file can be read against the sentence it is testing.
 export const PLAN_SECTION_2 = { bodies: 600, shots: 1500, sparks: 4000 };
@@ -436,9 +454,18 @@ export function measurePaint(game, scene) {
   const total = {};
   for (const key of PAINT_KEYS) total[key] = 0;
   let worst = 0;
+  // The page on the same frames. The arena is a canvas and every word of the interface is DOM, so a
+  // frame that rebuilds a panel is spending time the crowd never sees - which is invisible here until
+  // it is counted (session 125 found the death's card writing itself sixty times a second).
+  let domTotal = 0;
+  let domWorst = 0;
   for (let i = 0; i < frames; i++) {
     hold();
+    game.resetDomWrites();
     const cost = frameCost(() => game.step(FRAME_MS));
+    const writes = game.domWrites();
+    domTotal += writes;
+    if (writes > domWorst) domWorst = writes;
     for (const key of PAINT_KEYS) total[key] += cost[key];
     const frameOps = cost.strokes + cost.fills + cost.images + cost.texts;
     if (frameOps > worst) worst = frameOps;
@@ -447,6 +474,8 @@ export function measurePaint(game, scene) {
   for (const key of PAINT_KEYS) per[key] = total[key] / frames;
   per.total = per.strokes + per.fills + per.images + per.texts;
   per.worst = worst;
+  per.dom = domTotal / frames;
+  per.domWorst = domWorst;
   return per;
 }
 
@@ -547,15 +576,16 @@ export function sceneLines(results) {
   return table(
     'THE SCENES',
     'a scene is planted and held; the step is timed on this box, the painter is counted in operations',
-    'lllrrrrrrrrl',
+    'lllrrrrrrrrrrl',
     ['scene', 'bodies', 'shots', 'sparks', 'step ms', 'sim ms/frame', 'strokes', 'fills', 'stamps',
-      'ops mean', 'ops worst', 'gate'],
+      'ops mean', 'ops worst', 'page/frame', 'page worst', 'gate'],
     results.map((r) => [
       r.name,
       int(r.live.bodies), int(r.live.shots), int(r.live.sparks),
       dec(r.step.stepMs, 3), dec(r.step.frameMs, 2),
       int(r.paint.strokes), int(r.paint.fills), int(r.paint.images),
       int(r.paint.total), int(r.paint.worst),
+      dec(r.paint.dom, 2), int(r.paint.domWorst),
       r.gated ? (r.ok ? 'PASS' : 'FAIL') : '-',
     ])
   );
@@ -568,7 +598,8 @@ export function sceneLines(results) {
 export function sceneIsInsideBudgets(paint, step) {
   return step.stepMs <= SIM_STEP_MS
     && paint.total <= PAINT_OPS
-    && paint.worst <= PAINT_WORST_OPS;
+    && paint.worst <= PAINT_WORST_OPS
+    && paint.dom <= PAGE_WRITES;
 }
 
 export function verdictOf(results) {
@@ -581,6 +612,7 @@ export function verdictOf(results) {
     worstOps: gated.reduce((m, r) => Math.max(m, r.paint.worst), 0),
     meanOps: gated.reduce((m, r) => Math.max(m, r.paint.total), 0),
     worstStep: gated.reduce((m, r) => Math.max(m, r.step.stepMs), 0),
+    worstPage: gated.reduce((m, r) => Math.max(m, r.paint.dom), 0),
   };
 }
 
@@ -622,7 +654,8 @@ async function main() {
     console.log('  box     ' + (cpus[0].model || 'a cpu').trim() + ', ' + cpus.length
       + ' cores, node ' + process.versions.node);
     console.log('  budget  a step <= ' + dec(SIM_STEP_MS, 2) + ' ms; a painted arena <= '
-      + int(PAINT_OPS) + ' operations on the mean and ' + int(PAINT_WORST_OPS) + ' on its dearest frame');
+      + int(PAINT_OPS) + ' operations on the mean and ' + int(PAINT_WORST_OPS) + ' on its dearest frame'
+      + '; and the page <= ' + dec(PAGE_WRITES, 2) + ' writes a frame');
     console.log('  window  ' + dec(chosen[0].seconds, 1) + 's of arena time and '
       + Math.max(6, Math.round(chosen[0].seconds * 60)) + ' painted frames a scene, '
       + chosen[0].reps + ' timed pass(es) and the best of them');
@@ -671,7 +704,8 @@ async function main() {
   }
   console.log('VERDICT ' + (verdict.pass ? 'PASS' : 'FAIL') + ' - ' + verdict.gated
     + ' gated scene(s); the worst step was ' + dec(verdict.worstStep, 3) + ' ms, the dearest frame '
-    + int(verdict.worstOps) + ' operations and the dearest mean ' + int(verdict.meanOps)
+    + int(verdict.worstOps) + ' operations, the dearest mean ' + int(verdict.meanOps)
+    + ' and the busiest page ' + dec(verdict.worstPage, 2) + ' writes a frame'
     + (verdict.failed.length ? '; over: ' + verdict.failed.join(', ') : ''));
   if (!verdict.pass) process.exitCode = 1;
 }

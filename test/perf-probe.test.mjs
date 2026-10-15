@@ -13,8 +13,9 @@
 //   - **the readings mean what they say**: the step's milliseconds come from the crowd and not from the
 //     harness, the counts are the scene's and not a race, and a dying crowd really is dearer to paint
 //     than a standing one;
-//   - **the gated scenes are inside both paint budgets and the step budget**, which is the ratchet: a
-//     change that makes the arena dearer to run or to draw has to be argued about here.
+//   - **the gated scenes are inside both paint budgets, the step budget and the page budget**, which is
+//     the ratchet: a change that makes the arena dearer to run, dearer to draw, or starts writing the
+//     page every frame has to be argued about here.
 //
 // What is *not* in here is any claim about a browser. The harness's canvas is a stub that counts calls
 // and holds no pixels, so the paint half is counted in operations and never in milliseconds, and the
@@ -27,8 +28,9 @@ import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { bootGame } from '../tools/headless/harness.js';
+import { FRAME_MS } from '../tools/headless/bot.js';
 import {
-  SCENES, PLAN_SECTION_2, SIM_STEP_MS, PAINT_OPS, PAINT_WORST_OPS, STEPS_PER_FRAME,
+  SCENES, PLAN_SECTION_2, SIM_STEP_MS, PAINT_OPS, PAINT_WORST_OPS, PAGE_WRITES, STEPS_PER_FRAME,
   settled, customScene, openScene, measureStep, measurePaint, sceneIsInsideBudgets, verdictOf,
   peakOfRealRuns,
 } from '../tools/perf-probe.js';
@@ -176,7 +178,7 @@ test('the load a scene was holding is the same number every time', async () => {
 
 // --- the budgets --------------------------------------------------------------
 
-test('every gated scene is inside the step budget and both paint budgets', async () => {
+test('every gated scene is inside the step budget, both paint budgets and the page budget', async () => {
   // This is the ratchet. The step budget has an order of magnitude of room over the shipped game
   // (0.12 ms against 1.5) so it only trips on a change that really makes the arena expensive; the two
   // paint budgets are set about a fifth over the busiest scene, which is "a few hundred operations",
@@ -195,41 +197,85 @@ test('every gated scene is inside the step budget and both paint budgets', async
       'the dearest frame cannot be cheaper than the mean of the window it came from');
     assert.ok(read.paint.gradients < 1 && read.paint.shadows < 1,
       full.name + ' is not supposed to blur or gradient anything any more (see test/draw-cost.test.mjs)');
+    assert.ok(read.paint.dom <= PAGE_WRITES,
+      full.name + ' writes the page ' + read.paint.dom.toFixed(2) + ' times a frame, over '
+        + PAGE_WRITES);
   }
+});
+
+test('a busy arena writes the page not at all', async () => {
+  // The interesting half of the page budget, and the reason it is a budget and not a shrug. Every word
+  // of this game's interface is DOM and the arena is a canvas, and the score, the purse and the level
+  // line are painted *on the canvas* with the fight (render/hud.js) - so 200 bodies dying on the glass
+  // with the spark cap up write the page zero times a frame. That is what makes the interface free, and
+  // it is exactly what session 125's bug cost: a card whose "press to go" flag was forgotten, painting
+  // itself again on every frame it was up.
+  //
+  // If this ever reads non-zero, the first question is whether something has legitimately started
+  // writing during a scene (a card arriving mid-window is a burst of a couple of dozen writes spread
+  // over the window, which the budget above already allows). If it has, say so in the commit and raise
+  // the reading here; if it has not, this is the bug.
+  const read = await readScene(settled(SCENE_ID.fight, 2, 3, null));
+  assert.equal(read.paint.dom, 0, 'the dying crowd writes the page, per frame');
+  assert.equal(read.paint.domWorst, 0, 'and so does its busiest single frame');
+
+  // The control, because a zero that comes from an instrument that is not plugged in looks identical
+  // to a zero that means the page is quiet. The same counter, on the same boot, does see a panel: the
+  // pause is DOM, and putting it up is a write.
+  game.resetDomWrites();
+  game.key('KeyP', true);
+  game.key('KeyP', false);
+  for (let i = 0; i < 3; i++) game.step(FRAME_MS);
+  assert.ok(game.domWrites() > 0,
+    'the counter sees a panel being put up, so its zero above means something');
+  game.key('KeyP', true);
+  game.key('KeyP', false);
+  for (let i = 0; i < 3; i++) game.step(FRAME_MS);
 });
 
 test('a scene that goes over a budget fails, and only a gated one can', () => {
   const inside = {
     gated: true, ok: true, name: 'inside',
-    step: { stepMs: 0.2 }, paint: { total: 1000, worst: 1200 },
+    step: { stepMs: 0.2 }, paint: { total: 1000, worst: 1200, dom: 0 },
   };
   const overMean = {
-    gated: true, ok: sceneIsInsideBudgets({ total: PAINT_OPS + 1, worst: 1 }, { stepMs: 0.2 }),
-    name: 'over the mean', step: { stepMs: 0.2 }, paint: { total: PAINT_OPS + 1, worst: 1 },
+    gated: true, ok: sceneIsInsideBudgets({ total: PAINT_OPS + 1, worst: 1, dom: 0 }, { stepMs: 0.2 }),
+    name: 'over the mean', step: { stepMs: 0.2 }, paint: { total: PAINT_OPS + 1, worst: 1, dom: 0 },
   };
   const overWorst = {
-    gated: true, ok: sceneIsInsideBudgets({ total: 1, worst: PAINT_WORST_OPS + 1 }, { stepMs: 0.2 }),
-    name: 'over the worst frame', step: { stepMs: 0.2 }, paint: { total: 1, worst: PAINT_WORST_OPS + 1 },
+    gated: true,
+    ok: sceneIsInsideBudgets({ total: 1, worst: PAINT_WORST_OPS + 1, dom: 0 }, { stepMs: 0.2 }),
+    name: 'over the worst frame', step: { stepMs: 0.2 },
+    paint: { total: 1, worst: PAINT_WORST_OPS + 1, dom: 0 },
   };
   const overStep = {
-    gated: true, ok: sceneIsInsideBudgets({ total: 1, worst: 1 }, { stepMs: SIM_STEP_MS + 1 }),
-    name: 'over the step', step: { stepMs: SIM_STEP_MS + 1 }, paint: { total: 1, worst: 1 },
+    gated: true, ok: sceneIsInsideBudgets({ total: 1, worst: 1, dom: 0 }, { stepMs: SIM_STEP_MS + 1 }),
+    name: 'over the step', step: { stepMs: SIM_STEP_MS + 1 }, paint: { total: 1, worst: 1, dom: 0 },
+  };
+  const overPage = {
+    gated: true,
+    ok: sceneIsInsideBudgets({ total: 1, worst: 1, dom: PAGE_WRITES + 0.5 }, { stepMs: 0.2 }),
+    name: 'over the page', step: { stepMs: 0.2 },
+    paint: { total: 1, worst: 1, dom: PAGE_WRITES + 0.5 },
   };
   assert.equal(sceneIsInsideBudgets(inside.paint, inside.step), true);
   assert.equal(overMean.ok, false, 'a mean over the paint budget is a fail');
   assert.equal(overWorst.ok, false, 'a dearest frame over the paint budget is a fail');
   assert.equal(overStep.ok, false, 'a step over the step budget is a fail');
+  assert.equal(overPage.ok, false, 'a page written every frame is a fail');
 
-  const verdict = verdictOf([inside, overMean, overWorst, overStep]);
+  const verdict = verdictOf([inside, overMean, overWorst, overStep, overPage]);
   assert.equal(verdict.pass, false);
-  assert.deepEqual(verdict.failed, ['over the mean', 'over the worst frame', 'over the step']);
+  assert.deepEqual(verdict.failed,
+    ['over the mean', 'over the worst frame', 'over the step', 'over the page']);
   assert.equal(verdict.worstStep, SIM_STEP_MS + 1);
+  assert.equal(verdict.worstPage, PAGE_WRITES + 0.5);
 
   // PLAN's own scene may cost whatever it costs: it is printed so the distance to it is a number, and
   // it gates nothing, so it fails nothing.
   const ungated = verdictOf([inside, {
     gated: false, ok: false, name: 'PLAN section 2',
-    step: { stepMs: 99 }, paint: { total: 99999, worst: 99999 },
+    step: { stepMs: 99 }, paint: { total: 99999, worst: 99999, dom: 99 },
   }]);
   assert.equal(ungated.pass, true);
   assert.equal(ungated.gated, 1);
