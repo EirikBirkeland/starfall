@@ -43,6 +43,8 @@
 //   node tools/run-shape.js --set waves.gap.1=0.8  move one number of BALANCE for the batch, and say
 //                                                  so in the header (repeatable; see difficulty-arc.js)
 //   node tools/run-shape.js --every 30 --seconds 300 --quiet       coarser, shorter, verdict only
+//   node tools/run-shape.js                            no `--seconds`: a window long enough to see
+//                                                  the schedule resolved (tools/headless/window.js)
 //
 // The flags are `--seed N` `--runs M` `--seeds 1-24` or `--seeds 1,3,5` `--bot naive|aware|human`
 // `--picks wise|random` `--ship stock|bulwark|skiff` `--weapon pulse|scatter|arc|lance|swarm`
@@ -63,11 +65,13 @@ import {
 } from './headless/shards.js';
 import { BALANCE } from '../src/game/balance.js';
 import { clock, table } from './headless/tables.js';
+import { scheduleWindow } from './headless/window.js';
 
 // The default batch and the default slice, deliberately the arc tool's own defaults, so the two
-// tools describe the same forty-eight people and the same window unless told otherwise.
+// tools describe the same forty-eight people and the same window unless told otherwise. The window
+// is null because it is the schedule's length rather than a number: see tools/headless/window.js.
 const DEFAULTS = {
-  seed: 1, runs: 48, seconds: 900, every: 60, shards: 1, policy: 'human', picks: 'random',
+  seed: 1, runs: 48, seconds: null, every: 60, shards: 1, policy: 'human', picks: 'random',
 };
 
 /**
@@ -212,7 +216,10 @@ export function readArgs(argv) {
     else if (flag === '--play-only') opts.playOnly = true;
     else throw new Error('unknown flag: ' + flag);
   }
-  if (opts.every <= 0 || opts.seconds <= 0) throw new Error('--seconds and --every have to be above 0');
+  if (opts.every <= 0) throw new Error('--every has to be above 0');
+  if (opts.seconds !== null && !(opts.seconds > 0)) {
+    throw new Error('--seconds wants a number of seconds above zero (leave it out for the schedule\'s own window)');
+  }
   // Checked against the live table before a single run is played, by the same reader
   // tools/difficulty-arc.js and tools/gun-tune.js use (tools/headless/patch.js). A path that is not
   // there is silently a new field, and the shape table would then describe the shipped game while
@@ -295,6 +302,9 @@ if (isMain) {
   // rows that were already played, like `--bot` and `--seconds` are, and nothing here checks it.
   const patches = opts.sets.map((assignment) => parseNumberPatch(assignment, BALANCE, 'BALANCE'));
   if (opts.infiles.length === 0) applyPatches(patches, BALANCE);
+  // Resolved after the patch, so a batch measured with a moved schedule is played long enough to see
+  // the end of it (tools/headless/window.js).
+  if (opts.seconds === null) opts.seconds = scheduleWindow();
 
   if (opts.playOnly) {
     // A shard at work: play, write, say nothing. Deliberately no verdict and no non-zero exit here -

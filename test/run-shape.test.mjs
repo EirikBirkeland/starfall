@@ -24,6 +24,8 @@ import {
   parseSeeds, splitShards, readRows, writeRows,
 } from '../tools/headless/shards.js';
 import { creditTable } from '../tools/difficulty-arc.js';
+import { scheduleWindow } from '../tools/headless/window.js';
+import { clock } from '../tools/headless/tables.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SHAPE = path.join(ROOT, 'tools', 'run-shape.js');
@@ -85,6 +87,8 @@ test('the flags mean what they say, and the ones that contradict each other are 
   assert.equal(readArgs(['--ship', 'bulwark']).ship, 'bulwark');
   assert.equal(readArgs(['--weapon', 'lance']).weapon, 'lance');
   assert.equal(readArgs([]).weapon, undefined, 'and a plain batch flies the default gun');
+  assert.equal(readArgs([]).seconds, null, 'the window is the schedule\'s, and is resolved later');
+  assert.throws(() => readArgs(['--seconds', '0']), /above zero/);
   assert.throws(() => readArgs(['--nope']), /unknown flag: --nope/);
   assert.throws(() => readArgs(['--every']), /--every needs a value/);
   assert.throws(() => readArgs(['--every', '0']), /above 0/);
@@ -120,6 +124,26 @@ test('a row survives the trip through a file, fields and all', () => {
     assert.equal(creditTable(arcRows.filter((s) => s.died && !s.won).map((s) => s.stats.killedBy))
       .rows[0].count, 1, 'the arc\'s ceiling table did not read the pooled rows');
     assert.equal(arcRows[1].won, true, 'a run that won the schedule must not arrive as a death');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the default window is the schedule\'s, so the table runs to the end of a run', () => {
+  // The shape tool shares the arc tool's window (tools/headless/window.js), and for the same reason:
+  // stopped at 900 s it never saw the seeds that beat the final boss, and its own endings table filed
+  // the winners under "never died" alongside the runs that genuinely could not be killed.
+  const dir = mkdtempSync(path.join(tmpdir(), 'run-shape-window-'));
+  try {
+    const file = path.join(dir, 'batch.jsonl');
+    const samples = [[0, 10, 1, 3, 0, 0]];
+    writeRows(file, [
+      rowOf(run({}), samples),
+      rowOf(run({ seed: 8, died: false, won: true }), samples),
+    ]);
+    const done = shape(['--in', file]);
+    assert.match(done.stdout, new RegExp('a ' + clock(scheduleWindow()) + ' window'));
+    assert.match(done.stdout, /won the schedule +1/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -14,11 +14,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun, endingItAt, resetPicks, PICKS } from '../tools/headless/bot.js';
+import { writeRows } from '../tools/headless/shards.js';
+import { clock } from '../tools/headless/tables.js';
+import { BALANCE } from '../src/game/balance.js';
 import {
   ARC, endingOf, arcOf, arcTable, creditTable, deathsTable, hullsTable, verdictOf,
 } from '../tools/difficulty-arc.js';
+import { scheduleWindow } from '../tools/headless/window.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'difficulty-arc.js');
@@ -274,6 +280,26 @@ test('the tool refuses a batch that cannot answer the question', () => {
   assert.match(runTool(['--picks', 'clever']).out, /--picks wants one of: wise, random/);
   assert.equal(runTool(['--bot', 'blind']).status, 2);
   assert.equal(runTool(['--nonsense']).status, 2);
+  assert.equal(runTool(['--runs', '3', '--seconds', '0']).status, 2);
+  assert.match(runTool(['--runs', '3', '--seconds', '0']).out, /--seconds wants a number/);
+});
+
+test('the window outlasts the schedule, so a run that wins is seen winning', () => {
+  // The window used to be 900 s, which is PLAN's band's far edge and also exactly the moment the
+  // last boss walks in. A batch stopped there can never see a run that beat the final boss, so the
+  // `won the schedule` row was a zero by construction and the seeds that got all the way through
+  // were filed under "never died" - which is a different finding, and the wrong one.
+  const last = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1];
+  assert.ok(scheduleWindow() > last.at, 'the batch has to outlast the last boss');
+
+  // Pooled rows rather than a played batch: nothing here needs a game, and a 20 minute batch of
+  // real runs would be minutes of the suite spent proving a header line prints.
+  const file = path.join(tmpdir(), 'starfall-arc-window-' + process.pid + '.jsonl');
+  writeRows(file, [died(120, 'weaver'), wonIt(scheduleWindow())]);
+  const done = runTool(['--in', file]);
+  unlinkSync(file);
+  assert.match(done.out, new RegExp('a ' + clock(scheduleWindow()) + ' window'), done.out);
+  assert.match(done.out, /won the schedule +1/, done.out);
 });
 
 test('a number the table does not have is refused before a single run is played', () => {

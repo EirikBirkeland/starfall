@@ -6,6 +6,8 @@
 //   node tools/difficulty-arc.js --runs 96           more runs, for the 40% question in particular
 //   node tools/difficulty-arc.js --seed 200          a different set of seeds
 //   node tools/difficulty-arc.js --seconds 600       a shorter window (it cuts the arc short)
+//   node tools/difficulty-arc.js                     no `--seconds`: a window long enough to see
+//                                                  the schedule resolved (see scheduleWindow)
 //   node tools/difficulty-arc.js --bot aware         the player that never misses a thing
 //   node tools/difficulty-arc.js --bot naive         the player that does not dodge at all
 //   node tools/difficulty-arc.js --picks wise        the careful build, to compare against
@@ -64,13 +66,15 @@
 // that prints numbers and judges none of them; this one judges two.
 //
 // Today the band reads red the other way up - a careless batch of people middles its deaths at
-// 2m33s of 48 seeds, with 7 of them in the band and 5 never dying at all - and the ceiling reads
-// green with the widest body sitting on the line and not under it (the weaver, at 40%). Both are
-// findings rather than bugs, and the PLAN item of the same name has the numbers, along with the
-// nine knobs that were measured and moved the tails instead. `tools/run-shape.js` plays this same
-// batch over eight processes in about a quarter of the time and prints what the runs were *doing*
-// at each minute, which is where the finding came from: a careless batch is not a ramp that starts
-// too soon, it is a cliff, and the six runs over it are level 37 and unkillable by the fifth minute.
+// 2m36s of 48 seeds, with 6 of them in the band and 4 that never died because they *won*: played
+// past the schedule those four beat the Eclipse with all three hull standing - and the ceiling
+// reads green with the widest body sitting on the line and not under it (the drifter, at 39%).
+// Both are findings rather than bugs, and the PLAN item of the same name has the numbers, along
+// with the fifteen dials and two whole mechanics that were measured and moved the tails instead.
+// `tools/run-shape.js` plays this same batch over eight processes in about a quarter of the time and
+// prints what the runs were *doing* at each minute, which is where the finding came from: a careless
+// batch is not a ramp that starts too soon, it is a cliff, and the runs over it are level 37 by the
+// fifth minute and level 65 by the Eclipse, which they win.
 
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
@@ -79,6 +83,7 @@ import { parseSeeds, readRows, writeRows, playSharded as playOverShards }
   from './headless/shards.js';
 import { BALANCE } from '../src/game/balance.js';
 import { clock, share, table } from './headless/tables.js';
+import { scheduleWindow } from './headless/window.js';
 import { hostName } from '../src/game/codex.js';
 
 /** PLAN 10's two numbers, and the two judgement calls that come with them. */
@@ -95,7 +100,7 @@ export const ARC = {
 };
 
 const DEFAULTS = {
-  seed: 1, runs: 48, seconds: 900, policy: 'human', picks: 'random', quiet: false, shards: 1,
+  seed: 1, runs: 48, seconds: null, policy: 'human', picks: 'random', quiet: false, shards: 1,
 };
 
 function readArgs(argv) {
@@ -138,8 +143,12 @@ function readArgs(argv) {
       process.exit(2);
     }
   }
-  if (!Number.isFinite(opts.seed) || !Number.isFinite(opts.runs) || !Number.isFinite(opts.seconds)) {
+  if (!Number.isFinite(opts.seed) || !Number.isFinite(opts.runs)) {
     console.error('--seed, --runs and --seconds want a number');
+    process.exit(2);
+  }
+  if (opts.seconds !== null && !(opts.seconds > 0)) {
+    console.error('--seconds wants a number of seconds above zero (leave it out for the schedule\'s own window)');
     process.exit(2);
   }
   if (opts.runs < 2 && opts.seeds === null) {
@@ -420,6 +429,9 @@ if (isMain) {
   const seeds = opts.seeds !== null ? parseSeeds(opts.seeds)
     : Array.from({ length: opts.runs }, (unused, i) => opts.seed + i);
   if (opts.infiles.length === 0) applyPatches(patches, BALANCE);
+  // Resolved after the patch, so a batch measured with a moved schedule is played long enough to
+  // see the end of it.
+  if (opts.seconds === null) opts.seconds = scheduleWindow();
 
   let summaries;
   if (opts.infiles.length > 0) {

@@ -1388,6 +1388,67 @@ When every item above is ticked, go back to the first unchecked item of mileston
       minute out-kills the spawn rate, and a crowd that cannot reach the ship cannot hurt it.
       `waves.maxBodies` is a ceiling, and nothing in the game puts a floor under what the crowd is
       landing - which is the shape the mechanic named above has to be aimed at.
+
+      **The cliff has an end, and the window was hiding it** (session 139). Both batch tools
+      defaulted to a 900 s window, which is this item's band's far edge and also, exactly, the moment
+      the last boss walks in (`bosses.schedule`) - so the `won the schedule` row both tools print has
+      been a zero by construction since the day it was written. Played to the schedule's own length
+      (now the default, and read off the schedule rather than written down: `tools/headless/window.js`)
+      the shipped batch reads **44 of 48 died, the middle at 2m36s, 6 in the band, 0 never died and 4
+      won the schedule**: the four runs the last two sessions called unkillable beat the Eclipse with
+      all three hull standing, having lost nothing from the tenth minute. So the late game is not a
+      hole the crowd falls through - it is a win - and the whole of the band's failure is the early
+      half: 38 of 48 die before 4m00s.
+
+      **Five more dials and two whole mechanics, all refused** (session 139, each one a minute of
+      `tools/difficulty-arc.js --shards 8` now that the arc tool can be sharded):
+      - the crowd's hull ramp, whose cap (`enemies.hpScaleMax` 1.6) is reached at 2m32s and never
+        moves again: uncapped, to 10.5x by the fifteenth minute. **46 of 48 died, the middle at
+        2m09s** - two of the four survivors gone, and the middle of the batch earlier still.
+      - the XP curve, the one dial that taxes only the late game (the base dominates the early
+        levels): `progression.quad` 0.9 → 2.5, → 4, and half the shard's worth. All three kill the
+        survivors - 48 of 48 die where 44 did - and every one moves the middle *sooner*: 2m14s, 2m01s,
+        2m11s. Worth setting against section 3.6: a careless survivor stands at level 65 at the
+        Eclipse against "about level 35 by the final boss", and the curve that lands that number is a
+        curve a careless batch dies sooner on. The two numbers PLAN gives are in tension with each
+        other, and the level one is the cheaper of the two to keep.
+      - how *near* a wave is landed, which no dial had ever touched: the arrival ring pulled to 40%
+        and to 25% of the window's border. Landed near from the fifth minute it changes nothing at
+        all; landed near from the first it kills the whole batch by 4m00s. The rule is powerful - the
+        wave clock's supply is the cap, and a level-30 ship kills whatever the clock can deliver at
+        any distance.
+      - **a mechanic, not a dial: the arena's room closing in on the ship** - the boss cage's own
+        machinery (`world.field`, game/field.js) walked inward from 5:00 to a 1000 px room, with the
+        director told to land its waves on the edge of the room rather than of the arena. Refused, and
+        the reason is worth keeping: it changes where the ship may *stand*, not whether anything
+        reaches it, and the survivors are standing in the middle already.
+      - **a second mechanic: the crowd hunting a ship it has not touched** - the wait since the last
+        hull lost (`world.calm`) driving how near the waves land, at five settings. It does reach the
+        survivors: at the hardest, 47 of 48 die and two of them at 8-9m, later than the shipped game
+        ever kills anyone. It pulls the middle of the batch to 2m07s while doing it, because a weak run
+        also goes forty-five seconds without losing a hull; and pushed late enough to spare the weak
+        (a first trigger at 150-200 s of calm) it stops reaching the survivors at all. Declined, and
+        not only on the numbers: the key is *you have not been hit lately*, which taxes playing well,
+        and a run's safety is the last thing a game should bill for.
+      - the director spending the room it is handed instead of waiting for its clock, so the arena
+        stands at the budget `waves.crowdMax` already says it may hold: bodies on the screen at the
+        fourteenth minute go 12.5 → 21.5 and at the fifth 38.5 → 61.5, the endings do not move at all,
+        and the survivors' score goes 108,113 → 263,124. **The crowd is income**; that is the
+        sixteenth time this item has measured the sentence.
+      - the bosses' hull at ten and thirty times: the four winners still win. A boss's hull decides how
+        long the fight is, not whether it is dangerous - that is the phase tables' business.
+
+      **The law, said once, so the next session does not spend a seventeenth.** Every lever over the
+      crowd or over the run's power moves both ends of the batch the same way, because a careless run's
+      life is decided by one fight - its first hundred seconds - and the same number that buys a weak
+      run another minute lets a strong one escape for good. The band wants the weak stronger and the
+      strong weaker at the same time, so only a key about *which run* is standing there could do it,
+      and every such key tried (untouched, over-levelled, out-killing its own budget) either taxes
+      playing well or is out-scaled by the run it aims at. What is left of the sentence is a fact about
+      the game's shape rather than a number to hit: **a careless build either loses its opening or wins
+      the schedule, and 44 of 48 lose the opening.** If the late game is to be made to bite, it will
+      not be by the crowd: the thing a strong ship cannot convert into shards is a fight, which is
+      section 3.4's problem and the phase tables' to answer.
 - [x] Tune every weapon so that none is over 25% better than the others in the balance report. One
       warning the item above leaves behind: raising the whole ladder is not how the difficulty arc gets
       fixed, because a stronger gun was measured to leave a careless batch's middle of deaths exactly

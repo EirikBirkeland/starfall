@@ -15343,3 +15343,101 @@ gave in sessions 136 and 137.
    the loop for trying one is short, which is the most it can be said to have got easier.
 2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
    afterimage's flat top of the ladder.
+
+## Session 139 — the arc's window was hiding the win. The late-game mechanic is declined, measured. Not released (tools and PLAN only)
+
+### The bug I went looking for a mechanic and found instead
+`tools/difficulty-arc.js` and `tools/run-shape.js` both defaulted to `--seconds 900`. That is PLAN's
+band's far edge — and it is also, exactly, the moment the last boss walks in
+(`bosses.schedule` = 300 / 600 / 900). So the `won the schedule` row both tools print under the
+histogram has been **a zero by construction since the day it was written**, and every run that beat
+the final boss was filed under "never died".
+
+I only noticed because sessions 136 and 137 both said the survivors cannot be killed, and I wanted to
+know what they were doing instead. Playing the same 48 seeds to 20 minutes answered it in one line.
+
+### What the shipped batch actually says
+**44 of 48 died, the middle at 2m36s, 6 in the band (13%), 0 never died and 4 won the schedule.** The
+four runs the last two sessions called unkillable *beat the Eclipse*, with all three hull standing and
+nothing landing on them from the tenth minute. So the late game is not a hole the crowd falls through;
+it is a win, earned by out-growing the crowd. And the band's whole failure is the early half: 38 of 48
+die before 4m00s. That reframing is the session's finding.
+
+### Two mechanics, built as prototypes, measured, and thrown away
+Neither is in the tree. Both were wired far enough to be played for real (a 48-seed batch a minute,
+thanks to session 138's sharding) and both are in PLAN's arc item with their numbers.
+
+1. **The arena's room closing in on the ship.** The boss cage's own machinery (`world.field`,
+   game/field.js) walked inward from 5:00 to a 1000 px room, with `arrivalFits`/`arenaBox` told to
+   land waves on the edge of the room rather than of the arena. It composes cleanly with the boss cage
+   and it is *visible*, and it changed nothing: 44/48, middle 2m36s, 6 in the band, 4 winners — the
+   shipped numbers exactly. **It changes where the ship may stand, not whether anything reaches it,
+   and the survivors are standing in the middle already.**
+2. **The crowd hunting a ship it has not touched.** `world.calm` (seconds since `hitPlayer`; the
+   single door), driving how near the arrival ring stands. Five settings. It *does* reach the
+   survivors — at the hardest, 47 of 48 die and two of them at 8-9m, later than the shipped game ever
+   kills anybody — and it pulls the batch's middle to 2m07s while it does, because a weak run also
+   goes 45 s without losing a hull. Pushed late enough to spare the weak (first trigger at 150-200 s
+   of calm) it stops reaching the survivors at all. **Declined**, and not only on the numbers: the key
+   is *you have not been hit lately*, which is a bill for playing well. A run's safety is the last
+   thing this game should charge for.
+
+### Five more dials, all refused
+- `enemies.hpScaleMax` (the crowd's hull ramp, capped at 2.6x by 2m32s and never moving again),
+  uncapped to 10.5x by 15m: 46/48 died, middle 2m09s. Two survivors gone, middle earlier.
+  (Note: 20 and 45 give *identical* batches — the clamp saturates at 95×max seconds. A cap you cannot
+  reach is not a knob.)
+- the XP curve — the one dial that taxes only the late game, since `base` dominates the early levels:
+  `progression.quad` 2.5 and 4, and `shards.xp` halved. All three kill the survivors (48/48 die) and
+  all three move the middle *sooner* (2m14s / 2m01s / 2m11s).
+- how *near* a wave lands (the arrival ring at 40% and 25% of the window's border): from 5:00 on it
+  changes nothing; from 0:00 it kills the whole batch by 4m. The rule is strong, the wave clock's
+  supply is the cap.
+- the director spending the room it is handed instead of waiting for its clock: bodies on screen at
+  14m go 12.5 → 21.5, at 5m 38.5 → 61.5, **the endings do not move at all**, and the survivors' score
+  goes 108,113 → 263,124. The crowd is income, sixteenth measurement of that sentence.
+- the bosses' hull at 10x and 30x: the four winners still win. Hull decides how long a fight is.
+
+### The law, which is now said once in PLAN and should not be re-derived
+Every lever over the crowd or over the run's power moves both ends of a batch the same way, because a
+careless run's life is decided by one fight — its first hundred seconds — and the same number that
+buys a weak run another minute lets a strong one escape for good. The band wants the weak stronger and
+the strong weaker *at once*, so only a key about which run is standing there could do it, and every
+such key tried either taxes playing well or is out-scaled by the run it aims at. **A careless build
+either loses its opening or wins the schedule; 44 of 48 lose the opening.** That is the shape of this
+game, and PLAN's 4:00-9:00 sentence does not fit it.
+
+### What is in the tree
+- `tools/headless/window.js`: `scheduleWindow()` — the last boss's arrival plus five minutes to answer
+  it. Written once because both tools need it (session 138's lesson about plumbing).
+- Both tools default to it (`seconds: null` in DEFAULTS, resolved *after* any `--set`, so a batch
+  measured with a moved schedule is played long enough to finish it). An explicit `--seconds` still
+  wins; `--seconds 0` is a usage error rather than a silent default.
+- The arc's own header paragraph now states the shipped reading correctly (drifter 39%, 4 winners).
+- Tests: **2403** (was 2401) — one new in each file, both through pooled rows so neither plays a 20
+  minute batch to prove a header line, plus two new refusals. The reference run
+  (`--seed 20261006 --trace`) is byte for byte what it was (10m00s / 73,982 / level 57): no game file
+  was touched.
+- Cost worth knowing: the default batch now plays 20 minutes instead of 15, so a 48-seed arc is ~100 s
+  sharded instead of ~50 s. Every quoted number in the old sessions still describes a 15-minute window
+  and is unchanged; only the "never died" wording was wrong.
+- `tools/skill-ladder.js` still defaults to 900 s and has the same blindness (its top rung is censored
+  rather than reported as a win). Left alone deliberately: every rung number quoted in PLAN's items was
+  measured at 15 minutes, and a ladder that reports wins per rung is a feature rather than a fix. If a
+  future session wants it, that is the session to re-quote the ladder in.
+
+### What should come next
+1. **If the late game is to bite it will be a fight, not a crowd.** Section 3.4's phase tables are the
+   one thing a strong ship cannot convert into shards: the four winners beat the Warden, the Hive and
+   the Eclipse without losing a hull from minute ten. Measured: the hull rows are not the lever. What
+   would bite is more and denser attacks per phase — and note honestly that the human bot dodges
+   telegraphed attacks well enough that the tools may not see the change; this is a place where the
+   instrument is weaker than the claim.
+2. **The XP curve is a decision to take on purpose, not as a side effect.** PLAN 3.6 says "about level
+   35 by the final boss"; the shipped careless survivor is level 65. Closing that gap is what makes the
+   bosses the test they were priced for, and it costs a careless batch its lives (measured: middle of
+   deaths moves to ~2m10s) and moves every score the hangar is priced with. It needs its own session,
+   with the hangar's prices re-read after it, and with the *careful* ladder (weapon-ladder,
+   power-ladder) re-measured, not just the careless arc.
+3. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
+   afterimage's flat top of the ladder.
