@@ -15137,3 +15137,52 @@ deleting the per-condition restore reddens none (see above).
    a third time.
 3. `domWrites()` per frame during a busy 150-body fight, so the performance pass has a number for
    "the page is quiet".
+
+## Session 135 — the frame ruler counts the page. Not released (a tool and its tests)
+
+### The number the performance pass was missing
+Session 131 added `domWrites()` to the harness and said the next session should turn "the page is
+quiet" into a number for the performance pass. It belongs in `tools/perf-probe.js`, which already
+measures a scene two ways — the step in milliseconds and the painter in canvas operations — so it now
+measures it a third: **writes to the DOM per painted frame**, on the same frames the painter is counted
+on, because those are the frames the interface is painted on.
+
+### What it says
+Every gated scene writes the page **0.00 times a frame**, worst frame included:
+
+| scene | bodies | ops mean | ops worst | page/frame | page worst |
+|---|---|---|---|---|---|
+| the schedule at full crowd | 100 | 1,970 | 2,014 | 0.00 | 0 |
+| endless at the body wall | 200 | 2,951 | 3,012 | 0.00 | 0 |
+| the same crowd, dying | 200 | 3,407 | 3,642 | 0.00 | 0 |
+| the same crowd, spread out | 200 | 1,345 | 1,398 | 0.00 | 0 |
+| PLAN section 2's sentence | 600 | 8,507 | 9,922 | 0.00 | 0 |
+
+That is not the harness failing to see anything: the score, the purse and the level line are painted
+**on the canvas** with the fight (`render/hud.js`), so a busy arena genuinely does not touch the page.
+The DOM is only the screens around the arena.
+
+### The budget, and why it is 1 and not 0
+`PAGE_WRITES = 1` write a frame, gated on the mean, with the worst frame printed and not gated. Zero
+would be the honest reading of today and a false alarm the day a card legitimately arrives in the
+middle of a scene's window — that is a burst of a couple of dozen writes spread over ~180 frames, a
+mean of a fraction. A panel *rebuilt* every frame (session 125's death-card bug) reads tens a frame.
+The gap between the two is what the budget sits in.
+
+A second test pins the strong claim directly — `a busy arena writes the page not at all` asserts the
+dying crowd's mean and worst are both exactly 0 — and carries **its own control**: the same counter on
+the same boot is asked to see the pause panel come up (58 writes), because a zero from an instrument
+that is not plugged in looks identical to a zero that means something.
+
+### Verified
+Full suite **2376/2376**, `tools/simulate.js --seed 20261006` unchanged. Mutation-checked: deleting
+`game.resetDomWrites()` from the paint loop (so the count accumulates instead of being per frame)
+reddens four tests, including the two new ones.
+
+### What should come next
+1. The browser half of the performance pass is still the half this cannot reach: a THICK CROWD run
+   standing 150 bodies on a scheduled run, read off the F3 plate on a real machine.
+2. Silhouettes for the crowd pairs that share a colour; the afterimage's flat top of the ladder; the
+   deliberate FAIL on the difficulty band.
+3. `tools/line-ab.js` and `tools/gun-tune.js` now both carry a `--set` knob over different tables; if
+   a third tool wants one, move the patch/restore/label machinery into `tools/headless/`.
