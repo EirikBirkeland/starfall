@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.2",
+    "date": "2026-10-15",
+    "released": "2026-10-15T10:24:08.053Z",
+    "summary": "The keyboard answers the key you are looking at: D flies the ship on any layout and any browser that names one",
+    "added": 434,
+    "removed": 12,
+    "logBytes": 44426943
+  },
+  {
     "version": "1.6.1",
     "date": "2026-10-13",
     "released": "2026-10-13T00:46:53.822Z",
