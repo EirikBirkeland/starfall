@@ -301,3 +301,24 @@ test('--set moves the game the batch is played on, and says so in the header', (
     'a faster wave clock is more of a crowd, and the batch has to show it:\n'
     + plain.out + '\n' + patched.out);
 });
+
+test('a sharded batch is the same batch as one played in a single process', () => {
+  // The whole reason sharding is allowed here at all. One game per process is the harness's rule, so
+  // a 48-run batch is 48 runs in one process or a few processes sharing the seeds - and if the second
+  // answered a different question, every arc number in NOTES would be a coin flip. Same seeds, same
+  // window, same bot: the report has to come back identical, header line included.
+  const one = runTool(['--seeds', '1-4', '--seconds', '150']);
+  const many = runTool(['--seeds', '1-4', '--seconds', '150', '--shards', '4']);
+  assert.equal(many.status, one.status);
+  assert.equal(many.out, one.out, 'sharding changed the batch:\n' + one.out + '\n' + many.out);
+  assert.match(one.out, /the difficulty arc: 4 runs, seeds 1-4/);
+});
+
+test('pooling refuses a flag it cannot honour', () => {
+  const done = runTool(['--in', '/nope/nothing.jsonl', '--shards', '4']);
+  assert.equal(done.status, 2);
+  assert.match(done.out, /it has nothing left to shard/);
+  const noOut = runTool(['--runs', '2', '--seconds', '20', '--play-only']);
+  assert.equal(noOut.status, 2);
+  assert.match(noOut.out, /--play-only needs --out/);
+});

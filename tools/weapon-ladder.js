@@ -82,10 +82,7 @@
 // process is the harness's rule and 5 guns x 24 seeds x 15 minutes does not fit in a session
 // otherwise (NOTES session 89).
 
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { pathToFileURL, fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { BALANCE } from '../src/game/balance.js';
 import { WEAPONS, setWeapon } from '../src/game/weapons.js';
 import { makeEnemy } from '../src/game/kinds.js';
@@ -93,7 +90,8 @@ import { scriptedRun, stepTheWorld } from './headless/scripted.js';
 import { KNOTS, pin, revive } from './power-ladder.js';
 import { playBatches, POLICIES, PICKS } from './headless/bot.js';
 import { median } from './simulate.js';
-import { parseSeeds, splitShards } from './run-shape.js';
+import { parseSeeds, readRows, writeRows, playSharded as playOverShards }
+  from './headless/shards.js';
 import { clock, int, dec, table } from './headless/tables.js';
 
 /** PLAN 10: no weapon over 25% better than the others. Pinned in test/weapon-ladder.test.mjs. */
@@ -365,22 +363,6 @@ export function rowOf(summary) {
   };
 }
 
-export function readRows(files) {
-  const rows = [];
-  for (const file of files) {
-    if (!existsSync(file)) throw new Error('--in: no such file: ' + file);
-    for (const line of readFileSync(file, 'utf8').split('\n')) {
-      if (line.trim() !== '') rows.push(JSON.parse(line));
-    }
-  }
-  if (rows.length === 0) throw new Error('--in: ' + files.join(' ') + ' held no runs');
-  return rows;
-}
-
-export function writeRows(file, rows) {
-  writeFileSync(file, rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
-}
-
 /** Play one process's share: every gun, over these seeds, one boot for all of it. */
 async function play(guns, seeds, opts) {
   const rows = [];
@@ -400,31 +382,19 @@ async function play(guns, seeds, opts) {
   return rows;
 }
 
-/** The same guns and seeds again, played by K child processes and pooled. */
+/**
+ * The same guns and seeds again, played by K child processes and pooled.
+ *
+ * The plumbing is the shared one (tools/headless/shards.js); what is this tool's own is the flag list
+ * a shard needs in order to be measuring the same ladder.
+ */
 async function playSharded(guns, seeds, opts) {
-  const chunks = splitShards(seeds, opts.shards);
-  const files = chunks.map((unused, k) => tmpdir() + '/starfall-weapon-ladder-'
-    + process.pid + '-' + k + '.jsonl');
   const pass = ['--seconds', String(opts.seconds), '--bot', opts.policy, '--picks', opts.picks,
     '--guns', guns.join(','), '--knot-seconds', String(opts.knotSeconds),
     '--knot-seeds', String(opts.knotSeeds)];
-  const kids = chunks.map((chunk, k) => new Promise((resolve, reject) => {
-    const kid = spawn(process.execPath, [fileURLToPath(import.meta.url),
-      '--seeds', chunk.join(','), '--play-only', '--out', files[k]].concat(pass),
-    { stdio: ['ignore', 'ignore', 'inherit'] });
-    kid.on('error', reject);
-    kid.on('exit', (code) => resolve(code === 0 ? null
-      : new Error('shard ' + k + ' (seeds ' + chunk.join(',') + ') exited ' + code)));
-  }));
-  const failed = (await Promise.all(kids)).find((err) => err !== null);
-  if (failed !== undefined) throw failed;
-  try {
-    return readRows(files);
-  } finally {
-    files.forEach((file) => {
-      try { unlinkSync(file); } catch (err) { /* already gone is not a failure */ }
-    });
-  }
+  return playOverShards({
+    name: 'weapon-ladder', tool: import.meta.url, seeds: seeds, shards: opts.shards, pass: pass,
+  });
 }
 
 /** One gun's middle run: what the batch of them was, and what it was worth. */

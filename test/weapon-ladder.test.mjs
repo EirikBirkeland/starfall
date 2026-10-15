@@ -25,8 +25,9 @@ import { playOneRun } from '../tools/headless/bot.js';
 import {
   ALL_GUNS, BAND, gunList, readArgs, seedList, bodyHull, knotRate, knotsOf, spread,
   standingOf, standingsOf, spanOf, verdictOf, ladderTable, chippedTable, felledTable,
-  rowOf, readRows, writeRows,
+  rowOf,
 } from '../tools/weapon-ladder.js';
+import { readRows, writeRows } from '../tools/headless/shards.js';
 
 const STEP = BALANCE.sim.step;
 

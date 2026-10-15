@@ -18,8 +18,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  parseSeeds, splitShards, readArgs, rowOf, summaryOf, shapeRows, shapeTable, readRows, writeRows,
+  readArgs, rowOf, summaryOf, shapeRows, shapeTable,
 } from '../tools/run-shape.js';
+import {
+  parseSeeds, splitShards, readRows, writeRows,
+} from '../tools/headless/shards.js';
 import { creditTable } from '../tools/difficulty-arc.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');

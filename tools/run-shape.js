@@ -53,13 +53,14 @@
 // game/weapons.js), so a shape table measured on the Bulwark flying the lance is the run a player
 // who bought that ship actually has - which is how a hangar item gets arc-tested rather than
 // assumed.
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { playRuns } from './headless/bot.js';
 import { median } from './simulate.js';
 import { arcOf, arcTable, verdictOf, deathsTable, hullsTable } from './difficulty-arc.js';
 import { parseNumberPatch, applyPatches, patchWords } from './headless/patch.js';
+import {
+  parseSeeds, readRows, writeRows, playSharded as playOverShards,
+} from './headless/shards.js';
 import { BALANCE } from '../src/game/balance.js';
 import { clock, table } from './headless/tables.js';
 
@@ -68,28 +69,6 @@ import { clock, table } from './headless/tables.js';
 const DEFAULTS = {
   seed: 1, runs: 48, seconds: 900, every: 60, shards: 1, policy: 'human', picks: 'random',
 };
-
-/** `--seeds 1-24` and `--seeds 1,3,5` both mean a list of seeds. */
-export function parseSeeds(spec) {
-  const text = String(spec).trim();
-  const span = /^(\d+)-(\d+)$/.exec(text);
-  if (span !== null) {
-    const from = Number(span[1]);
-    const to = Number(span[2]);
-    if (to < from) throw new Error('--seeds: ' + text + ' counts backwards');
-    return Array.from({ length: to - from + 1 }, (unused, i) => from + i);
-  }
-  if (!/^\d+(,\d+)*$/.test(text)) throw new Error('--seeds wants 1-24 or 1,3,5, got ' + text);
-  return text.split(',').map(Number);
-}
-
-/** The seeds split K ways, as evenly as they divide, round-robin so no shard owns a run of neighbours. */
-export function splitShards(seeds, shards) {
-  const parts = Math.max(1, Math.min(shards, seeds.length));
-  const out = Array.from({ length: parts }, () => []);
-  seeds.forEach((seed, i) => out[i % parts].push(seed));
-  return out;
-}
 
 /**
  * One run, as the harness hands it back, kept down to the columns this tool reads.
@@ -203,23 +182,6 @@ export function shapeTable(rows, every) {
     shapeRows(rows, every));
 }
 
-/** The rows of one or more files written by `--out`, in the order the files were given. */
-export function readRows(files) {
-  const rows = [];
-  for (const file of files) {
-    if (!existsSync(file)) throw new Error('--in: no such file: ' + file);
-    for (const line of readFileSync(file, 'utf8').split('\n')) {
-      if (line.trim() !== '') rows.push(JSON.parse(line));
-    }
-  }
-  if (rows.length === 0) throw new Error('--in: ' + files.join(' ') + ' held no runs');
-  return rows;
-}
-
-export function writeRows(file, rows) {
-  writeFileSync(file, rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
-}
-
 /** Read the command line into plain values, and throw on anything it does not understand. */
 export function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS, {
@@ -295,34 +257,21 @@ async function play(seeds, opts) {
 }
 
 /** The same seeds again, played by K child processes and pooled. */
+/**
+ * The same seeds again, played by K child processes and pooled.
+ *
+ * The plumbing is the shared one (tools/headless/shards.js); what is this tool's own is the flag list
+ * a shard has to be given to be measuring the same batch.
+ */
 async function playSharded(seeds, opts) {
-  const chunks = splitShards(seeds, opts.shards);
-  const files = chunks.map((unused, k) => tmpdir() + '/starfall-run-shape-' + process.pid + '-' + k + '.jsonl');
   const pass = ['--seconds', String(opts.seconds), '--every', String(opts.every),
     '--bot', opts.policy, '--picks', opts.picks];
   for (const assignment of opts.sets) pass.push('--set', assignment);
   if (opts.ship !== undefined) pass.push('--ship', opts.ship);
   if (opts.weapon !== undefined) pass.push('--weapon', opts.weapon);
-  const { spawn } = await import('node:child_process');
-  const kids = chunks.map((chunk, k) => new Promise((resolve, reject) => {
-    const kid = spawn(process.execPath, [fileURLToPath(import.meta.url),
-      '--seeds', chunk.join(','), '--play-only', '--out', files[k]].concat(pass),
-    { stdio: ['ignore', 'ignore', 'inherit'] });
-    kid.on('error', reject);
-    kid.on('exit', (code) => resolve(code === 0 ? null
-      : new Error('shard ' + k + ' (seeds ' + chunk.join(',') + ') exited ' + code)));
-  }));
-  const failed = (await Promise.all(kids)).find((err) => err !== null);
-  if (failed !== undefined) throw failed;
-  try {
-    return readRows(files);
-  } finally {
-    // Ours, made seconds ago, and the pooled rows are already in memory: a shard's file left behind
-    // is only noise in whoever's tmpdir.
-    files.forEach((file) => {
-      try { unlinkSync(file); } catch (err) { /* already gone is not a failure */ }
-    });
-  }
+  return playOverShards({
+    name: 'run-shape', tool: import.meta.url, seeds: seeds, shards: opts.shards, pass: pass,
+  });
 }
 
 /** Only run when called as a command, so the tests can import the parts above. */

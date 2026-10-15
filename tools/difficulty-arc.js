@@ -12,6 +12,11 @@
 //   node tools/difficulty-arc.js --set waves.gap.0=0.5   move one number of BALANCE for the batch,
 //   node tools/difficulty-arc.js --set waves.waveMaxPoints=45 --set waves.gap.1=0.8   (repeatable)
 //   node tools/difficulty-arc.js --quiet             the two verdicts and nothing else
+//   node tools/difficulty-arc.js --seeds 1-96 --shards 8   the batch over 8 processes (about a
+//                                                  quarter of the wall clock; the same seeds, so the
+//                                                  same batch - see test/shards.test.mjs)
+//   node tools/difficulty-arc.js --out /tmp/a.jsonl --play-only   one shard at work, for --in
+//   node tools/difficulty-arc.js --in /tmp/a.jsonl --in /tmp/b.jsonl   pool rows already played
 //
 // `--set` is the arc's tuning knob, and it is the reason this file's history is readable: the nine
 // dials the item below lists were each measured by editing `balance.js`, running, and putting it back
@@ -70,6 +75,8 @@
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
 import { parseNumberPatch, applyPatches, patchWords } from './headless/patch.js';
+import { parseSeeds, readRows, writeRows, playSharded as playOverShards }
+  from './headless/shards.js';
 import { BALANCE } from '../src/game/balance.js';
 import { clock, share, table } from './headless/tables.js';
 import { hostName } from '../src/game/codex.js';
@@ -87,10 +94,14 @@ export const ARC = {
   minDeaths: 20,
 };
 
-const DEFAULTS = { seed: 1, runs: 48, seconds: 900, policy: 'human', picks: 'random', quiet: false };
+const DEFAULTS = {
+  seed: 1, runs: 48, seconds: 900, policy: 'human', picks: 'random', quiet: false, shards: 1,
+};
 
 function readArgs(argv) {
-  const opts = Object.assign({}, DEFAULTS, { sets: [] });
+  const opts = Object.assign({}, DEFAULTS, {
+    sets: [], seeds: null, infiles: [], outfile: '', playOnly: false,
+  });
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -99,14 +110,20 @@ function readArgs(argv) {
     };
     if (arg === '--seed') opts.seed = parseInt(next(), 10);
     else if (arg === '--runs') opts.runs = parseInt(next(), 10);
+    else if (arg === '--seeds') opts.seeds = next();
+    else if (arg === '--shards') opts.shards = parseInt(next(), 10);
+    else if (arg === '--out') opts.outfile = next();
+    else if (arg === '--in') opts.infiles.push(next());
+    else if (arg === '--play-only') opts.playOnly = true;
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--picks') opts.picks = next();
     else if (arg === '--set') opts.sets.push(next());
     else if (arg === '--quiet') opts.quiet = true;
     else {
-      console.error('usage: difficulty-arc.js [--seed N] [--runs N] [--seconds N] [--bot NAME]'
-        + ' [--picks NAME] [--set path=number] [--quiet]');
+      console.error('usage: difficulty-arc.js [--seed N] [--runs N] [--seeds 1-24] [--seconds N]'
+        + ' [--bot NAME] [--picks NAME] [--set path=number] [--shards K] [--out FILE] [--in FILE]'
+        + ' [--quiet]');
       process.exit(2);
     }
   }
@@ -125,9 +142,17 @@ function readArgs(argv) {
     console.error('--seed, --runs and --seconds want a number');
     process.exit(2);
   }
-  if (opts.runs < 2) {
+  if (opts.runs < 2 && opts.seeds === null) {
     // One run is a story about one seed and not an arc. The tool would rather be asked.
     console.error('--runs wants at least two runs: one seed is an anecdote');
+    process.exit(2);
+  }
+  if (opts.infiles.length > 0 && opts.shards > 1) {
+    console.error('--in pools runs that were already played; it has nothing left to shard');
+    process.exit(2);
+  }
+  if (opts.playOnly && opts.outfile === '') {
+    console.error('--play-only needs --out to write to');
     process.exit(2);
   }
   if (!POLICIES[opts.policy]) {
@@ -352,39 +377,24 @@ export function verdictOf(arc, summaries) {
   return { pass: bandPass && ceilingPass, lines: lines };
 }
 
-/** Only run when called as a command, so the tests can import the parts above. */
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (isMain) {
-  const opts = readArgs(process.argv.slice(2));
-  // The patch goes on `BALANCE` for the whole batch. That is the point of the flag: the arc's own
-  // history is a list of dials tried this way (`crowdBase` down a quarter, `waves.minDistance` up, a
-  // cheaper first card), and each one used to mean editing the table, running, and putting it back by
-  // hand - which is how a measured number ends up quoted from a game nobody can get back.
-  const patches = opts.sets.map((assignment) => parseNumberPatch(assignment, BALANCE, 'BALANCE'));
-  applyPatches(patches, BALANCE);
-  const summaries = await playRuns({
-    seeds: Array.from({ length: opts.runs }, (unused, i) => opts.seed + i),
-    maxSeconds: opts.seconds,
-    policy: opts.policy,
-    picks: opts.picks,
-    // Nothing per run: this report is a batch's, and the histogram is where a single seed shows up.
-  });
-
+/**
+ * The whole report for one batch: the tables, and the two verdicts. Answers whether the arc passed,
+ * so the command can make an exit code out of it and a test can make one out of the same answer.
+ */
+function report(summaries, opts, seeds, patches) {
   for (const summary of summaries) {
     if (summary.stats.score <= 0) {
       throw new Error('the bot never scored: the game is not playable headless');
     }
   }
-
   const arc = arcOf(summaries, opts.seconds);
   const verdict = verdictOf(arc, summaries);
-
   if (!opts.quiet) {
-    console.log('the difficulty arc: ' + opts.runs + ' runs, seeds ' + opts.seed + '-'
-      + (opts.seed + opts.runs - 1) + ', the ' + opts.policy + ' bot'
+    console.log('the difficulty arc: ' + summaries.length + ' runs, '
+      + (opts.infiles.length > 0 ? 'pooled from files'
+        : 'seeds ' + seeds[0] + '-' + seeds[seeds.length - 1]) + ', the ' + opts.policy + ' bot'
       + (opts.picks === 'random' ? ' answering the level-up with a die' : ' picking ' + opts.picks)
-      + ', a ' + clock(opts.seconds) + ' window'
-      + patchWords(patches));
+      + ', a ' + clock(opts.seconds) + ' window' + patchWords(patches));
     console.log('');
     console.log(arcTable(arc));
     console.log('');
@@ -394,5 +404,49 @@ if (isMain) {
     console.log('');
   }
   console.log(verdict.lines.join('\n'));
-  if (!verdict.pass) process.exitCode = 1;
+  return verdict.pass;
+}
+
+/** Only run when called as a command, so the tests can import the parts above. */
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  const opts = readArgs(process.argv.slice(2));
+  // The patch goes on `BALANCE` for the whole batch. That is the point of the flag: the arc's own
+  // history is a list of dials tried this way (`crowdBase` down a quarter, `waves.minDistance` up, a
+  // cheaper first card), and each one used to mean editing the table, running, and putting it back by
+  // hand - which is how a measured number ends up quoted from a game nobody can get back. A shard gets
+  // the same `--set` flags, so it patches its own copy of the table the same way.
+  const patches = opts.sets.map((assignment) => parseNumberPatch(assignment, BALANCE, 'BALANCE'));
+  const seeds = opts.seeds !== null ? parseSeeds(opts.seeds)
+    : Array.from({ length: opts.runs }, (unused, i) => opts.seed + i);
+  if (opts.infiles.length === 0) applyPatches(patches, BALANCE);
+
+  let summaries;
+  if (opts.infiles.length > 0) {
+    summaries = readRows(opts.infiles);
+  } else if (opts.shards > 1) {
+    const pass = ['--seconds', String(opts.seconds), '--bot', opts.policy, '--picks', opts.picks];
+    for (const assignment of opts.sets) pass.push('--set', assignment);
+    summaries = await playOverShards({
+      name: 'difficulty-arc', tool: import.meta.url, seeds: seeds, shards: opts.shards, pass: pass,
+    });
+  } else {
+    summaries = await playRuns({
+      seeds: seeds,
+      maxSeconds: opts.seconds,
+      policy: opts.policy,
+      picks: opts.picks,
+      // Nothing per run: this report is a batch's, and the histogram is where a single seed shows up.
+    });
+  }
+
+  if (opts.playOnly) {
+    // A shard at work: play, write, say nothing. Deliberately no verdict and no non-zero exit - a
+    // shard whose arc failed is not a shard that crashed, and the parent's pooled verdict is the only
+    // one anybody should be reading.
+    writeRows(opts.outfile, summaries);
+    console.log(summaries.length + ' runs written to ' + opts.outfile);
+  } else if (!report(summaries, opts, seeds, patches)) {
+    process.exitCode = 1;
+  }
 }
