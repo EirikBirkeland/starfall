@@ -15057,3 +15057,83 @@ is handed. Walked it against the renderers:
   renderer**, so a future row cannot quietly invent one.
 
 Suite still **2352/2352**.
+
+## Session 134 — `tools/gun-tune.js`, the knob session 96 asked for and never got. Not released (a tool and its tests)
+
+### What it is
+The throwaway session 96 measured thirty gun probes with, promoted to a file in the repo:
+
+```
+node tools/gun-tune.js --gun pulse --set fireRate=2.6
+node tools/gun-tune.js --gun lance --sweep fireRate=1.3,2.6,5.2
+node tools/gun-tune.js --gun swarm --sweep damage=1.25,1.5,2 --seeds 1-6 --seconds 600 --shards 6
+```
+
+It patches one field of a `BALANCE.weapons` row, plays the batch, and prints one row per condition
+with the shipped row always first, on the same seeds, in the same process. `--set` patches are held
+for every value of a sweep, so one table walks one axis. `--shards K` splits the seeds over child
+processes the way `weapon-ladder` does.
+
+### The flag it exists for is `--sweep`, not `--set`
+Session 96's own lesson: *"a probe that 'does not fix it' has to say how far it probed."* That
+session wrote "`damage` 5→3 with `fireRate` 0.9→1.4 gives 5,508 — no better" and concluded the rate
+was not the lever. The rate was the lever; 1.4 was not far enough, because what a rate buys is
+whether the press round the ship is thinned **at all**, which is a cliff and not a slope. A single
+`--set` prints an answer with no axis next to it, so `--sweep` refuses fewer than two values.
+
+Two traps the table points at rather than hides, both from that same session:
+* moving `fireRate` moves the per-**pull** numbers with it (`recoil`, `knockback`, `muzzle.count`,
+  `muzzle.life`, `sound.dur`, `sound.vol`) — the note names only the ones that row actually has;
+* a `fireRate` above `BALANCE.weapons.rateMax` (15) is **clipped, not refused**, because
+  `shotsPerSecond` takes the lesser of the two, so such a row measures the frame-budget ceiling and
+  not the number typed.
+
+### The bug it found on the way, in itself
+`copyRow`/`restoreRow` treated every object the same, and `Object.assign({}, ['pierce','ricochet'])`
+is `{0:'pierce', ...}`. `game/upgrades.js` `spendableBy` reads that list with `indexOf` at every
+level-up, so a lance run died three minutes into a batch on `cannot.indexOf is not a function`. It
+survived a whole afternoon of pulse probes because **only three of the five guns carry the list**
+(arc, lance, swarm). `cloneValue` now copies arrays as arrays, and there is an end-to-end test that
+plays a whole lance run, not just a unit test of the copy.
+
+### What it measured, once, for real
+The Swarm watch that session 96 left open ("if it becomes the obvious pick in the hangar, trim the
+pair's damage"), six seeds at a ten minute window, six shards, **2m03s wall**:
+
+| swarm shell damage | alive | median score | vs shipped | kills | bodies/s |
+|---|---|---|---|---|---|
+| 1.25 | 6/6 | 74,309 | 0.97x | 3,957 | 6.59 |
+| **1.5 (shipped)** | 6/6 | 76,796 | 1.00x | 4,088 | 6.81 |
+| 2 | 6/6 | 76,629 | 1.00x | 4,170 | 6.95 |
+
+So the Swarm is sitting on a **plateau on its upper side**: a third more damage per shell buys
+nothing measurable (score flat, level actually down 55→53), and the only lever in that range is the
+down side, worth 3% for a 17% cut. If it ever has to be trimmed, that is the number to trim and
+that is what it will cost. No change shipped — it is inside the band today.
+
+The swept shipped value reading exactly `1.00x` in that table is the tool's cheapest self-check, and
+it is in the test file too: a patch to the number already in the row must change nothing.
+
+### One thing I decided not to pretend
+`restoreRow` before every condition is **not load-bearing today**: each condition re-applies its own
+whole patch, so with the current condition builder a missed restore changes nothing — a mutation
+that deletes it keeps all 23 tests green, which I checked rather than assumed. It stays as a guard
+for ordering (a condition builder that patches different fields per row would need it), and the test
+that sits nearest to it says exactly that in its comment rather than claiming to prove it.
+
+### Verified
+Full suite **2375/2375** (23 new in `test/gun-tune.test.mjs`), `tools/simulate.js --seed 20261006`
+unchanged, `node --check` clean on both new files. Mutation-checked three ways: copying arrays as
+objects reddens 4 tests (including the end-to-end lance run), dropping the shipped control reddens 4,
+deleting the per-condition restore reddens none (see above).
+
+### What should come next
+1. **The rest of the owed list**: the browser half of the performance pass (a THICK CROWD run
+   standing 150 bodies on a scheduled run), silhouettes for the crowd pairs that share a colour, the
+   afterimage's flat top of the ladder, and the deliberate FAIL on the difficulty band.
+2. **`tools/line-ab.js` and `tools/gun-tune.js` now overlap on `--set`** but patch different tables
+   (`BALANCE.upgrades.<line>` and `BALANCE.weapons.<gun>`). If a third tool ever wants the same
+   knob, the patch/restore/label machinery should move into `tools/headless/` rather than be written
+   a third time.
+3. `domWrites()` per frame during a busy 150-body fight, so the performance pass has a number for
+   "the page is quiet".
