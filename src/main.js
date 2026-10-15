@@ -7,7 +7,7 @@ import { resetAmbient } from './game/ambient.js';
 import { takeOffer, describeRanks, rerollOffer, banishOffer, banishedLines } from './game/upgrades.js';
 import { shotsPerSecond, setWeapon, weaponName } from './game/weapons.js';
 import { SHIPS, setShip, shipName } from './game/ships.js';
-import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex } from './game/hangar.js';
+import { boughtPerks, boughtShips, buyRackByIndex, pickShipByIndex, priceAt as rackPrice } from './game/hangar.js';
 import { perkAt, perkLedger } from './game/perks.js';
 import { foundFromSave, foundLedger } from './game/codex.js';
 import { dustTotal, namesOf, takeAwardToasts, wonFromSave, wonShare } from './game/awards.js';
@@ -58,8 +58,8 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, fitHangar, fitOpenPanel } from './ui/screens.js';
-import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt, showSettingsClose, settingsCloseAt, settingRowAt } from './ui/chips.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, paintHangarHints, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt, showPanelChips, panelChipAt, settingRowAt, shipRowAt, perkRowAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
 
@@ -204,6 +204,7 @@ function pressChip(id) {
   else if (id === 'rule') onChallenge();
   else if (id === 'mute') onMuteSwitch();
   else if (id === 'settings') onSettings();
+  else if (id === 'hangar') onHangar();
 }
 
 /**
@@ -225,7 +226,7 @@ function pressChip(id) {
  * verb is a key press on a machine that has no keys to press.
  */
 function pressSettingsPanel() {
-  if (settingsCloseAt(mouse.x, mouse.y)) { onSettings(); return; }
+  if (panelChipAt('settings', mouse.x, mouse.y)) { onSettings(); return; }
   const at = settingRowAt(mouse.x, mouse.y);
   if (at < 0 || at >= paintedRows.length) return;
   const row = paintedRows[at];
@@ -233,6 +234,76 @@ function pressSettingsPanel() {
   // A door is a door whichever hand comes to it (`onRowChange` sends an arrow through the same door).
   if (row.opens !== undefined) { row.opens(); return; }
   if (row.cycle()) paintSettings();
+}
+
+/**
+ * Which row of the shop is asking for its second tap: the rack's own index (the ships first, then the
+ * perks, exactly as the number keys count them), or -1 when no row is.
+ *
+ * It lives here and not in the page because it is panel furniture and not a fact about the purse: it is
+ * forgotten when the shop goes back up, it is cancelled by any other press, and nothing outside this
+ * screen can see it - the same standing the settings panel's cursor has.
+ */
+const NOT_ASKING = -1;
+let askingRow = NOT_ASKING;
+
+/** The row of either rack this point landed on, in the rack's own numbering, or -1 for none. */
+function hangarIndexAt(x, y) {
+  const ship = shipRowAt(x, y);
+  if (ship >= 0) return ship;
+  const perk = perkRowAt(x, y);
+  return perk < 0 ? -1 : SHIPS.length + perk;
+}
+
+/** Repaint both racks from their owners, with whatever the shop is asking about. */
+function paintHangar() {
+  const onGlass = hasFinger();
+  showRack({ owned: world.ownedShips, asking: askingRow, onGlass: onGlass });
+  showPerks({ ranks: perkLedger(world), asking: askingRow, onGlass: onGlass });
+}
+
+/** Take the ask off the row that had it, and off the glass. */
+function clearAsk() {
+  if (askingRow < 0) return;
+  askingRow = NOT_ASKING;
+  paintHangar();
+}
+
+/**
+ * A press landed on the hangar.
+ *
+ * Three things it can be, and each is a thing the keys already do. The CLOSE chip is `H` (the same
+ * `onHangar` toggle). A bought ship row is the number key: the next run flies that one, free, immediate,
+ * and lit, because `showShip` is what lights the row the visit flies. And a row that costs stardust is
+ * `SHIFT + its number` - but in two taps, because this is the only press in the game that costs the purse
+ * something and a finger has no chord to lean on: the first tap asks, the row says so in its own price
+ * line (`TAP TO BUY`, then `TAP AGAIN TO BUY`), and the second tap on the same row is the purchase.
+ *
+ * The ask is only ever put on a row the purse could actually pay for, and it comes off for anything else:
+ * another row, the glass between the rows, the way out. A shop that left a row asking after a press that
+ * was not its second tap would be selling the next tap to the wrong row.
+ */
+function pressHangarPanel() {
+  if (panelChipAt('hangar', mouse.x, mouse.y)) { askingRow = NOT_ASKING; onHangar(); return; }
+  const index = hangarIndexAt(mouse.x, mouse.y);
+  if (index < 0) { clearAsk(); return; }
+  if (askingRow === index) {
+    askingRow = NOT_ASKING;
+    buyFromRack(index);
+    paintHangar();
+    return;
+  }
+  clearAsk();
+  if (index < SHIPS.length && pickShipByIndex(world, index) === 'picked') {
+    showShip(world.ship);
+    uiTick('pick');
+    return;
+  }
+  const cost = rackPrice(world, index);
+  if (cost === null || cost > world.dust) return;   // nothing to sell, or a purse too short: a silent press
+  askingRow = index;
+  paintHangar();
+  uiTick('ask');
 }
 
 function onCanvasPressed() {
@@ -261,11 +332,15 @@ function onCanvasPressed() {
     onPauseKey();
     return;
   }
-  // The settings panel is the one panel here that *changes* something, so it answers a press with its own
-  // rows rather than refusing it (see `pressSettingsPanel`). It is asked before the rule below, which takes
-  // a press away from every panel and answers nothing with it - the right answer for the panels that only
-  // show things, and the wrong one for this one now that a finger has a chip to get in with.
+  // The settings panel and the shop are the two panels here that *change* something, so they answer a press
+  // with their own rows rather than refusing it (see `pressSettingsPanel`, `pressHangarPanel`). They are
+  // asked before the rule below, which takes a press away from every panel and answers nothing with it - the
+  // right answer for the panels that only show things, and the wrong one for these two now that a finger has
+  // a chip to get in with.
   if (settingsIsUp()) { pressSettingsPanel(); return; }
+  // ...and the shop answers a press with its own rows (see `pressHangarPanel`): a ship row to fly, and a
+  // row that costs stardust to buy, which asks first.
+  if (hangarIsOpen()) { pressHangarPanel(); return; }
   // Over a panel a click is not a launch. The title's click-to-go is worth having and the
   // death's card's is worth having, but a panel you are meant to be able to look round is not a
   // screen that throws you into a run because you aimed at a ship and missed - and there are two of
@@ -450,12 +525,11 @@ function buyFromRack(index) {
   if (buyRackByIndex(world, index) !== 'bought') return;
   // The purse, and the row that is no longer locked or is one rank further up, and nothing else:
   // buying is not picking (game/hangar.js), so the ship about to be flown does not move.
-  showRack(world.ownedShips);
-  showPerks(perkLedger(world));
   showStanding(world.best, world.dust, wonShare(world));
   // ...and a row that ran out of prices is a shorter row, so the panel may need less of the window
   // than it did a moment ago (ui/screens.js `fitHangar`).
   fitHangar();
+  paintHangar();
   uiTick('buy');
 }
 
@@ -1135,6 +1209,12 @@ function loseFocus() {
  */
 function openRack() {
   if (!rackMayOpen()) return false;
+  // A shop that came back up still asking about a row is a shop holding a question nobody asked any
+  // more: the ask is one press's business and not one visit's. And the racks are painted from their
+  // owners on the way up, so what a row says about its price is what the purse says now and not what it
+  // said the last time this panel was on the glass.
+  askingRow = NOT_ASKING;
+  paintHangar();
   openHangar();
   uiTick('open');
   return true;
@@ -1376,13 +1456,15 @@ function boot() {
   showChips(hasFinger());
   // ...and the settings panel's way out, on the same fact: a visit that came in on a finger gets a chip to
   // close a panel it can now walk, and a visit with a keyboard has `O` and no plate where the letter is.
-  showSettingsClose(hasFinger());
+  showPanelChips(hasFinger());
   // ...and the three lines that say *press to go* are written for the same hand, so a visit that came in
   // on a finger is never told to find a letter it does not have (ui/screens.js `paintLaunchHints`).
   paintLaunchHints(hasFinger());
   // ...and the two lines under the settings panel's rows, on the same fact again (ui/screens.js
   // `paintSettingsHints`).
   paintSettingsHints(hasFinger());
+  // ...and the two under the shop's racks (ui/screens.js `paintHangarHints`).
+  paintHangarHints(hasFinger());
   onResize();
   // Whether this visitor asked for as little movement as the machine can give (the same query the
   // CSS reads for its own fades). Once, at boot, like the pixel ratio: it is a fact about the
@@ -1454,8 +1536,7 @@ function boot() {
   world.tips = tipsFromSave();
   // Now the screens can be told what the visit has to show for itself, and which body it flies.
   showStanding(world.best, world.dust, wonShare(world));
-  showRack(world.ownedShips);
-  showPerks(perkLedger(world));
+  paintHangar();
   showCodex(world.found);
   showLog(world.pastRuns);
   showAwards(world.awards);

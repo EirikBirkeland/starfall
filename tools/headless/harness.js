@@ -389,6 +389,9 @@ const ELEMENT_IDS = [
   // (index.html, game/challenges.js). Empty for a run flown under no rule, and empty is what a test
   // reads back as "the card never mentioned one".
   'titleChallenge', 'finalChallenge', 'winChallenge',
+  // The two lines under the shop's racks, in the clauses `paintHangarHints` writes (index.html): the pick,
+  // the launch, the way back, and the whole line of chords a finger owns none of.
+  'hangarHintPick', 'hangarHintLaunch', 'hangarHintBack', 'hangarKeysLine',
   // The codex: what the runs of this save have met (index.html, game/codex.js).
   'codexScreen', 'codexBody', 'codexTally', 'hostRow', 'lineRow', 'synRow',
   // ...and the fourth rack, what they have flown (index.html, game/history.js).
@@ -433,13 +436,13 @@ const ELEMENT_IDS = [
   // The thumb's rail (index.html, ui/chips.js): the three chips a finger can press on the title, and
   // the row they are laid in. A test says where they ended up with `layout`, the way it says where the
   // title's mark did - a press hit-test needs a box and a stub has no layout engine to give it one.
-  'thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings',
+  'thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'chipHangar',
   // ...and the one chip on the pause rack, which is pressed the same way and needs a box of its own for
   // the same reason (index.html, ui/chips.js, main.js `pressGiveUpChip`).
   'pauseGiveUp',
-  // ...and the settings panel's way out, for the same reason again (index.html, ui/chips.js,
-  // main.js `pressSettingsPanel`).
-  'settingsClose',
+  // ...and the two chips that stand on panels, for the same reason again (index.html, ui/chips.js,
+  // main.js `pressSettingsPanel`, main.js `pressHangarPanel`).
+  'settingsClose', 'hangarClose',
 ];
 
 /**
@@ -451,8 +454,8 @@ const ELEMENT_IDS = [
  * `ui/chips.js` is written to answer nothing about. `logoBox` is not in here: the mark is measured
  * against the window on purpose (render/logo.js), which is what the title's own tests hold.
  */
-const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'pauseGiveUp',
-  'settingsClose'];
+const BOXES_INSIDE = ['thumbRail', 'chipToday', 'chipRule', 'chipMute', 'chipSettings', 'chipHangar',
+  'pauseGiveUp', 'settingsClose', 'hangarClose'];
 
 /**
  * One element of the stub DOM. Enough of an element for the screens that are written in
@@ -1144,12 +1147,14 @@ export async function bootGame(options) {
           label: row.children.map((part) => part.textContent).join(' '),
           picked: row.classList.contains('picked'),
           locked: row.classList.contains('locked'),
+          asking: row.classList.contains('asking'),
         })),
         // ...and the perk rack beside it: one line per perk, naming the rank the purse is on, what
         // a rank gives and what the next one costs (game/perks.js, game/hangar.js).
         perks: elements.perkRow.children.map((row) => ({
           label: row.children.map((part) => part.textContent).join(' '),
           maxed: row.classList.contains('maxed'),
+          asking: row.classList.contains('asking'),
         })),
         // The codex: whether it is up, how much of it is filled in, how it was fitted to the window
         // ('' is "it fit", see ui/screens.js `fitOpenPanel`), and its three panels as the player reads

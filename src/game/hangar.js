@@ -118,6 +118,28 @@ export function buyRackByIndex(world, index) {
   return buyPerkRow(world, index - SHIPS.length);
 }
 
+/**
+ * What the row a rack index names would cost, or null when there is nothing on it to sell: a ship the
+ * purse already has, a ladder reached, a row no rack has.
+ *
+ * This is the question the shop asks *before* it asks the player. A tap on a row that costs stardust puts
+ * the row into "tap again to buy" (main.js `pressHangarPanel`), and an ask that could not have been paid
+ * for is a question the shop knew the answer to - so it asks only when the price is real, and the price it
+ * would charge is the same number the row is already printing.
+ */
+export function priceAt(world, index) {
+  if (index < SHIPS.length) {
+    const id = shipAt(index);
+    if (id === null || ownsShip(world, id)) return null;
+    return priceOf(id);
+  }
+  const perk = perkAt(index - SHIPS.length);
+  if (perk === null) return null;
+  const held = rankOf(world, perk.id);
+  if (held >= maxRankOf(perk.id)) return null;
+  return perkPriceOf(perk.id, held);
+}
+
 /** The ship half of the rack: what `buyRackByIndex` used to be, for the rows that have a price
     and an owner instead of a ladder. */
 function buyShipRow(world, index) {

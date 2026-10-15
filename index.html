@@ -342,6 +342,17 @@
      It is inside the column for the same reason the pause's is - the column is measured and fitted as one
      thing, and a chip pinned under it would be fitted outside it. */
   .settings .chip { margin-top: 22px; }
+  /* ...and the hangar's, the way out of a shop a finger got into by tapping. */
+  .hangar .chip { margin-top: 22px; }
+  /* A row the panel is asking about (main.js `pressHangarPanel`): the tap that spends stardust is the
+     second one on the same row, and the row's own price line says which of the two taps this was. Warm,
+     for the same reason the GIVE UP chip is warm between its two presses - this is the press that costs
+     the purse. */
+  .ship.asking, .perk.asking {
+    border-color: rgba(255,179,64,.6);
+    color: #ffc164;
+  }
+  .ship.asking .price, .perk.asking .price { color: #ffc164; }
   /* A chip that is not on this visit's rack is not on it at all: a keyboard visit has the letter `G`
      written under the hint and needs no plate to find it, and a gap where a control would have been
      reads as a control that failed to arrive. */
@@ -643,20 +654,27 @@
        SETTINGS is the fourth and it is not a whole action in one press, which was the bar the other three
        cleared. It is here because the panel it opens now has a thumb shape of its own: every row on it moves
        to its next value when it is tapped and a CLOSE chip takes the panel back down (main.js
-       `pressSettingsPanel`), so the chip opens a page a finger can use and leave. The four wrap onto two rows
-       on a window too narrow for one. -->
+       `pressSettingsPanel`), so the chip opens a page a finger can use and leave. HANGAR is the fifth, for the
+       same reason and on the same bargain: the shop's rows answer a tap, and a row that spends stardust asks
+       before it spends it (main.js `pressHangarPanel`). The five wrap onto two rows on a window too narrow
+       for one. -->
   <div class="rail hidden" id="thumbRail">
     <span class="chip" id="chipToday">TODAY</span>
     <span class="chip" id="chipRule">RULE</span>
     <span class="chip" id="chipMute">MUTE</span>
     <span class="chip" id="chipSettings">SETTINGS</span>
+    <span class="chip" id="chipHangar">HANGAR</span>
   </div>
 </div>
 
 <!-- The hangar (PLAN 3.7): the rack the next run is chosen from, and the purse it is bought with.
      An overlay, not a state - it sits over the title or over the death's card and takes nothing
      away from either, so the way out of it is the same key that opened it and the way forward is
-     still just SPACE. -->
+     still just SPACE.
+     A finger gets the same shop: the HANGAR chip puts it up, a tap on a bought ship row flies it, and a
+     row that costs stardust asks - the second tap on the same row is the purchase, and that row's own
+     price line says which of the two taps it just took (ui/chips.js, main.js `pressHangarPanel`). The two
+     lines under the racks are written for whichever hand arrived (ui/screens.js `paintHangarHints`). -->
 <div id="hangarScreen" class="screen hangar hidden">
  <div class="hangar-body" id="hangarBody">
   <h2 class="hangar-title">HANGAR</h2>
@@ -680,8 +698,11 @@
     <div class="award-list" id="awardRow"></div>
    </div>
   </div>
-  <div class="hint">1 &#8211; 5 PICK A SHIP &#183; SPACE TO LAUNCH &#183; <span id="hangarKeysBack">H</span> TO GO BACK</div>
-  <div class="keys">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK &#183; <span id="hangarKeysSettings">O</span> SETTINGS</div>
+  <div class="hint"><span id="hangarHintPick">1 &#8211; 5 PICK A SHIP</span><span
+    id="hangarHintLaunch"> &#183; SPACE TO LAUNCH</span><span
+    id="hangarHintBack"> &#183; <span id="hangarKeysBack">H</span> TO GO BACK</span></div>
+  <div class="keys" id="hangarKeysLine">SHIFT + 1 &#8211; 5 BUYS A SHIP &#183; SHIFT + 6 &#8211; 9 BUYS A PERK RANK &#183; <span id="hangarKeysSettings">O</span> SETTINGS</div>
+  <div class="chip gone" id="hangarClose">CLOSE</div>
  </div>
 </div>
 

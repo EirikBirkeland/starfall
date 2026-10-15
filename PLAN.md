@@ -2233,9 +2233,28 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       (`layOutRows` in the harness, the same bargain as `layout: { logoBox: ... }` for a stub with no layout
       engine), then taps rows and reads the owners rather than the glass; `test/settings-rows-mouse.test.mjs`
       holds what did not move for a visit with no fingers - no rail, no CLOSE chip, the arrow words the page
-      ships, the KEYS row present, and a rack that answers no press at all. Still open in the item: the codex
-      and the hangar, which are reading panels with rows a press does not answer, and the hangar is where a
-      phone player still cannot spend a coin of the stardust they have been earning.
+      ships, the KEYS row present, and a rack that answers no press at all.
+
+      **The hangar has a thumb shape (session 129).** The shop is the second panel a finger can walk, and it is
+      the one that matters to a phone run: stardust has been arriving in the purse all game and there was no way
+      on a phone to spend any of it. `HANGAR` is the fifth chip and `hangarClose` the second chip standing on a
+      panel (`ui/chips.js` `panelChipAt`, one list of panel chips put up by one fact), `shipRowAt`/`perkRowAt`
+      answer a press against the boxes the browser laid the two racks out in, and `main.js` `pressHangarPanel`
+      says what each press means: the CLOSE chip is `H`, a bought ship row is the number key (free, immediate,
+      and lit by the same `showShip`), and a row that costs stardust is `SHIFT + its number` - **in two taps**.
+      The ask is the whole shape: the first tap puts the row into `TAP AGAIN TO BUY IT`, in the row's own price
+      line and in warm amber, and the second tap on that row is the purchase; another row, the glass between the
+      rows, and the way out all take it off, and it never outlives the panel (`openRack` clears it and repaints
+      both racks from their owners on the way up). It is only ever put on a row the purse could actually pay for
+      (`game/hangar.js` `priceAt`), because an ask the shop knew was unanswerable is a question and not a
+      control. Buying is still not picking, and a purse too short is a silent press.
+
+      A cursor gets the same two taps, because a press is one handler's business - and the row says `CLICK
+      AGAIN TO BUY IT` rather than lying about a finger it does not have (`ui/screens.js` `buyWords`, which is
+      also where a finger's rows stop saying `SHIFT + 2 BUYS IT` and start saying `TAP TO BUY IT`). The two
+      lines under the racks are written for the hand that arrived, like every other line here
+      (`paintHangarHints`). Eighteen tests: `test/thumb-hangar.test.mjs` and `test/hangar-rows-mouse.test.mjs`.
+      Still open in the item: the codex, which is the one reading panel left.
 
 - [x] The agent bridge: the game offered as tools on stdin and stdout, so a coding agent can be the
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,

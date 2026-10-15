@@ -408,6 +408,25 @@ export function paintSettingsHints(onGlass) {
   el.settingsKeysLine.classList.toggle('gone', onGlass === true);
 }
 
+/**
+ * The two lines under the shop's racks, written for the hand that arrived.
+ *
+ * The line above them is three clauses, because the third names `H` and `paintKeyWords` writes the letter
+ * inside it - so the first two are rewritten and the third is put away, which is how `paintLaunchHints`
+ * treats the three "press to go" lines. The line under them is all chords (`SHIFT + 1 – 5`, `SHIFT + 6 – 9`,
+ * `O`) and a finger owns none of them, so that whole line goes; what a thumb is told instead is written on
+ * the rows themselves, where every row that costs anything says `TAP TO BUY` and, between its two taps,
+ * `TAP AGAIN TO BUY`.
+ *
+ * Once per visit, on the same fact as every other line here (`input/touch.js` `hasFinger`).
+ */
+export function paintHangarHints(onGlass) {
+  el.hangarHintPick.textContent = onGlass ? 'TAP A SHIP TO FLY IT' : '1 \u2013 5 PICK A SHIP';
+  el.hangarHintLaunch.textContent = onGlass ? ' \u00b7 CLOSE TO LAUNCH' : ' \u00b7 SPACE TO LAUNCH';
+  el.hangarHintBack.classList.toggle('gone', onGlass === true);
+  el.hangarKeysLine.classList.toggle('gone', onGlass === true);
+}
+
 export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
@@ -443,6 +462,11 @@ export function initScreens() {
     hangar: document.getElementById('hangarScreen'),
     hangarBody: document.getElementById('hangarBody'),
     hangarDust: document.getElementById('hangarDust'),
+    // The two lines under the shop's racks, in the shapes `paintHangarHints` writes (index.html).
+    hangarHintPick: document.getElementById('hangarHintPick'),
+    hangarHintLaunch: document.getElementById('hangarHintLaunch'),
+    hangarHintBack: document.getElementById('hangarHintBack'),
+    hangarKeysLine: document.getElementById('hangarKeysLine'),
     codex: document.getElementById('codexScreen'),
     codexBody: document.getElementById('codexBody'),
     codexTally: document.getElementById('codexTally'),
@@ -757,23 +781,47 @@ export function showChallenge(world) {
 }
 
 /**
+ * What a row that costs stardust says about the press that pays for it.
+ *
+ * The price is always on the row and always first: the rule this panel is built on is that the money only
+ * moves while the price is somewhere the player can see it (main.js `buyFromRack` refuses a purchase from
+ * the title for exactly that reason), and a thumb is held to the same rule by the same words. What changes
+ * is the second clause, which names the press: a keyboard visit is told the chord, and a finger is told the
+ * tap - and told it *twice*, because the first tap on such a row only asks (main.js `pressHangarPanel`).
+ * A cursor that lands on a row asks the same two-step question, and the row answers it in the same words
+ * with the cursor's own verb in them, because a press is one handler's business and the words have to say
+ * what actually happened.
+ */
+function buyWords(cost, key, what, asking, onGlass) {
+  let how;
+  if (!asking) how = onGlass ? 'TAP TO BUY ' : 'SHIFT + ' + key + ' BUYS ';
+  else how = onGlass ? 'TAP AGAIN TO BUY ' : 'CLICK AGAIN TO BUY ';
+  return cost.toLocaleString('en-US') + ' STARDUST   \u00b7   ' + how + what;
+}
+
+/**
  * Paint which rows the purse has bought and which it has not (game/hangar.js). Called once when
  * the visit opens and again after every purchase - a row that stayed dim after being paid for
  * would be the shop taking the money and not handing over the ship.
  *
  * A locked row keeps every word it had: the numbers are the whole reason a player would want the
  * ship, and a shop that hides what it sells until it has been sold is not a shop. It is dimmed,
- * and it says what it costs and which key buys it, on a line of its own.
+ * and it says what it costs and which press buys it, on a line of its own.
+ *
+ * `asking` is the hangar's own numbering - the one the number keys use (main.js) - so a row knows whether
+ * *it* is the row the panel is asking about, and `onGlass` is which hand this visit arrived with.
  */
-export function showRack(owned) {
+export function showRack(rack) {
   for (let i = 0; i < shipRows.length; i++) {
     const id = SHIPS[i].id;
     const cost = priceOf(id);
-    const bought = shipIsBought(owned, id);
+    const bought = shipIsBought(rack.owned, id);
+    const asking = !bought && rack.asking === i;
     shipRows[i].classList.toggle('locked', !bought);
+    shipRows[i].classList.toggle('asking', asking);
     shipPrices[i].textContent = bought
       ? ''
-      : cost.toLocaleString('en-US') + ' STARDUST   \u00b7   SHIFT + ' + (i + 1) + ' BUYS IT';
+      : buyWords(cost, i + 1, 'IT', asking, rack.onGlass === true);
   }
 }
 
@@ -789,19 +837,22 @@ export function showRack(owned) {
  * A row at the top of its ladder keeps every word it had and loses only its price line, which is the
  * same bargain a bought ship row strikes: nothing is hidden about a thing that has been paid for.
  */
-export function showPerks(ranks) {
+export function showPerks(rack) {
+  const ranks = rack.ranks;
   for (let i = 0; i < perkRows.length; i++) {
     const id = PERKS[i].id;
     const held = ranks[id] === undefined ? 0 : ranks[id];
     const max = maxRankOf(id);
     const maxed = held >= max;
+    const asking = !maxed && rack.asking === SHIPS.length + i;
     perkRows[i].classList.toggle('maxed', maxed);
+    perkRows[i].classList.toggle('asking', asking);
     perkNumbers[i].textContent =
       'RANK ' + held + ' OF ' + max + '   \u00b7   ' + rankWords(id);
     perkPrices[i].textContent = maxed
       ? ''
-      : perkPriceOf(id, held).toLocaleString('en-US') + ' STARDUST   \u00b7   SHIFT + '
-        + perkKey(i) + ' BUYS RANK ' + (held + 1);
+      : buyWords(perkPriceOf(id, held), perkKey(i), 'RANK ' + (held + 1), asking,
+        rack.onGlass === true);
   }
 }
 

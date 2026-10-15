@@ -22,10 +22,11 @@
 //
 // **And it answers the same question for a row of a panel.** A settings row is not a chip - it is a line
 // of words the page laid out - but a press that lands on one has to be answered by the same arithmetic,
-// against the same box the eye read, and this is the one file that is given the canvas. So `settingRowAt`
-// asks where the browser put each row of `#settingRow` and answers which one the press came in on, or -1
-// when it came in on none. What a row *means* is not this file's business: main.js `pressSettingsPanel`
-// decides that, and what it decides is the row's own next value.
+// against the same box the eye read, and this is the one file that is given the canvas. So `settingRowAt`,
+// `shipRowAt` and `perkRowAt` ask where the browser put each row and answer which one the press came in
+// on, or -1 when it came in on none. What a row *means* is not this file's business: main.js
+// `pressSettingsPanel` and `pressHangarPanel` decide that, and what they decide is the row's own next
+// value - or, in the shop, whether the purse is being asked before it is spent.
 //
 // **There is a second rail, and it is one chip long**: the pause rack's GIVE UP (main.js
 // `pressGiveUpChip`). It lives here rather than beside the pause's other words in ui/screens.js for the
@@ -36,25 +37,26 @@
 // trap and not a control.
 
 /**
- * The four chips, in the order the rail paints them.
+ * The five chips, in the order the rail paints them.
  *
  * The first three are a whole action in one press, which was the bar a chip had to clear to be on this
  * rail: the day launches a run, the rule changes the next one and says so on the title, and the sound
  * turns off and on again with a plate on the glass to prove it.
  *
- * The fourth is not, and it is here because that bar turned out to be the wrong one for a panel that has
- * since been given a thumb shape of its own. SETTINGS opens the settings panel, and that panel now
- * answers a tap: every row on it steps from the tap that lands on it, and the CLOSE chip under it takes
- * the panel back down (main.js `pressSettingsPanel`). The chip no longer opens a page a finger can
- * neither use nor leave, which is the only reason it was left off the rail. The hangar and the codex are
- * still panels that only show things, with rows a press does not answer, and they stay off it for the old
- * reason.
+ * The other two are not, and they are here because that bar turned out to be the wrong one for panels
+ * that have since been given a thumb shape of their own. SETTINGS opens the settings panel and HANGAR the
+ * shop, and both of those pages now answer a tap: a row moves or a row is bought from the tap that lands
+ * on it, and the CLOSE chip standing on each takes it back down (main.js `pressSettingsPanel`,
+ * `pressHangarPanel`). Neither chip opens a page a finger can neither use nor leave, which is the only
+ * reason either was left off the rail. The codex is still a page that only shows things, with rows a press
+ * does not answer, and it stays off it for the old reason.
  */
 const CHIPS = [
   { id: 'today', el: 'chipToday' },
   { id: 'rule', el: 'chipRule' },
   { id: 'mute', el: 'chipMute' },
   { id: 'settings', el: 'chipSettings' },
+  { id: 'hangar', el: 'chipHangar' },
 ];
 
 /**
@@ -68,17 +70,35 @@ const CHIPS = [
  */
 const GIVE_UP = { plain: 'GIVE UP', asking: 'TAP AGAIN TO GIVE UP' };
 
-// The rail, its three chips, and the canvas the press point is measured against. Filled once by
-// `initChips`, beside the same elements `initScreens` took its own from.
+/**
+ * The chips that stand *on* a panel instead of on the title's rail: the way out of a page a finger got
+ * into by tapping.
+ *
+ * They are one list because one fact puts them all up (`input/touch.js` `hasFinger`, once per visit) and
+ * one question gets asked of them - a press that landed on a panel has to know whether it landed on that
+ * panel's way out. Each is answered by the very key that panel is opened and closed with (main.js), which
+ * is why a visit with a keyboard is not shown one.
+ */
+const PANEL_CHIPS = [
+  { which: 'settings', el: 'settingsClose' },
+  { which: 'hangar', el: 'hangarClose' },
+];
+
+// The rail, its chips, and the canvas the press point is measured against. Filled once by `initChips`,
+// beside the same elements `initScreens` took its own from.
 let rail = null;
 let glass = null;
 let chips = [];
 
-// The settings panel's way out, and the list its rows are laid in. Both are pressed the way a chip is -
-// by asking the browser where the box came out - and both belong here for that reason and no other.
-let closeChip = null;
-let closeUp = false;
-let rowList = null;
+// The panel chips, found, and whether this visit is shown them.
+let panelChips = [];
+let panelChipsUp = false;
+
+// The lists whose rows a press can land on. The awards rack is deliberately not among them: it sells
+// nothing, so a press on an award row is a press on a line of words and nothing else.
+let settingsList = null;
+let shipList = null;
+let perkList = null;
 
 // Is the rail on the glass? It is put up once, for a visit that arrived with a finger
 // (input/touch.js `hasFinger`), and it is the one question `chipAt` asks first: a chip the player has
@@ -106,10 +126,16 @@ export function initChips(canvas) {
   }
   giveUp = document.getElementById('pauseGiveUp');
   if (giveUp === null) throw new Error('the page has no give-up chip to put on the pause rack');
-  closeChip = document.getElementById('settingsClose');
-  if (closeChip === null) throw new Error('the page has no close chip to put on the settings panel');
-  rowList = document.getElementById('settingRow');
-  if (rowList === null) throw new Error('the page has no settings rows to press');
+  panelChips = PANEL_CHIPS.map((chip) => ({ which: chip.which, el: document.getElementById(chip.el) }));
+  for (const chip of panelChips) {
+    if (chip.el === null) throw new Error('the page has no #' + chip.el + ' chip to put on a panel');
+  }
+  settingsList = document.getElementById('settingRow');
+  if (settingsList === null) throw new Error('the page has no settings rows to press');
+  shipList = document.getElementById('shipRow');
+  if (shipList === null) throw new Error('the page has no ship rows to press');
+  perkList = document.getElementById('perkRow');
+  if (perkList === null) throw new Error('the page has no perk rows to press');
 }
 
 /** Put the rail on the glass, or keep it off it (main.js asks input/touch.js which visit this is). */
@@ -185,28 +211,40 @@ export function chipAt(x, y) {
 }
 
 /**
- * Put the settings panel's CLOSE chip on it, or keep it off, once per visit (main.js, beside `showChips`
- * and `paintSettingsHints`, on `input/touch.js` `hasFinger`).
+ * Put the panel chips on the panels, or keep them off, once per visit (main.js, beside `showChips`,
+ * `paintLaunchHints` and the two `paint*Hints` calls, on `input/touch.js` `hasFinger`).
  *
- * A keyboard visit is not shown one because it has `O`, which is the very key the chip is answered by -
- * the same bargain the pause rack strikes with its GIVE UP, for the same reason: a plate sitting where a
- * letter already is reads as a control that failed to arrive.
+ * A keyboard visit is not shown one because it has the letter the chip stands in for - the same bargain
+ * the pause rack strikes with its GIVE UP, for the same reason: a plate sitting where a letter already is
+ * reads as a control that failed to arrive.
  */
-export function showSettingsClose(on) {
-  closeUp = on === true;
-  closeChip.classList.toggle('gone', !closeUp);
+export function showPanelChips(on) {
+  panelChipsUp = on === true;
+  for (const chip of panelChips) chip.el.classList.toggle('gone', !panelChipsUp);
 }
 
 /**
- * Did this point land on the settings panel's CLOSE chip?
+ * Did this point land on the way out of the panel named? `false` for a panel that has no chip, and for a
+ * visit that is not shown them.
  *
- * Asked only while that panel is the one that is up (main.js `pressSettingsPanel`), and answered through
- * the same `landedOn` as every other box in this file, so the word a thumb reads and the box it presses
- * cannot be moved apart.
+ * Asked only while that panel is the one that is up (main.js), and answered through the same `landedOn` as
+ * every other box in this file, so the word a thumb reads and the box it presses cannot be moved apart.
  */
-export function settingsCloseAt(x, y) {
-  if (!closeUp) return false;
-  return landedOn(closeChip.getBoundingClientRect(), windowPoint(x, y));
+export function panelChipAt(which, x, y) {
+  if (!panelChipsUp) return false;
+  for (const chip of panelChips) {
+    if (chip.which === which) return landedOn(chip.el.getBoundingClientRect(), windowPoint(x, y));
+  }
+  return false;
+}
+
+/** Which row of that list did this point land on? Its index, or -1 for none. */
+function rowAt(list, at) {
+  const rows = list.children;
+  for (let i = 0; i < rows.length; i++) {
+    if (landedOn(rows[i].getBoundingClientRect(), at)) return i;
+  }
+  return -1;
 }
 
 /**
@@ -218,10 +256,18 @@ export function settingsCloseAt(x, y) {
  * the panel is up, because a headless page has no layout engine to take the boxes away with the panel.
  */
 export function settingRowAt(x, y) {
-  const at = windowPoint(x, y);
-  const rows = rowList.children;
-  for (let i = 0; i < rows.length; i++) {
-    if (landedOn(rows[i].getBoundingClientRect(), at)) return i;
-  }
-  return -1;
+  return rowAt(settingsList, windowPoint(x, y));
+}
+
+/**
+ * ...and the two racks of the hangar, which are one numbered list to the keys (`game/hangar.js`) and two
+ * lists to the page. The index each answers is its own rack's; main.js puts them back into the rack's own
+ * numbering, because which row costs what is the shop's business and not this file's.
+ */
+export function shipRowAt(x, y) {
+  return rowAt(shipList, windowPoint(x, y));
+}
+
+export function perkRowAt(x, y) {
+  return rowAt(perkList, windowPoint(x, y));
 }
