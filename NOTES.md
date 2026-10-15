@@ -14877,3 +14877,55 @@ same fingerprint, released as **1.9.0**.
    for a protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the
    ladder, and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against
    the 50% "usually" asks for).
+
+## Session 131 — The page is counted: `domWrites()`, and a settled screen held to zero. Not released (see below)
+
+### What shipped
+The guard half of the audit session 124 started and session 125 found the reason for. `tools/headless/harness.js`
+now counts every write to the stub DOM, and `test/dom-writes.test.mjs` (8 tests) holds that each screen of the
+game, once it has **settled**, writes nothing per frame: the title, the shop, the record, the settings, a run
+being flown, the wreck's card, the pause, and the win's card.
+
+### What counts as a write
+Text put into an element (`textContent` is now an accessor on every stub element), a child added, a child taken
+away. Not a class toggled to the value it already had - the real `classList.toggle` does nothing in that case
+either, and counting it would make every panel look guilty. `game.domWrites()` reads the tally and
+`game.resetDomWrites()` zeroes it, which is the part that makes the number mean anything: the boot writes the
+whole page once, so a count that includes it would say everything is fine whatever happened afterwards.
+
+### The control test is the one that matters
+Six of the eight tests assert zero, and **a counter that counted nothing would pass all six.** So one test
+puts the shop up and demands the count be *seen*, then measures the same settled page again and demands zero -
+one screen, both answers, next to each other. Another reads the whole snapshot and steps a frame to hold that
+*looking* at the page is not writing it, which is what stops the harness failing its own tests.
+
+Mutation-checked against the historical bug: dropping `!overCardShown` from the death-card branch in `main.js`
+(the exact thing session 125 fixed) reddens the wreck's-card test with **7260 writes against the 0 it asks
+for**. The guard is not decorative.
+
+### A fact worth having written down: a flying run writes the page zero times
+I expected a run in motion to write its score and purse, and it writes nothing - the in-run HUD is painted on
+the canvas with the fight (`render/hud.js`) and the DOM is only the screens *around* it. The test asserts the
+zero anyway, with that said: the day any of that moves onto the page, this is the test that tells whoever
+moved it that it has to be written when it changes and not once per frame.
+
+### Why this was not released
+Nothing a player can see or feel changed: the commit is the harness and a test file, and `releases/v1.9.0` is
+already the identical playable build. A menu entry that plays the same as the one under it is noise. If a
+future session ships something playable on top of this, it rides along in that release.
+
+### Verified
+Full suite **2345/2345**, `tools/simulate.js --seed 20261006` traces the same fingerprint as every session
+since 127, and the mutation above.
+
+### What should come next
+1. **Make the harness send events the way a real browser does** (from 127): both `code` and `key`, sometimes
+   only one. The D-key fix is only tested by hand today.
+2. **The owed list, now that the thumb work is closed**: the browser half of the performance pass (a THICK
+   CROWD run standing 150 bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a
+   protanope, silhouettes for the crowd pairs that share a colour, the afterimage's flat top of the ladder,
+   and the deliberate FAIL on the difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50%
+   "usually" asks for).
+3. **Something the new guard makes cheap**: the same measurement on a *live* screen - `domWrites()` per frame
+   during a busy fight with 150 bodies - would turn "the page is quiet" into a number the performance pass
+   can compare against instead of a rule it hopes is true.
