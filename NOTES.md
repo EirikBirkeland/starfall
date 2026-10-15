@@ -15248,3 +15248,55 @@ tally print `0` instead of `-` reddens the test that holds that a dash is not a 
    afterimage's flat top of the ladder.
 3. If a third tool wants a `--set` knob, move the patch/restore/label machinery out of `line-ab.js`
    and `gun-tune.js` into `tools/headless/`.
+
+## Session 137 — one `--set` reader for three tools, and two more dials measured and refused. Not released
+
+### What was built
+`tools/headless/patch.js`: the shared `path=value` knob. `fieldAt` (dotted, goes through arrays —
+`gap.0`), `numberFields`, `parseNumberPatch` (refuses a path that is not there and a path that is not
+a number), `applyPatches` (a patch remembers the leaf it covered; restoring touches that leaf and
+nothing else), `patchWords` (the header says what was moved).
+
+It is now behind `tools/line-ab.js`, `tools/gun-tune.js` and — new — **`--set` on
+`tools/difficulty-arc.js` and `tools/run-shape.js`**, which is the third tool my own notes said should
+trigger the move rather than a third copy. `run-shape` passes `--set` through to its shards, and both
+tools print it in their header so a patched batch can never be read back as the shipped game.
+
+Two side effects worth having:
+* **gun-tune no longer copies a row at all.** Session 134's array-became-an-object bug is not merely
+  tested for now, it is unrepresentable: a patch touches one leaf. `copyRow`/`restoreRow` are gone.
+* `run-shape` answers a bad flag with a line and exit 2 instead of a stack trace.
+
+### What it measured, in about a minute a probe
+The lever session 136 named was the **arrival rate**, not the crowd budget. Both halves of it, 48 seeds,
+the person bot, the 15-minute cap, `--shards 8` (~50 s each):
+
+| | middle death | died | in the band | the survivors at 14m |
+|---|---|---|---|---|
+| shipped | 2m36s | 44/48 | **6 (13%)** | level 63, 108k, hull 3, nothing landing |
+| `waves.gap` 0.9–1.4 → 0.5–0.8 | **2m13s** | 45/48 | **3 (6%)** | level 87, 201k, hull 3, nothing landing |
+| `waves.waveMaxPoints` 30 → 60 | 2m32s | 44/48 | **7 (15%)** | level 73, 140k, hull 3, nothing landing |
+
+Nearly twice the arrivals **makes the band worse**: it kills the weak sooner and feeds the strong, whose
+score doubles. Bigger waves nudge the band by two points and leave the cliff exactly where it was. The
+`hulls lost` column reads 0 for the survivors in every one of the three batches.
+
+So the ninth and tenth dials are spent, and the conclusion of session 105's ten survives: **no number
+in `balance.js` reaches the band, because the band is not a rate problem.** A run that survives its
+first four minutes out-kills the crowd's arrival rate at any arrival rate the table can express, and
+the extra bodies are income. What is left is the thing PLAN's own item already named — a mechanic about
+*where the ship is standing*, not about how many bodies arrive.
+
+### Verified
+Full suite **2392/2392** (9 new in `test/patch.test.mjs`, 2 in `test/difficulty-arc.test.mjs`, 2 in
+`test/run-shape.test.mjs`), `tools/simulate.js --seed 20261006` unchanged. The new arc test proves the
+patch reaches the game rather than only the header: the same four seeds, patched and unpatched, give
+different death counts.
+
+### What should come next
+1. **The late-game mechanic**, and it has to be a mechanic. Everything a dial can do has now been
+   measured eleven times. The shape it has to have is written in the numbers above: something that
+   makes a ship that is not being touched *lose something* (its income, its range, its safety) rather
+   than something that sends more bodies to be killed.
+2. The browser half of the performance pass; silhouettes for the crowd pairs that share a colour; the
+   afterimage's flat top of the ladder.
