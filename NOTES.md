@@ -14635,3 +14635,108 @@ are no open requests.
    bodies on a scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for
    the crowd pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
    difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
+
+## Session 128 — The settings panel gets a thumb shape. Released **1.7.0**
+
+Suite **2,285 → 2,304** (11 in `test/thumb-settings.test.mjs`, 7 in `test/settings-rows-mouse.test.mjs`).
+`node --test` green, `tools/simulate.js --seed 20261006` traces the same bytes it has since session 118
+(`score 73982`, level 57, 3934 kills, 4934 shards, 1 boss, 7 vacuums) - the bot never opens a panel, and
+`game/settings.js` gained an export without changing one line of what a run reads.
+
+### The item
+PLAN's long-open "a thumb can fight and nothing else" has been deferred from sessions 123, 124, 125 and
+126. Its remaining half is *the panels' thumb shape*: "a row that steps when it is tapped, and a way out".
+This session did the settings panel - the one panel in the game that **changes** anything - and left the
+codex and the hangar for the next one.
+
+### What shipped
+- **`SETTINGS` is the fourth chip on the title rail.** It used to be refused because "a chip that opened a
+  page a finger could neither use nor leave would be a trap". The panel now answers a tap, so the bar is met.
+  The rail's CSS gained `flex-wrap: wrap` - four chips do not fit across a 375 px phone - which is the one
+  thing in this session I could not look at.
+- **A press on a settings row is answered by the row.** `ui/chips.js` grew `settingRowAt(x, y)`, which asks
+  the browser where each row of `#settingRow` came to rest and answers which one the press landed on - the
+  same arithmetic as a chip, against the same box the eye read. `main.js` `pressSettingsPanel` says what it
+  means. A panel that is not up is `display: none`, so its rows have no boxes and answer nothing; no flag
+  needed.
+- **A `CLOSE` chip stands on the panel** (`.settings .chip`, inside the fitted column like the pause's GIVE
+  UP), and it is `onSettings` - the very `O` toggle, guards and re-raising the pause included. It is put away
+  for a visit with no fingers, which has the letter.
+- **The two lines under the rows are written for the hand that arrived**: `ui/screens.js`
+  `paintSettingsHints(hasFinger)`, once per visit beside `showChips` and `paintLaunchHints`, on the same fact.
+  A thumb reads `TAP A ROW TO CHANGE IT`; the line naming `O`, `Esc`, `M` and `[ ] - =` is taken away
+  (`.keys.gone`, a new rule - `.keys .gone` only ever took a *clause* out of a line).
+
+### The thing that nearly got built wrong, and why it is worth writing down
+The obvious rule - *a tap on a row is what the right arrow does* - would have shipped a **dead panel**. Most
+of these rows ship at the top of their travel: `stepRow` deliberately does not wrap (game/settings.js says
+why: "a key that comes back round to the beginning is a key that can put the shake back on while you were
+trying to take it off"), and `SCREEN SHAKE`, `HIT FLASH`, `PARTICLES` and both sliders all start at their
+last step. So `+1` answers nothing on them. Worse, the two switches a phone player most wants at that panel -
+AUTO-FIRE and AUTO-AIM - are **on** for a run flown on a thumb, so `+1` answers nothing on those either. A
+thumb would have tapped eight of ten rows and watched nothing move.
+
+So a row now carries a second verb beside `step`: **`cycle`, the row's next value coming back round to its
+first**, answered by whoever owns the table - `cycleRow` in game/settings.js (the only wrap in the game, with
+the reason beside it), the sliders wrapped through their own door (`music(1) || music(-VOLUME.steps)`), the
+two switches flipped, the mute as it already was. The arrow keys keep their no-wrapping rule untouched. A tap
+is a different gesture: one press, on one row, whose word is on the glass in front of the player.
+
+### `hasKeyboard()`, and the trap it closes
+The KEYS row is a *door* onto the controls rack, and every verb in that rack is a key press. A phone that
+opens it can enter and cannot leave - the rack has no chip and answers no press. So the row is painted only
+for a visit that has **ever pressed a key** (`input/keyboard.js`, sticky, re-exported through `input/index.js`).
+
+Why not `hasFinger()`: a touchscreen laptop answers that yes while holding a keyboard, and nothing in a
+browser says whether a keyboard is plugged in. A visit that has pressed a key has a keyboard - that is not an
+inference, it is the press. The cost is one corner of a corner: a touchscreen laptop that taps SETTINGS before
+touching a key sees the row appear on the panel's next repaint.
+
+### A drift bug found while writing the tests
+`settingRows()` was being rebuilt on every press as well as every paint, and the two can disagree: the first
+key press of a visit turns the KEYS row on, a key press does not repaint the panel, and the freshly built
+list is then **one row longer than the glass says it is** - a tap on the eighth row an eye can see steps the
+ninth. Fixed by keeping `paintedRows`, the list exactly as last printed, and having the taps, the arrows and
+the cursor all walk that. The row objects still ask their owners live for their words and their steps; what is
+kept is only the shape that was printed.
+
+### The harness grew a layout for rows
+`document.createElement` rows had **no `getBoundingClientRect` at all** in the stub - a press hit-test against
+a rack row would have thrown. `makeElement` now carries a `rect` slot answering a zero box (which
+`landedOn` rightly refuses to press), and the controller grew `layOutRows(id, boxes)`: a test says where the
+browser laid the rows out, after the panel has been painted, because rows have no id to be named by. This is
+the piece the codex and the hangar will want next.
+
+### Two wrong tests, both worth keeping in mind
+1. I asserted AUTO-FIRE reads `ON` on a phone visit's title screen. It reads `OFF`: `game/assists.js` answers
+   for the hand the run is *being flown on*, and `input/touch.js` `thumbUsed()` is honest that a screen tap is
+   not a control claim. The test now walks `OFF -> ON -> OFF`, which exercises the wrap anyway.
+2. I asserted the SETTINGS chip closes the panel it opened. It does not, and it was already right not to: a
+   panel owns the glass it is up on, chips included (`test/thumb-rail.test.mjs` has held that for MUTE since
+   session 123). The way out is the chip standing *on* the panel.
+
+And a real one: my boot edit lost the `paintSettingsHints(hasFinger())` call - the comment survived and the
+call did not - and the new test caught it as an empty line. Re-read the diff, not just the intent.
+
+### Verified
+18 new tests, all reading the **owners** (`pictureWords('shake')`, `isMuted()`, `musicLevel()`,
+`assistWords('fire')`) and not just the panel's words. Mutation-checked: replacing `cyclePictureRow` with
+`stepPictureRow(id, 1)` reddens two. Full suite green, `tools/simulate.js` unchanged, released as **v1.7.0**.
+
+### What should come next
+1. **The hangar's thumb shape** - the one that costs the player something. A phone visitor earns stardust all
+   run and cannot spend a coin of it: `H` has no chip, the rack is picked by number keys, and buying is a
+   Shift-chord. Decide: does a chip open the hangar from the title rail (it is a *reading* panel, which is the
+   reason it was left off), does a tap on a row mean *buy* (and what stops a careless tap spending the purse),
+   and does the ship rack answer a tap the way `1-9` does. `layOutRows` and `settingRowAt`'s shape are ready
+   for it; `test/settings-rows-mouse.test.mjs` is the pattern for the no-finger half.
+2. **The codex's thumb shape**, same family and cheaper: it only reads, so it wants a chip, rows that can be
+   walked by a tap, and a way out.
+3. **The once-per-screen audit's guard half**, unchanged from 124-126: give the harness's `makeElement` a write
+   counter (`domWrites()`) and hold that a settled screen writes nothing per frame.
+4. **Make the harness send events the way a real browser does** (from session 127): both names, and sometimes
+   only one.
+5. Still owed, unchanged: the browser half of the performance pass (a THICK CROWD run standing 150 bodies on a
+   scheduled run), `tools/gun-tune.js`, `cageWall` as a thin wall for a protanope, silhouettes for the crowd
+   pairs that share a colour, the afterimage's flat top of the ladder, and the deliberate FAIL on the
+   difficulty band (13% of 48 seeds die between 4 m and 9 m against the 50% "usually" asks for).
