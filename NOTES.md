@@ -15641,3 +15641,92 @@ net, this session's +11).
    hull); the XP curve is a decision to take on purpose, with the hangar re-priced after it; the
    browser half of the performance pass; and `tools/power-ladder.js` has not been re-read since the
    deck grew afterimage.
+
+## Session 142 — the crowd's warm half gets a lightness ladder: two pairs stop being one colour. Shipped 1.9.3
+
+### What the tree looked like when I sat down
+Clean at v1.9.2, 2428 tests green, and one item at the foot of PLAN that session 141 had written but
+not started: two pairs of the crowd are nearly one colour - drifter/shielder at 0.56 of a step,
+weaver/darter at 0.43 - and because those pairs are carried by outline alone, neither the drifter
+(42% of its own hurtbox) nor the darter (56%) can be drawn any fatter. A palette session, with the
+whole promise list owed a re-read afterwards.
+
+### How I went at it, and the one thing I had to read first
+I built a throwaway harness in `.scratch/` (search*.mjs, try.mjs): the crowd's 36 pair *geometries*
+are measured once with `tools/shape-lab.js`, and then a candidate palette is judged by the shipped
+rulers - `worstVision` for the crowd pairs, `auditPair` and `auditSky` for the promises - which is
+fast enough to try sixty thousand of them. Two things about that harness mattered more than the
+search itself:
+
+* **The geometry has to be the future geometry.** A visit that only clears today's outline distances
+  buys nothing, because the whole point is the pair positions a fattening creates. So the drifter and
+  the shielder were constrained as one shape (3.9 px, session 141's measurement) and the weaver and
+  the darter likewise (2.9 px). Fixing the pairs as they stand would have left the shapes exactly where
+  they are.
+* **`separation()` scores an eye on its largest surviving axis** (one clear difference is enough),
+  and `worstVision` then takes the worst eye. I had been reasoning as if it took the smallest, which
+  made the problem look impossible; read properly, `drifter / shielder` at 0.56 was riding on ΔL
+  0.056 and Δb 0.026, both under a step, on the eye with no red cone.
+
+The structural fact that decided the shape of the answer: **the `a` axis cannot separate a pink from a
+red in sRGB.** Every in-gamut body in that band sits at `a` ≈ 0.20-0.23 - `#ff0000` itself is only
+0.225 - so the weaver (a 0.213) and the darter (a 0.206) have nothing to gain there, and tritanopia,
+which keeps `L` and `a`, can only be satisfied with lightness. And lightness is boxed on both sides:
+the weaver cannot rise past L 0.762 without eating the greyscale step it owes the mine (they are
+"alike" at 10 px and 10.5 px, so `promiseOf` asks a whole step on the axis with no hue at all), and
+the sniper is sitting at 0.574 just under the darter. That is why the darter had to come down about
+0.06, and why the sniper is the pair that paid for it.
+
+### The visit
+Four entries, brightness only, hues held inside their own families: the drifter #8b6cff -> **#7d5cf5**
+(L 0.636 -> 0.592), the shielder #e04dff -> **#f95fff** (0.692 -> 0.742), the darter #ff4d6d ->
+**#e83a55** (0.679 -> 0.619), the weaver #ff5ec4 -> **#ff6ad0** (0.722 -> 0.740). The fills and
+`shieldTrack` went with their entries - the shield ring's track is the shielder's magenta at 0.4, and
+half a palette moving and half of it staying is worse than either.
+
+drifter / shielder 0.56 -> **1.49**, weaver / darter 0.43 -> **1.21**, both on their worst eye, and
+both now clear at the 3.9 px and 2.9 px the fattened shapes will sit at. Three neighbours came up for
+nothing: spitter / shielder 1.25 -> 1.40, shielder / sniper 1.18 -> 1.68, bomber / shielder
+0.33 -> 0.76. The report's `thinly` list - pairs hanging on a thin outline with neither colour nor
+size behind them - went from four to three, and the pair that left it is the one the item was about.
+
+### Surprises and costs
+* **The unconstrained search was ugly.** Left to maximise separation it happily made the weaver a dusty
+  pale pink (chroma 0.13 against 0.22) because a desaturated pink reads as a different `a`, and it
+  drifted hues by 15 degrees to buy a step. Both were fixed by bounding the search to each entry's own
+  hue family (±6 degrees), flooring chroma, and scoring on *minimal drift* rather than maximal margin.
+  The lesson is general: the ruler does not know what the crowd is supposed to look like, so the
+  aesthetic has to be a constraint in the search and not a reaction to its output.
+* **The gamut moves hues when you darken.** Asking for L 0.59 at hue 289 does not give hue 289: sRGB
+  clamps and the violet lands 2-3 degrees bluer whatever you want. Worth knowing before any future
+  "just darken it" - and worth checking with `oklch(parseColor(hex))` rather than assuming the hue held.
+* **What it cost, and why I let it go:** `darter / sniper` fell from 1.05 of a step to 0.45, so a
+  crimson dart and a blood-red dart are now one colour to a careful eye. The rule permits it - 6.1 px
+  of outline apart, 1.45x apart in size, and a sniper never moves while a darter is the fastest thing
+  in the arena - and the crowded-pair test is where the project writes these down, so it is written
+  there with its reason rather than left to be rediscovered.
+* **There was a cleaner version and I did not take it.** Deepening the sniper one step as well
+  (#d81e5b -> #bd1250, measured) puts `darter / sniper` back over a step, takes `swarmling / sniper`
+  out of the crowded list (0.32 -> 1.33) and `bomber / sniper` out of the thin one (0.92 -> 1.49), and
+  breaks nothing: every sniper pair goes *up*. I left it because the item was about two pairs, not
+  three, and because "the sniper is the deepest red in the arena, so its beam and its eye read as
+  light" is a decision that session should be taken on its own account. The numbers are in PLAN and in
+  `test/palette-read.test.mjs` so it does not have to be measured twice.
+* Two pinned lists changed and both changed *because the visit worked*: `test/crowd-art.test.mjs`'s
+  `thinly` list lost `weaver / darter`, and `test/palette-read.test.mjs`'s crowded list gained
+  `darter / sniper`. Both now say why, in prose, next to the list.
+
+### What should come next
+1. **The shapes, which are now paid for.** Bow the drifter's three faces (42% -> ~75%, corners exactly
+   where they are) and fill the darter's head from a 0.7r cheek to nearer 1r (56% -> ~81%). After
+   each one, re-run `node tools/shape-lab.js` and `node tools/palette-check.js --strict`: both pairs
+   will move into the *shared* band, which is the list in `test/crowd-art.test.mjs` that pins what each
+   one-shape pair has left to carry it, and that list will need the new distances and the colour that
+   now carries them. Expect the drifter to want its faces at about 0.8r and no further: the sweep in
+   session 141 showed the corners going past r trades the shielder away for the weaver and the tank.
+2. **The sniper, if a session wants a darker sniper.** Measured above; it buys three pairs and costs a
+   stationary body some visibility on a dark sky (still 3.6 steps above it at #bd1250).
+3. Unchanged from 139/140/141: the late game wants a fight and not a crowd (boss phase tables, not
+   hull); the XP curve is a decision to take on purpose, with the hangar re-priced after it; the
+   browser half of the performance pass; and `tools/power-ladder.js` has not been re-read since the
+   deck grew the afterimage.
