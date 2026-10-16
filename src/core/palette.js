@@ -173,14 +173,26 @@ export const PALETTE = {
   // Enemy kinds. PLAN section 4 wants the harmful ones in the red-to-magenta half
   // of the palette; the darter is the first drawn from there, and the drifter's
   // violet is the last one still waiting its turn.
-  violet: '#8b6cff',
-  violetFill: 'rgba(139,108,255,0.16)',
-  pink: '#ff5ec4',
-  pinkFill: 'rgba(255,94,196,0.16)',
+  //
+  // Session 142 moved four of these in BRIGHTNESS, and only in brightness: the hues are
+  // the ones each kind has always worn. The reason is that an eye with no red cone, or
+  // no green one, keeps lightness and the blue-yellow axis and loses the red-green one -
+  // and two warm bodies of similar lightness have only the axis they have lost. The drifter
+  // and the shielder were 0.56 of a step apart on such an eye, the weaver and the darter
+  // 0.43, which is one colour wearing two shapes; the drifter and the darter are also the
+  // two bodies whose shapes are thinnest over their own hurtboxes, so they cannot be drawn
+  // fatter until their colour does some of the work. Now: the drifter sits deeper in the
+  // violet and the shielder higher out of it (1.50 steps), the darter sits deeper in the
+  // red and the weaver a shade above it (1.21). `tools/palette-check.js` prints what that
+  // did to every pair, and `test/palette-read.test.mjs` holds the promises about it.
+  violet: '#7d5cf5',
+  violetFill: 'rgba(125,92,245,0.16)',
+  pink: '#ff6ad0',
+  pinkFill: 'rgba(255,106,208,0.16)',
   amber: '#ffb340',
   amberFill: 'rgba(255,179,64,0.13)',
-  red: '#ff4d6d',
-  redFill: 'rgba(255,77,109,0.16)',
+  red: '#e83a55',
+  redFill: 'rgba(232,58,85,0.16)',
   orange: '#ff7a3d',
   orangeFill: 'rgba(255,122,61,0.14)',
   // The bomber is the hottest thing in the arena: it is the one enemy whose death is
@@ -195,23 +207,24 @@ export const PALETTE = {
   elite: '#ffd76a',
   // The swarm. Twenty small bodies are the one crowd in the game that has to be read as
   // a *thing* rather than as a crowd, so it wears the one warm hue nobody else asked
-  // for: a plain scarlet, deeper than the darter's coral and nowhere near the pink. At
-  // seven pixels across a hue is the only thing that can tell it from a drifter, and a
-  // clump of twenty of them has to look like weather coming, not like twenty enemies.
+  // for: a plain scarlet, brighter than the darter's deepened red and nowhere near the
+  // pink. At seven pixels across a hue is the only thing that can tell it from a drifter,
+  // and a clump of twenty of them has to look like weather coming, not like twenty enemies.
   swarm: '#ff2d55',
   swarmFill: 'rgba(255,45,85,0.20)',
-  // The shielder is the magenta PLAN section 4 asks its enemies to be drawn from:
-  // it sits on the far side of the pink, away from the weaver, and it is the only
-  // thing in the arena wearing it, which is what lets a whole crowd be lit up by it
-  // without turning into a wall of colour (render/entities.js).
-  magenta: '#e04dff',
-  magentaFill: 'rgba(224,77,255,0.15)',
+  // The shielder is the magenta PLAN section 4 asks its enemies to be drawn from: it sits
+  // on the far side of the pink, away from the weaver, and it is the only thing in the
+  // arena wearing it, which is what lets a whole crowd be lit up by it without turning into
+  // a wall of colour (render/entities.js). Session 142 lifted it clear of the drifter's
+  // violet for the eyes that keep no red-green: see the note on that entry.
+  magenta: '#f95fff',
+  magentaFill: 'rgba(249,95,255,0.15)',
   // The shield a shielder holds over its neighbours: the light of the bubble, and
   // the faint track of the ring the bubble grows back along while it refills. Both of
   // them warm, because a shield is harm standing between you and harm - it is not
   // help, whatever it is doing for the enemy (PLAN section 4).
   shieldLight: '#f2b6ff',
-  shieldTrack: 'rgba(224,77,255,0.4)',
+  shieldTrack: 'rgba(249,95,255,0.4)',
   // A bomber's death zone: the ring it stands in while it lives, and the light of
   // the explosion itself. Both warm, and the flash nearly white so it reads as the
   // last frame of a thing rather than as a new one (PLAN section 4).
@@ -219,7 +232,7 @@ export const PALETTE = {
   blastFlash: '#ffe3b0',
   // The sniper (PLAN 3.3's stationary laser). Every warm hue in the palette is
   // spoken for by something that walks, so the one thing in the arena that never
-  // moves takes the deepest one: a blood red darker than the darter's coral and
+  // moves takes the deepest one: a blood red darker than the darter's red and
   // than the swarm's scarlet, which is what lets the *white* of its eye and of its
   // beam be the loudest light on the glass instead of another red in the crowd.
   sniper: '#d81e5b',

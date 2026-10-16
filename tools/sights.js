@@ -1,6 +1,6 @@
 // What the eye is asked to tell apart, and what each of them means.
 //
-// A palette cannot be audited as a list of colours. "Is #ff4d6d far enough from
+// A palette cannot be audited as a list of colours. "Is #e83a55 far enough from
 // #ff2d55" has no answer until you say what the two colours are *for*, how big a
 // thing each one is painted on, and what shape the eye is given: two reds are a
 // disaster if one of them is a shard and the other a bullet, and entirely fine if

@@ -167,13 +167,12 @@ export const CROWD_SHAPES = {
   // it is the plainest enemy - it walks at you - and it is what every tank comes apart into.
   //
   // It covers 42% of the circle that hurts it, the worst share in the crowd, and it stays that way
-  // on purpose: the faces were bowed out to 75% and put back. A 15 px violet body and a 17 px
-  // magenta one are 0.56 of a step of colour apart for an eye with no red cone and 1.13x apart in
-  // size, which is to say the *triangle* is the only thing that says which one a body is. Bow the
-  // faces to a rounded triangle - 75% covered, and it is a good shape, corners exactly where they
-  // were - and the two outlines come to 3.9 px, which is one shape, and neither colour nor size is
-  // left to pay for it. The plain triangle is not the drifter being lazy, it is the shielder's
-  // colour being nearly the drifter's; see the item at the foot of PLAN.md.
+  // on purpose: the faces were bowed out to 75% and put back. Bow them and the two outlines come to
+  // 3.9 px, which is one shape - and until session 142 that was the whole argument, because a 15 px
+  // violet body and a 17 px magenta one were 0.56 of a step of colour apart for an eye with no red
+  // cone, so the *triangle* was the only thing saying which one a body was. The palette has since
+  // bought that step (1.50 now: see the note on PALETTE.violet), so the rounded triangle is a shape
+  // this file is free to draw; what it has not yet done is draw it. The item is at the foot of PLAN.md.
   drifter: plainPolygon(3),
 
   // The weaver: a quatrefoil - four shoulders with a body between them, no points on it. It used

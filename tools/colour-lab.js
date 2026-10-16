@@ -110,7 +110,7 @@ export function screenHue(rgb) {
  * How a colour with an opacity actually lands on the sky: `fg` over `bg`, both 0-255 triples.
  *
  * Half the palette is a translucent fill or a glow, and a translucent colour is not a colour - a
- * `rgba(255,77,109,0.16)` body over the night sky is a *dark* red, not the red its channels say.
+ * `rgba(232,58,85,0.16)` body over the night sky is a *dark* red, not the red its channels say.
  * Every measurement of a translucent colour goes through here first, so the audit measures what an
  * eye is given and not what the source file spells.
  */

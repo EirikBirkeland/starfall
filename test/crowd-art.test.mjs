@@ -155,16 +155,18 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
 });
 
 test('what hangs on a thin outline alone is a written-down list too', () => {
-  // Over the bar and not by much, with no colour and no size behind it: four pairs. They are not
+  // Over the bar and not by much, with no colour and no size behind it: three pairs. They are not
   // failed - a still picture cannot see a lunge, a weave, or twenty bodies bunching up to dive, and
   // every one of them is a body whose walking is the loudest thing about it (a mine that turns and
-  // breathes, a weaver that rocks, a darter that stops dead to line itself up, an eye that lights
-  // before it fires) - but they are the thinnest ice in the crowd and this is where a session is
-  // told so.
+  // breathes, an eye that lights before it fires, a bomber that is the attack) - but they are the
+  // thinnest ice in the crowd and this is where a session is told so.
+  //
+  // The weaver and the darter used to be on this list, a pink and a coral 0.43 of a step apart on an
+  // eye with no blue cone and 4.5 px of outline apart. Session 142 moved four crowd entries in
+  // brightness and they came out the other side at 1.21, which is why they are not here now.
   const thinly = pairs.filter((pair) => pair.carriedBy === 'thinly')
     .map((pair) => pair.a + ' / ' + pair.b);
-  assert.deepEqual(thinly, ['bomber / shielder', 'weaver / darter', 'bomber / sniper',
-    'spitter / bomber']);
+  assert.deepEqual(thinly, ['bomber / shielder', 'bomber / sniper', 'spitter / bomber']);
 });
 
 test('the ruler can say "one shape", or "different" means nothing', () => {

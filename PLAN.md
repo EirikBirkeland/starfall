@@ -2404,7 +2404,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       over. The swarmling is left alone on purpose: it wears the ship's own dart because a shoal of
       twenty that borrow your silhouette is the kind's whole argument, and a 2.1r nose is what a nose
       costs. So what is left of this item is not a shape job; see the next one.
-- [ ] Two pairs of the crowd are nearly one colour, and they are the lock on the crowd's shapes. The
+- [x] Two pairs of the crowd are nearly one colour, and they are the lock on the crowd's shapes. The
       palette report's silhouette section prints every pair the eye has to tell apart and what carries
       it, and two of them carry nothing but outline: the drifter against the shielder at 0.56 of a step
       (violet against magenta, for an eye with no red cone, at 1.13x of size) and the weaver against
@@ -2416,3 +2416,20 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       two of the commonest bodies in the game, and it is a palette session rather than a shape one:
       `PALETTE.violet`, `PALETTE.magenta`, `PALETTE.pink` and `PALETTE.red` are each used by more than
       the one body, and the whole promise list has to be re-read after them.
+      **Done (session 142), and in brightness only**: the drifter went a shade deeper into its violet
+      (#7d5cf5), the shielder a shade out of its magenta (#f95fff), the darter down into its red
+      (#e83a55) and the weaver a shade up out of its pink (#ff6ad0). Hues moved a few degrees at most -
+      these are still the same four colours, because brightness is the one axis every eye keeps and
+      both pairs were short on exactly the axis that eye had left. Drifter against shielder is 1.49
+      steps apart now and weaver against darter 1.21, each on its worst eye, and the darter and the
+      weaver have left the report's `thinly` list. The promises were all re-read: `palette-check
+      --strict` and `contrast-check --strict` are clean and 2428 tests pass. Three neighbouring pairs
+      came up for nothing (spitter/shielder 1.25 -> 1.40, shielder/sniper 1.18 -> 1.68, bomber/shielder
+      0.33 -> 0.76). One pair went down and is written down with a reason in
+      `test/palette-read.test.mjs`: the darter and the sniper are one colour now (0.45), which the rule
+      allows because they are 1.45x apart in size and 6.1 px of outline apart and one of them never
+      moves - deepening the sniper's own red a step would buy it back, take `swarmling / sniper` out of
+      the crowded list with it and lift `bomber / sniper` out of the thin one, and that is a choice the
+      sniper should make on its own account rather than one borrowed here. What this bought is the item
+      above: the drifter's bowed faces (42% -> 75%) and the darter's fuller head (56% -> 81%) are paid
+      for, and neither is drawn yet.

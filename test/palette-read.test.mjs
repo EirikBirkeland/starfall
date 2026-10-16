@@ -263,6 +263,14 @@ test('the crowd shares colours, and says which pairs do', () => {
   // What this test holds is that the list stays the list. A new kind that lands on top of an
   // existing one has to be written down here, in words, rather than passing unnoticed - and the
   // day somebody re-silhouettes those bodies and the list shortens, that is a better palette.
+  //
+  // `darter / sniper` joined in session 142, when the darter went down the lightness scale to get
+  // clear of the weaver. That is what the visit cost, and it is the trade the rule makes: the
+  // weaver and the darter were one shape at near-enough the same size, with nothing but colour to
+  // buy, while a sniper is 1.45x the size of a darter, 6.1 px of outline away, and stands perfectly
+  // still while a darter is the fastest thing in the arena. Deepening the sniper's own red by one
+  // step would take this pair off the list and `swarmling / sniper` with it; that is a decision for
+  // a session that wants the sniper darker on its own account, not one borrowed here.
   const crowded = [];
   const bodies = SIGHTS.filter((s) => BALANCE.kinds[s.id] !== undefined);
   for (let i = 0; i < bodies.length; i++) {
@@ -273,6 +281,7 @@ test('the crowd shares colours, and says which pairs do', () => {
   }
   assert.deepEqual(crowded.sort(), [
     'bomber / swarmling',
+    'darter / sniper',
     'darter / swarmling',
     'spitter / bomber',
     'swarmling / sniper',
