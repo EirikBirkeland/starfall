@@ -15831,3 +15831,113 @@ Released as **1.9.4**.
    deck grew the afterimage.
 4. If a fourth session writes this harness, move it next to `shape-lab.js` as a real tool
    (`--try shape.mjs` judging a candidate file with the shipped gates). Twice is an accident.
+
+## Session 144 — the sniper is looked at on its own account: the eye is taller, the red is deeper, and three debts are paid. Shipped 1.9.5
+
+### What was on the shelf
+Clean tree at v1.9.4 and one body owed a visit. Sessions 141, 142 and 143 had each written the
+same IOU in a different file: session 142 had pushed the darter down the lightness scale to get clear
+of the weaver and three warm bodies had landed on top of the sniper while it did (`darter / sniper`
+0.45 of a step, `swarmling / sniper` 0.76, `bomber / sniper` 0.92 on the worst eye that still keeps
+each), and all three notes said the same thing - deepening the sniper's red would pay for all of it,
+"but that is a choice the sniper should make on its own account rather than one borrowed here". This
+was that session, and the other half of it was sitting in `render/shapes.js`: the lens had been stood
+taller once (53% -> 74%) and one more step was on the table.
+
+### What shipped
+- **The lens: `lens(1.5, 1.4)` -> `lens(1.5, 1.6)`. 74% -> 84% of its own 16 px circle.** Same two
+  corners, 1.5r fore and aft; only the flanks moved, to 0.8r off the axis from 0.7. Nothing reaches a
+  pixel further past the hurtbox than it did, and the pupil (`EYE_LIGHT`, 9 px of light) now stands in
+  a body 12.8 px deep instead of 11.2. `--show sniper` is nearly solid.
+- **The colour: `PALETTE.sniper` #d81e5b -> #bd1250.** Lightness 0.574 -> 0.517, hue and chroma left
+  where they were - brightness being the one axis every eye keeps, and deepening the one body in the
+  arena that never moves being the cheapest step the palette has, because that body is not also being
+  told apart by how it walks. `sniperFill` came *up* 0.20 -> 0.26 of an opacity at the same time, or
+  the deeper outline would have drawn a hoop with a hollow middle.
+- **Both lists shortened.** `darter / sniper` 0.45 -> 1.02 and `swarmling / sniper` 0.76 -> 1.33, both
+  off `test/palette-read.test.mjs`'s crowded list (five pairs -> three); `bomber / sniper` 0.92 -> 1.49
+  and off `test/crowd-art.test.mjs`'s `thinly` list (three -> two). The crowd's shared list stayed
+  eleven long but re-ordered itself: `shielder / sniper` is the fourth-tightest pair in the crowd now at
+  2.4 px, paid at 2.25 steps.
+- **One new test**: `the body that never moves wears the deepest of the crowd`. The palette had been
+  *asserting* that in a comment for nine sessions; now it is measured (lowest `oklab` L of the nine,
+  and still within 40 degrees of the crowd's own red, that being the darter's hue and not a hex).
+  Mutation-checked: putting the sniper back at the darter's red turns this test *and* the crowded list
+  red, which is the whole point of writing it. Suite 2430 -> 2431.
+
+### The cost, which is the finding
+`sniper / wall` came from 1.32 of a step apart to 0.75 against a promise of 0.4 - the sixth-tightest of
+the table's 84 promises. The reason is worth keeping: a wall is not its palette entry, it is `#57b8ff`
+at half an opacity over a near-black sky, which *lands* at 0.482 of lightness, and a body taken down to
+0.517 is nearly its match. For an eye with no hue a wall and a body have nothing else, so the axis this
+visit spent is the one that pair had least of. It passes, it is printed by name in every report from now
+on, and the table's own floor was already lower (swarmling/cage is 0.055) - so this is not a new low, it
+is a written one. Second cost: the wash's sky margin, which was 0.08 (the smallest in that audit) and is
+0.23 - the one place the visit left the board better than it found it.
+
+### What the sweeps said
+- **Fattening a body does not always bring it *closer* to everything.** Standing the lens taller took
+  `darter / sniper` from 4.1 px of outline to 5.3 - a fatter eye is a *worse* match for a spear at the
+  kindest turn - while taking `shielder / sniper` from 2.9 to 2.4 and `weaver / sniper` from 2.9 to 3.4.
+  The kindest turn moves underneath a shape change, so a pair's number is not a property of either body
+  alone. That is the second time this ruler has surprised me that way (see session 143's `darter /
+  swarmling` leaving the list for nothing).
+- **1.7 was affordable and I did not take it.** 88% coverage, nothing fails, and the one thing it costs
+  is a twelfth shared pair (`bomber / sniper` at 3.8 px) which the *new* red pays for at 1.49 - so no
+  gate would have stopped me. What stopped me was that it spends shape to buy coverage, and that at 1.8
+  the middle of the lens stands 0.9r off the axis: a disc with two thorns in it. The tips are the shape's
+  whole argument. That reasoning is written in `render/shapes.js` next to the number, with the numbers
+  that came out of the sweep, because "why did you stop at 1.6" is exactly the question a future session
+  asks.
+- The colour ladder, for reference if somebody wants to revisit: #c21656 (L 0.529) clears only the
+  swarmling pair; #bd1250 clears both; #b30f4c and #a80f47 clear nothing extra and drive `sniper / wall`
+  to 0.14 and 0.08 of margin. #bd1250 is the last rung that is a clear win, and it is also just short of
+  a full step below the darter (1.02), which is the number I would want to argue with first.
+
+### The loop, third time
+`.scratch/gates.mjs` again - import `CROWD_SHAPES`, `SIGHTS` and `BALANCE.kinds`, mutate them in
+memory, print one line per candidate with `hurtboxFit`, `silhouettePairs`, the crowded list, the unpaid
+list, `auditSky` rows for that body and its worst promised margins. ~40 candidates (shape x colour x
+fill alpha) in a couple of minutes, all judged by the code the gates actually run. Colour needed one
+extra trick over the shape sweeps: `SIGHTS` copies the palette at import, so `recolour()` writes
+*sight.colour*, *sight.fill* and `BALANCE.kinds[type].color` together or the report and the test would
+disagree about what was being measured.
+
+### Surprises
+- The stale-number habit again, and this time it was in a *tool*. `tools/shape-lab.js`'s header quoted
+  three outline distances as "the shipped crowd, measured"; two of them had quietly moved across
+  sessions 141-143 (drifter/shielder 6.7 px -> 3.9) and one had become a shared pair. Re-pinned to
+  today's ruler and pointed at `palette-check.js` as the thing to believe. If a number is quoted in
+  prose it should name the command that re-measures it.
+- Reading the sky audit for the first time in full: the crowd's *washes* were all sitting 0.09-0.42 above
+  their bar and nobody had ever looked. The darter is at 0.09. Nothing to do about it, but it is the
+  number a future re-colour trips on first.
+- `darter / sniper`'s separation is 1.02, which is a step by 0.02. That is not unstable - nothing else
+  in the game is about to move - but it is the thinnest "paid for" on the board and it is written as such
+  in the crowded test.
+
+### Verified
+Full suite **2431/2431** (2430 at HEAD, measured before and after: one test added, none removed).
+`tools/simulate.js --seed 20261006 --trace` byte for byte what it was - 10m00s / 73,982 / level 57 -
+because what a body looks like is not what it does, and this changed only what it looks like.
+`palette-check --strict`, `contrast-check --strict`, `node --check` on every touched file. Released as
+**1.9.5**.
+
+### What should come next
+1. **Promote the sweep harness. Third session, three copies of the same 90 lines.** It belongs next to
+   `shape-lab.js` as `--try <file.mjs>`: a candidate file exports `{ shapes, colours }` and the tool
+   prints coverage, the shared/thin/crowded lists and the unpaid list with the shipped gates, then exits
+   non-zero on an unpaid pair. `gates.mjs` is the draft and it already does all of it except the CLI.
+2. **The kindest-turn question, and it is cheaper now.** Six of the crowd's eleven shared pairs involve
+   the sniper or the spitter, both of which *always* face the ship (`game/kinds.js`), so "best-aligned
+   over a relative turn" is pessimistic for exactly the pairs that dominate the list. Handing the ruler
+   each kind's turn as data (with its own test) would either relax the list or say the tightness is real.
+3. **The last three crowded pairs are all the swarmling and the bomber**: `darter / swarmling` 0.31,
+   `bomber / swarmling` 0.70, `spitter / bomber` 0.60. The swarm is bright scarlet on purpose (twenty of
+   them have to read as weather), so this one wants a different lever than a step of lightness had -
+   possibly size, possibly the flock's own spacing, which no static ruler can see. Nobody has asked why
+   a clump of twenty is measured as one body at all.
+4. Unchanged from 139-143: the late game wants a *fight* and not a crowd (boss phase tables, not hull);
+   the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
+   the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
+   afterimage.
