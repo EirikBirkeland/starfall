@@ -16509,3 +16509,165 @@ it. That is what the ruler is for and it is said here rather than learned twice.
    and reading the tier's `tierBonus.telegraph` into the bosses' own wind-ups - one line in
    `bosses.js`, and it would change the feel of every fight in a deep run, so it wants its own session
    and its own ruler reading.
+
+## Session 150 — the ruler could not see a brood; read, the second boss was never the flattest fight in the game
+
+### What was on the shelf
+Session 149's first next-item: give the Hive's last phase the same lever the Warden and the sun just
+got. It came with a warning attached, and the warning is what this session actually worked on. Session
+147 had written the caveat into the tool's own footnotes and into session 148's notes, and everyone
+since had treated it as the reason the Hive's row could not be trusted: *a shell, a spoke, a fan and a
+blade all travel a line the fight has already shown, so each of them can be counted where it will have
+got to across the horizon. A brood steers, and nothing here can say where it will be in half a second,
+so a body claims only the place it is standing.* Read that way the Hive is made of bodies and is the
+flattest read of the three by construction - 96.6% standable in its third phase at the game's own
+promise, against the sun's 92.1%. Which is why nobody had dared densify it: the ruler would have said
+it was gentle, and then would have said it was gentle again.
+
+The caveat is half wrong, and the half that is wrong is the half that mattered. A steering body cannot
+be projected. A flock does not steer, though - it is a clock with three beats, and two of the three
+say what is coming and exactly when:
+
+- a pack already `DIVING` is flying a line its own `commit()` locked: direction fixed, pace fixed at
+  `dive.mul` times the body's speed, time left on its timer;
+- a pack `BRACED` has committed to a dive and not yet to a bearing - the bearing is taken from the
+  ship at the moment it goes, and `game/flock.js` is not allowed to know where the ship will be. But
+  it knows the *time*, and a threat whose time you know walls off a room whether or not you know
+  which way it will point.
+
+So: the line for the one, an aim-free room for the other.
+
+### The two reads (`game/flock.js` `divePace`, `nextDive`)
+`divePace` is the speed `game/kinds.js` `committed` actually glides a pack at - `speed * (1 - frost) *
+dive.mul`, with the frost off it because a dive is a walk like every other - and nought for a body
+with no pack, which has no line and nothing to fly it at. `nextDive` answers all three beats, because
+a pack's beat is a clock and not a coin toss: a `DIVING` body has no wait and as much of the dive as
+its timer has left; a `BRACED` one has the whole of `dive.time` in front of it and the bunching to
+get through first; a gathering one has that same dive plus the rest of the gathering, and has promised
+nothing about *where*, which is why the read of it is a room and not a lane and why the approach is
+never counted. Both are exported for the tool and nothing else, on the `packOf`/`isDiving` precedent
+from session 147: the tool borrows the game's numbers rather than carrying its own.
+
+### The claims (`tools/boss-pressure.js`)
+Two new claim columns, `arrive` and `dive`, and one new column that is not a claim:
+
+- `claimDives` lays a **capsule** along a locked line: from where the body stands to `pace * min(left,
+  horizon - wait)` further along, fattened by `body.r + player.r` - a lane, not a disc, and the lane
+  ends where the dive ends. `reaches()` was already general enough to take any centre and any length;
+  it only ever had the fight's shells to work with before.
+- `claimBrood` files everything else in the brood as a **disc of what it can reach** round where it
+  stands, for the same reason the fight's own cells are read that way: it is true without knowing
+  anything the instrument cannot know. `sight.js` `reaches` (an aim-free threat) was the shape;
+  `claimCells` was the pattern; neither was changed.
+- A dive a whole promise off is a threat and not a wall, so nothing beyond the body is claimed until
+  `wait <= horizon`. That gate is the rule said in words: the arithmetic two lines down refuses it too
+  (`horizon - wait` has gone negative), so it is not a branch a test can catch on its own, and the
+  comment says so rather than pretending otherwise.
+- `crowd` is how many bodies were standing in the room to be read. This is the number that tells you
+  how much to believe the row, and it exists because nothing in here shoots back: a brood a fight
+  calls is never called off, so over a long watch of a breeding fight the crowd only grows - the same
+  phase reads 41 bodies at eight seconds and 216 at eighty, and the `arrive` share grows with it. That
+  is not a bug in the read, it is the read telling you the state is not one a run is in. Rows were not
+  re-cut to a shorter default watch: 40 s stays the house number so the twenty-one numbers already
+  written down stay comparable, and `--seconds 8` is printed next to them in the footnotes.
+
+### The bug the visit found, which was in the tool and not in the game
+`Room.claimed` was a `Uint8Array` and `BIT.dive` is 256. The first run of the new tool said `dive 0.0`
+for every phase of every fight while `arrive` moved by twenty points, which is the kind of number that
+only happens: the geometry was right, the walk was right, and the grid had no bit to file the claim in,
+so `paint()` stored 0 and `measure()` counted it under nothing. Widened to `Uint16Array` - bit 256 is
+now a byte boundary away from being swallowed again - and `test/boss-pressure.test.mjs` has a test that
+paints one cell per claim bit and refuses a claim that comes back as nothing or as something else, plus
+the assertions that the bits are single, distinct and inside the width of the grid. Before this, adding
+a claim to the ruler could silently do nothing at all, and did.
+
+### The numbers, and the decision that falls out of them
+Reference run (`--seed 7`) is **byte for byte what it was**, trace hash and all: both helpers are reads
+and the tool does not run in a game. Suite at HEAD measured 2490 in the same minute, now 2496 (+4 in
+`test/boss-pressure.test.mjs`, +2 in `test/swarm.test.mjs`). Hive at the game's own promise (40 s), and
+then the fair 8 s watch beside the other two fights:
+
+| phase | standable before | after | worst before | after | crowd at 8 s |
+|---|---|---|---|---|---|
+| Hive 1 | 98.5% | 92.9% | 98.1% | 63.8% | 12 |
+| Hive 2 | 97.6% | 84.3% | 97.0% | 62.3% | 23 |
+| Hive 3 | 96.6% | 78.1% | 95.4% | 55.2% | 41 |
+
+At 8 s: Hive 3 reads 90.8% standable / 58.3% worst, against the Warden's 93.7 / 87.6 and the sun's
+91.3 / 69.6. Stable across seeds 3, 12 and 77 (88.2-88.5% and 58.6-62.4%). The Warden's and the sun's
+nine numbers did not move a digit, because neither fight makes a body that steers.
+
+**So the Hive gets no new beat.** It was already contesting more room at the promise than the two fights
+that were densified on purpose, and its worst moment is tighter than either by a distance - the second
+boss is the tightest of the three, not the flattest, and the PLAN item is ticked on that measurement
+instead of on a fourth mechanism. The shape of it is worth writing down before anyone redesigns it: the
+brood's pressure is **wave after wave and never one wall**. `standable` swings from 97% free to 63% free
+between one sample and the next, and a probe over three minutes of phase 3 (`.scratch`, not shipped) says
+why. The crowd commits every **4.57 to 4.61 s**, which is the flock's own cycle (`gather 3.4 + brace 0.7
++ dive 0.5`) and nothing else: a cohort keeps the clock it was born with, so whatever the fight is doing
+the waves keep their own time and nothing is actually locked to the beat that threw it out. And the crowd
+never goes at once: the biggest brood the probe saw was 234 bodies and the biggest whole-crowd commit was
+66; the share of the brood diving at a commit settles round a half early and then falls away (`6/6,
+12/18, 30/54, 72/144`). So the room is swept rather than shut, and a ship that keeps moving is inside the
+waves rather than under one - which is the read's own account of why the average is comfortable and the
+worst moment is not. Two wrong turns are worth naming so nobody repeats them: the whole crowd does not
+commit in step (an earlier hour of this session believed it did, from one sample of 60 of 60, which was
+one small cohort at the start of a watch), and the brood is not born on the fight's rotation - a
+fragment's mouths light on the spawn row's own `gap` and `step`, so there is no single "the fleet beat is
+4.55 s" to compare the waves against in the first place.
+
+### Surprises
+1. Four sessions of "the Hive is flat and here is why the ruler cannot say otherwise" and the reason was
+   two missing lines. Worth keeping: a caveat that has been repeated three times stops being checked.
+2. The silent bit width. Any claim added to this ruler before today could have vanished the same way and
+   nobody would have seen a red test, because the tool's own test file had no reason to ask about a bit
+   it had never used. The fix is not the widening, it is the test that paints every bit.
+3. `crowd` is the column I did not ask for and would now not give up. A measurement that quietly counts a
+   different situation than the one it names is worse than no measurement, and this one had been doing it
+   since session 147: the crowd in a boss cage is not static, it is bred.
+4. One mutation survived, and it is the one I expected: dropping `dive.wait > horizon` from `claimBrood`.
+   It is arithmetically swallowed by the `away <= 0` guard below it, so no test can see it; the comment
+   now says the gate is the rule in words and not a branch. Everything else died: the `Uint8Array` grid
+   (2 tests red), `claimBrood` unwired (2 red), the arrival room widened to the whole dive at full pace
+   (1 red), a `flock.js` `dive.mul` dropped (1 red), the gathering beat answering without the bunching in
+   front of it (1 red), a braced pack reporting its dive as already flown (2 red).
+
+### Left in the tree
+`tools/boss-pressure.js` (two claim walks, `crowd`, two columns, rewrote two footnotes and the foreword),
+`src/game/flock.js` (`divePace`, `nextDive`, exported for the tool), `test/boss-pressure.test.mjs` (+4),
+`test/swarm.test.mjs` (+2), `PLAN.md` (the item ticked, with the reading and the correction written into
+it). `tools/shape-lab.js`'s three lists, from session 147's third item, turned out to already be pinned: the
+shape-lab ruler prints no lists at all, and the three that `tools/try-body.js` prints are one hand-named
+pair list per heading with the ruler measuring every name in it - `sights.crowdedColours()` is the whole
+third list, and `palette-read.test.mjs` asserts that every name in the other two earns its place as
+measured. So there is no second copy of anything left to drift, which is what that item was after. No release: nothing a player sees or feels changed, and the reference run says so.
+
+### Next
+1. **The brood commits in waves, on a clock that is not the fight's.** A probe over three minutes of the
+   Hive's last phase found a commit every 4.57-4.61 s no matter what the boss was doing, and never more
+   than about half the crowd at once. Two questions live there and neither is answered yet. The legibility
+   one: each body's own telegraph circle (`render/draw.js`, `braceProgress`) is the only tell, and a wave
+   of 40 bodies arriving out of a 200-body crowd may need something coarser than a circle - but read the
+   `BRACED` handling there first, because it may already be loud enough and the real question is whether
+   it is legible at that many bodies. The design one: a fight whose brood keeps its own time is a fight
+   with two clocks in it, and nobody wrote down whether that is the intention. `tools/boss-pressure.js`
+   can price either answer, because the swing between 97% free and 63% free is what any such tell is
+   selling.
+2. **A tuning idea the ruler just made visible**: `bosses.telegraphMin` is 0.6 s and the flock's cycle is
+   4.6 s, so the brood reads as a wave that arrives and goes. Raising the promise to 1 s would flatten
+   the wave into a wall (the `arrive` share goes up and the peaks come down) and lowering it to 0.4 would
+   make the brood feel like nothing until it is on you. Neither is obviously right. Do not change the
+   promise on this note alone - it is the number the whole report is written against.
+   The flattery this ruler still swallows is in the same direction, and it is the approach: a body can be
+   read 400 px away while it walks toward you and is only credited with the place it stands. Anyone who
+   wants to do something about that has to say how a steering body's approach may be forecast at all,
+   which is the sentence session 147 left and which is still true for the third of a flock that has
+   promised nothing. The tool's last footnote says all of this too.
+3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20 seeds) and whether the **first two minutes** are too harsh for a new player (needs a human).
+   The third item on that list - reading the tier's `tierBonus.telegraph` into the bosses' own wind-ups -
+   cannot be done as written: `tierBonus` exists nowhere in this working copy, in `src/` or in `tools/`,
+   and PLAN has named it as though it were a live number since. Same class of stale plan-reference as
+   session 148's missing `release-checks/` and `docs/game-balance.md`. Somebody has to decide whether the
+   tier ladder of telegraphs is a thing this game should have, in which case it is designed from scratch,
+   or a sentence to delete from PLAN.

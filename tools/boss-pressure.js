@@ -34,6 +34,11 @@
 //   a blade already loose   the part of its sweep still in front of it (`offTheBlade`)
 //   a body standing there   the fight, its mass and anything it called: `enemy.r + ship.r`
 //   a call it is making     the marks on the rim, at the size of the body that will arrive on one
+//   a brood not diving yet  the whole room it can *arrive* in inside the horizon, round itself and
+//                           not in a lane - the dive it has not flown will be pointed at wherever
+//                           the ship is standing, and that is the place being asked about
+//   a brood already diving  the locked line its pack committed to, walked forward at the pace the
+//                           beat flies it at
 //
 // A telegraph is only claimed once there is *not* a whole horizon left to leave it in, which is the
 // entire point of a telegraph: a fan lit for 1.2 s is a place you may still be standing and the same
@@ -79,6 +84,7 @@
 import { pathToFileURL } from 'node:url';
 
 import { BALANCE } from '../src/game/balance.js';
+import { nextDive, packOf } from '../src/game/flock.js';
 import { world } from '../src/game/world.js';
 import { axisDistance, beamReach } from '../src/game/beams.js';
 import { offTheBlade } from '../src/game/arms.js';
@@ -120,6 +126,8 @@ export const CLAIMS = [
   { key: 'blades', bit: 16 },
   { key: 'call', bit: 32 },
   { key: 'bodies', bit: 64 },
+  { key: 'arrive', bit: 128 },
+  { key: 'dive', bit: 256 },
 ];
 export const BIT = {};
 for (const claim of CLAIMS) BIT[claim.key] = claim.bit;
@@ -146,7 +154,11 @@ export class Room {
     this.cols = Math.max(1, Math.floor((box.x1 - box.x0) / this.cell));
     this.rows = Math.max(1, Math.floor((box.y1 - box.y0) / this.cell));
     const cells = this.cols * this.rows;
-    this.claimed = new Uint8Array(cells);
+    // A Uint8Array would have been enough until there were nine claims and a tenth bit to keep them
+    // in: `claimed` is a set of flags, `BIT.dive` is 256, and a typed array narrower than the highest
+    // bit files every dive under nothing without saying so. 16 bits now, and the test file paints
+    // one cell per claim bit so an eleventh cannot go as quietly as the dive column did.
+    this.claimed = new Uint16Array(cells);
     this.seen = new Int32Array(cells);
     this.stack = new Int32Array(cells);
     this.total = cells;
@@ -165,10 +177,21 @@ export class Room {
    * the cage is not a place the fight is refusing, it is a place there is no cage for.
    */
   stands(x, y) {
+    if (!this.inside(x, y)) return false;
+    return this.claimed[this.index(x, y)] === 0;
+  }
+
+  /** Is this place inside the cage at all. */
+  inside(x, y) {
+    return this.index(x, y) !== -1;
+  }
+
+  /** The cell a place falls in, or -1 for a place the cage does not have. */
+  index(x, y) {
     const i = Math.floor((x - this.x0) / this.cell);
     const j = Math.floor((y - this.y0) / this.cell);
-    if (i < 0 || j < 0 || i >= this.cols || j >= this.rows) return false;
-    return this.claimed[j * this.cols + i] === 0;
+    if (i < 0 || j < 0 || i >= this.cols || j >= this.rows) return -1;
+    return j * this.cols + i;
   }
 
   /**
@@ -356,6 +379,53 @@ function claimBodies(room) {
   }
 }
 
+/**
+ * The brood: what a pack can put where the ship is standing, and where it is already putting it.
+ *
+ * A flock is the one attack in this game that *steers*, and the whole of the question is what a
+ * steering body may honestly be credited with. Two geometries, and the game's own beat clock says
+ * which one a body gets (game/flock.js `nextDive`):
+ *
+ *   a body **already diving** is flying a line its pack locked when the bunch ended, at the pace the
+ *     beat glides it at - a shell with wings, and it gets the claim a shell gets: the lane it will
+ *     have walked, measured from where it stands;
+ *
+ *   a body **not diving yet** - bracing, or gathering - has a dive coming at a moment its own clock
+ *     already knows, and it will point that dive at wherever the ship is standing. Which is the
+ *     place this tool is asking about, cell by cell, so no bearing can be borrowed from the world:
+ *     the claim is the whole room the body can *arrive* in inside the horizon, a room round itself
+ *     and not a lane out of it. This is the one claim here that is deliberately aim-free, and it is
+ *     honest precisely because of that - whichever place a ship is standing in is the place the dive
+ *     will point at. What is not counted is the approach: a gathering body is read from where it
+ *     stands and given only its dive, never the walk that gets it closer first.
+ *
+ * Like every other telegraph here, a dive that has not been flown yet claims a place only once there
+ * is not a whole horizon left to be out of it. A dive already in the air is claimed whatever the
+ * clock, because it is not a promise any more.
+ */
+function claimBrood(room, horizon) {
+  const reach = world.player.r;
+  for (const body of world.enemies) {
+    if (body.hp <= 0) continue;
+    const dive = nextDive(body);
+    // A dive whose time has not come inside the horizon yet claims nothing. The `away <= 0` two
+    // lines down refuses it too - `horizon - dive.wait` has gone negative by then - so this is the
+    // rule said in words rather than a branch with a test of its own, and it is written first for
+    // that reason and not because anything would break if it were dropped.
+    if (dive === null || dive.wait > horizon) continue;
+
+    const away = dive.pace * Math.min(dive.left, horizon - dive.wait);
+    if (away <= 0) continue;
+    if (dive.wait > 0) {
+      room.disc(BIT.arrive, body.x, body.y, body.r + reach + away);
+      continue;
+    }
+    const pack = packOf(body);
+    room.capsule(BIT.dive, body.x, body.y,
+      body.x + pack.dirX * away, body.y + pack.dirY * away, body.r + reach);
+  }
+}
+
 /** Every blade loose in the room, and the part of its sweep still in front of it. */
 function claimBlades(room, horizon) {
   for (const arm of world.arms.items) {
@@ -428,12 +498,22 @@ function claimPromises(room, boss, horizon) {
   }
 }
 
+/** How many bodies are standing in the room - the fight, its mass, its brood, its calls. */
+function bodiesIn(room) {
+  let seen = 0;
+  for (const body of world.enemies) {
+    if (body.hp > 0 && room.inside(body.x, body.y)) seen++;
+  }
+  return seen;
+}
+
 /** One reading of the room: clear it, lay every claim on it, and count what is left. */
 export function readRoom(room, boss, horizon) {
   room.clear();
   claimShells(room, horizon);
   claimBlades(room, horizon);
   claimPromises(room, boss, horizon);
+  claimBrood(room, horizon);
   claimBodies(room);
   return room.measure();
 }
@@ -523,6 +603,7 @@ function watchPhase(boss, room, share, seconds, horizon) {
   for (const claim of CLAIMS) row.byBit[claim.key] = 0;
   let since = 0;
   let t = 0;
+  let crowd = 0, crowdAt = 0;
   const sentAtFirst = thingsSent(boss);
   while (t < seconds - 1e-9) {
     park();
@@ -537,6 +618,8 @@ function watchPhase(boss, room, share, seconds, horizon) {
     row.free += now.free;
     row.biggest += now.biggest;
     row.spots += now.spots;
+    crowd += bodiesIn(room);
+    crowdAt++;
     if (now.free < row.worst) row.worst = now.free;
     if (now.free < TIGHT) row.tight++;
     for (const claim of CLAIMS) row.byBit[claim.key] += now.byBit[claim.key];
@@ -553,6 +636,7 @@ function watchPhase(boss, room, share, seconds, horizon) {
     tight: row.tight / n,
     biggest: row.biggest / n,
     spots: row.spots / n,
+    crowd: crowdAt === 0 ? 0 : crowd / crowdAt,
     sent: (thingsSent(boss) - sentAtFirst) / t,
     byBit: Object.fromEntries(Object.entries(row.byBit).map(([k, v]) => [k, v / n])),
   };
@@ -636,14 +720,14 @@ function fightTable(fight) {
     + fight.rows.length + ' phases');
   lines.push('');
   lines.push('  phase  held at   standable    worst    in a corner   biggest piece   spots  '
-    + ' sent/s   claims: ' + CLAIMS.map((c) => c.key).join(' '));
+    + ' crowd   sent/s   claims: ' + CLAIMS.map((c) => c.key).join(' '));
   for (const row of fight.rows) {
     const claims = CLAIMS.map((c) => (row.byBit[c.key] * 100).toFixed(1).padStart(5)).join(' ');
     lines.push('      ' + String(row.phase) + '  ' + pct(row.band).padStart(5) + '   '
       + pct(row.free).padStart(8) + '  ' + pct(row.worst).padStart(7) + '     '
       + pct(row.tight).padStart(6) + '        ' + pct(row.biggest).padStart(6) + '   '
-      + row.spots.toFixed(1).padStart(5) + '   ' + row.sent.toFixed(2).padStart(6) + '     '
-      + claims
+      + row.spots.toFixed(1).padStart(5) + '   ' + row.crowd.toFixed(0).padStart(5) + '   '
+      + row.sent.toFixed(2).padStart(6) + '     ' + claims
       + (row.pull === null ? '' : '   drag ' + row.pull));
   }
   return lines;
@@ -658,11 +742,11 @@ const FOREWORD = [
   '`spots` say how the free room is cut up, because a shell across the room can leave 60% free and',
   'still put it all on the other side of the wall. `sent/s` is how many separate things the fight',
   'puts into the room per second - shots, spokes, blades, bodies - which is the bill a beat that',
-  'carries a second promise pays out of its ride (`with`) and does not add to. `claims` is what',
-  'took each share of the room - a place two things claim is counted under both, so those columns',
-  'can add to more than 100%.',
+  'carries a second promise pays out of its ride (`with`) and does not add to. `crowd` is how many',
+  'bodies were standing in the room to be read, which matters more than it looks: nothing in here is',
+  'shooting any of them back. `claims` is what took each share of the room - a place two things',
+  'claim is counted under both, so those columns can add to more than 100%.',
 ];
-
 const FOOTNOTES = [
   'Caveats that are part of the number: there is no crowd in the room, because the director holds',
   'while a fight is on; nothing shoots back, so every shell is aimed at the middle of the cage where',
@@ -670,12 +754,24 @@ const FOOTNOTES = [
   'drags, so a ship standing still in its room is not standing still and its standable share is a',
   'flattering read of its freedom by whatever the drag in the `drag` column is worth.',
   '',
-  'One more, and it lands hardest on the second boss: a shell, a spoke, a fan and a blade all',
-  'travel a line the fight has already shown, so each of them can be counted where it will have got',
-  'to across the horizon. A brood steers, and nothing here can say where it will be in half a',
-  'second, so a body claims only the place it is standing. The Hive is made of bodies and is',
-  'therefore the flattest read of the three - its column is the one to disbelieve first, and the',
-  'ship parked in the middle is standing in the least free span of glass in that room.',
+  'And because nothing shoots back, a brood a fight calls is never called off. `crowd` is how many',
+  'bodies were standing in the room to be read, and over a long watch of a breeding fight it only',
+  'grows: the second boss\'s last phase reads 41 of them after eight seconds of watch and 216 after',
+  'eighty, and the `arrive` share grows with the crowd. That is not a flaw in the read: it is the',
+  'read telling you the state is not one a run is in - a hive\'s `arrive` share is a share of the',
+  'room a *passive* ship is left with after a minute of not shooting. Read each row beside its',
+  '`crowd`, and read `--seconds 8` as the nearer thing to a fight a run is actually having.',
+  '',
+  'One more, and it is why the second boss used to be the flattest row in this report. A shell, a',
+  'spoke, a fan and a blade all travel a line the fight has already shown, so each could be counted',
+  'where it will have got to across the horizon. A brood steers, and a steering body cannot be',
+  'projected - but it can be *promised*, and a flock is a promise on a clock: a pack already diving',
+  'flies a line it has locked, and a pack bunching has a dive whose time its own clock already says',
+  'and whose bearing will be wherever the ship turns out to be standing. Those two are read now.',
+  'What is not read is the approach of a flock that has committed to nothing. It gets credited with',
+  'the place it stands and no more, which a probe says is worth some 200 px of flattering flight -',
+  'the smaller half of the flattery, and the only half left. Read the brood at all and the second',
+  'boss is not the flattest of the three; on its worst moment it is the tightest thing in the game.',
 ];
 
 function main(argv) {

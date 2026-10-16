@@ -28,14 +28,16 @@ import path from 'node:path';
 
 import { BALANCE } from '../src/game/balance.js';
 import { world } from '../src/game/world.js';
+import { makeEnemy } from '../src/game/kinds.js';
 import { enemyShotAt } from '../src/game/enemyshots.js';
 import { looseArm } from '../src/game/arms.js';
+import { isBraced, isDiving, newPack, nextDive, packOf } from '../src/game/flock.js';
 import {
   armCount, armRate, armedCount, beatTimeLeft, bossCores, bossPhase, bossRiding, gapAngle,
   gapHalf, shellShot, spokeCount,
 } from '../src/game/bosses.js';
 import { bossOnTheField, scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
-import { BIT, Room, bandShare, readRoom } from '../tools/boss-pressure.js';
+import { BIT, CLAIMS, Room, bandShare, readRoom } from '../tools/boss-pressure.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'boss-pressure.js');
@@ -74,6 +76,38 @@ function until(seen, seconds) {
   }
   return seen();
 }
+
+/**
+ * Stand one brood pack of `count` bodies in the room and hand back its pack.
+ *
+ * The fight is taken out of the crowd by the caller first, so a claim this file measures is the one
+ * being measured and nothing else's - the same trick the shell and the blade test play.
+ */
+function broodAt(count, x, y) {
+  const spec = BALANCE.kinds.swarmling;
+  const pack = newPack(spec.flock, x, y);
+  world.flocks.push(pack);
+  const bodies = [];
+  for (let i = 0; i < count; i++) {
+    const body = makeEnemy(world, 'swarmling', x + i * 4, y, { flock: pack });
+    world.enemies.push(body);
+    bodies.push(body);
+  }
+  return { pack: pack, bodies: bodies };
+}
+
+/** How far out along a bearing from a place the room stays claimed, in px. */
+function claimedOutTo(room, x, y, dx, dy, limit) {
+  let last = 0;
+  for (let at = 10; at <= limit; at += 10) {
+    if (room.stands(x + dx * at, y + dy * at)) break;
+    last = at;
+  }
+  return last;
+}
+
+/** The four plain bearings, so a claim can be asked about in all of them. */
+const BEARINGS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 test('the room is the cage, and a place outside it does not stand', () => {
   const { boss } = freshly();
@@ -285,6 +319,131 @@ test('a blade loose in the room claims the arc still in front of it, and not the
   assert.equal(at(0.6 * where), true, 'a place past the end of the sweep is claimed');
 });
 
+test('every claim the tool can make is a bit the room can hold', () => {
+  // The room files its claims as flags in one number per cell, and a number too narrow for the
+  // highest of them is the quietest bug a ruler can have: the dive column read 0.0 for every phase
+  // of every fight for exactly one edit, because the grid was eight bits wide and the bit was 256.
+  // So: one cell per claim, and each one has to come back as itself and as nothing else.
+  const room = new Room();
+  room.open({ x0: 0, y0: 0, x1: 100, y1: 100 });
+  assert.ok(CLAIMS.length >= 9, 'the ruler has fewer claims to make than it used to');
+
+  for (const claim of CLAIMS) {
+    room.clear();
+    room.paint(claim.bit, 0, 0, 9, 9, () => true);
+    const out = room.measure();
+    assert.ok(out.byBit[claim.key] > 0,
+      'a cell painted with the ' + claim.key + ' bit (' + claim.bit + ') reported nothing');
+    for (const other of CLAIMS) {
+      if (other.key === claim.key) continue;
+      assert.equal(out.byBit[other.key], 0,
+        'the ' + claim.key + ' bit was also counted as ' + other.key);
+    }
+  }
+
+  // And the bits are bits: one each, no two the same, none wider than the grid the room is made of.
+  const bits = CLAIMS.map((claim) => claim.bit);
+  assert.equal(new Set(bits).size, bits.length, 'two claims share a bit');
+  for (const bit of bits) {
+    assert.ok(Number.isInteger(bit) && bit > 0 && (bit & (bit - 1)) === 0,
+      'a claim is not built on a single bit: ' + bit);
+  }
+});
+
+test('a diving brood claims the line its pack locked, and no sky beside it', () => {
+  const { field, boss } = freshly();
+  field.enemies.length = 0;            // the room emptied: the only claim is the brood's own
+  const room = caged();
+  const box = world.field;
+  const brood = broodAt(1, box.x0 + 250, box.y0 + 250);
+  const body = brood.bodies[0];
+
+  // Wait for a real commitment, and for a moment the fight is off with its own promises.
+  assert.ok(until(() => isDiving(body) && bossRiding(boss), 40),
+    'the pack never committed to a line while the ring was riding');
+  const dive = nextDive(body);
+  assert.equal(dive.wait, 0, 'a diving body still has a dive ahead of it');
+
+  const out = readRoom(room, boss, HORIZON);
+  assert.equal(out.byBit.arrive, 0, 'a dive already in the air was filed as a brood still bunching');
+  assert.ok(out.byBit.dive > 0, 'a brood diving across the room claimed none of it');
+
+  const pack = packOf(body);
+  const skin = body.r + SHIP.r;
+  const along = claimedOutTo(room, body.x, body.y, pack.dirX, pack.dirY, 900);
+  const expect = dive.pace * Math.min(dive.left, HORIZON) + skin;
+  assert.ok(Math.abs(along - expect) < 30,
+    'the lane reached ' + along + ' px out of a dive worth ' + expect.toFixed(0) + ' px');
+
+  // And it is a lane, not a disc: the same reach asked sideways is the body and nothing more.
+  const sideways = claimedOutTo(room, body.x, body.y, -pack.dirY, pack.dirX, 900);
+  assert.ok(sideways < skin + 30,
+    'the dive claimed ' + sideways + ' px sideways, which is a disc and not a line');
+});
+
+test('a brood claims the room it can arrive in, once there is no whole horizon left', () => {
+  const { field, boss } = freshly();
+  field.enemies.length = 0;
+  const room = caged();
+  const box = world.field;
+  const brood = broodAt(1, box.x0 + 250, box.y0 + 250);
+  const body = brood.bodies[0];
+
+  // A dive a whole horizon off is a threat and not a wall: nothing is claimed but the body itself.
+  let far = null, near = null, farExpect = 0, nearExpect = 0;
+  const skin = body.r + SHIP.r;
+  const seen = until(() => {
+    if (!isBraced(body) || !bossRiding(boss)) return false;
+    const dive = nextDive(body);
+    if (far === null && dive.wait > HORIZON) {
+      far = readRoom(room, boss, HORIZON);
+      farExpect = dive.pace * Math.min(dive.left, dive.wait - HORIZON);
+    } else if (far !== null && near === null && dive.wait <= HORIZON * 0.4) {
+      near = readRoom(room, boss, HORIZON);
+      nearExpect = dive.pace * Math.min(dive.left, HORIZON - dive.wait) + skin;
+    }
+    return far !== null && near !== null;
+  }, 60);
+  assert.ok(seen, 'the pack never bunches with a promise on either side of the gate');
+  assert.ok(farExpect > 0, 'the far reading was taken with nothing of the dive beyond the horizon');
+
+  assert.equal(far.byBit.arrive, 0,
+    'a bunching brood whose dive lands a whole horizon out had already walled the room off');
+  assert.equal(far.byBit.dive, 0, 'a brood that is not diving yet claimed a lane');
+
+  assert.ok(near.byBit.arrive > 0, 'a bunching brood about to commit claimed none of the room');
+  // The room it claims is round itself and not a lane: it has committed to a dive and not to a
+  // bearing, because the bearing is wherever the ship turns out to be standing.
+  for (const [dx, dy] of BEARINGS) {
+    const out = claimedOutTo(room, body.x, body.y, dx, dy, 900);
+    assert.ok(Math.abs(out - nearExpect) < 30,
+      'the arrival room reached ' + out + ' px one way and ' + nearExpect.toFixed(0)
+      + ' px in another (the dive is worth ' + (nearExpect - skin).toFixed(0) + ' px)');
+  }
+});
+
+test('a flock that has not begun to bunch claims nothing beyond its own body', () => {
+  const { field, boss } = freshly();
+  field.enemies.length = 0;
+  const room = caged();
+  const box = world.field;
+  const brood = broodAt(6, box.x0 + 250, box.y0 + 250);
+  const body = brood.bodies[0];
+
+  // Gathering is the third of the pack's three beats, and the only one with nothing promised: its
+  // next dive is the rest of the gathering *plus* the whole of the bunching away.
+  const seen = until(() => !isDiving(body) && !isBraced(body) && bossRiding(boss), 40);
+  assert.ok(seen, 'the pack was never merely gathering');
+  const dive = nextDive(body);
+  assert.ok(dive.wait > HORIZON,
+    'the gathering beat came round inside the promise (' + dive.wait.toFixed(2) + ' s)');
+
+  const out = readRoom(room, boss, HORIZON);
+  assert.equal(out.byBit.arrive, 0, 'a gathering flock walled off the room it is swimming across');
+  assert.equal(out.byBit.dive, 0, 'a gathering flock claimed a dive');
+  assert.ok(out.byBit.bodies > 0, 'and it was not in the room at all');
+});
+
 test('a door a fight is holding open is standing room', () => {
   const room = new Room();
   room.open({ x0: 0, y0: 0, x1: 400, y1: 400 });
@@ -340,13 +499,22 @@ test('the whole look runs, and every phase gets a row', () => {
   assert.match(run.stdout, /THE WARDEN/);
 });
 
+/** The `sent/s` of a printed row, read from the table's layout and not from a counted column. */
+function sentOf(line) {
+  const tokens = line.trim().split(/\s+/);
+  const drag = tokens[tokens.length - 2] === 'drag' ? 2 : 0;
+  return Number(tokens[tokens.length - drag - CLAIMS.length - 1]);
+}
+
 test('the sent/s column is the fight\'s own tally over the watch', () => {
   // The column a pairing is priced with, so it had better be arithmetic and not a vibe: the fight's
   // counters over the seconds it was watched (game/bosses.js `bossShots` and its three siblings).
   const run = pressure(['--boss', 'warden', '--seconds', '20']);
   assert.equal(run.status, 0, run.stderr);
   const rows = run.stdout.split('\n').filter((line) => /^      \d  /.test(line));
-  const sent = rows.map((line) => Number(line.trim().split(/\s+/)[7]));
+  // Read from the words and not from a column count: a column added before this one shifts the
+  // count and not the meaning.
+  const sent = rows.map(sentOf);
   assert.equal(sent.length, BALANCE.bosses.warden.phases.length);
   for (const rate of sent) {
     assert.ok(rate > 0 && Number.isFinite(rate), 'a phase of the ring sent ' + rate + ' things a second');

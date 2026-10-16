@@ -2516,7 +2516,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       the last NOTES line, which was one out), and the reference run is byte for byte what it was - a
       ruler is not a game and had better not move one.
 
-- [ ] Make the last phase of each fight contest the room, with `tools/boss-pressure.js` as the ruler.
+- [x] Make the last phase of each fight contest the room, with `tools/boss-pressure.js` as the ruler.
       Session 147 built that ruler - it asks how much of the cage a ship may sit in and *stay* sitting
       in, one cell per hull-width of glass, and prints it per phase of each of the three fights - and
       the first reading is flat at the short end and heavy at the long one. At the game's own promise,
@@ -2570,3 +2570,27 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       that walls nothing is for. Its marks are punched out of the night beside the door
       (render/darkness.js), since a promise the veil has eaten is no promise. The Hive is what is left,
       and NOTES session 149 has the next move for it: the same lever, now that any fight can pull it.
+
+      Session 150 went to give the Hive that lever and found the ruler was the flat thing, not the
+      fight. A brood steers, so no instrument can say where it will be - but a flock is a clock, and
+      two of its three beats say what is coming and exactly when (game/flock.js `nextDive`,
+      `divePace`): a pack already diving is flying a line it locked, and a pack that is bunching has a
+      dive whose time its own clock already says. The tool reads those two now - the lane for a locked
+      line, and for the bunching an aim-free room round every body, because the dive it has not flown
+      yet will be pointed at whichever place the ship turns out to be standing in. Read at all, the
+      Hive is not the flattest of the three: its third phase leaves 78.1% of the cage standable at the
+      game's own promise against the 96.6% above, its worst moment is 55.2% free against 95.4%, and
+      its first two phases moved the same way (98.5 -> 92.9, 97.6 -> 84.3). The Warden's and the sun's
+      nine numbers are byte for byte what they were, because neither of those fights makes a body that
+      steers. Forty seconds is a long watch on a breeding fight, though, and nothing in the room is
+      shooting the brood back, so the report gained a `crowd` column saying what each row was read
+      against (41 bodies at eight seconds, 216 at eighty) and the shorter watch is the fair one: at
+      eight seconds the phase reads 90.8% standable with a worst moment of 58.3% free, against the
+      Warden's 93.7% / 87.6% and the sun's 91.3% / 69.6%. So the second boss wanted no fourth
+      mechanism and the item ends on the asking rather than the adding: two of the three fights had to
+      be made to contest the room and the third only had to be seen doing it. One thing the visit
+      found
+      in the tool and not the game: `claimed` was eight bits wide and the new dive bit is 256, so for
+      one edit the column read 0.0 for every phase of every fight with nothing whatever wrong in the
+      arithmetic. It is a Uint16Array now, and the test file paints one cell per claim bit and refuses
+      a claim that comes back as nothing, or as something else.

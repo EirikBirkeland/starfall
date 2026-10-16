@@ -157,7 +157,8 @@ export function bossOnTheField(index) {
   return world.boss;
 }
 
-/** One step of the game's own fixed step. `input` says what the ship is doing. */export function stepTheWorld(input) {
+/** One step of the game's own fixed step. `input` says what the ship is doing. */
+export function stepTheWorld(input) {
   return stepWorld(BALANCE.sim.step, Object.assign({
     moveX: 0, moveY: 0, moving: false,
     aimX: world.player.x, aimY: world.player.y - 100, firing: false, dash: false,

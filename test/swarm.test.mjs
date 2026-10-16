@@ -30,7 +30,8 @@ import { TAU } from '../src/core/math.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { killEnemy } from '../src/game/enemies.js';
 import { crowdBudget, crowdCost, roomToSpare, pickMember, updateWaves } from '../src/game/waves.js';
-import { braceProgress, isBraced, isDiving, newPack, packOf, packSize, updateFlocks } from '../src/game/flock.js';
+import { braceProgress, divePace, isBraced, isDiving, newPack, nextDive, packOf, packSize,
+  updateFlocks } from '../src/game/flock.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { crowdUntilRoomIs as crowdUpToRoomIs } from '../tools/headless/balance-tools.js';
 
@@ -509,6 +510,65 @@ test('every body of the pack flies the one line the pack locked', () => {
   rots.forEach((was, i) => {
     assert.ok(Math.abs(turn(line, pack.bodies[i].rot)) < 1e-9, 'a body points along the line it was shown');
   });
+});
+
+test('what a brood will have reached is read off the same clock the dive is flown from', () => {
+  // `tools/boss-pressure.js` cannot ask a flock where it is going - a body that steers has no
+  // forecast - but it can ask what it has promised and when. These two readers are that answer, and
+  // the promise is that they are the beat's own numbers and not a copy of them beside the tool.
+  const field = runAged(717, LATE);
+  const pack = packAt(field, 8, 1900, 1500, 24);
+  const p = pack.pack;
+  const body = pack.bodies[0];
+
+  assert.equal(nextDive(makeEnemy(field, 'swarmling', 500, 500)), null,
+    'a body with no pack was read as a dive');
+
+  untilStage(field, p, '');
+  let dive = nextDive(body);
+  assert.ok(dive !== null, 'a gathering body has no dive coming at all');
+  assert.ok(Math.abs(dive.wait - (p.timer + F.brace)) < STEP * 2,
+    'a gathering pack is ' + dive.wait.toFixed(2) + ' s from its dive, its clock says '
+    + (p.timer + F.brace).toFixed(2));
+  assert.equal(dive.left, F.dive.time, 'a dive not begun yet has all of its time in front of it');
+
+  untilStage(field, p, 'brace');
+  dive = nextDive(body);
+  assert.ok(Math.abs(dive.wait - p.timer) < STEP * 2,
+    'a bunching pack is ' + dive.wait.toFixed(2) + ' s from committing, its clock says '
+    + p.timer.toFixed(2));
+  assert.equal(dive.left, F.dive.time, 'and the bunching spends some of the dive');
+
+  untilStage(field, p, 'dive');
+  dive = nextDive(body);
+  assert.equal(dive.wait, 0, 'a diving body is not still waiting to fly its line');
+  assert.ok(dive.left <= F.dive.time + 1e-9 && dive.left > F.dive.time - STEP * 3,
+    'the dive has ' + dive.left.toFixed(3) + ' s of its ' + F.dive.time + ' left');
+  assert.equal(dive.pace, divePace(body), 'the read and the pace disagree about the same body');
+  assert.ok(Math.abs(dive.pace - body.speed * F.dive.mul) < 1e-9,
+    'the dive is read at ' + dive.pace.toFixed(0) + ' px/s, and the kind dives at '
+    + F.dive.mul + ' times its ' + body.speed.toFixed(0) + ' px/s walk');
+
+  // And the pace is the one the pack is actually flown at, measured over the middle of the crowd so
+  // that the shoving a flock does to itself cancels out the way it does in real life.
+  const was = { x: p.cx, y: p.cy };
+  const seconds = 0.2;
+  for (let i = 0; i < Math.round(seconds / STEP); i++) stepTheWorld();
+  const flown = Math.hypot(p.cx - was.x, p.cy - was.y) / seconds;
+  const pace = divePace(alive(field, pack.bodies)[0]);
+  assert.ok(Math.abs(flown - pace) / pace < 0.12,
+    'the pack flew ' + flown.toFixed(0) + ' px/s and the read says ' + pace.toFixed(0));
+});
+
+test('a chilled dive is a slower dive, like every other walk', () => {
+  const field = runAged(718, LATE);
+  const pack = packAt(field, 8, 1900, 1500, 24);
+  const body = pack.bodies[0];
+  const plain = divePace(body);
+  pack.bodies.forEach((one) => { one.frost = 0.5; });
+  assert.ok(Math.abs(divePace(body) - plain * 0.5) < 1e-9,
+    'half a frost left ' + divePace(body).toFixed(0) + ' px/s of a '
+    + plain.toFixed(0) + ' px/s dive');
 });
 
 test('a pack bunches up while it braces, and crawls while it does', () => {

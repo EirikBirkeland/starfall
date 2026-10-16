@@ -99,6 +99,53 @@ export function packSize(enemy) {
 }
 
 /**
+ * How fast this body flies the line its pack has locked: `dive.mul` times its own pace, with the
+ * frost off it because the dive is a walk like every other, and nought for a body with no pack -
+ * which has no line and so nothing to fly it at.
+ *
+ * Exported for `tools/boss-pressure.js`, which has to say how far a brood will have got to across a
+ * horizon. The only honest answer is the pace game/kinds.js `committed` actually glides it at, and
+ * that is this function, so the tool cannot be reading a dive the game would not fly.
+ */
+export function divePace(enemy) {
+  const pack = packOf(enemy);
+  if (pack === null) return 0;
+  return enemy.speed * (1 - enemy.frost) * pack.spec.dive.mul;
+}
+
+/**
+ * The next dive this body will fly: `pace` px/s along the line, `wait` seconds before it starts at
+ * all, and `left` seconds of line it has to give. Null only for a body with no pack, which dives
+ * never.
+ *
+ * All three of a pack's beats answer, because a pack's beat is a clock and not a coin toss, and
+ * what the clock says is a fact about the room however far off it is. A body already `DIVING` is on
+ * its line now: no wait, and as much of the dive as its own timer has left. A `BRACED` one has the
+ * whole of `dive.time` in front of it and the bunching to get through first. A gathering one has
+ * that same dive plus the rest of the gathering to walk through before the bunching even starts -
+ * and a gathering body has promised nothing about *where* it will turn, which is why the read of it
+ * is a room it can arrive in and not a lane, and why the walk is not counted: what is claimed is
+ * the dive, and never the approach.
+ */
+export function nextDive(enemy) {
+  const pack = packOf(enemy);
+  if (pack === null) return null;
+  const spec = pack.spec;
+
+  if (pack.stage === DIVING) {
+    return { pace: divePace(enemy), wait: 0, left: Math.max(0, pack.timer) };
+  }
+  if (pack.stage === BRACED) {
+    return { pace: divePace(enemy), wait: Math.max(0, pack.timer), left: spec.dive.time };
+  }
+  return {
+    pace: divePace(enemy),
+    wait: Math.max(0, pack.timer) + spec.brace,
+    left: spec.dive.time,
+  };
+}
+
+/**
  * One step of every pack in the world: zero the scratch, file the crowd into it, and
  * throw away the packs that nobody is flying in any more. Called before anything is
  * shot at, next to the shield pass, so a pack's middle is the crowd as the step found
