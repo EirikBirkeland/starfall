@@ -15518,3 +15518,126 @@ decision was made on which rows pass with margin, not on which decimal is bigges
 3. `tools/power-ladder.js` prices the deck including afterimage; its numbers were read on the old
    geometry. Nothing in it is quoted as a ladder claim the way ghost-grid's were, so nothing is
    *wrong*, but a future power-ladder session should re-run it and say so.
+
+## Session 141 — the sniper's eye fills its own hurtbox now; the drifter's cannot, and the ruler is why. Shipped 1.9.2
+
+### What the tree looked like when I sat down
+Uncommitted work in seven files, from a session that ended mid-thought: the crowd's silhouettes had
+been moved out of `render/entities.js` into one `CROWD_SHAPES` table in `render/shapes.js`, a new
+`tools/shape-lab.js` measured outlines instead of trusting a written-down shape *name*, and the
+weaver, spitter, bomber and shielder had been redrawn off it. `test/crowd-art.test.mjs` was new and
+PLAN had one new item at the foot, which was the thing I was meant to do: four bodies are drawn
+inside the circle that hurts them (drifter 42%, swarmling 45%, sniper 53%, darter 56%) and the item
+said to try the sniper first.
+
+It was green the way session 140's tree was green, so I checked it the same way: full suite (2416
+pass), `palette-check --strict`, `simulate` on the reference seed - `--seed 20261006` came back byte
+for byte 10m00s / 73,982 / level 57, which it should, since a silhouette is not a simulation - and
+then committed it with one cleanup: the session had left the paragraph about the weaver borrowing the
+ship's dart sitting as an orphan comment above `tools/sights.js`'s private `body()` function, where
+it read like documentation of the wrong thing. It belongs on `shipBorrowers`, which already had its
+own paragraph; the two are now one.
+
+### The sniper, which is the part that shipped
+The eye was two quadratic flanks with their controls at one radius, which puts the actual outline at
+**half** a radius off the axis - a 16 px body drawn 16 px tall and 48 px long, covering 53% of its
+own circle, with the nine-pixel pupil-light (`EYE_LIGHT`) squeezed into that sliver. I swept the
+lens on two dials (tip length, flank height) and the height is the only one that matters for
+coverage: at tips 1.5r, height 1.2 gives 64%, 1.4 gives 74%, 1.6 gives 84%, 2.0 gives 100% - and
+the length buys almost nothing (tips 1.3 through 2.1 all land within a point of each other at the
+same height).
+
+`lens(1.5, 1.4)` shipped: **53% to 74%, with the two corners exactly where they always were**, so
+the change buys fill without a pixel of extra over-draw, and the aspect ratio stays at about 2:1,
+which is what an eye looks like. A taller lens (1.6, 84%) was available for roughly the same pair
+cost and I left it: at that point the thing is an almond, and the shape's whole job is to say
+*line of sight*. Measured cost, all of it paid: `spitter / sniper` falls from 3.7 px of outline to
+1.4 (colour carries, 1.52 of a step), `shielder / sniper` 4.7 to 2.9 (colour, 1.18), `weaver /
+sniper` stays one shape (size and colour both carry). What it *buys* is easy to miss: the eye stops
+being nearly one shape with the drifter (3.7 to 5.4) and the darter (3.4 to 6.1), because a lens
+that has some height is not a spear at any turn. Shared pairs in the crowd went from nine to eight.
+
+### The drifter and the darter, which is the part that did not
+The drifter's three faces were bowed out - a rounded triangle, corners unmoved at exactly r, faces
+bulged to 0.8r - and it is 75% covered and it looks fine. It also comes within **3.9 px of the
+shielder's outline**, and a 15 px violet body against a 17 px magenta one has 0.56 of a step of
+colour (no red cone) and 1.13x of size, which is to say **nothing is left to pay for the pair** and
+`--strict` says so out loud. The flat faces were never a style choice; they are the only difference
+those two bodies have. Tried scale variants too (corners out to 1.15-1.4r as well as bulged faces,
+up to 100% coverage): the corners buy distance from the weaver, the darter, the tank and the
+swarmling and *lose* it from the shielder and the bomber, and there is no point on that dial where
+the pair is paid for. Reverted, with the measurement written into the drifter's row in
+`render/shapes.js` so the next session does not have to find it again.
+
+The darter is the same failure one pair over. Its spear's head at 0.75r covers 69%, at 0.9r covers
+81% - and the weaver's clover, 1.10x its size and 0.43 of a step from it, comes to 2.9 px. Nothing
+carries that pair either. So the crowd's coverage ceiling is set by exactly two near-monochrome
+pairs, `drifter / shielder` at 0.56 and `weaver / darter` at 0.43, and what is left of the item is
+a palette session and not a shape one. That is a PLAN item now, with the numbers on it.
+
+The swarmling was never a candidate and I want it written down why: it wears the ship's own four
+points because twenty bodies that borrow your silhouette arriving as a shoal is the kind's whole
+argument, and a shape whose length is a 2.1r nose *cannot* fill a disc. 45% is the price of the
+nose, and the game pays it knowingly. Same arithmetic for the darter's 2.1r point, for what it's
+worth: the shape economy is what is spending these bodies, not laziness.
+
+### The ruler got a face
+`tools/shape-lab.js` had no main, so the coverage numbers in PLAN's item could only be produced by a
+scratch script - and PLAN was already claiming the test "prints every body's share", which it did
+not. Now: `node tools/shape-lab.js` prints one row per body, worst-covered first, with a bar and
+the reach past the hurtbox, and `--show drifter` (or `--show worst`) draws one body in text with
+four states: `#` drawn and hurt, `o` hurt and not drawn, `+` drawn and not hurt, `.` neither. The
+drifter's art is the whole argument of the item in nineteen lines of `o`. `palette-check` points at
+it, and the old unused `area()` and `ascii()` helpers are gone (the art replaces `ascii`; `o` and
+`+` are what `area` was always trying to be).
+
+One real bug found on the way: the art's frame was the shape's own extent, so a body drawn *smaller*
+than its hurtbox cropped the empty air out of the picture. It now frames the union of the drawing
+and the disc. A picture bounded by the drawing cannot show you what the drawing is missing; that is
+worth remembering next time a ruler draws a box.
+
+The floors are a table now, one number per kind, instead of one floor at the worst body's share -
+which was 40% and so silently permitted eight bodies to be as thin as the drifter. Each row carries
+what the body covers today, with a point or two of air. New `test/shape-lab.test.mjs` holds the
+ruler itself against geometry whose answers are known from the geometry and not from the code: a
+disc covers a disc, a square from the middle out to two radii is a quarter of the disc, a 10 px
+square's corner is at 14.14 px. **2427 pass** (was 2416 when I sat down: the incoming tree's +1
+net, this session's +11).
+
+### Surprises and costs
+- **A ruler can read history.** I rebuilt the 1.9.1 art from `git show` into a scratch script and put
+  it through the new ruler, which is the only way I have ever had of saying "the old crowd had 12 of
+  its 36 pairs one shape and six bodies under 60% covered; this one has 8 and 3". Worth remembering
+  as a trick: measure the previous release, not just the current one, when the tool is new.
+- **Filling a body always costs shape.** Every fatten I tried, on every body, pulled it toward
+  every-other-blob in the crowd; the outline distance and the covered share are in direct tension,
+  and a nine-body crowd runs out of both before it runs out of ideas. The pairs that broke were
+  never the ones I was working on - they were one neighbour away (the shielder, the weaver). If you
+  fatten a body, read the whole pair table, not the rows that mention it.
+- The shape ruler is *fast* - a candidate shape, its coverage and all 36 pairs is well under a
+  second, against the 3-6 minutes a play-tool grid costs. Twenty candidates in the time of one
+  ghost-grid cell. That is why the session could afford to try scale variants at all.
+- `node --test test/x.mjs test/y.mjs` (several paths) works fine on this Node; it is `node --test
+  test/` (a directory) that dies with one opaque synthetic failure.
+- The pinned pair lists in `test/crowd-art.test.mjs` had to be *re-measured* and not hand-edited; I
+  printed them with a one-liner off `sharedSilhouettes()` and pasted, which is the same habit as
+  `--trace` for the sim.
+- Reference run unchanged, as it must be: `--seed 20261006` is 10m00s / 73,982 / level 57 before and
+  after every change in this session.
+
+### What should come next
+1. **The colour item, which is now the only thing standing between the crowd and bodies that fill
+   their own hurtboxes:** `PALETTE.magenta` against `PALETTE.violet` (0.56 of a step) and
+   `PALETTE.pink` against `PALETTE.red` (0.43). A step between each pair buys ~30 points of coverage
+   on the two commonest bodies in the game. It is a palette session: those four entries carry more
+   than the four bodies, and the whole promise list has to be re-read after them.
+2. **A thought the ruler is not using yet.** It compares two bodies at their *kindest* turn, which is
+   strict and correct for a tank (whose turn is a slow spin of its own) but pessimistic for the pairs
+   that both always face the ship - the sniper's 1.4 px against the spitter is a turn neither body is
+   ever seen at, because both are always pointing at the same thing. If a future session wants to
+   read that honestly it needs a written-down answer to "how does this kind turn" (game/kinds.js has
+   it in prose), which is new data the tool can get wrong, so it should come with its own test.
+3. Unchanged from 139/140: the late game wants a fight and not a crowd (boss phase tables, not
+   hull); the XP curve is a decision to take on purpose, with the hangar re-priced after it; the
+   browser half of the performance pass; and `tools/power-ladder.js` has not been re-read since the
+   deck grew afterimage.
