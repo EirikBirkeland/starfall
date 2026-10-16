@@ -16176,3 +16176,120 @@ assertion groups were mutation-checked by stashing the file they hold. Released 
    the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
    the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
    afterimage.
+
+---
+
+## Session 147 — a ruler for the room a fight leaves, and the hive stops dying in its own split. Shipped 1.9.7
+
+### What was on the shelf
+Item 4 of 146's list, which is the same item 139, 143, 144, 145 and 146 left: *the late game wants a
+fight and not a crowd*. It has stayed on the list because of the sentence 139 wrote beside it - every
+instrument here measures the *dodging*, and the bot steps off every telegraph it is shown, so "a strong
+run beats all three fights without losing a hull from the tenth minute on" could be repeated but not
+argued with. A session cannot densify a fight it has no way of reading, so this session built the ruler
+instead of the change: `tools/boss-pressure.js`.
+
+### What the ruler is
+It never asks whether a ship gets hit - that is the dodging, and it is measured. It asks how much of the
+cage a ship may sit in and **stay** sitting in, which is a fact about the fight. The room is the live box
+the arena shuts round the duel (`world.field`, which `fieldHalfWidth` has already held a hull and a
+margin off the walls, so nothing is inset twice), cut into 10 px cells: one cell is one place a ship's
+centre can be, and a hull-width apart is as near as two places can be. A place **stands** if nothing
+claims it, and every claim is made with the test the hit itself would use, clipped to the horizon:
+
+```
+  a shell in the air      `capsule`, `shot.r + ship.r`, walked forward across the horizon
+  a lock it is holding    `axisDistance`, to the same wall the beam is clipped at
+  a shell it is arming    as far as that wall could have travelled, minus the door it is holding open
+  a fan it is showing     the whole arc the blades will travel, `offTheBlade` with a near end
+  a blade already loose   the arc still in front of it, and not the one behind
+  a body standing there   the fight, its mass, its brood, its calls: `enemy.r + ship.r`
+  a call it is making     the marks on the rim, at the size of the body that will arrive on one
+```
+
+One rule makes the whole thing a measurement and not a fear-map: **a telegraph claims a place only when
+there is not a whole promise left to leave it in** - `beatTimeLeft(boss) <= horizon`. A spoke with 0.6 s
+to go is a place you may stand; the same spoke with 0.2 s left is a wall. The default horizon *is*
+`bosses.telegraphMin`, PLAN 3.4's own promise, so the headline column means "the room left to a ship
+that has one promise to answer" and not a duration invented here. A **fired** beam claims nothing at all,
+because `spendBeam` pays out on the step it is fired and the light left behind is the record of it.
+
+To read a promise at all the tool needed three numbers the frame never asks for, and they are read
+helpers in `game/bosses.js` now, beside the four the renderer already borrows: `beatTimeLeft` (a
+duration, not `beatProgress`'s share - a third of a 0.7 s wind-up and a third of a 1.05 s one are not
+the same amount of time to be out of), `shellShot` (the row `throwRing` will fill its shot from, so a
+wall can be counted where it will have got to), and `armRate` (which way a lit fan turns).
+
+### The bug the ruler walked into
+Holding the hive at its third phase, the run threw: `killEnemy` on a body that was already buried. The
+phase-3 split sheds the honeycomb through `breakMass` -> `killEnemy`, and a cell's `onDeath` is
+`cellComesOff`, which charges the bar for the mass coming off - on top of `spendSplit`, which is the
+framework paying that same `count x share` (30% of the hive's whole length) once and honestly. A hive
+that reached its last phase with the mass whole and then took one fat hit across the last mark had less
+on the bar than the shed was worth, the bar went to zero *inside* the shed, and the split buried a boss
+that was already buried. `shedCore` now lets go of `cell.hub` before it kills the cell, which is exactly
+what `cellComesOff`'s existing `hub === null` guard was written for: a shed the run did not shoot is not
+the run's to pay for. Reachable in an ordinary late run - a late blast is a few percent of the hive's
+bar, and the window is only 3% wide because that is how deep the third mark sits. The sim's reference
+run never walked into it, which is why it survived; the sim does not pin a boss's hull and look.
+
+### What it says
+40 s of each phase of each fight, 400 readings a phase, the fight held at the middle of its own band and
+the ship parked in the cage's middle and invulnerable:
+
+```
+                      standable   worst   in a corner   biggest piece   spots
+  Warden   phase 3      95.4%     87.1%       0.0%          87.7%         1.9
+  Hive     phase 3      96.6%     95.4%       0.0%          96.6%         1.0
+  sun      phase 3      92.1%     75.0%       0.0%          91.9%         1.3
+```
+
+At the game's own promise the fights barely contest space: **no reading of no phase of no fight has ever
+put the ship in a corner** (under 40% free). Ask the same room three seconds ahead and it does bite - the
+Warden falls to 86.8%, the sun to 81.0% with a worst moment of 52.5% free split into 2.3 pieces of glass
+- which says the wall is there and arrives only for a ship that is not watching. The Hive does not move
+at all between 0.6 s and 3 s, and that is the ruler's own limit and not the hive's: a shell, a spoke, a
+fan and a blade all travel a line the fight has already shown, but a brood *steers*, so a body can only
+be claimed where it is standing. Its column is the one to disbelieve first, and the parked ship is
+standing in the least free span of glass in that room. Also flattering by construction: no crowd (the
+director holds during a duel), nothing shoots back so every ring is aimed at a ship that never moved,
+and the mass is whole because nothing is shooting cells off.
+
+### One draft that was wrong and how it was caught
+The first `sweep` walked a blade's arc in sub-angles and claimed a band at each. Two sub-angles `d` apart
+leave a hole `reach x d - 2 x half` wide at the far end of a long blade - a hole in a claim is a place
+the tool swears is safe - and `test/boss-pressure.test.mjs`'s loose-blade test found it by asking about
+a place in the middle of the arc. A sweep is claimed as an arc now: `offTheBlade` asked at whichever
+bearing of the sweep lies nearest the place, once per place instead of once per step, which is both exact
+and about six times cheaper than the stepping was.
+
+### Verified
+Full suite **2471/2471** (2458 at HEAD, +12 in `test/boss-pressure.test.mjs` and +1 in
+`test/hive.test.mjs`). `tools/simulate.js --seed 20261006 --trace` byte for byte what it was - 10m00s /
+73,982 / level 57 - checked against a trace generated from a clean worktree of HEAD in the same session,
+twice: once after the hive fix and once after the read helpers, because a ruler is not a game and had
+better not move one. The new test file was mutation-checked claim by claim - the promise gate left wide
+open (2 tests red), a shell that forgets its door (1), a shell that claims only where it stands (1), a
+body that claims its own radius and not its reach (1), a shown fan ignored (1), loose blades ignored (2),
+a sweep that claims only where the blade is standing (1), the room inset a second time (1). One mutation
+survives and is named for what it is: reading the *direction* a blade sweeps (`armRate`'s sign) cannot be
+caught, because no row in the shipped table turns a blade backwards. `node --check` on every file
+touched, every added line ASCII and under 102 columns, and the whole nine-row look runs in 1.2 s.
+
+### What should come next
+1. **The densification, which has a PLAN item now and a ruler to price it with.** Two asks, in the order
+   that does least damage to what is already good: one more thing to be out of at the same time in each
+   fight's last phase, or read `tierBonus.telegraph` into the bosses' own wind-ups (they do not read it
+   at all today, and 139 measured that a 20% shorter tell moves a late death count by 0.6 - on the
+   crowd, which was the half that could be measured). Either way the first two phases stay wide: they are
+   tutorials, and the table above says they currently are, which is a fact worth keeping.
+2. **The Hive column is a known blind spot in the ruler.** If a session wants to believe it, the way to
+   do that is to claim a brood's place *and* the place it is steering to - `swarmlings.js` knows the turn
+   rate and the target, so a projected body is a few lines and one more test - and say which of the two
+   readings the table is using.
+3. **The shape audit's list is still not gated** (carried from 145 and 146): nothing pins that
+   `tools/shape-lab.js`'s three lists hold the pairs `test/palette-read.test.mjs` names, so a change to
+   colour spacing quietly rewrites what the audit claims to have checked.
+4. Unchanged from 139-146: the XP curve is a decision to take on purpose with the hangar re-priced after
+   it; the browser half of the performance pass is the owner's; and `tools/power-ladder.js` has not been
+   re-read since the deck grew the afterimage.

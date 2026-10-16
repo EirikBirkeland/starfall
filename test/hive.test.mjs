@@ -546,6 +546,36 @@ test('the bar does not jump when the hive comes apart', () => {
   assert.equal(total, HIVE.hull, 'the bar has a different length than the fight arrived with');
 });
 
+test('the split survives a hit that falls past the last mark with the mass whole', () => {
+  const field = scriptedRun(211);
+  const boss = hiveOnTheField();
+  const body = boss.enemy;
+
+  // The whole honeycomb is worth `count x share` of the bar - 30% of its length - and a run pays
+  // that off a cell at a time. The split sheds whatever is left of it in one moment
+  // (`breakMass`), so a hit that crosses the last mark with the mass whole can leave the bar
+  // holding less than the shed is worth, in the same breath that opens the phase doing the shedding.
+  // That is an ordinary late-run bullet: it has to be, because the mark is crossed by damage.
+  body.hp = body.maxhp * BALANCE.bosses.atHull[2] * 1.01;
+  damageEnemy(field, body, body.maxhp * 0.30, true);
+
+  const share = bossHullShare(boss);
+  assert.equal(cellsStanding(boss), CELLS.count, 'the mass was not whole on the way in');
+  assert.ok(share < CELLS.count * CELLS.share,
+    'the bar has more left than the whole mass is worth, so this is not the case being tested');
+
+  steps(BALANCE.bosses.phaseBreak.time + 0.1);
+
+  assert.equal(bossPhase(boss), 3);
+  assert.equal(coresStanding(boss), SPLIT.cores,
+    'the hive did not come apart into its three hives - it died in its own split');
+  assert.equal(field.bossesDown, 0, 'the fight ended in its own split');
+  // And the shed cost the bar nothing: what came off was already in the number on the glass.
+  assert.ok(Math.abs(bossHullShare(boss) - share) < 1e-9,
+    'the shed charged the bar: it was ' + share.toFixed(4) + ' and is '
+      + bossHullShare(boss).toFixed(4));
+});
+
 test('what the fight was is not paid for', () => {
   const field = scriptedRun(123);
   const boss = hiveOnTheField();

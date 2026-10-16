@@ -1385,6 +1385,15 @@ function shedCore(world, boss, core) {
     const cell = core.cells[i];
     if (cell.hp <= 0) continue;
     cell.hp = 0;               // nothing hurt these, so the hull is written to zero by hand
+    // A cell coming off under a run's gun takes its share of the bar with it, and that is the
+    // run's doing (`cellComesOff`, hung on the cell kind's `onDeath`). A cell the framework is
+    // shedding is not that: its share is already in the number its core came down through, which is
+    // what the header above says. So the hub is let go of first, and the coming-off finds nothing to
+    // charge. Charged anyway, a hive that reached its last phase with the honeycomb whole paid
+    // `count x share` of its own bar - 30% of its length - at the moment the split shed it, and a bar
+    // with less left than that died in the shed, whereupon `spendSplit` buried it a second time and
+    // `killEnemy` threw. That is test/hive.test.mjs, and it was one fat bullet away.
+    cell.hub = null;
     if (spec !== null) {
       const spark = spec.spark;
       spray(world, cell.x, cell.y, phase.tint, spark.count, spark.speed, spark.life,
@@ -1962,6 +1971,18 @@ export function armStep(boss) {
   return boss.stage === ARMING ? boss.armStep : 0;
 }
 
+/**
+ * How fast a blade of the sweep it is showing turns, in rad/s and signed - which way the fan
+ * it is lit travels, which is the one thing about a fan the frame cannot say by itself.
+ *
+ * The same row `letArmsLoose` looses the blades from, and 0 when no fan is on show, like the
+ * four numbers beside it: the fan that is lit is the fan that is swept, and which way it is
+ * swept is part of it.
+ */
+export function armRate(boss) {
+  return boss.stage === ARMING ? phaseOf(boss).sweep.rate : 0;
+}
+
 /** Radians each of those blades will travel, or 0. This is the width of the fan the frame lights. */
 export function armArc(boss) {
   return boss.stage === ARMING ? boss.armArc : 0;
@@ -2071,4 +2092,29 @@ export function bossRiding(boss) {
 /** How far through the beat it stands, whether it is riding or holding - the bar's breathing. */
 export function beatProgress(boss) {
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How many seconds are left of the beat it is holding, or of the ride if it is showing nothing.
+ *
+ * `beatProgress` says how far through it the fight stands, which is what a fade wants; this is the
+ * same clock read the other way round and in seconds, which is what a measurement wants. A share
+ * of a 0.7 s wind-up and the same share of a 1.05 s one are different amounts of time to get out
+ * of the way, and anything that asks "does this promise land before n seconds are up" has
+ * to compare durations and not shares.
+ */
+export function beatTimeLeft(boss) {
+  return Math.max(0, boss.timer);
+}
+
+/**
+ * The shot the shell it is arming will throw, or null when it is arming nothing.
+ *
+ * It is the same row `throwRing` fills its scratch shot from, so a headless measurement can say how
+ * far a wall that has not been thrown yet will have travelled by any moment after it is thrown -
+ * which is the whole of the question "can a ship still be standing there in half a second".
+ */
+export function shellShot(boss) {
+  const bullets = phaseOf(boss).bullets;
+  return bullets === undefined ? null : bullets.shot;
 }

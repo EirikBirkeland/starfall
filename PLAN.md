@@ -2515,3 +2515,30 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       22 tests in `test/try-body.test.mjs`; suite 2432 -> 2454 (measured off a worktree of HEAD, not off
       the last NOTES line, which was one out), and the reference run is byte for byte what it was - a
       ruler is not a game and had better not move one.
+
+- [ ] Make the last phase of each fight contest the room, with `tools/boss-pressure.js` as the ruler.
+      Session 147 built that ruler - it asks how much of the cage a ship may sit in and *stay* sitting
+      in, one cell per hull-width of glass, and prints it per phase of each of the three fights - and
+      the first reading is flat at the short end and heavy at the long one. At the game's own promise,
+      `bosses.telegraphMin` of 0.6 s, the third phase leaves 95.4% of the cage standable under the
+      Warden, 96.6% under the Hive and 92.1% under the sun, and not one reading of not one phase of
+      not one fight ever had the ship "in a corner" (under 40% free). Ask the same room three seconds
+      ahead instead and the Warden falls to 86.8% and the sun to 81.0% - its worst single moment is
+      52.5% free, its free glass split into 2.3 pieces - while the Hive, whose whole attack is bodies
+      that steer and so cannot be projected, does not move at all. So the fights do know how to wall a
+      room off, and do it only to a ship that is not watching; and the flattest of the three is the
+      one the ruler is known to read most kindly. The lever
+      is therefore not a bigger arena and not more bodies: it is *how many things a beat gives you to
+      be out of at once*, and the second is that the bosses do not read `tierBonus.telegraph` at all,
+      which is the shortening the ladder already prices for the crowd at deep tiers (and NOTES 139
+      already found that shortening a tell by 20% moves a late death count by 0.6 - which was measured
+      on the crowd, and the fights were the part left unmeasured). Two candidate asks, in order of the
+      damage they do to what is already good: give the last phase of each fight one more thing to dodge
+      at the same time (a ring that comes with a spoke lock, a sweep that comes with a call), priced
+      with `tools/ladder.js --boss <name>` so the fight stays winnable; or read the tier's telegraph
+      scale into the bosses' own wind-ups, which is one line in `bosses.js` and changes the feel of
+      every fight from the first minute of a deep run. Either way the first two phases stay as they
+      are - they are tutorials, and a wide first fight is a fact about the game that the table above
+      says is currently true and should stay true.
+
+- [ ] Make the last phase of each fight contest the room, with `tools/boss-pressure.js` as the ruler.
