@@ -15730,3 +15730,104 @@ size behind them - went from four to three, and the pair that left it is the one
    hull); the XP curve is a decision to take on purpose, with the hangar re-priced after it; the
    browser half of the performance pass; and `tools/power-ladder.js` has not been re-read since the
    deck grew the afterimage.
+
+## Session 143 — the drifter is bowed and the darter is filled; the crowd pays for four new one-shape pairs in colour. Shipped 1.9.4
+
+### What was on the shelf
+Clean tree at v1.9.3, and one item at the foot of PLAN that session 142 had written and *paid for*
+but not drawn: the drifter's three faces bowed to a rounded triangle (42% -> ~75% of its own
+hurtbox) and the darter's head filled from a 0.7r cheek to nearer 1r (56% -> ~81%). The colour step
+that was the blocker had been bought the session before - drifter/shielder 1.49 steps, weaver/darter
+1.21 - at exactly the outline distances the fattening was expected to leave.
+
+### The loop, which is the part worth keeping
+`.scratch/` harness (gitignored, session 142's habit): import `CROWD_SHAPES` and **mutate it in
+memory**, then re-read the shipped rulers off the mutated table - `hurtboxFit`, `crowdPairs`, and the
+same `worstVision`/`measure` pair `silhouettePairs` uses. Under a second per candidate, and it judges
+a shape with the *same* code `palette-check --strict` gates on, so nothing had to be re-derived. Two
+helpers in the harness (`bulged`, a copy of `flanks`) and a `reset()` between rows, because `row()`
+mutates and the next candidate has to be measured against the real crowd.
+
+That speed is what made the sweeps affordable: ~35 candidates in the time of one `ghost-grid` cell.
+
+### What shipped
+- **`bulged(3, 1.0, 0.8)` for the drifter: 42% -> 75%**, corners exactly where they always were, so
+  reach stays 1.00r and no shot is eaten that wasn't before. New helper in `render/shapes.js`: a
+  polygon of `sides` corners at `tip` with every face bowed out to `face`, which is `lobed` with the
+  arithmetic done from the face instead of from the control point - the middle of a quadratic is a
+  quarter of the way from each end and half from its control, and a face's two corners stand
+  `cos(pi/sides)` of the tip apart on the axis between them, so control = `2*face - tip*cos(pi/sides)`.
+  "Faces at 0.8r" is the number the shape is called by and the number the ruler measures; `lobed`'s
+  third argument is neither.
+- **The darter's cheek 0.6r -> 0.9r: 56% -> 78%**, point still 2.1r, barb still a barb. Its
+  hand-written six-line path became a `flanks` row, so all nine bodies are now one of the three forms
+  the ruler can rasterise (polygon, flank, lobed) and one of the crowd's paths is no longer special.
+- Floors up in `test/crowd-art.test.mjs`: drifter 0.74, darter 0.77. `--show worst` is the swarmling
+  now (45%, deliberately), and `shape-lab.test.mjs` pinned `drifter 42%` and `^drifter,` - both
+  re-pinned, and the worst-first ordering check now reads it off `fitRows()` instead of naming bodies.
+
+### The cost, which is the finding
+**The crowd went from 8 of its 36 pairs drawn as one shape to 11.** Bowing the drifter brought the
+spitter from 5.3 px to 2.2, the sniper from 5.4 to 2.8 and the shielder from 6.7 to 3.9; filling the
+darter brought the weaver from 4.5 to 3.1. Every one is paid - colour between 1.21 and 2.43 steps on
+the worst eye that still has that colour, and size where colour is out of cones - because that is
+literally what session 142 bought, and the pinned list is where the debt is written. `darter /
+swarmling` came *out* of the list for nothing: the fuller spear stands 5.8 px from the shape it used
+to share. The `thinly` list is unchanged at three pairs, which was not obvious beforehand.
+
+### What the sweeps said, and what I refused
+- **Coverage is nearly a function of the outline's minimum radius.** Drifter faces 0.7/0.8/0.9/1.0 ->
+  63/75/85/96%. Corners past the hurtbox buy almost nothing (tip 1.2, faces 0.8: 81% - three points
+  over the shipped shape, for 0.2r of new over-draw). So filling a disc means bringing the *whole*
+  outline near r, and loudness survives only in what sticks *out* - which is why the bomber can be 94%
+  and rough (studs to 1.5r outside) while a body that may not grow a nose cannot be.
+- **Nothing stopped me at 96%.** That is the sentence to keep: at faces 1.0 the drifter is a disc and
+  `palette-check` still passes, because the colour step carries every pair. The ceiling on this item
+  was taste, not the ruler - a rounded triangle is the drifter and a disc is not - so the choice is
+  written where the shape is, and the 0.8 row is the one that keeps the corners readable while leaving
+  2.7+ px of headroom on every colour-carried pair.
+- The darter likewise: cheek 1.0r gives 84% and passes, but pulls sniper and spitter under 4 px for
+  four points of coverage, and the head stops being a spear point. 0.9 was PLAN's number and it holds
+  up as the right one, not just the promised one.
+- Session 141's corner sweep reproduces exactly: corners out buy distance from the weaver (1.3 -> 2.2)
+  and lose it from the shielder (3.9 -> 3.0). No point on that dial is free.
+
+### Surprises
+- **The ruler reads history.** I re-measured the *previous* release's shapes from `git show` through
+  the harness to get the "from 5.3 px to 2.2" numbers rather than trusting prose, and I ran the whole
+  committed tree from `git archive` into `.scratch/headcheck` to count tests at HEAD: **2429, both
+  before and after this session, while the last NOTES line says 2428.** No test was added or removed
+  here; one of the two numbers in the previous session's notes was just a shade off. Cheap habit, and
+  it is the only way a "was N tests" claim means anything.
+- A comment in `render/shapes.js` had already documented its own expiry ("what it has not yet done is
+  draw it. The item is at the foot of PLAN.md"). Writing the *reason* a shape is thin, next to the
+  shape, is what let this session be 20 minutes of measuring instead of a session of rediscovering why.
+- Coverage of the drifter at the shipped 15 px and the weaver at 10 px land on nearly the same
+  radius *range* (12-15 vs 11.2-15.5), which is why they read 1.3 px apart. Sizes near each other make
+  near-discs nearly the same body; the crowd's five round-ish bodies are all 10-17 px.
+
+### Verified
+Full suite **2429/2429** (unchanged count from HEAD, measured as above: no test added, none removed -
+this session re-pinned rather than grew). `tools/simulate.js --seed 20261006 --trace` byte for byte
+what it was: 10m00s / 73,982 / level 57 - a silhouette is not a simulation and had better not move it.
+`palette-check --strict` and `contrast-check --strict` clean, `node --check` on all touched files.
+Released as **1.9.4**.
+
+### What should come next
+1. **Two unspent measurements from session 142 and 141, both about the sniper**: deepening its red a
+   step (#d81e5b -> #bd1250, measured, buys `darter / sniper` back and lifts two more pairs out of the
+   thin and crowded lists, breaks nothing), and the taller lens (1.6 -> 84% coverage instead of 74%).
+   They are the same body and they interact: a darker, fuller eye is a different-looking eye, so it
+   wants one session that decides what the sniper is, with the beam and the pupil light re-read after.
+2. **The kindest-turn question, now that it costs something.** The ruler turns a pair to wherever they
+   match best, which is right for a tank that spins and pessimistic for pairs that always face the
+   same thing - the spitter and the shielder both point at the ship, always, so their 2.6 px is a
+   posture neither is ever seen in. 11 of 36 pairs are one shape now and several of them are exactly
+   those pairs, so the answer is worth having: `game/kinds.js` has each kind's turn in prose, and
+   giving the tool that as data (with its own test) would either relax the list or say it is real.
+3. Unchanged from 139/140/141/142: the late game wants a *fight* and not a crowd (boss phase tables,
+   not hull); the XP curve is a decision to take on purpose with the hangar re-priced after it; the
+   browser half of the performance pass; and `tools/power-ladder.js` has not been re-read since the
+   deck grew the afterimage.
+4. If a fourth session writes this harness, move it next to `shape-lab.js` as a real tool
+   (`--try shape.mjs` judging a candidate file with the shipped gates). Twice is an accident.
