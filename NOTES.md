@@ -16671,3 +16671,126 @@ measured. So there is no second copy of anything left to drift, which is what th
    session 148's missing `release-checks/` and `docs/game-balance.md`. Somebody has to decide whether the
    tier ladder of telegraphs is a thing this game should have, in which case it is designed from scratch,
    or a sentence to delete from PLAN.
+
+## Session 151 — a clump of the swarm gets one tell: a ring that burns down over the brace, and a line for what is left of the dive
+
+### What was on the shelf
+Session 150's first next-item: the brood commits in waves and the only tell is each body's own nose
+light, so "a wave of 40 bodies arriving out of a 200-body crowd may need something coarser than a
+circle - but read the `BRACED` handling first, because it may already be loud enough". I read it, and
+I measured before drawing anything, because "coarser" is a size and not an idea.
+
+The census (`.scratch/brood-census.mjs`, a parked ship and the director left running from the swarm's
+`from`): **three packs of 14-17 bodies on the arena at a time** in a late run's waves, rms spread
+27-54 px while bracing (p50 40), 684 px/s of dive pace at that age, so 170-340 px of line, and at most
+two clumps bracing or diving in any one sample. So the clump has a size, a handful of them are on the
+glass, and per-body lights are the wrong grain for it. That is the whole argument for the shape, and
+it is why the sizes in `render/flock.js` are what they are.
+
+### What landed
+**`src/render/flock.js`**, one entry point (`drawFlockTells(ctx, world.flocks)`), called from
+`renderer.js` beside `drawTelegraphs` so both go under the bodies they describe. Two tells, one per
+pack:
+
+- **the brace is a clock** - a ring at the pack's middle, 10 px outside its own spread, in the game's
+  warning hues: a faint whole circle (what the beat was), an arc of it left that gets eaten as the
+  beat runs out, and one light at the head of that arc so the countdown has an end the eye can find.
+  A part-of-a-circle closing over a circle is the grammar the ship's own dash ring and an elite's hull
+  ring already use for a wait; the difference is direction, and it is on purpose - the dash ring
+  *fills*, this one *burns down*. Brightness runs 0.18 -> 0.85 over the brace, so the last quarter is
+  the loudest thing on the clump.
+- **the dive is a line** - a soft trail (one baked `makeStreak`, stamped stretched, never rebuilt)
+  from the middle out to `pace * time left` along the line the pack locked, with a light at the far
+  end: *this* is how far the lunge gets. It shortens as the dive spends itself and stops at nothing,
+  so no light outlives the promise it was drawn from. The geometry is deliberately the same capsule
+  `tools/boss-pressure.js` `claimDives` lays - the game now draws the thing the ruler measures.
+
+`src/game/flock.js` publishes what the tells need, as derived state beside the middle they are worked
+out with: `pack.spread` (mean square distance from the middle, out of the `sx`/`sy`/`sq` sums - no
+second walk of the crowd and one square root per pack, not per body) and `pack.pace` (the mean of
+`speed * (1 - frost)` over the bodies actually in the pack, times `dive.mul`, so a half-chilled clump
+promises a shorter lunge, which is what it does). Plus `beatProgress(pack)` with `braceProgress`
+delegating to it, so the ring and the nose lights are provably one clock, and `isBracing`/`isCommitted`
+taking a **pack** where `isBraced`/`isDiving` take a body - the eye draws per pack and should not have
+to reach through a body to ask a question about its pack.
+
+### The decision the measurement forced, and it is the finding of the session
+`MIN_BODIES` is `ceil(pack.min / 2)` = 4, and that is **because a hive's brood is pairs**. Every mouth
+lets out `each: 2` bodies and one pack per mouth (game/bosses.js `broodFrom`), so over a 20 s watch of
+the second boss's cage the census counted 4-6 packs on the arena and *every one of them two bodies*,
+and the number of clumps this file would draw is **zero**. The session 150 framing ("a wave of 40
+bodies") is not forty bodies in a flock; it is thirty-two pairs on thirty-two clocks that happen to
+be born in phase. A per-pack tell there would be thirty-two rings where the read wanted three, so the
+tells are for the wave director's flocks and the hive keeps its nose lights. Worth knowing before
+anyone redesigns that fight - and worth knowing that `balance.js`'s comment on the hive's spawn row
+still claims "what comes out of one mouth bunches, commits and dives as one thing... what makes six
+bodies one threat to read instead of six" while `each: 2` is on the row underneath it. That sentence
+is stale prose about a two-body mouth and it is the next thing to settle.
+
+### Numbers
+- Reference run (`--seed 20261006 --trace`, aware bot, 10 min): **byte for byte session 150's run**,
+  diffed against a `git worktree` of HEAD - `spread`/`pace` are read and never fed back, and the whole
+  file is paint. Nothing to rebaseline.
+- Cost, measured against HEAD with three clumps of fifteen braced on the glass (`.scratch/tell-cost.mjs`):
+  **+3 strokes and +1 stamp per clump while bracing, +2 stamps per clump while diving**, no gradient,
+  no blur, fills unchanged; frame cost 0.225 -> 0.237 ms at 45 flock bodies on this box. Three clumps
+  is what a late run actually holds, so that is the ceiling, not a stress case.
+- `tools/perf-probe.js --kind swarmling --bodies 200` is unchanged (1,765 ops mean, 0.093 vs 0.095 ms a
+  step) because that scene plants loose bodies with no pack, which is itself worth knowing about the
+  tool: it cannot price a flock at all today.
+- Suite **2512**, up 16: 13 in the new `test/flock-tell.test.mjs` and 3 in `test/swarm.test.mjs`. The
+  ones I would defend in review: *the line reaches exactly as far as the dive has left to fly* and then
+  *the ground the light promised is the ground the pack walks* (paint at the commit, let the dive run,
+  compare the middle's travel - the same bargain `test/beam-art.test.mjs` strikes for a beam); *the
+  ring is sized by the clump it goes round*; *a pair draws nothing* at both ends of its dive; and *the
+  frame asks for the ring*, which is the only test that the renderer hook exists.
+- Released **v1.9.10**.
+
+### Surprises and lessons
+1. The census changed the design twice. First it killed "one tell per pack" as a fix for the hive (pairs),
+   then it said the clump's spread barely tightens over the brace (p50 44.5 px gathering against 40.4
+   braced - about a tenth of the ring's radius), so the *arc* carries the countdown and the radius only
+   sizes the shape. I had written "the ring tightens with the bunching" in a comment before measuring it;
+   the comment now says what is true. A guess about feel that a probe can check should be probed first.
+2. **A mutation script has to prove it mutated.** My first one swapped text with `perl -0pi` and, on the
+   swaps that silently did nothing (a `/` in the pattern against an `s///` delimiter), reported "did not
+   apply", restored a backup... and still left two mutations sitting in `src/render/flock.js` from an
+   earlier run, which is how one test went red for no reason an hour later. The replacement in
+   `.scratch/mutate.sh` now counts hits with node, says `FOUND NOTHING` out loud, and all 12 mutations
+   were seen and caught - including removing the call from `renderer.js`, which no direct-paint test can
+   see. If a mutation harness is going to be trusted, the check is "did the file change", not "did the
+   tests go red".
+3. `test/swarm-art.test.mjs` caught this change honestly: its "a braced body lights its nose" test
+   counted one light per body and got 21 for 20 bodies. Updated to `+1` for the clump and `+3` strokes,
+   with a note on the dive test that a pack pinned at zero speed has no lunge to promise, so that test
+   cannot see the line - it is a fact about the harness, and now it is written down instead of load-bearing.
+4. The night (render/darkness.js) punches nothing for the swarm and did not before either: the veil
+   lights the ship, shots, and a fight's own bodies. A flock that walked into the Eclipse's dark phase
+   was already covered up; the tell goes the same way, and the file says so rather than leaving the next
+   session to discover a hole that was never there.
+
+### Left in the tree
+`src/render/flock.js` (new), `src/game/flock.js` (two published numbers, one clock, two pack-level
+predicates), `src/render/renderer.js` (one call), `test/flock-tell.test.mjs` (new, 13), `test/swarm.test.mjs`
+(+3), `test/swarm-art.test.mjs` (two counts and a note), `PLAN.md` (the item, in *After 1.0*), CHANGELOG
+and the release.
+
+### Next
+1. **Settle the hive's `each: 2`.** The row's own comment sells a six-body flock and the row ships a
+   pair, and session 150 measured that fight as the *tightest* of the three at the game's own promise
+   (58.3% free at its worst moment against the sun's 69.6 and the Warden's 87.6). Those two facts point
+   the same way: fewer, bigger broods. Six bodies out of a lit mouth instead of two, on the same beat,
+   is the same crowd and the same hull, but it is one clump to read instead of three pairs - and it is
+   the same fight the new tells were built for, so the ruler and the ring would both be looking at it.
+   `tools/boss-pressure.js` prices that (it reads the flock's own dive clock since session 150), and the
+   claim to check is `worst`, not `standable`: a wave that has to be read as one thing should stop the
+   room in fewer, more legible places. Start by re-running the census on the hive cage with a bigger
+   `each` and checking the pack count and the tells-per-frame before touching the balance prose.
+2. **`tools/perf-probe.js` has no flock scene.** It can say what 200 loose bodies cost and nothing about
+   what three flocks cost, which is the shape the swarm actually arrives in. A `--flocks 3` scene would
+   be a small addition to a tool that is otherwise honest about what it cannot measure.
+3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20), whether the **first two minutes** are too harsh for a new player (needs a human), and the
+   `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree (session
+   150's note; somebody has to decide whether a tier ladder of telegraphs is a thing to build or a
+   sentence to delete).
