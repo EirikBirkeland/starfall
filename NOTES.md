@@ -16404,3 +16404,108 @@ the annotated one 25 lines above it and a bare copy got appended).
    and reading the tier's `tierBonus.telegraph` into the bosses' own wind-ups, which is the other ask
    PLAN names and is one line in `bosses.js` - it would change the feel of every fight in a deep run,
    so it wants its own session and its own ruler reading.
+
+## Session 149 — the sun's last phase grows a third beat: bodies on marks, carried by the wall. Shipped 1.9.9
+
+### What was on the shelf
+The same PLAN item, for the fourth session running. Session 148 ended it with "what is left of this
+item is those two fights, and the lever for them is a beat that walls nothing - bodies on marks,
+which the sun has never had", so this session did the sun. The Hive is left, and the note at the end
+has the move for it.
+
+### The beat (`call` on `eclipse` phase 3, `game/balance.js`)
+Three of the crowd's own darters, on three marks lit 0.8 rad apart, 40 px outside the sun's rim, on
+the bearing the ship is *not* standing on, held 0.95 s and then walked out of. Nothing in
+`game/bosses.js` had to be built for it: the ring's summons (`windCall`, `sendCall`, `marksAt`)
+already knew how to light a fan of places and fill them, and a sun is a body with a rim like a ring
+is. What the row had to answer was where to hang it and what it costs.
+
+**It is carried by the shell, not by the fan** (`with: 'call'` on the `bullets` row). Session 148 had
+already worked out and written down why the fan and the wall cannot be paired here - a 1.0 rad door
+inside a 0.9 rad blade band is 0.1 rad of answer - and had left the sentence "bodies on marks, say,
+which is the one beat the sun has never had" pointing at this row. So the fan keeps its turns alone,
+the shell carries the call, and the halt is held for the longer of the two wind-ups, which means the
+door is now shown for 0.95 s instead of 0.72: the one kindness in the phase, and it is in the same
+stop as the threat. The ride went 1.85 -> 2.0 s to pay for the second promise, the way session 148
+paid for the Warden's pair, and the whole argument is the same one: a denser beat, not a louder fight.
+
+**Why 40 px and not the ring's 26.** The marks stand 98 px out from the middle of a sun whose drag
+lets go of the ship at 92 (`pull.floor`). A mark inside that floor is a place a ship being dragged
+sunwards drifts into by itself, and a place you arrive at by falling is not a place you were shown and
+then charged for. Outside the floor, standing off a mark is a thing the engines do. That is the whole
+number, and it is why a call's `gap` is priced per phase and not per framework.
+
+**The marks are punched out of the night** (`render/darkness.js` `punchCall`, new number
+`dark.light.mark` = 34 px). This is the only phase in the game that is both dark (0.86) and summons,
+and a mark the veil has eaten is no promise - `telegraphMin` does not care how dark the room is. Full
+weight like a shot and not part weight like the door, because a mark is where a body is about to
+arrive and not a place to be standing. The bodies that come out of them need no light of their own:
+they walk, into the ship's own 300 px.
+
+### The framework change, which was the real work
+A `call` used to *jump the queue*: `alternateBeats` opened with "if this phase calls and nothing of
+the last call is standing, call", and took its ordinary turn otherwise. That rule is a summoner. Over
+a minute of the Warden's last phase with every pack killed the step it lands - which is what a strong
+run does - the fight spent **all seventeen of its stops on calls and never lit its door once**. It is
+in `test/warden.test.mjs` now, and the order string it fails with is the whole bug: `CCCCCCCCCCCCCCCCCC`.
+
+So `call` is a turn of the rotation like any other row (`BEAT_ROWS_ROTATION`), and a turn it cannot
+take goes to the beat behind it rather than being taken anyway. `takeBeat` keeps one rule of its own
+for a carried call: a pair whose call finds the room occupied asks the one question it was always
+asking, because a pairing must not be an exception to the rule it is paired with. `leadBeat` gained
+the call behind the fan and ahead of the shell, which is where a phase whose only news is a call opens
+(the Warden's third phase did that before this change too, by the old preemption, and
+`test/warden.test.mjs` noticed the first time I left it out - that test is the reason the line is
+there and it says so).
+
+### Readings (`tools/boss-pressure.js`, Eclipse phase 3, at the game's own 0.6 s promise)
+Against a worktree of HEAD, same seed, same watch:
+
+| | standable | worst moment | biggest piece | sent/s | bodies claim |
+|---|---|---|---|---|---|
+| before | 92.1% | 75.0% free | 91.9% | 5.85 | 0.8% |
+| after | 91.4% | 70.3% free | 90.9% | 6.60 | 1.0% |
+
+The tight place got four and a half points tighter and the room barely moved: which is what a beat
+that walls nothing is *for*, and the marks themselves claim 0.0% because a place punched full weight
+out of the night is a place the fight has let go of and not a place that hurts. **The Warden's and the
+Hive's nine numbers are byte for byte what they were**, which is the check that a rotation change in a
+shared framework did not quietly reprice the two fights that were not supposed to change. Reference
+run (seed 20261006, aware bot, 10 min): `score 73354 level 57`, identical to session 148 - the bot
+never reaches the sun's last phase inside the window, so a fight change down there cannot show up in
+it. That is what the ruler is for and it is said here rather than learned twice.
+
+### Three things that cost me time and are worth writing down
+1. **`killEnemy` does not write the hull.** `game/bosses.js` `living()` gates a call on "a body leaves
+   the crowd by dying, so `hp` is the whole of the question", and `killEnemy` only takes the body out
+   of the array - it is `damageEnemy` that writes `hp`. A test or tool that clears a room with
+   `killEnemy` leaves the fight holding a pack that is not in the room, and the gate never opens
+   again. My darkness test sat for 3000 frames waiting for a second call that its own cheating had
+   forbidden. Either write `hp = 0` first (`tools/boss-pressure.js` does) or hurt it properly.
+2. **A ruler must not answer what it measures.** My first version of this session made
+   `tools/boss-pressure.js` kill every called body the step it landed, so that repeated calls could
+   be seen. It worked, and it moved the shipped Warden's recorded phase-3 reading from 93.4%
+   standable to 96.3% - a ship parked in a fight does not shoot, and the pack it is being shown is
+   part of the room's claim. Reverted: the tool measures a ship that never shoots, its caveats say so,
+   and the cadence of calls is measured in tests instead where the room *is* answered. Old numbers in
+   NOTES stay comparable, which is the whole reason a ruler exists.
+3. **A knife-edge test is an rng test.** `test/arms.test.mjs` pins that a blade hurts at exactly the
+   width it is drawn at, and it started failing by 7e-14 once this row existed. Nothing about blades
+   changed: a phase that takes a different sequence of beats asks the world's rng a different
+   sequence of questions, so the arm's angle lands somewhere else and the float error on
+   `half + sin(x)*half` came out on the other side of equality. The assertions now carry a named
+   `hair = 1e-9` with the reason beside it, because a test that fails on fourteen powers of nothing
+   gets deleted by the next session instead of read.
+
+### Next
+1. **The Hive's last phase, same lever.** The framework now lets any fight write a `call` as a turn of
+   its rotation, and the Hive is the fight the ruler reads flattest because its whole attack is bodies
+   that steer. A call there should be *bodies that come out of somewhere the ship chose not to be* -
+   marks behind the rocks, say, or on the far side of the split - and the interesting question is
+   whether a brood can be made to arrive in a way the instrument can see at all. Read session 148's
+   caveat on steering bodies first.
+2. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20 seeds); whether the **first two minutes** are too harsh for a new player (needs a human);
+   and reading the tier's `tierBonus.telegraph` into the bosses' own wind-ups - one line in
+   `bosses.js`, and it would change the feel of every fight in a deep run, so it wants its own session
+   and its own ruler reading.

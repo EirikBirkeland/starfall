@@ -467,8 +467,10 @@ test('every pairing a boss writes names a beat that phase wrote', () => {
       pairs.push(id + ' phase ' + (index + 1) + ': ' + carrier + ' carries ' + carried);
     }
   }
-  assert.deepEqual(pairs, ['warden phase 3: bullets carries spokes'],
-    'the crowd of pairings the game ships is not the one NOTES says it ships');
+  assert.deepEqual(pairs, [
+    'warden phase 3: bullets carries spokes',
+    'eclipse phase 3: bullets carries call',
+  ], 'the pairings the game ships are not the ones written here');
 });
 
 test('a pairing that cannot be played is refused out loud', () => {

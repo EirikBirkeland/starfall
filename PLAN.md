@@ -2553,3 +2553,20 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       question with no room in the answer. Both are worked out where the numbers live, NOTES session 148.
       What is left of this item is those two fights, and the lever for them is a beat that walls nothing
       - bodies on marks, which the sun has never had.
+
+      Session 149 gave the sun that beat and found the framework already knew how to place it: the last
+      phase now calls three of the crowd's darters onto three marks lit outside its own rim, and the
+      shell carries the call (`with`) instead of trading turns with it - the note on the row is why the
+      fan could not, and what the pairing cost (the ride 1.85 -> 2.0 s). Two findings were not in the
+      plan. A phase's `call` row is now a *turn of the rotation* rather than a preemption, because a call
+      that jumps the queue whenever the room happens to be clear makes a summoner of a fight: over a
+      minute of the Warden's last phase with every pack answered the step it landed, the shipped rule
+      spent all seventeen of its stops on calls and never lit its door once (test/warden.test.mjs keeps
+      that shape from coming back). And the sun's marks stand 40 px off the rim and not the ring's 26,
+      because its drag lets go of the ship at 92 px and a mark inside that floor is a place a ship
+      arrives at by falling, which is no ask at all. Readings on the sun's last phase at the game's own
+      promise: 91.4% of the cage standable against 92.1%, worst moment 70.3% free against 75.0%, 6.60
+      things a second against 5.85 - the tight place tighter, the room as it was, which is what a beat
+      that walls nothing is for. Its marks are punched out of the night beside the door
+      (render/darkness.js), since a promise the veil has eaten is no promise. The Hive is what is left,
+      and NOTES session 149 has the next move for it: the same lever, now that any fight can pull it.

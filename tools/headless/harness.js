@@ -165,7 +165,8 @@ function makeContextStub(counters, drawLog) {
       // The composite is logged here as well as on a circle, because the only way to tell a sheet
       // laid *over* the world from one added to it is the composite it was laid with - which is the
       // whole difference between a night and a glow (render/darkness.js).
-      drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y), mode: target.globalCompositeOperation });
+      drawLog.images.push({ x: x, y: y, w: w, h: h, at: onto(x, y), mode: target.globalCompositeOperation,
+        strength: target.globalAlpha });
     },
     translate: (x, y) => {
       counters.translates++;

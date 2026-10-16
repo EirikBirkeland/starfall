@@ -339,9 +339,15 @@ test('a blade hurts at exactly the width it is drawn at', () => {
     x: along(300).x + arm.dirY * px,
     y: along(300).y - arm.dirX * px,
   });
-  assert.ok(offTheBlade(arm, across(arm.half).x, across(arm.half).y) <= arm.half,
+  // `hair` is the rounding of the trig above and nothing else: the two points asked for are exactly
+  // `half` and exactly `half + 0.5` px off the axis, and getting there is a multiply by a sine - a
+  // centre asked for at exactly `half` comes back at `half + 7e-14` on the sweep this ships. It is
+  // written down rather than tuned in silence because a knife-edge test that fails on fourteen powers
+  // of nothing is a test the next session deletes instead of reading.
+  const hair = 1e-9;
+  assert.ok(offTheBlade(arm, across(arm.half).x, across(arm.half).y) <= arm.half + hair,
     'a centre exactly on the edge of the blade was not measured as being in it');
-  assert.ok(offTheBlade(arm, across(arm.half + 0.5).x, across(arm.half + 0.5).y) > arm.half,
+  assert.ok(offTheBlade(arm, across(arm.half + 0.5).x, across(arm.half + 0.5).y) > arm.half + hair,
     'a centre half a pixel outside the blade was measured as being inside it');
 
   // Stood in, with a clear margin either side of that edge: a blade turns a little between the moment

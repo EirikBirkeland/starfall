@@ -4,8 +4,8 @@
 // One pass, laid over the whole world's own pass and under the interface. It is a *veil*, not a
 // dimming: the room is not made darker, it is covered up, and what is left to see are the holes cut
 // in the covering by whatever is shining - the ship, every shot in the air, the fight's own bodies,
-// the door a shell is being promised through, and the fans and blades of a sweep (render/arms.js).
-// That is the difference that matters, and it is the
+// the door a shell is being promised through, the fans and blades of a sweep, and the marks a call
+// of bodies is lit on (render/arms.js, render/entities.js). That is the difference that matters, and it is the
 // same lesson the sun's own body had to learn (render/boss.js): a hole is not a dark colour, it is
 // the pixels under it being gone, and `source-over` and `destination-out` are the only composites
 // that can say so. The arena is painted additively, so a night laid down `lighter` would be a faint
@@ -49,7 +49,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { hypot } from '../core/math.js';
 import { BALANCE } from '../game/balance.js';
 import { world } from '../game/world.js';
-import { bossCores, coreReach, darknessOf } from '../game/bosses.js';
+import { bossCores, callAngle, callCount, callStand, callStep, coreReach, darknessOf } from '../game/bosses.js';
 import { camera, onScreen } from './camera.js';
 import { view } from './canvas.js';
 import { holeFor, paintGlow } from './glow.js';
@@ -170,6 +170,36 @@ function punchWedge(g, x, y, wedge, share) {
   g.globalAlpha = 1;
 }
 
+/**
+ * The marks a call is being promised on, left out of the night.
+ *
+ * The same fairness as the door's and the blades', and the sharpest case of the three: this is the
+ * only phase in the game that is both dark and summons bodies, and a mark stands on the rim on the
+ * side turned away from the ship, which is the one place in the room the ship's own light is never
+ * going to reach in time - the drag is carrying the ship the other way. A mark the veil has eaten is
+ * no promise, and `telegraphMin` does not care how dark the room is.
+ *
+ * Each one is punched full weight, like a shot and unlike the door: a door is a lit *place* and can
+ * afford to keep some night in it, and a mark is where a body is about to arrive.
+ */
+function punchCall(g, boss, alpha) {
+  const marks = callCount(boss);
+  const body = boss.enemy;
+  if (marks === 0 || body === null) return;
+
+  const x = paintX(body, alpha);
+  const y = paintY(body, alpha);
+  const reach = BALANCE.bosses.dark.light.mark;
+  const stand = body.r + callStand(boss);
+  if (!onScreen(x, y, stand + reach)) return;
+
+  const middle = (marks - 1) / 2;
+  for (let i = 0; i < marks; i++) {
+    const angle = callAngle(boss) + (i - middle) * callStep(boss);
+    punch(g, x + Math.cos(angle) * stand, y + Math.sin(angle) * stand, reach, 1);
+  }
+}
+
 /** Is there a room to be dark in: a fight standing in the arena with bodies left. */
 function fighting() {
   return world.boss !== null && world.boss.cores.length > 0;
@@ -272,6 +302,7 @@ export function drawDarkness(ctx, alpha) {
     punchBodies(g, world.boss, alpha);
     punchDoor(g, world.boss, alpha);
     punchBlades(g, world.boss, alpha);
+    punchCall(g, world.boss, alpha);
   }
 
   // And the veil goes on. Window coordinates again, and `source-over`: the one composite in the game

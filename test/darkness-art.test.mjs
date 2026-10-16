@@ -23,8 +23,10 @@ import path from 'node:path';
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  armedCount, bossPhase, coreReach, darknessOf, gapAngle, gapEnd, gapHalf, gapStart,
+  armedCount, bossPhase, callAngle, callCount, callKind, callStand, callStep, coreReach,
+  darknessOf, gapAngle, gapEnd, gapHalf, gapStart,
 } from '../src/game/bosses.js';
+import { damageEnemy } from '../src/game/enemies.js';
 import { doorWedge } from '../src/render/entities.js';
 import { view } from '../src/render/canvas.js';
 import { stats as glowStats } from '../src/render/glow.js';
@@ -63,7 +65,9 @@ function intoTheDark() {
   boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[1] * 0.99;
   guard = 0;
   while (darknessOf(field) < ECLIPSE.phases[1].dark.level - 1e-9 && guard++ < 2000) step(16);
-  assert.equal(bossPhase(boss), 2, 'the fight is not in the phase that puts the night down');
+  assert.ok(bossPhase(boss) >= 2,
+    'the fight is not in the phase that puts the night down (a later visit cannot un-open a phase,'
+    + ' so anything from 2 up is a room that is at least this dark)');
   return boss;
 }
 
@@ -97,6 +101,7 @@ function holes() {
     y: s.at.y + s.h / 2,
     r: s.w / 2,
     mode: s.mode,
+    strength: s.strength,
   }));
 }
 
@@ -351,4 +356,71 @@ test('the night leaves the whole of a walking door out, and not just its last pl
   step(16);
   assert.equal(game.circlesOffscreen().filter((c) => c.mode === 'destination-out').length, 0,
     'a door was let through the night between shells');
+});
+
+test('the marks a call is lit on are punched clean out of the night', () => {
+  const boss = intoTheDeep();
+  const sun = boss.enemy;
+
+  // The room has been fighting for the whole of this file and the ship parked in it has taken every
+  // shell on the way, so: no more damage, and the patience to wait for a call. The marks are only
+  // shown for the length of one wind-up, so a frame that misses one has to wait for the next.
+  //
+  // The wait also clears the room, the way a run that shoots back would. That is not the test
+  // pretending the fight is easier than it is: a second pack cannot be lit over a pack that is
+  // still hunting (game/bosses.js `takeBeat`), and nothing in this file shoots, so without it there
+  // would never be a second call to look at. And it is `damageEnemy` rather than `killEnemy` for the
+  // same reason - the gate counts a pack by the hulls it has left (game/bosses.js `living`), and a
+  // body taken out of the crowd with its hull still written high is a body the fight is still holding.
+  field.player.invuln = Infinity;
+  field.player.hull = field.player.maxHull;
+  const answering = () => {
+    for (const one of field.enemies) {
+      if (one.type === callKind(boss)) damageEnemy(field, one, one.maxhp, false);
+    }
+  };
+  let guard = 0;
+  while (callCount(boss) === 0 && guard++ < 3000) {
+    answering();
+    step(16);
+  }
+  assert.ok(callCount(boss) > 0, 'the last phase never made a call to look at');
+
+  // Where each mark stands: in the sheet's own pixels, which is what the veil was cut against.
+  const stand = sun.r + callStand(boss);
+  const middle = (callCount(boss) - 1) / 2;
+  const marks = [];
+  for (let i = 0; i < callCount(boss); i++) {
+    const bearing = callAngle(boss) + (i - middle) * callStep(boss);
+    marks.push(sheet(sun.x + Math.cos(bearing) * stand, sun.y + Math.sin(bearing) * stand));
+  }
+
+  const lit = holes();
+  for (const mark of marks) {
+    const hole = holesAt(lit, mark, LIGHT.mark);
+    assert.equal(hole.length, 1, 'a mark was left in the dark: ' + JSON.stringify(mark));
+    assert.ok(Math.abs(hole[0].r - LIGHT.mark) < 1,
+      'the mark was cut ' + hole[0].r + ' px wide and the row says ' + LIGHT.mark);
+    assert.equal(hole[0].mode, 'destination-out', 'a mark was cut with the wrong composite');
+    // Full weight, unlike the door: the night over a mark is *gone* and not merely thinner, because a
+    // mark is where a body is about to arrive and not a lit place to stand. The ship's own light is
+    // no help here - the sun is dragging the ship under it, so half the marks are on the far side of
+    // a body that is 28% see-through at this level (the argument BALANCE.bosses.dark.light.mark).
+    assert.ok(hole[0].strength > 0.999,
+      'the night was left ' + (1 - hole[0].strength).toFixed(2) + ' of itself over a mark');
+  }
+
+  // And they go out with the promise. A mark that kept shining after its body had arrived would be a
+  // lit place in the dark for an ask that is already on its way to the ship.
+  guard = 0;
+  while (callCount(boss) > 0 && guard++ < 3000) {
+    answering();
+    step(16);
+  }
+  step(16);
+  const after = holes();
+  for (const mark of marks) {
+    assert.equal(holesAt(after, mark, LIGHT.mark).length, 0,
+      'a mark went on shining after it had been paid');
+  }
 });

@@ -24,8 +24,8 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { TAU } from '../src/core/math.js';
 import {
-  armedCount, bossFlare, bossName, bossPhase, bossRiding, bossShape, gapAngle, gapEnd, gapHalf,
-  gapProgress, gapStart,
+  armedCount, bossFlare, bossName, bossPhase, bossRiding, bossShape, callAngle, callCount,
+  callStand, callStep, gapAngle, gapEnd, gapHalf, gapProgress, gapStart, windupProgress,
 } from '../src/game/bosses.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { scriptedRun, stepTheWorld, bossOnTheField } from '../tools/headless/scripted.js';
@@ -475,16 +475,26 @@ test('the door is standing still again before the wall is thrown', () => {
   catchItArming(boss);
   const seen = watchTheWalk(boss);
 
-  // The last `gapSettle` seconds of the wind-up, measured off the progress the promise reports:
-  // not one of those steps moves the door a pixel. This is the whole of the difference between a
-  // moving gap and a moving promise - the wall that arrives has not moved an inch.
-  const since = 1 - SHELL.gapSettle / SHELL.windup;
-  const rest = seen.filter((s) => s.p > since);
-  assert.ok(rest.length > 8, 'the rest was ' + rest.length + ' steps long, which is not a rest');
-  for (const s of rest) {
+  // Not one step of the last `gapSettle` seconds of the stop moves the door a pixel. This is the
+  // whole of the difference between a moving gap and a moving promise - the wall that arrives has
+  // not moved an inch. It is measured in seconds off the steps themselves and not as a share of the
+  // row's own wind-up, because the stop it is held for is the pair's and is longer than this row
+  // asked for (game/bosses.js `takeBeat`): a door that rests *longer* than it promised has kept its
+  // promise, and a rest read as a share would call that a lie.
+  let moved = 0;
+  for (let i = 1; i < seen.length; i++) if (seen[i].at !== seen[i - 1].at) moved = i;
+  const rest = seen.length - moved;
+  assert.ok(rest > 8, 'the rest was ' + rest + ' steps long, which is not a rest');
+  assert.ok(rest * STEP > SHELL.gapSettle - STEP,
+    'the door stood still for ' + (rest * STEP).toFixed(2) + ' s and the row promises '
+    + SHELL.gapSettle);
+  for (const s of seen.slice(moved)) {
     assert.equal(s.at, seen[seen.length - 1].at, 'the door was still creeping');
   }
-  assert.ok(rest.length * STEP < SHELL.gapSettle + STEP, 'the progress it reports lies');
+  for (let i = 1; i < seen.length; i++) {
+    assert.ok(seen[i].p >= seen[i - 1].p, 'the progress it reports went backwards');
+  }
+  assert.ok(seen[seen.length - 1].p > 0.9, 'the promise ended before it had run its own length');
 });
 
 test('the hole that arrives is the hole it walked to, edge for edge', () => {
@@ -496,7 +506,8 @@ test('the hole that arrives is the hole it walked to, edge for edge', () => {
   const walked = gapEnd(boss);
   const half = gapHalf(boss);
 
-  steps(SHELL.windup + STEP * 2);
+  assert.ok(until(() => armedCount(boss) === 0, SHELL.windup + 1), 'it never threw the shell');
+  steps(STEP * 2);
   assert.equal(armedCount(boss), 0, 'it is still arming after it threw');
   assert.equal(gapAngle(boss), walked, 'it fired with the door short of its place of rest');
 
@@ -527,7 +538,9 @@ test('every other shell walks the other way', () => {
   for (let shell = 0; shell < 4; shell++) {
     catchItArming(boss);
     walks.push(gapEnd(boss) - gapStart(boss));
-    steps(SHELL.windup + STEP * 2);
+    // Until this shell has actually gone: the stop it is shown for is the pair's, and a loop that
+    // steps a fixed slice of it can catch the same shell twice and call that a rhythm.
+    assert.ok(until(() => armedCount(boss) === 0, SHELL.windup + 1), 'it never threw the shell');
   }
   for (let i = 0; i < walks.length; i++) {
     assert.ok(Math.abs(Math.abs(walks[i]) - SHELL.gapWalk) < 1e-12,
@@ -582,7 +595,13 @@ function hullTakenByOneShell(seed) {
     ship.hull = 5;
 
     const wall = (ECLIPSE.approach.far - ECLIPSE.radius) / SHELL.shot.speed;
-    const total = Math.ceil((SHELL.windup + wall) / STEP) + 4;
+    // Wait for this shell to have actually been thrown before the window opens. The stop it is
+    // promised for is the pair's and so is longer than this row's own wind-up, and a window timed off
+    // the row would shut before the wall had left the rim - and the window is the wall's own flight and
+    // nothing else, which is the whole point of the measurement.
+    let guard = 0;
+    while (armedCount(boss) > 0 && guard++ < 2000) realStep();
+    const total = Math.ceil(wall / STEP) + 4;
     let hull = ship.hull;
     let lost = 0;
     for (let i = 0; i < total; i++) {
@@ -593,3 +612,158 @@ function hullTakenByOneShell(seed) {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// The summons: the third beat, carried by the shell (game/bosses.js `with`)
+// ---------------------------------------------------------------------------
+
+const CALL = ECLIPSE.phases[2].call;
+
+/** Whatever the sun has sent that is still in the room. */
+function calledOn(field) {
+  return field.enemies.filter((e) => e.type === CALL.type);
+}
+
+/** The bearings of the marks it is showing, in the order they are lit. */
+function markBearings(boss) {
+  const out = [];
+  const middle = (callCount(boss) - 1) / 2;
+  for (let i = 0; i < callCount(boss); i++) out.push(callAngle(boss) + (i - middle) * callStep(boss));
+  return out;
+}
+
+test('the summons belong to the last phase, and the shell carries them', () => {
+  assert.equal(ECLIPSE.phases[0].call, undefined, 'the first shell already had bodies');
+  assert.equal(ECLIPSE.phases[1].call, undefined, 'the second shell already had bodies');
+  assert.equal(ECLIPSE.phases[2].bullets.with, 'call', 'the shell is not carrying its summons');
+  assert.equal(ECLIPSE.phases[2].sweep.with, undefined, 'the fan is carrying something as well');
+
+  const field = scriptedRun(320);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+
+  // One halt, two promises: the door and the marks are lit together, and the stop is held for the
+  // longer of the two wind-ups so neither ask is cut short by the company it keeps.
+  assert.equal(callCount(boss), CALL.count, 'the halt that lit its door lit no marks');
+  assert.ok(windupProgress(boss) < 0.1, 'it was already partway through the stop it had not started');
+  assert.ok(CALL.windup > SHELL.windup, 'the call is not the longer ask, so this pair proves nothing');
+
+  const before = { rings: boss.rings, calls: boss.calls };
+  const limit = Math.ceil(Math.max(SHELL.windup, CALL.windup) / STEP) + 4;
+  let wall = -1;
+  for (let i = 0; i < limit; i++) {
+    realStep();
+    if (wall < 0 && boss.rings > before.rings) wall = i;
+    if (boss.calls > before.calls) {
+      assert.equal(wall, i, 'the wall and its bodies arrived on different steps');
+      break;
+    }
+  }
+  assert.ok(wall >= 0, 'the pair never landed');
+  assert.equal(calledOn(field).length, CALL.count, 'the wall arrived without its bodies');
+  assert.equal(armedCount(boss), 0, 'it is still promising a door after it threw');
+  assert.equal(callCount(boss), 0, 'it is still showing marks after it sent');
+});
+
+test('the marks it lights are the bodies that arrive on them', () => {
+  const field = scriptedRun(321);
+  const boss = eclipseOnTheField();
+  const body = boss.enemy;
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+
+  assert.equal(callStep(boss), CALL.step);
+  assert.equal(callStand(boss), CALL.gap);
+  assert.ok(CALL.windup >= BALANCE.bosses.telegraphMin,
+    'the marks are lit for less than any boss may show a thing');
+  assert.ok(((CALL.count - 1) / 2) * CALL.step < Math.PI / 2,
+    'the fan of marks wraps round onto the ship');
+
+  // A mark is a place a ship can be asked to leave, which means it has to be a place a ship can
+  // stand off: outside the rim that hurts on contact, and outside the distance the drag lets go of
+  // the ship at, so that walking away from one is the engines' business and not luck (game/balance.js).
+  const stand = body.r + CALL.gap;
+  assert.ok(stand > body.r + field.player.r, 'a body is born on top of the ship that touches the sun');
+  assert.ok(stand > ECLIPSE.phases[2].pull.floor,
+    'a mark stands inside the drag floor, where a ship arrives by falling: ' + stand);
+
+  const shown = markBearings(boss);
+  const crowd = field.enemies.length;
+  const sent = boss.summons;
+  assert.ok(until(() => boss.summons > sent, CALL.windup + 1), 'the call never landed');
+  assert.equal(boss.summons - sent, CALL.count, 'it sent a different number of bodies than it lit');
+  assert.equal(field.enemies.length, crowd + CALL.count);
+
+  for (const one of field.enemies.slice(crowd)) {
+    const angle = Math.atan2(one.y - body.y, one.x - body.x);
+    assert.ok(shown.some((a) => Math.abs(off(angle, a)) < 1e-9),
+      'a body came out of a bearing that was never lit');
+    assert.ok(Math.hypot(one.x - body.x, one.y - body.y) >= stand - 1e-6,
+      'a body was born inside the rim it was shown outside of');
+  }
+});
+
+test('the sun does not send a second pack over one that is still hunting', () => {
+  const field = scriptedRun(322);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  const sent = boss.summons;
+  assert.ok(until(() => boss.summons > sent, CALL.windup + 1), 'the call never landed');
+
+  // Two minutes of the phase, watched a step at a time. Nothing in this room shoots, so the first
+  // pack is still going, and a second one dropped on top of it would be the fight filling its own
+  // cage with its own summons instead of fighting (game/bosses.js `takeBeat`).
+  const rings = boss.rings;
+  let emptied = -1;
+  let second = -1;
+  const minutes = Math.round(120 / STEP);
+  for (let i = 0; i < minutes; i++) {
+    stepTheWorld();
+    if (emptied < 0 && calledOn(field).length === 0) emptied = i;
+    if (second < 0 && boss.summons > sent + CALL.count) second = i;
+  }
+  if (emptied < 0) {
+    assert.equal(second, -1, 'it called again with every body it had sent still hunting');
+  } else {
+    assert.ok(second === -1 || second > emptied, 'it called again over a call that was still standing');
+  }
+  assert.ok(boss.rings > rings + 3 && boss.sweeps > 1, 'it stopped fighting while it waited');
+});
+
+test('what the sun called goes down with the sun', () => {
+  const field = scriptedRun(323);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  const sent = boss.summons;
+  assert.ok(until(() => boss.summons > sent, CALL.windup + 1), 'the call never landed');
+  assert.ok(calledOn(field).length > 0, 'nothing was called');
+
+  fell(field, boss);
+  steps(0.4);
+  assert.equal(field.boss, null, 'the sun is still standing');
+  assert.equal(calledOn(field).length, 0, 'a body the fight sent outlived the fight that sent it');
+});
+
+test('a call it never made is a call the run never sees', () => {
+  // A promise broken in the run's favour, exactly like the half-armed wall it shares a stop with.
+  const field = scriptedRun(324);
+  const boss = eclipseOnTheField();
+  standBesideTheSun(field, boss, ECLIPSE.approach.far - 20);
+  toPhaseThree(boss);
+  catchItArming(boss);
+  assert.equal(boss.summons, 0, 'the bodies arrived before the marks were lit');
+  assert.equal(calledOn(field).length, 0);
+
+  fell(field, boss);
+  steps(0.4);
+  assert.equal(field.boss, null);
+  assert.equal(boss.summons, 0, 'it sent the call it was still lighting');
+  assert.equal(calledOn(field).length, 0, 'the bodies it was about to send came anyway');
+});

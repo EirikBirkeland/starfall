@@ -1102,3 +1102,35 @@ test('a flare puts down both halves of a stop it never let land', () => {
   }
   assert.equal(WARDEN.phases[1].bullets.with, undefined, 'the test left its patch on the table');
 });
+
+// ---------------------------------------------------------------------------
+// The call is a turn of the rotation, not a jump of it
+// ---------------------------------------------------------------------------
+
+test('a run that answers every pack does not turn the ring into a summoner', () => {
+  // The rule the rotation is there for, and the shape the game shipped without. A call used to jump
+  // the queue whenever the room happened to be clear, so a strong run that killed each pack inside
+  // one ride got a fight that did nothing *else*: measured over a minute of this phase with every
+  // pack gone the step it landed, the queue-jumping rule spent seventeen stops of seventeen on
+  // calls and never lit its door once. On the rotation (game/bosses.js `alternateBeats`) a call is
+  // one turn of the fight and the wall keeps coming round.
+  const field = scriptedRun(99);
+  const boss = phaseThree(field);
+  const order = [];
+  let calls = boss.calls;
+  let walls = boss.rings;
+
+  for (let i = 0; i < Math.round(60 / STEP); i++) {
+    stepTheWorld();
+    if (boss.calls > calls) { order.push('C'); calls = boss.calls; }
+    if (boss.rings > walls) { order.push('R'); walls = boss.rings; }
+    for (const dart of dartsOn(field)) damageEnemy(field, dart, 999, false);
+  }
+
+  const made = order.filter((c) => c === 'C').length;
+  const thrown = order.filter((c) => c === 'R').length;
+  assert.ok(made >= 3, 'it made ' + made + ' calls in a minute: ' + order.join(''));
+  assert.ok(thrown >= 3, 'it threw its wall ' + thrown + ' times in a minute: ' + order.join(''));
+  assert.equal(order.includes('CC'), false,
+    'two calls came from two stops in a row: ' + order.join(''));
+});

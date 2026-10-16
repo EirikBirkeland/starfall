@@ -178,12 +178,14 @@ const BEATS = {
  *
  * The row key is the only name a phase's beats have (`spokes`, `bullets`, `sweep`, `call`,
  * `spawn`), so it is the word a pairing is written in as well: a beat carries the row key of the
- * beat it carries, and never a second spelling kept beside it. Only the first three are ever
- * *taken* out of the rotation - a call waits on its own rule and an opening is a mass's whole
- * rhythm - but any of them can be carried, though only a row can carry one (see `carriedBeat`).
+ * beat it carries, and never a second spelling kept beside it. Any of them can be carried, though
+ * only a row can carry one (see `carriedBeat`), and a carried row is not a turn of the rotation.
+ *
+ * `spawn` is the one row that is never a turn of a rotation: an opening is a mass's whole rhythm
+ * (`takeMassBeat`), not one beat among others. Every other row a phase writes is a turn of it.
  */
 const BEAT_ROWS = ['spokes', 'bullets', 'sweep', 'call', 'spawn'];
-const BEAT_ROWS_TAKEN = ['spokes', 'bullets', 'sweep'];
+const BEAT_ROWS_ROTATION = ['spokes', 'bullets', 'sweep', 'call'];
 const BEAT_OF_ROW = { spokes: LOCKING, bullets: RINGING, sweep: ARMING, call: CALLING, spawn: OPENING };
 const ROW_OF_BEAT = {};
 for (const key of BEAT_ROWS) ROW_OF_BEAT[BEAT_OF_ROW[key]] = key;
@@ -744,9 +746,15 @@ function stepBeat(world, boss, dt) {
  * never cut short by the company it keeps, so a ship that is reading one of the two is never
  * cheated out of the seconds the other one asked for, and everything the frame shows during the
  * stop is a place that hurts when it ends.
+ *
+ * One carried beat can still be refused, and it is the call: a fight does not send a second pack
+ * over one that is still hunting (game/bosses.js `alternateBeats`), and a pair is no exception to
+ * its own rule - a stop whose call finds the room occupied simply asks the one question it was
+ * always asking, and the bodies come when the room has room for them.
  */
 function takeBeat(world, boss, phase, beat) {
-  const carried = carriedBeat(phase, beat);
+  let carried = carriedBeat(phase, beat);
+  if (carried === CALLING && liveCall(boss) > 0) carried = null;
   let clock = startBeat(world, boss, phase, beat);
   if (carried !== null) clock = Math.max(clock, startBeat(world, boss, phase, carried));
 
@@ -823,27 +831,30 @@ function putThePromiseDown(boss) {
  * A phase with a `bullets` row alternates - spokes, ring, spokes, ring - which is what keeps one
  * rhythm under a fight that has two things in it; a phase with one beat always gets that beat.
  *
- * A phase with a `call` row makes its call whenever nothing is left of the last one, and takes
- * its ordinary turn otherwise: a second pack sent over one that is still hunting the ship would
- * be the ring ignoring its own room, and a beat spent on nothing at all would be a hole in the
- * rhythm the ship has learned. So the call is what happens when the run has answered it, which
- * is a rule a player can read off the crowd rather than off a clock.
+ * The call is one turn of that rotation and it keeps one rule of its own: it is not made while the
+ * last one is still standing, because a second pack thrown over a pack that is still hunting the
+ * ship is not a boss being clever, it is a boss ignoring its own room. When the rotation comes
+ * round to a call and the room is still occupied, the call gives its stop to the beat behind it and
+ * waits for the next time round - so the rotation never has a hole in it, the fight keeps fighting,
+ * and a call is a beat a player can read off the crowd rather than off a clock.
  */
 function alternateBeats(boss, phase) {
-  if (phase.call !== undefined && liveCall(boss) === 0) return CALLING;
   const beats = beatsOf(phase);
   // A beat a phase does not have is never taken. "It alternates" is a rule about the beats there
   // are to alternate, and taking one the row never wrote would be a rest with a telegraph on it:
   // the Warden's phases all have spokes so it never had to be said out loud, and the Eclipse - a
   // shell and nothing else - is what said it.
-  const at = beats.indexOf(boss.nextBeat);
-  const beat = at < 0 ? beats[0] : beats[at];
+  let at = beats.indexOf(boss.nextBeat);
+  if (at < 0) at = 0;
+  if (beats[at] === CALLING && liveCall(boss) > 0) at = (at + 1) % beats.length;
+
+  const beat = beats[at];
   boss.nextBeat = beats[(at + 1) % beats.length];
   return beat;
 }
 
 /**
- * Which beats a phase has, in the order it takes them: the spokes, the shell, the blades.
+ * Which beats a phase has, in the order it takes them: the spokes, the shell, the blades, the call.
  *
  * Derived from the row and never written beside it, for the reason every other row in this table is
  * read and not copied: a phase's beats *are* the rows it wrote, and a list kept next to them would
@@ -856,7 +867,7 @@ function alternateBeats(boss, phase) {
  */
 function beatsOf(phase) {
   const beats = [];
-  for (const key of BEAT_ROWS_TAKEN) {
+  for (const key of BEAT_ROWS_ROTATION) {
     if (phase[key] === undefined || foldsRow(phase, key)) continue;
     beats.push(BEAT_OF_ROW[key]);
   }
@@ -977,10 +988,17 @@ function holdTheShip(world, boss, dt) {
  * not. A phase with a `spawn` row is a mass, and a mass has one beat - and so has a phase with a
  * `split` row, which is a mass that has just grown more of itself; a Warden phase leads on
  * the ring of shots if it grew one and on the spokes otherwise.
+ *
+ * Where a phase grew more than one new thing the louder of them leads and the rest wait for the
+ * rotation to come round: the sun's last phase grew a fan of blades and a call of bodies, and it is
+ * the fan across the room that its flare has to be announcing (game/balance.js `eclipse`). A phase
+ * whose only news is a call opens on the call, which is what the Warden's third phase did before the
+ * call was a turn of the rotation and still does - test/warden.test.mjs keeps that.
  */
 function leadBeat(phase) {
   if (phase.spawn !== undefined || phase.split !== undefined) return OPENING;
   if (phase.sweep !== undefined) return ARMING;
+  if (phase.call !== undefined) return CALLING;
   return phase.bullets === undefined ? LOCKING : RINGING;
 }
 
@@ -2207,6 +2225,18 @@ export function callStep(boss) {
 /** How far outside the hoop the bodies will stand, in px - or 0 while no call is being made. */
 export function callStand(boss) {
   return showing(boss, CALLING) ? phaseOf(boss).call.gap : 0;
+}
+
+/**
+ * The kind this fight calls, or null for a phase that calls nothing.
+ *
+ * A test that wants to clear a room of what a fight sent asks this rather than reading the schedule
+ * row: the row is what is planned, this is the fact about the bodies on the field. Nothing in the
+ * game needs it - what a call is doing is `callCount` and what it sent is `boss.called`.
+ */
+export function callKind(boss) {
+  const row = phaseOf(boss).call;
+  return row !== undefined && row.type !== undefined ? row.type : null;
 }
 
 /**

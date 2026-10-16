@@ -1578,10 +1578,18 @@ export const BALANCE = {
     //           quite 1 because a blade wants to stay a *place* in the night rather than a hole in
     //           it - but it has to be high, because a promise the dark has eaten is no promise and
     //           `telegraphMin` does not care how dark the room is.
+    //   mark    how far a mark of a call shines, in px of arena. The last phase of the sun is the
+    //           only place in the game with both a night and a summons, and a mark stands on the far
+    //           side of the body that is dragging the ship into it - the one place in the room the
+    //           ship's own light is never going to arrive at in time. It is a radius and not a share
+    //           because a mark is a place and not a shape the frame already draws. 34 px is twice
+    //           what a body and a ship measure together (the darter's 11 px and the ship's 6 px of
+    //           hit radius), which covers the mark, the body that arrives on it, and enough of the
+    //           glass round it to see it coming from a bearing the veil has eaten.
     dark: {
       rise: 0.45,
       fall: 0.8,
-      light: { ship: 300, shot: 86, bullet: 58, body: 2.4, door: 0.82, blade: 0.86 },
+      light: { ship: 300, shot: 86, bullet: 58, body: 2.4, door: 0.82, blade: 0.86, mark: 34 },
     },
 
     // The sounds of the fight itself, whoever the boss is: the siren that opens the
@@ -2247,12 +2255,14 @@ export const BALANCE = {
           // where the wall is while both of those are true is the end of the game.
           //
           // This is the only phase of the only boss with two beats to alternate (game/bosses.js
-          // `beatsOf`): a shell, then a sweep, then a shell, on the one ride the rhythm keeps. It is
-          // why the ride is the longest of the three phases' even though everything in it is priced
-          // the hardest - a ship needs the standing room to spend between a door it has to stand in
-          // and a fan it has to leave, and the drag is what makes spending it cost something.
+          // `beatsOf`): a shell, then a sweep, then a shell, on the one ride the rhythm keeps - and
+          // the shell carries a call of bodies with it, so the alternation is a pulse of a big stop
+          // and a small one rather than three things trading turns. It is why the ride is the longest
+          // of the three phases' even though everything in it is priced the hardest - a ship needs
+          // the standing room to spend between a door it has to stand in and a fan it has to leave,
+          // and the drag is what makes spending it cost something.
           tint: PALETTE.pink,
-          turn: 0.66, wait: 1.85,
+          turn: 0.66, wait: 2.0,
           pull: { force: 230, floor: 92 },
           dark: { level: 0.86 },
           // PLAN's moving gap, and the last new thing the game asks of you. The door is opened on
@@ -2277,9 +2287,15 @@ export const BALANCE = {
           // It alternates: every other shell walks the other way (game/bosses.js `walkOf`),
           // which is a rhythm and not a roll, and only this phase has it. The two phases before are
           // the plain held door, so the fight teaches its own ending.
+          //
+          // And it carries the call (`with`, game/bosses.js `takeBeat`): the stop that throws the
+          // wall also lights the three marks, is held for the longer of the two wind-ups (0.95 s of
+          // the call's against the shell's own 0.72 - the door is therefore shown for *longer* than
+          // it was, which is the one kindness in this row), and lands both halves on one step. The
+          // note on the call row below is why the pairing went here and not on to the fan, and what
+          // `tools/boss-pressure.js` says it cost: `wait` 1.85 -> 2.0 s is the price of it.
           bullets: {
-            count: 30, gap: 0.5, windup: 0.72,
-            gapWalk: 1.2, gapSettle: 0.26,
+            count: 30, gap: 0.5, windup: 0.72, gapWalk: 1.2, gapSettle: 0.26, with: 'call',
             shot: { speed: 250, radius: 8, life: 6, caged: true },
             wind: { sound: { freq: 200, dur: 0.62, wave: 'triangle', vol: 0.06, slide: 720 } },
             fire: {
@@ -2302,16 +2318,16 @@ export const BALANCE = {
           // never is. There is always a place the blades never enter; what the fight charges for
           // finding it is the drag.
           //
-          // WHY THIS ONE IS NOT PAIRED WITH THE SHELL. The lever the Warden's last phase spends
-          // (`with`, game/bosses.js `takeBeat`) is out of reach here for a geometric reason worth
-          // writing down before anybody tries it: the door of this phase's shell is 2 x `gap` = 1.0
-          // rad wide and a blade's band is `arc` = 0.9 rad wide, so a door that happens to open
-          // centred on a band has 0.1 rad of standable wedge left in it - some 40 px of arc at the
-          // far edge of the sun's band, and less in close. The fan and the wall are each about as
-          // wide as the other's only way of being answered, so pairing them would not be a harder
-          // question, it would be a question with no room in the answer. What this fight's
-          // densification has to come from is something that does not wall the room - bodies on
-          // marks, say, which is the one beat the sun has never had (NOTES session 148).
+          // WHY THIS ONE IS NOT PAIRED. The lever the Warden's last phase spends (`with`,
+          // game/bosses.js `takeBeat`) is out of reach between *these two* beats for a geometric
+          // reason worth writing down before anybody tries it: the door of this phase's shell is
+          // 2 x `gap` = 1.0 rad wide and a blade's band is `arc` = 0.9 rad wide, so a door that
+          // happens to open centred on a band has 0.1 rad of standable wedge left in it - some 40 px
+          // of arc at the far edge of the sun's band, and less in close. The fan and the wall are
+          // each about as wide as the other's only way of being answered, so pairing them would not
+          // be a harder question, it would be a question with no room in the answer. What this
+          // fight's densification came from instead is a beat that walls nothing - bodies on marks -
+          // and that one is carried by the shell, beside the door (NOTES sessions 148 and 149).
           //
           // `rate` is what the dodge costs, and it is worth writing down what it costs at each of the
           // two places a ship stands. At the near edge of the band the sun holds (320 px) a blade's
@@ -2337,6 +2353,69 @@ export const BALANCE = {
               shake: 10,
               ring: { radius: 64, speed: 760, life: 0.5 },
               sound: { freq: 240, dur: 0.5, wave: 'sawtooth', vol: 0.11, slide: 120 },
+            },
+          },
+          // The third beat, and the one this fight has never had: bodies. Everything the sun throws
+          // has been light - a shell with a door in it, a fan of blades - so it has never once asked
+          // the run to shoot something that is walking at it while it is being asked to stand still.
+          // The ring's summons are what taught the framework how a call is placed (game/bosses.js
+          // `windCall`): `count` marks lit on the rim `gap` px outside a body that hurts you, on the
+          // side turned away from the ship, held exactly as they lit and then walked out of. None of
+          // that needed changing for a sun, which is the whole of why this row is short.
+          //
+          // WHY IT GOES ON THE SHELL AND NOT ON THE FAN. This row is carried (the `with` on the shell
+          // above), and the one pairing this fight cannot have is the shell with the fan - the note
+          // on that row is the geometry of why. Between the two beats the fan *can* be carried with,
+          // the shell is the one the bodies belong to: a call lights its marks on the bearing the ship
+          // is NOT standing on, which is the bearing the wall is thickest on, so a ship that has taken
+          // the door it was shown is facing three bodies walking out through it, and answering them
+          // is shooting and not moving. A fan asks for a place to be and a wall asks to be stood in;
+          // a call asks for something to be shot, which is the one ask here that does not compete with
+          // the other two for the same square px of the room.
+          //
+          // And that is what the ruler makes of a call (`tools/boss-pressure.js`, the phase read at
+          // the game's own promise): 91.4% of the cage standable against the 92.1% it left without
+          // bodies, its worst moment down to 70.3% free from 75.0%, and the bill it hands the ship
+          // 6.60 separate things a second against 5.85. The tight place got tighter and the room
+          // barely moved on average, which is what a beat that walls nothing buys. The marks
+          // themselves claim nothing at all - 0.0% of the cage - because a mark punched full weight
+          // out of the night is a place the fight has let go of, not a place that hurts.
+          //
+          // Name the instrument's blind spot with it, because this row is where it bites: the ruler
+          // parks the ship and nothing in it shoots, so the one pack it sends is never answered and
+          // never follows - `liveCall` says the room is occupied for the rest of the watch, and the
+          // `bodies` column (0.8% to 1.0%) is those three standing there. What a call does to a fight
+          // that answers it is measured in test/warden.test.mjs and test/eclipse.test.mjs; what it
+          // costs the room is what is above. The ride went 1.85 -> 2.0 s to pay for the second
+          // promise the way the Warden's third phase paid for its pair (game/balance.js `warden`).
+          //
+          // `gap` is 40 px and not the ring's 26 because this rim is 58 px and not 60, and because
+          // the drag is what a ship near it is doing. The marks stand at 98 px out and the drag lets
+          // go of the ship at 92 (the phase's own `pull.floor`), which is the whole of the reason for
+          // the number: a mark stood inside that floor would be a place a ship being dragged sunwards
+          // drifts into on its own, and a place you arrive at by falling is not a place you were shown
+          // and then paid for. Outside the floor, standing off a mark is a thing the engines do.
+          //
+          // `type` is the crowd's own darter, for the ring's reason and not only its own: a summon
+          // that was a new kind of body would be a third thing to learn in the phase that has just
+          // grown a fan and a walking door. What is different here is that it arrives in the dark -
+          // this phase keeps the room at 0.86 - and a mark the night has eaten is no promise, so the
+          // marks are punched out of the veil beside the door and the blades (render/darkness.js).
+          // The bodies that come out of them need no light of their own: they walk, and the ship's
+          // own 300 px is sized for exactly that (BALANCE.bosses.dark).
+          call: {
+            type: 'darter', count: 3, step: 0.8, gap: 40, windup: 0.95,
+            wind: { sound: { freq: 260, dur: 0.85, wave: 'square', vol: 0.04, slide: 860 } },
+            fire: {
+              shake: 7,
+              ring: { radius: 58, speed: 700, life: 0.44 },
+              spark: { count: 12, speed: 330, life: 0.3 },
+              impulse: 240,
+              sound: { freq: 560, dur: 0.26, wave: 'square', vol: 0.085, slide: 240 },
+            },
+            dismiss: {
+              spark: { count: 14, speed: 350, life: 0.32, spread: 0.7 },
+              sound: { notes: [349, 233], dur: 0.55, wave: 'triangle', vol: 0.07 },
             },
           },
         },
