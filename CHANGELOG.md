@@ -1,5 +1,37 @@
 # Starfall — changelog
 
+## 1.9.2 — 2026-10-16
+Nine bodies are nine bodies, measured: what a body is drawn as is a shape a ruler can compare now, and the sniper's eye fills three quarters of the circle that hurts you.
+- **The crowd's silhouettes live in one table** (`src/render/shapes.js`), which the renderer draws from and the
+  tools measure. The palette audit used to keep a *word* next to each kind — 'triangle', 'hexagon' — and it
+  treated two words as two bodies. A pentagon and a hexagon are one body to an eye, and a word cannot tell you
+  that; an outline can.
+- **`tools/shape-lab.js` is the ruler**, and it is a report now: `node tools/shape-lab.js` prints how much of its
+  own hurtbox every body's drawing covers, worst first, and `--show drifter` draws one body in text with the two
+  bad states marked — `o` where a shot was stopped in the air beside the body, `+` where a shot that looked like
+  it hit did nothing. It also measures how far one body's edge stands from another's, in world px, with the pair
+  allowed to turn freely against each other; `tools/palette-check.js` reads that number to say which pairs of the
+  crowd are one shape and whether colour or size is left to pay for it. Read this way, the art 1.9.1 shipped with
+  covered 41% to 90% of its own hurtboxes and six of the nine bodies sat under 60%; the crowd now covers 42% to
+  100% and three sit under 60%, and every body that got fatter got fatter for a reason written where the shape is.
+- **Four bodies were redrawn off that ruler**: the weaver wears a quatrefoil instead of the ship's own dart (it
+  was a pink copy of a red spear, two fifths of a step away in colour), the spitter a fat back with a spout, the
+  bomber a six-studded mine and the shielder a wider face. Measured against the art that shipped in 1.9.1, which
+  the same ruler can still read: 12 of the crowd's thirty-six pairs used to be one shape, and now 8 are, and
+  every one of those 8 is paid for by colour or size in coin a colour-blind eye can spend. The bodies that wear
+  the ship's own dart went from two to one.
+- **The sniper's eye is a lens now, and it was made taller and no longer** — same two corners, fuller flanks — so
+  it covers 74% of the circle that hurts you against 53%, and the pupil the frame lights inside it has room to
+  sit in. That is the item's own "try this first", and it is the last cheap one: the drifter (42%), the swarmling
+  (45%) and the darter (56%) are drawn inside their hurtboxes for reasons that are now measured rather than
+  assumed. Bowing the drifter's three faces out to 75% brings its outline within 3.9 px of the shielder's, and
+  violet against magenta is 0.56 of a step and 1.13x of size, so the flat faces are what is telling those two
+  bodies apart; the same story one pair over, between the darter and the weaver at 0.43 of a step.
+- **What each body is held to is pinned one per kind** (`test/crowd-art.test.mjs`) rather than as one floor at the
+  worst body's share, so a body cannot be quietly thinned back to a hairline, and the ruler itself has tests
+  (`test/shape-lab.test.mjs`) against shapes whose answers are known from geometry — a disc, a quarter of a disc,
+  a square's diagonal. 2427 pass.
+
 ## 1.9.1 — 2026-10-15
 The afterimage's upper ranks buy ground now: the trail is laid along the way you actually came, and the fourth and fifth images are paid for by running on.
 - **The dash arms the trail; the ship's own going lays it.** One image is left every 105 px of the way
