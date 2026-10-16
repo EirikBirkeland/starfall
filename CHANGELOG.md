@@ -1,5 +1,26 @@
 # Starfall — changelog
 
+## 1.9.11 — 2026-10-16
+The second boss stopped breeding in pairs, so the swarm's new ring has something to go round.
+- **A beat lets out one flock.** Every mouth a mass lights on a beat used to push out its own two
+  bodies on its own clock, so a late hive left thirty-odd pairs on the arena and the clump's ring and
+  dive line drawn last release had nothing to draw. Now the bodies of one beat fly in one flock - the
+  cells that light are neighbours round the ring, so the hive lets out a clump of four in phase 1 and
+  one of six in phase 2, which bunch, commit and dive as one thing.
+- **Nothing was added and nothing taken away.** Still four bodies a beat, then six, from the same mouths
+  on the same wind-up; they simply arrive together. The pressure ruler says the room is the room: over
+  three seeds the crowd, the things-per-second and the standable share barely move, and on its near
+  watch - 8 s, which is what a run is actually left with - the worst moment of a phase is where it was
+  or looser, because three dive bearings became one.
+- **One buzz, not three.** The flock's warning is one rising cry per beat now, which is what the sound
+  was always written for.
+- **A fragment is still a pair, on purpose.** A piece of the split hive has three cells and one mouth,
+  so two bodies is as big a flock as it can field - and three pieces are already three places to read,
+  so the last phase keeps its nose lights instead of wearing a dozen rings.
+- Suite 2514, up 1: a beat that lit two mouths has to fly one flock, and one flock must never come out
+  of two different pieces. The 10-minute reference run is byte for byte what it was - a wave's swarm
+  never went through the hive's code at all.
+
 ## 1.9.10 — 2026-10-16
 A pack of the swarm is one thing made of many bodies, and now the glass says so once instead of fifteen times.
 - **The clump gets a fuse.** When a flock bunches up to dive, a ring now stands round the whole clump -

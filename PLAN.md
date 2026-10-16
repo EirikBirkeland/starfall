@@ -2649,5 +2649,5 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       written. `isClump` moved out of the painter into `game/flock.js`, next to the pack it is a fact
       about, so the eye and the fight answer one question off `pack.min` - four bodies, which is now not
       a coincidence but where a whole hive's beat sits. The reference run is byte for byte what it was
-      (a wave's swarm never passes through `broodFrom`) and the suite is 2514, two up: a beat that lit
+      (a wave's swarm never passes through `broodFrom`) and the suite is 2514, one up: a beat that lit
       two mouths has to fly one flock, and one flock must never come out of two different pieces.
