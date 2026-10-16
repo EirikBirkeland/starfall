@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.5",
+    "date": "2026-10-16",
+    "released": "2026-10-16T04:42:56.312Z",
+    "summary": "The sniper's eye fills four fifths of the circle that hurts you and sits a step deeper in its red: the crowd's three reds stop being one colour",
+    "added": 110,
+    "removed": 36,
+    "logBytes": 46503416
+  },
+  {
     "version": "1.9.4",
     "date": "2026-10-16",
     "released": "2026-10-16T04:09:08.798Z",
