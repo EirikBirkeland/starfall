@@ -16293,3 +16293,114 @@ touched, every added line ASCII and under 102 columns, and the whole nine-row lo
 4. Unchanged from 139-146: the XP curve is a decision to take on purpose with the hangar re-priced after
    it; the browser half of the performance pass is the owner's; and `tools/power-ladder.js` has not been
    re-read since the deck grew the afterimage.
+
+## Session 148 — a beat can carry one: the Warden's last phase now walls the room twice at once. Shipped 1.9.8
+
+### What was on the shelf
+The same item again - 139, 143, 144, 145, 146, 147 left it, and 147 finally built the ruler
+(`tools/boss-pressure.js`) so that it could be argued with instead of repeated. The reading 147 took
+was: at the game's own promise (`bosses.telegraphMin`, 0.6 s) the last phase leaves 95.4% of the cage
+standable under the Warden, 96.6% under the Hive, 92.1% under the sun, and *no* phase of *any* fight
+ever had the ship cornered; three seconds out the Warden falls to 86.8% and the sun to 81.0%, and the
+Hive does not move at all. PLAN's own note beside the item named the lever as "how many things a beat
+gives you to be out of at once", and suggested a ring that comes with a spoke lock.
+
+### The mechanism: a beat that carries one (`with`, in `game/bosses.js`)
+The first thing I tried was the number, and it was wrong in a way worth writing down. Slapping
+`with: 'spokes'` on phase 3's `bullets` row did make the halt carry both - but the framework then
+*also* took `spokes` on its own turn through the rotation, so the phase threw four spokes every ride
+**and** eight more out of the ring stop: the fan doubled and the fight went silly. A carried beat is
+therefore not available to the rotation: `foldsRow` asks "does any row of this phase carry you?" and
+`takeBeat` refuses one that does, and `carriedBeatsOf` (exported) walks a phase's whole `with` table -
+it is what both the tool and the tests read the pairing off.
+
+So a pair is: `takeBeat` draws the carrier, and the carried one is hung on the same halt as `pair`
+(`showBeat` for both, one `takeTheBeat` with the longer of the two wind-ups as the clock - the promise
+has to cover both asks, and the shorter one just holds its telegraph longer); `landBeat` fires both
+halves and clears `pair` in one place, so nothing can land half a stop; and `putThePlaceDown` and
+`putThePromiseDown` clear the pair with the halt, so a phase change or a flare mid-stop puts *both*
+halves down and nothing is left standing in the arena with no telegraph behind it. `windupProgress`
+reads the pair's wind-up when there is one, so the arc the renderer draws and the wall the tool counts
+are the same promise. Validation is out loud: a `with` that names a row the phase never wrote, a beat
+carrying itself, and a carried beat carrying one of its own all throw - the quiet version is a boss
+that stops doing one of its attacks and nobody noticing which one. One wart from the row shape: the
+Warden's `spokes` is a bare count with its wind-up and beam beside it, so a lock is something a beat
+can carry and never one that carries (`isRow`), which is written in `carriedBeat`'s comment before
+somebody hunts it.
+
+**Why a pair instead of "both at once"**: the second promise is bought out of the *ride*, so the player
+gets more to be out of per halt without getting less time per halt. A denser beat, not a louder fight
+- and `sent/s` in the ruler is the column that keeps that honest.
+
+### `sent/s`, and the price of it
+The tool now counts things *sent into the room* per second - shots, beams/blades, called bodies, off
+the fight's own counters (`bossShots`, `bossBeams`, `bossBlades`, `bossSummons` are exported for it,
+and `thingsSent(boss)` is the sum). The Warden's last phase went 6.15 -> 11.05 things a second, which
+is the whole argument for pricing a pair. A ride long enough to pay that off in full is about 4.2 s
+(`sent/s` back to 6.80), and asking the ruler about *that* one is the finding: 95.7% standable and
+87.8% biggest piece at the promise, 87.4% with a worst moment of 55.9% three seconds out - which is
+where the phase stood unpaired. A ride that pays for a pairing in full buys the nothing that paying it
+off in full means, so the phase pays what it can: `wait` 1.8 -> 2.4 s, and the reading is 95.4 -> **93.4%** standable at the promise, biggest free piece 87.7 -> **80.8%**, free
+pieces in view 1.9 -> **2.4**; three seconds out, 86.8 -> **79.6%**, worst moment 59.8 -> **51.7%**,
+biggest piece 71.2 -> **63.6%**, pieces 2.8 -> **4.6**. It is the first phase in the game that both
+wants the ship in a place and walls that place off.
+
+The volley's own `shake` went 10 -> 6. Not for the reason I first wrote: the shake on that step is the
+volley's plus the ring's 8 plus **one per beam fired** (`fireBeam` shakes per beam, so eight spokes are
+8 px of it), which at 10 hit the 18 px cap and had some clipped away; at 6 the same stop peaks at 17.7.
+
+### Why the other two fights did not get one
+- **The Eclipse tried it and it went back.** `sweep` carrying `bullets` moved the phase from 92.1% to
+  90.9% at the promise, which is nothing - and the reason is geometric and is now written on the phase:
+  the door is `2 x gap` = **1.0 rad** wide and a blade's band is `arc` = **0.9 rad**, so a door that
+  opens centred on a band has 0.1 rad of standable wedge left, some 40 px of arc at the far edge of the
+  sun's band. The fan and the wall are each about as wide as the other's only answer. Pairing them is
+  not a harder question, it is a question with no room in the answer. What the sun needs is a beat that
+  walls nothing - bodies on marks, which it has never had.
+- **The Hive does not move the ruler at all** (96.6% before and after, at every horizon), because its
+  whole attack is bodies that steer and a steering body cannot be projected. Its pressure is a timing
+  problem for a ship that is moving, not a map of places not to be. Left completely alone.
+
+### What the change made untrue elsewhere
+`test/warden.test.mjs`'s table test asserted every phase's `wait` was shorter than the last one. That
+rule was written when patience *was* the escalation; a phase that buys a second promise with a longer
+ride is not breaking it, it is paying for it. The rule is now conditional - a longer ride has to come
+with a halt that carries - and the honest version is measured: **each phase of the ring sends more than
+the one before it, measured** holds each phase in its own band of the bar for half a minute and compares
+`thingsSent` per second (1.20 / 4.90 / 11.05). `test/bosses.test.mjs` got the pairing walk (every `with`
+in the shipped tables names a row its own phase wrote, and the shipped pair is written down so an
+unpairing has to say so) and the miswrite refusals. New warden tests: both halves on one halt, landing
+on one step, no plain spoke halt left in the phase that carries, phase 2 still alternating (the pair is
+a phase and not a rule), a flare putting both halves down, and - the fairness guard for a pair - that
+some bearing inside the door it opens is off every spoke line by more than a spoke is wide, so a pair
+can never open a door that is all spoke. Both new mechanisms were mutation-checked: take the `with` out
+and six tests fail; make `takeBeat` ignore the carry and seven fail. Suite 2472 -> **2481**.
+
+### The run, and one thing that is not in the tree
+Reference run (seed 20261006, aware bot, 10 min cap): `score 73354 level 57`, was 73982 - 0.8%, same
+trace shape, `hull 3` at the end with the Warden down at 19800 as ever. The bot cannot see any of this:
+it steps off telegraphs, so a denser halt costs it nothing, and a human-facing fight change is not
+visible in a run. That is what the ruler is for and it is now said in the entry below rather than
+learned twice. A `--at 295 --bot human` batch did shuffle a couple of deaths between the crowd and the
+fight on 6 seeds, which is noise at that sample size and I left it there.
+
+**Finding**: PLAN line ~150 and several NOTES entries point at `release-checks/difficulty-baseline.md`
+and at `docs/` (feel.mjs, first-run.md, world-map.mdx) and at `tools/difficulty-baseline.js`. **None of
+those paths exist in this working copy** and `git log --all` has no history for them. The reference
+numbers are therefore recorded only in NOTES and CHANGELOG. I did not re-create the folders; whoever
+wants that record written from a tool again has to decide what belongs in it. I also removed a
+verbatim duplicate of this PLAN item that was sitting as the last line of PLAN.md (session 147 wrote
+the annotated one 25 lines above it and a bare copy got appended).
+
+### Next
+1. The sun wants the beat that walls nothing: `call` on the Eclipse's last phase - marks on the rim,
+   bodies to clear, and the ruler should finally move for that fight. Price it against the fan, not
+   against the shell.
+2. The Hive's last phase is unreadable by this ruler. Either give it one telegraphed non-body beat so
+   the instrument can see it, or write the read for steering bodies (walk a brood's steering over the
+   horizon, which is a real tool and not a small one).
+3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20 seeds); whether the **first two minutes** are too harsh for a new player (needs a human);
+   and reading the tier's `tierBonus.telegraph` into the bosses' own wind-ups, which is the other ask
+   PLAN names and is one line in `bosses.js` - it would change the feel of every fight in a deep run,
+   so it wants its own session and its own ruler reading.

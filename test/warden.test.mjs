@@ -2,7 +2,9 @@
 // around. One attack, escalating over three phases (PLAN 3.4): a ring that rides round, stops
 // dead, shows its spokes, and fires down them - and from phase 2, a second beat between the
 // spokes: a ring of shots with a door in it, thrown down the same grammar of stop-show-fire. And
-// from phase 3, a third: a call of darters sent out of the hoop itself.
+// from phase 3, a third: a call of darters sent out of the hoop itself. In that last phase the
+// first two are thrown *together* - a wall of shots with the spokes down it, one halt answering
+// two questions (`with`, game/balance.js) - which is what the last section of this file measures.
 //
 // The framework - the schedule, the cage, the phases as beats, the going down - is
 // test/bosses.test.mjs. What is proved here is the ring: that it points where it says it
@@ -16,13 +18,14 @@ import { BALANCE } from '../src/game/balance.js';
 import { axisDistance } from '../src/game/beams.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import {
-  armedCount, bossAngle, bossPhase, callAngle, callCount, callProgress, callStand, callStep,
-  gapAngle, gapHalf, gapProgress, isBossBody, spokeAngle, spokeCount, spokeHalf, spokeProgress,
-  spokeStep, windupProgress,
+  armedCount, bossAngle, bossFlare, bossPhase, callAngle, callCount, callProgress, callStand,
+  callStep, carriedBeatsOf, gapAngle, gapHalf, gapProgress, isBossBody, spokeAngle, spokeCount,
+  spokeHalf, spokeProgress, spokeStep, windupProgress,
 } from '../src/game/bosses.js';
 import {
   bossOnTheField, enemyAt, scriptedRun, stepTheWorld,
 } from '../tools/headless/scripted.js';
+import { thingsSent } from '../tools/boss-pressure.js';
 
 const STEP = BALANCE.sim.step;
 const TAU = Math.PI * 2;
@@ -252,7 +255,15 @@ test('every phase is the same attack, and a harder one', () => {
     const now = phases[i];
     assert.ok(now.spokes > was.spokes, 'phase ' + (i + 1) + ' has no more spokes to dodge');
     assert.ok(now.turn > was.turn, 'phase ' + (i + 1) + ' does not ride any faster');
-    assert.ok(now.wait < was.wait, 'phase ' + (i + 1) + ' is no less patient about aiming');
+    // Patience stopped being the escalation on its own the day a phase could buy a second promise
+    // for the same halt out of its ride (game/balance.js `with`, game/bosses.js `takeBeat`): a
+    // longer ride is honest only if that halt carries more, and a phase that merely got slower is
+    // refused. What the phases really send per second is measured further down this file instead of
+    // asserted from a table.
+    if (now.wait > was.wait) {
+      assert.ok(carriedBeatsOf(now).length > 0,
+        'phase ' + (i + 1) + ' is less patient about aiming and asks nothing more at each halt');
+    }
     assert.ok(now.windup > BALANCE.bosses.telegraphMin, 'phase ' + (i + 1) + ' is too quick to read');
     assert.ok(now.windup < was.windup, 'phase ' + (i + 1) + ' gives no more time to read it');
     assert.notEqual(now.tint, was.tint, 'phase ' + (i + 1) + ' is wearing the same colour');
@@ -276,6 +287,40 @@ test('every phase is the same attack, and a harder one', () => {
   // is what the phase-2 flare has to announce, so it does not exist before it.
   assert.equal(phases[0].bullets, undefined, 'phase 1 already has the phase-2 attack');
   assert.ok(phases[1].bullets !== undefined && phases[2].bullets !== undefined);
+});
+
+test('each phase of the ring sends more than the one before it, measured', () => {
+  // The measured half of the test above. Once a halt can carry a second promise and pay for it out
+  // of the ride, the table cannot say on its own which phase is the harder one, so this asks the
+  // fight instead: held in each phase's own band of the bar for half a minute, and counted - shots
+  // thrown, spokes fired, bodies called, per second of the arena (game/bosses.js keeps the tally).
+  scriptedRun(106);
+  const boss = bossOnTheField();
+  const marks = BALANCE.bosses.atHull;
+  const rate = [];
+  for (let phase = 0; phase < WARDEN.phases.length; phase++) {
+    const bottom = marks[phase + 1] === undefined ? 0 : marks[phase + 1];
+    const share = (marks[phase] + bottom) / 2;
+    const hold = () => { boss.enemy.hp = boss.enemy.maxhp * share; };
+    let guard = 0;
+    while ((bossPhase(boss) !== phase + 1 || bossFlare(boss) > 0) && guard++ < 6000) {
+      hold();
+      stepTheWorld();
+    }
+    assert.equal(bossPhase(boss), phase + 1, 'phase ' + (phase + 1) + ' never opened');
+    const at = thingsSent(boss);
+    let t = 0;
+    while (t < 30 - 1e-9) {
+      hold();
+      stepTheWorld();
+      t += STEP;
+    }
+    rate.push((thingsSent(boss) - at) / t);
+  }
+  for (let i = 1; i < rate.length; i++) {
+    assert.ok(rate[i] > rate[i - 1], 'phase ' + (i + 1) + ' sends ' + rate[i].toFixed(2)
+      + ' things a second, and phase ' + i + ' sent ' + rate[i - 1].toFixed(2));
+  }
 });
 
 test('phase 2 is the same fight with six spokes, and phase 3 with eight', () => {
@@ -779,17 +824,32 @@ test('it calls again when the run has answered the last call, and not before', (
   assert.equal(boss.calls, 1);
   assert.equal(dartsOn(field).length, WARDEN.phases[2].call.count);
 
-  // A minute of the fight with three darters still hunting: the room already has what it called,
-  // and a ring that stacked a second pack on them would be filling the cage with its own
-  // summons instead of fighting the ship (game/bosses.js `takeBeat`).
-  steps(60);
-  assert.equal(boss.calls, 1, 'it called again over a call that was still standing');
-  assert.ok(boss.volleys > 1 && boss.rings > 0, 'and stopped fighting while it waited');
+  // A minute of the fight, watched a step at a time: a second pack sent over one that is still
+  // hunting the ship would be the ring filling its own cage with its own summons instead of
+  // fighting (game/bosses.js `alternateBeats`), so the second call is timed off the darters and not
+  // off a clock - and note that the fight's own spokes sweep its own darters away, so "answered" is
+  // not only ever something the run does.
+  let emptied = -1;
+  let second = -1;
+  const minutes = Math.round(60 / STEP);
+  for (let i = 0; i < minutes; i++) {
+    stepTheWorld();
+    if (emptied < 0 && dartsOn(field).length === 0) emptied = i;
+    if (second < 0 && boss.calls > 1) second = i;
+  }
+  if (emptied < 0) {
+    assert.equal(second, -1, 'it called again with every one of its darters still hunting');
+  } else {
+    assert.ok(second === -1 || second > emptied,
+      'it called again over a call that was still standing');
+  }
+  assert.ok(boss.volleys > 1 && boss.rings > 0, 'and it stopped fighting while it waited');
 
-  // Answer it, and it calls again on the next ride.
+  // Answer whatever is left of it, and it calls again on the next ride.
   for (const dart of dartsOn(field)) damageEnemy(field, dart, 999, true);
   assert.equal(dartsOn(field).length, 0);
-  assert.ok(walkUntil(() => boss.calls > 1, 4000), 'the ring went quiet once its darters died');
+  const calls = boss.calls;
+  assert.ok(walkUntil(() => boss.calls > calls, 4000), 'the ring went quiet once its darters died');
   assert.equal(dartsOn(field).length, WARDEN.phases[2].call.count);
 });
 
@@ -896,4 +956,149 @@ test('the call is priced like the phase it belongs to', () => {
   // The fan reaches from the bearing it is centred on by (count-1)/2 steps each way, and it must
   // stay on the far half of the hoop or a body is lit on the near side (test above).
   assert.ok(((spec.count - 1) / 2) * spec.step < Math.PI / 2, 'the fan wraps round onto the ship');
+});
+
+// ---------------------------------------------------------------------------
+// The paired stop: the ring thrown *with* the spokes (phase 3)
+// ---------------------------------------------------------------------------
+
+/** Step until it is standing still with a door lit *and* spokes drawn, and hand back the boss. */
+function catchItPaired(boss) {
+  let guard = 0;
+  while (spokeCount(boss) === 0 || armedCount(boss) === 0) {
+    stepTheWorld();
+    if (++guard > 4000) throw new Error('the ring never threw its ring with its spokes');
+  }
+  return boss;
+}
+
+/** Which promises it is showing right now, as a word: '' when it is riding and showing none. */
+function promises(boss) {
+  return (spokeCount(boss) > 0 ? 'S' : '') + (armedCount(boss) > 0 ? 'R' : '')
+    + (callCount(boss) > 0 ? 'C' : '');
+}
+
+test('phase 3 shows the door and the spokes in one halt, each with its own row on it', () => {
+  const field = scriptedRun(100);
+  const boss = phaseThree(field);
+  const rows = WARDEN.phases[2];
+
+  catchItPaired(boss);
+  assert.equal(spokeCount(boss), rows.spokes, 'the carried volley is not the phase\'s own');
+  assert.equal(spokeHalf(boss), rows.beam.halfWidth, 'the carried spokes are not drawn as wide as they hurt');
+  assert.equal(armedCount(boss), rows.bullets.count, 'the ring is not the phase\'s own');
+  assert.equal(gapHalf(boss), rows.bullets.gap, 'the door is not the phase\'s own');
+
+  // The two halves of the telegraph are drawn from the numbers they are kept to, so the beams and
+  // the shots that arrive are the lines and the wedge the ship was shown, edge for edge - and the
+  // door is still opened on the ship even with a volley going out at the same moment.
+  const angles = spokeAngles(boss);
+  assert.equal(angles.length, rows.spokes);
+  const ship = field.player;
+  const door = gapAngle(boss);
+  const bearing = Math.atan2(ship.y - boss.enemy.y, ship.x - boss.enemy.x);
+  assert.ok(Math.abs(fold(door - bearing)) < 0.02,
+    'the door it is showing is not opened on the ship');
+
+  // And the ask has an answer in it: some bearing inside the door is off every spoke line by more
+  // than a spoke is wide, at a distance a ship is usually standing. A door that was all spoke would
+  // be a halt with nowhere to stand, which is the one thing a pair may not be.
+  const reach = 300;
+  const clearance = Math.asin(spokeHalf(boss) / reach);
+  let room = 0;
+  for (let a = -gapHalf(boss); a <= gapHalf(boss); a += 0.01) {
+    if (angles.every((s) => Math.abs(fold(door + a - s)) > clearance)) room += 0.01;
+  }
+  assert.ok(room > 0.2, 'the door it opens is all spoke: ' + room.toFixed(2) + ' rad of it is standable');
+});
+
+test('the pair is held for the longer wind-up and both halves land on the same step', () => {
+  const field = scriptedRun(101);
+  const boss = phaseThree(field);
+  const rows = WARDEN.phases[2];
+  const shown = Math.max(rows.windup, rows.bullets.windup);
+  assert.ok(shown >= BALANCE.bosses.telegraphMin,
+    'a promise shorter than any boss may show is being carried into a stop');
+
+  catchItPaired(boss);
+  // One clock, so one answer to "how far through it are you" - and the pair is asked of both halves
+  // rather than each being timed by its own row (game/bosses.js `takeBeat`).
+  assert.ok(Math.abs(spokeProgress(boss) - gapProgress(boss)) < 1e-12,
+    'the two halves of one stop are keeping two clocks');
+
+  const volleys = boss.volleys;
+  const rings = boss.rings;
+  steps(shown - 0.05);
+  assert.ok(spokeCount(boss) > 0 && armedCount(boss) > 0,
+    'a half of the pair landed before the longer wind-up was up');
+  assert.equal(boss.volleys, volleys, 'the spokes fired early');
+  assert.equal(boss.rings, rings, 'the ring threw early');
+
+  steps(0.1);
+  assert.equal(boss.volleys, volleys + 1, 'the spokes did not fire with the ring');
+  assert.equal(boss.rings, rings + 1, 'the ring did not throw with the spokes');
+  assert.equal(spokeCount(boss), 0, 'it is still drawing spokes it has fired');
+  assert.equal(armedCount(boss), 0, 'it is still showing a door it has thrown');
+  assert.ok(field.beams.count >= rows.spokes, 'the spokes it drew did not arrive');
+  assert.ok(field.enemyShots.count >= rows.bullets.count, 'the wall it showed did not arrive');
+});
+
+test('the plain spoke halt is gone from the phase that carries one', () => {
+  // A carried beat is not a beat the phase takes on its own (game/bosses.js `beatsOf`): a fight
+  // that has begun asking both questions stops asking the small one beside them, which is the
+  // difference between a denser stop and a louder fight.
+  const field = scriptedRun(102);
+  const boss = phaseThree(field);
+  const seen = new Set();
+  for (let i = 0; i < 6000; i++) {
+    const now = promises(boss);
+    if (now !== '') seen.add(now);
+    stepTheWorld();
+  }
+  assert.ok(seen.has('SR'), 'it never threw a ring with its spokes: ' + [...seen].join(' '));
+  assert.equal(seen.has('S'), false, 'it still halts for spokes on their own');
+  assert.equal(seen.has('R'), false, 'it still halts for a ring on its own');
+  assert.equal(field.boss, boss, 'the fight ended in the middle of the look');
+});
+
+test('a phase that carries nothing still alternates, so the pair is a phase and not a rule', () => {
+  // The control on the test above: phase 2 has the same two rows and no `with`, and there the two
+  // beats do take turns - so what the last phase does is the row's doing and not the framework's.
+  const field = scriptedRun(103);
+  const boss = phaseTwo(field);
+  const seen = new Set();
+  for (let i = 0; i < 4000; i++) {
+    const now = promises(boss);
+    if (now !== '') seen.add(now);
+    stepTheWorld();
+  }
+  assert.ok(seen.has('S') && seen.has('R'), 'phase 2 stopped alternating: ' + [...seen].join(' '));
+  assert.equal(seen.has('SR'), false, 'phase 2 was told to carry a volley and nobody wrote it');
+  assert.equal(field.boss, boss, 'the fight ended in the middle of the look');
+});
+
+test('a flare puts down both halves of a stop it never let land', () => {
+  // The rule every promise here is held to (game/bosses.js `openPhase`), asked of a pair: a stop
+  // the run interrupted is a stop the run keeps, and the second half is not allowed to fire on
+  // the way out. Phase 2 is written to carry for the length of the test and put back after it.
+  const shipped = WARDEN.phases[1].bullets.with;
+  try {
+    WARDEN.phases[1].bullets.with = 'spokes';
+    const field = scriptedRun(104);
+    const boss = phaseTwo(field);
+    catchItPaired(boss);
+    const volleys = boss.volleys;
+    const rings = boss.rings;
+    field.enemyShots.clear();
+
+    boss.enemy.hp = boss.enemy.maxhp * BALANCE.bosses.atHull[2] * 0.99;
+    steps(BALANCE.bosses.phaseBreak.time + STEP);
+    assert.equal(bossPhase(boss), 3, 'the flare did not happen');
+    assert.equal(boss.volleys, volleys, 'the flare fired the spokes it was holding');
+    assert.equal(boss.rings, rings, 'the flare threw the ring it was holding');
+    assert.equal(field.enemyShots.count, 0, 'shots are in the air that the phase left behind');
+  } finally {
+    WARDEN.phases[1].bullets.with = shipped;
+  }
+  assert.equal(WARDEN.phases[1].bullets.with, undefined, 'the test left its patch on the table');
 });

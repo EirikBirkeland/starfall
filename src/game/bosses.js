@@ -50,6 +50,13 @@
 //     every phase is shown for `bosses.telegraphMin` at least, and a boss stands perfectly still
 //     while it is showing one: a promise that moves is not a promise.
 //
+//     A phase may write one beat as *carrying* another (`with` on a beat row, and `takeBeat`), which
+//     is how a fight grows a second thing to be out of without growing a second stop: the halt shows
+//     both promises for the longer of the two wind-ups and keeps both, and the carried beat is never
+//     taken on its own again - a fight that has started showing the big version of an ask stops
+//     showing the small one beside it. One clock, two promises, one ride between the halts, and that
+//     ride is what a pairing is paid out of.
+//
 //     One beat's harm does move - the Eclipse's blades sweep - and it gets round the same rule the
 //     same way every other promise here does: it shows the whole of the way it travels, a fan and
 //     not a line, so what the ship is asked to leave is a place and not a rumour (game/arms.js).
@@ -145,9 +152,12 @@ const RHYTHMS = {
 };
 
 /**
- * The four beats a boss can be holding: `enter` starts the promise and writes down the numbers
+ * The five beats a boss can be holding: `enter` starts the promise and writes down the numbers
  * it is being shown with, `land` is what happens when the promise is kept. Both halves read the
  * same numbers either way, which is the one rule every telegraph in this game is held to.
+ *
+ * A beat may be shown *with* another one (a phase row's `with`, game/balance.js), and then both
+ * halves above run for both of them on one clock: one stop, two promises, one answer to each.
  *
  * `show` is optional, and only one beat has it: a promise that is held for a while is normally held
  * *unchanged*, and a beat that had something to do every step of its wind-up would be a telegraph
@@ -162,6 +172,21 @@ const BEATS = {
   [OPENING]: { enter: lightCells, land: letThemOut },
   [ARMING]: { enter: showArms, land: letArmsLoose },
 };
+
+/**
+ * Which row of a phase feeds which beat.
+ *
+ * The row key is the only name a phase's beats have (`spokes`, `bullets`, `sweep`, `call`,
+ * `spawn`), so it is the word a pairing is written in as well: a beat carries the row key of the
+ * beat it carries, and never a second spelling kept beside it. Only the first three are ever
+ * *taken* out of the rotation - a call waits on its own rule and an opening is a mass's whole
+ * rhythm - but any of them can be carried, though only a row can carry one (see `carriedBeat`).
+ */
+const BEAT_ROWS = ['spokes', 'bullets', 'sweep', 'call', 'spawn'];
+const BEAT_ROWS_TAKEN = ['spokes', 'bullets', 'sweep'];
+const BEAT_OF_ROW = { spokes: LOCKING, bullets: RINGING, sweep: ARMING, call: CALLING, spawn: OPENING };
+const ROW_OF_BEAT = {};
+for (const key of BEAT_ROWS) ROW_OF_BEAT[BEAT_OF_ROW[key]] = key;
 
 /** The row of a boss by id. A name nobody wrote is an error, not a silent no-op. */
 function rowOf(id) {
@@ -180,6 +205,17 @@ function rhythmOf(boss) {
   const rhythm = RHYTHMS[boss.row.rhythm];
   if (rhythm === undefined) throw new Error('no boss rhythm is written: ' + boss.row.rhythm);
   return rhythm;
+}
+
+/**
+ * Is this beat one of the promises the fight is holding right now?
+ *
+ * A stop is the beat the rhythm took and, when that beat carries one, the beat it carries with it
+ * (`takeBeat`), so every question of the shape "is a lock being drawn?" has to be asked of both
+ * halves - a promise that is fired but never drawn is the one thing a telegraph may never be.
+ */
+function showing(boss, beat) {
+  return boss.stage === beat || boss.also === beat;
 }
 
 /**
@@ -231,6 +267,7 @@ function newFight(id, index) {
     split: null,      // a `split` row spent at the end of that flare, or null (`spendSplit`)
     age: 0,           // since it arrived, which is what the frame fades the cage in over
     stage: RIDING,
+    also: null,       // the beat this one is being shown with, or null (`carriedBeat`)
     timer: row.phases[0].wait,
     beat: row.phases[0].wait,
     lockAngle: 0,     // the facing the spokes it is holding were drawn from
@@ -687,7 +724,7 @@ function stepBeat(world, boss, dt) {
 
   if (boss.stage !== RIDING) {
     if (boss.timer > 0) { showThePromise(boss); return; }
-    BEATS[boss.stage].land(world, boss, phase);
+    landBeat(world, boss, phase);
     rideAgain(boss, phase);
     return;
   }
@@ -695,7 +732,40 @@ function stepBeat(world, boss, dt) {
   rhythm.ride(world, boss, phase, dt);
   if (boss.timer > 0) return;
 
-  BEATS[rhythm.take(boss, phase)].enter(world, boss, phase);
+  takeBeat(world, boss, phase, rhythm.take(boss, phase));
+}
+
+/**
+ * Open one stop: the beat the rhythm took, whatever that beat carries, on one clock.
+ *
+ * Each half of a pair is entered the way it enters on its own - same numbers lit, same sound,
+ * same promise written down on the fight - and then the two clocks are read together and the
+ * longer of them is taken for the stop. That is the whole of how a pair is fair: a promise is
+ * never cut short by the company it keeps, so a ship that is reading one of the two is never
+ * cheated out of the seconds the other one asked for, and everything the frame shows during the
+ * stop is a place that hurts when it ends.
+ */
+function takeBeat(world, boss, phase, beat) {
+  const carried = carriedBeat(phase, beat);
+  let clock = startBeat(world, boss, phase, beat);
+  if (carried !== null) clock = Math.max(clock, startBeat(world, boss, phase, carried));
+
+  boss.stage = beat;
+  boss.also = carried;
+  boss.beat = clock;
+  boss.timer = clock;
+}
+
+/** One beat's `enter`, and the length of wind-up it asked to be shown for (`enter` writes both). */
+function startBeat(world, boss, phase, beat) {
+  BEATS[beat].enter(world, boss, phase);
+  return boss.beat;
+}
+
+/** Keep both promises: the beat that was taken, and the one it was carrying, in that order. */
+function landBeat(world, boss, phase) {
+  BEATS[boss.stage].land(world, boss, phase);
+  if (boss.also !== null) BEATS[boss.also].land(world, boss, phase);
 }
 
 /**
@@ -740,6 +810,7 @@ function rideAgain(boss, phase) {
  * one line and leave a fan of blades drawn over a fight that is not promising one.
  */
 function putThePromiseDown(boss) {
+  boss.also = null;
   boss.spokes = 0;
   boss.armed = 0;
   boss.callCount = 0;
@@ -778,14 +849,84 @@ function alternateBeats(boss, phase) {
  * read and not copied: a phase's beats *are* the rows it wrote, and a list kept next to them would
  * be a second answer. A phase that wrote none of them has no business being played, and saying so
  * here - where a beat is about to be taken - is louder than firing a beat made of nothing.
+ *
+ * A row another beat carries is not one of the phase's beats, because it is never taken on its own:
+ * once a fight shows the big version of an ask it stops showing the small one beside it, which is
+ * what makes a pairing a denser beat rather than a louder one (game/balance.js `with`).
  */
 function beatsOf(phase) {
   const beats = [];
-  if (phase.spokes !== undefined) beats.push(LOCKING);
-  if (phase.bullets !== undefined) beats.push(RINGING);
-  if (phase.sweep !== undefined) beats.push(ARMING);
+  for (const key of BEAT_ROWS_TAKEN) {
+    if (phase[key] === undefined || foldsRow(phase, key)) continue;
+    beats.push(BEAT_OF_ROW[key]);
+  }
   if (beats.length === 0) throw new Error('a phase with no beat to take');
   return beats;
+}
+
+/** Is this key of a phase a beat row at all, as opposed to a bare number? */
+function isRow(spec) {
+  return typeof spec === 'object' && spec !== null;
+}
+
+/** Is this row carried inside another beat of the same phase, and so never taken by itself? */
+function foldsRow(phase, key) {
+  for (const row of BEAT_ROWS) {
+    const spec = phase[row];
+    if (isRow(spec) && spec.with === key) return true;
+  }
+  return false;
+}
+
+/**
+ * The beat the given one carries with it into the same stop, or null when it carries nothing.
+ *
+ * `with` is read off the carrying row and names a row key, which is all a row can name: a beat
+ * carries what its own phase wrote and nothing else, so the numbers it lands with are the phase's
+ * and cannot come from a phase the fight has already left. A row that is not there, a beat carrying
+ * itself, a carried beat carrying one of its own: all three are a phase that cannot be played, and
+ * they are said out loud rather than quietly dropped, because the quiet version is a boss that
+ * stops doing one of its attacks and nobody noticing which one.
+ *
+ * Only a row can carry. The Warden's `spokes` is a bare count with its wind-up and its beam written
+ * beside it at the top of the phase, so a lock is something a beat can carry and never one that
+ * carries, which is the row shape's doing and not this file's.
+ */
+function carriedBeat(phase, beat) {
+  const spec = phase[ROW_OF_BEAT[beat]];
+  if (!isRow(spec) || spec.with === undefined) return null;
+
+  const carried = spec.with;
+  if (phase[carried] === undefined) {
+    throw new Error('the ' + ROW_OF_BEAT[beat] + ' beat is written to carry ' + carried
+      + ', which its phase never wrote');
+  }
+  if (carried === ROW_OF_BEAT[beat]) throw new Error('a beat cannot carry itself: ' + carried);
+  if (phase[carried].with !== undefined) {
+    throw new Error('a carried beat cannot carry one of its own: ' + carried);
+  }
+  return BEAT_OF_ROW[carried];
+}
+
+/**
+ * Which rows of a phase beat with which: `[carrier, carried]` for every row that carries one, and
+ * the same validation the fight gets, run over the whole row at once.
+ *
+ * It is exported for the table test (test/bosses.test.mjs), which asks it of every phase of every
+ * boss: a `with` that names a row the phase never wrote is a phase that cannot be played, and a
+ * phase is only ever fought minutes to minutes-and-a-half after whoever wrote the mistake sat down.
+ * Asking it here, where the answer already lives, is what keeps the rule out of a test's own copy
+ * of the rule.
+ */
+export function carriedBeatsOf(phase) {
+  const pairs = [];
+  for (const key of BEAT_ROWS) {
+    const spec = phase[key];
+    if (!isRow(spec) || spec.with === undefined) continue;
+    carriedBeat(phase, BEAT_OF_ROW[key]);
+    pairs.push([key, spec.with]);
+  }
+  return pairs;
 }
 
 /**
@@ -976,9 +1117,17 @@ function walkTheDoor(boss) {
   boss.gapAngle = boss.gapFrom + (boss.gapTo - boss.gapFrom) * p;
 }
 
-/** One step of a promise being held. Most beats have nothing left to show; one has a door to walk. */
+/**
+ * One step of a promise being held. Most beats have nothing left to show; one has a door to walk,
+ * and a pair has to walk the door it is holding while it holds the rest of the stop as well.
+ */
 function showThePromise(boss) {
-  const show = BEATS[boss.stage].show;
+  showBeat(boss, boss.stage);
+  if (boss.also !== null) showBeat(boss, boss.also);
+}
+
+function showBeat(boss, beat) {
+  const show = BEATS[beat].show;
   if (show !== undefined) show(boss);
 }
 
@@ -1890,7 +2039,7 @@ export function bossAngle(boss) {
  * fired from, which is what makes the warning a promise.
  */
 export function spokeCount(boss) {
-  return boss.stage === LOCKING ? boss.spokes : 0;
+  return showing(boss, LOCKING) ? boss.spokes : 0;
 }
 
 export function spokeAngle(boss) {
@@ -1902,7 +2051,7 @@ export function spokeStep(boss) {
 }
 
 export function spokeProgress(boss) {
-  if (boss.stage !== LOCKING) return 0;
+  if (!showing(boss, LOCKING)) return 0;
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
 }
 
@@ -1948,7 +2097,7 @@ export function gapEnd(boss) {
 
 /** How far through the arming it stands, 0 when it is not arming anything. */
 export function gapProgress(boss) {
-  if (boss.stage !== RINGING) return 0;
+  if (!showing(boss, RINGING)) return 0;
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
 }
 
@@ -1963,12 +2112,12 @@ export function gapProgress(boss) {
  * holds still until the fan lets go.
  */
 export function armCount(boss) {
-  return boss.stage === ARMING ? boss.armCount : 0;
+  return showing(boss, ARMING) ? boss.armCount : 0;
 }
 
 /** Radians between two of the blades it is showing, or 0 with no sweep to space out. */
 export function armStep(boss) {
-  return boss.stage === ARMING ? boss.armStep : 0;
+  return showing(boss, ARMING) ? boss.armStep : 0;
 }
 
 /**
@@ -1980,28 +2129,45 @@ export function armStep(boss) {
  * swept is part of it.
  */
 export function armRate(boss) {
-  return boss.stage === ARMING ? phaseOf(boss).sweep.rate : 0;
+  return showing(boss, ARMING) ? phaseOf(boss).sweep.rate : 0;
 }
 
 /** Radians each of those blades will travel, or 0. This is the width of the fan the frame lights. */
 export function armArc(boss) {
-  return boss.stage === ARMING ? boss.armArc : 0;
+  return showing(boss, ARMING) ? boss.armArc : 0;
 }
 
 /** How far out a blade reaches, in px of arena, or 0. */
 export function armReach(boss) {
-  return boss.stage === ARMING ? boss.armReach : 0;
+  return showing(boss, ARMING) ? boss.armReach : 0;
 }
 
 /** How far off a blade's axis the light is drawn and the harm is paid out at - one number. */
 export function armHalf(boss) {
-  return boss.stage === ARMING ? boss.armHalf : 0;
+  return showing(boss, ARMING) ? boss.armHalf : 0;
 }
 
 /** How far through the fan's wind-up it stands, 0 when no fan is being shown. */
 export function armProgress(boss) {
-  if (boss.stage !== ARMING) return 0;
+  if (!showing(boss, ARMING)) return 0;
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
+}
+
+/**
+ * How many shots the fight has thrown (game/bosses.js `throwRing`), and how many spokes it has
+ * fired (`fireSpokes`).
+ *
+ * Both beside `bossSweeps` and `bossSummons` for the same reason: a headless run cannot count a
+ * shot it never saw land, and anything measuring how much a fight puts into the room per second
+ * (`tools/boss-pressure.js`) has to be told. They are the counters the fight keeps for its own
+ * tally, read out and not recalculated, so the number is the fight's and not the tool's.
+ */
+export function bossShots(boss) {
+  return boss.shots;
+}
+
+export function bossBeams(boss) {
+  return boss.beams;
 }
 
 /**
@@ -2025,22 +2191,22 @@ export function bossBlades(boss) {
  * from: the marks on the rim are the places they arrive at, edge for edge.
  */
 export function callCount(boss) {
-  return boss.stage === CALLING ? boss.callCount : 0;
+  return showing(boss, CALLING) ? boss.callCount : 0;
 }
 
 /** The bearing the fan of marks is centred on, or null while no call is being made. */
 export function callAngle(boss) {
-  return boss.stage === CALLING ? boss.callAngle : null;
+  return showing(boss, CALLING) ? boss.callAngle : null;
 }
 
 /** Radians between two marks of the fan, or null with no fan to space out. */
 export function callStep(boss) {
-  return boss.stage === CALLING ? boss.callStep : null;
+  return showing(boss, CALLING) ? boss.callStep : null;
 }
 
 /** How far outside the hoop the bodies will stand, in px - or 0 while no call is being made. */
 export function callStand(boss) {
-  return boss.stage === CALLING ? phaseOf(boss).call.gap : 0;
+  return showing(boss, CALLING) ? phaseOf(boss).call.gap : 0;
 }
 
 /**
@@ -2054,13 +2220,13 @@ export function callStand(boss) {
  * `sendCall` builds, at the hull the run's clock has brought it to.
  */
 export function callBody(boss) {
-  if (boss.stage !== CALLING) return 0;
+  if (!showing(boss, CALLING)) return 0;
   return BALANCE.kinds[phaseOf(boss).call.type].radius;
 }
 
 /** How far through the call's wind-up it stands, 0 when it is not making one. */
 export function callProgress(boss) {
-  if (boss.stage !== CALLING) return 0;
+  if (!showing(boss, CALLING)) return 0;
   return clamp(1 - boss.timer / (boss.beat || 1), 0, 1);
 }
 

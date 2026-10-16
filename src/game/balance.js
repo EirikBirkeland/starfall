@@ -1709,8 +1709,17 @@ export const BALANCE = {
       //
       // A call is made when nothing is left of the last one standing and not otherwise: a second
       // pack thrown over one that is still hunting the ship is not a boss being clever, it is a
-      // boss ignoring its own room (game/bosses.js `takeBeat`). Nothing in it is a roll, so a run
+      // boss ignoring its own room (game/bosses.js `alternateBeats`). Nothing in it is a roll, so a run
       // of one seed calls its darters to the same bearings and to the same side of the ring.
+      //
+      // A beat row may also *carry* one of the phase's other beats into the same stop (`with`, and
+      // game/bosses.js `carriedBeat`). That is how a phase grows a second thing to be out of without
+      // growing a second stop: the fight halts once, draws both promises for the longer of the two
+      // wind-ups, and keeps both. The carried row is then never taken on its own - a fight that has
+      // begun showing the big version of an ask stops showing the small one beside it - so what a
+      // pairing buys is a denser beat and not a louder one, and what it costs is paid out of `wait`,
+      // the ride between stops. The Warden's last phase spends it; the note on that phase's `bullets`
+      // row is what it measured and what it came to.
       phases: [
         {
           spokes: 4, turn: 0.55, wait: 2.5, windup: 0.95, tint: PALETTE.amber,
@@ -1755,10 +1764,15 @@ export const BALANCE = {
           },
         },
         {
-          spokes: 8, turn: 0.95, wait: 1.8, windup: 0.7, tint: PALETTE.red,
+          spokes: 8, turn: 0.95, wait: 2.4, windup: 0.7, tint: PALETTE.red,
           sound: { freq: 330, dur: 0.42, wave: 'sawtooth', vol: 0.034, slide: 720 },
           volley: {
-            shake: 10,
+            // The volley's own shudder, next to the ring's 8 and the eight beams' own 1 each: a
+            // paired stop shakes the frame on what lands all by itself, and at the shipped 10 the
+            // step reached the 18 px cap (`screen.shakeCap`) and had some of it clipped away. At 6
+            // the same stop peaks at 17.7 px, which is the biggest thing a frame does short of the
+            // fight going down and is all of it the eye can take.
+            shake: 6,
             ring: { radius: 34, speed: 780, life: 0.32 },
             sound: { freq: 1600, dur: 0.26, wave: 'square', vol: 0.1, slide: 70 },
           },
@@ -1769,8 +1783,33 @@ export const BALANCE = {
             cut: { count: 4, speed: 250, life: 0.2, spread: 0.5 },
             sound: { freq: 1700, dur: 0.22, wave: 'square', vol: 0.03, slide: 70 },
           },
+          // The last phase's ask, and the one new thing it makes of the two old ones: the ring is
+          // thrown *with* the spokes (`with: 'spokes'`), so the halt that used to say "get into the
+          // door the hoop is showing you" now says "get into the door, and off the eight lines the
+          // hoop is also showing you" - one halt, one answer to both, on the longer of the two
+          // wind-ups (0.72 s) with both promises drawn for every step of it. The plain eight-spoke
+          // volley is gone from this phase: it has one stop, and that stop asks both questions.
+          //
+          // What that bought, measured over the phase by `tools/boss-pressure.js` (before -> after,
+          // at the game's own promise of a horizon): standable 95.4% -> 93.4%, the biggest piece of
+          // free glass 87.7% -> 80.8% of the room, the room cut into 1.9 pieces -> 2.4. Asked three
+          // seconds ahead - the room a ship actually plans into - 86.8% -> 79.6% standable, its worst
+          // moment 59.8% -> 51.7% free and split into 2.8 pieces -> 4.6. That last column is the
+          // finding: neither the volley nor the wall divided this room on its own, and the two of
+          // them together do.
+          //
+          // What it cost, and how much of it the ride pays. `wait` went 1.8 -> 2.4 s: a halt now comes
+          // 0.32 times a second instead of 0.40, and each one asks both questions instead of one. The
+          // raw count of things sent into the room per second - the `sent/s` column, which counts shots
+          // and spokes and not answers - goes 6.15 -> 11.05 all the same, and a ride long enough to pay
+          // that off in full (about 4.2 s, which puts `sent/s` back to 6.80) buys the nothing that
+          // paying it off in full means: at 4.2 s the phase reads 95.7% standable and 87.8% biggest
+          // piece at the promise, 87.4% with a worst moment of 55.9% three seconds out - which is
+          // where it stood unpaired. So the ride pays what it can, a third more standing room between
+          // two questions instead of the same two questions spread back out over the same ground, and
+          // the phase keeps the tempo a first boss's last phase should keep.
           bullets: {
-            count: 26, gap: 0.5, windup: 0.72,
+            count: 26, gap: 0.5, windup: 0.72, with: 'spokes',
             shot: { speed: 215, radius: 7, life: 6, caged: true },
             wind: { sound: { freq: 190, dur: 0.65, wave: 'triangle', vol: 0.055, slide: 700 } },
             fire: {
@@ -2262,6 +2301,17 @@ export const BALANCE = {
           // the sun's 6.28 is being swept at any moment and 3.6 rad of it - more than half the sky -
           // never is. There is always a place the blades never enter; what the fight charges for
           // finding it is the drag.
+          //
+          // WHY THIS ONE IS NOT PAIRED WITH THE SHELL. The lever the Warden's last phase spends
+          // (`with`, game/bosses.js `takeBeat`) is out of reach here for a geometric reason worth
+          // writing down before anybody tries it: the door of this phase's shell is 2 x `gap` = 1.0
+          // rad wide and a blade's band is `arc` = 0.9 rad wide, so a door that happens to open
+          // centred on a band has 0.1 rad of standable wedge left in it - some 40 px of arc at the
+          // far edge of the sun's band, and less in close. The fan and the wall are each about as
+          // wide as the other's only way of being answered, so pairing them would not be a harder
+          // question, it would be a question with no room in the answer. What this fight's
+          // densification has to come from is something that does not wall the room - bodies on
+          // marks, say, which is the one beat the sun has never had (NOTES session 148).
           //
           // `rate` is what the dodge costs, and it is worth writing down what it costs at each of the
           // two places a ship stands. At the near edge of the band the sun holds (320 px) a blade's

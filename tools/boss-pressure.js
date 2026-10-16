@@ -46,6 +46,11 @@
 // side of that wall has to cross the shell to get anywhere: `biggest` is the largest piece as a
 // share of the room and `spots` the number of pieces big enough for a ship to be standing in.
 //
+// And it counts what the fight *sends*: shots, spokes, blades and bodies per second, which is the
+// bill a beat that carries a second promise is supposed to pay out of its own ride (`with`,
+// game/balance.js) instead of adding to it. A denser phase and a louder phase read the same in the
+// standable column and nowhere else, and this is the column that tells them apart.
+//
 // ### What it is not
 //
 // It is not a difficulty rating. A phase that leaves 90% of the room free is a phase you can stand
@@ -79,9 +84,10 @@ import { axisDistance, beamReach } from '../src/game/beams.js';
 import { offTheBlade } from '../src/game/arms.js';
 import { bossOnTheField, scriptedRun, stepTheWorld } from './headless/scripted.js';
 import {
-  armedCount, armArc, armCount, armHalf, armRate, armReach, armStep, beatTimeLeft, bossCores,
-  bossFlare, bossName, bossPhase, bossPhaseCount, callAngle, callBody, callCount, callStand,
-  callStep, gapAngle, gapHalf, shellShot, spokeAngle, spokeCount, spokeHalf, spokeStep,
+  armedCount, armArc, armCount, armHalf, armRate, armReach, armStep, beatTimeLeft, bossBeams,
+  bossBlades, bossCores, bossFlare, bossName, bossPhase, bossPhaseCount, bossShots, bossSummons,
+  callAngle, callBody, callCount, callStand, callStep, gapAngle, gapHalf, shellShot, spokeAngle,
+  spokeCount, spokeHalf, spokeStep,
 } from '../src/game/bosses.js';
 
 /** px on a side of one sample of the room. One cell is one place a ship's centre can be. */
@@ -490,6 +496,18 @@ function intoPhase(boss, index) {
 }
 
 /**
+ * How many separate things the fight has put into the room: shots thrown, spokes fired, blades
+ * loosed, bodies called. One number, because the question it answers is "how many things is a ship
+ * being asked to be out of per second", and that question does not care which of them it is.
+ *
+ * It is the accounting a pairing is held to: a beat that carries a second promise should raise how
+ * many of these a ship has to answer *at once*, and not how many arrive per second.
+ */
+export function thingsSent(boss) {
+  return bossShots(boss) + bossBeams(boss) + bossBlades(boss) + bossSummons(boss);
+}
+
+/**
  * Watch one phase of one fight and report the room it leaves.
  *
  * The fight is held at one hull share so that the phase does not change under the ruler, the ship is
@@ -505,6 +523,7 @@ function watchPhase(boss, room, share, seconds, horizon) {
   for (const claim of CLAIMS) row.byBit[claim.key] = 0;
   let since = 0;
   let t = 0;
+  const sentAtFirst = thingsSent(boss);
   while (t < seconds - 1e-9) {
     park();
     holdHull(boss, share);
@@ -534,6 +553,7 @@ function watchPhase(boss, room, share, seconds, horizon) {
     tight: row.tight / n,
     biggest: row.biggest / n,
     spots: row.spots / n,
+    sent: (thingsSent(boss) - sentAtFirst) / t,
     byBit: Object.fromEntries(Object.entries(row.byBit).map(([k, v]) => [k, v / n])),
   };
 }
@@ -615,14 +635,15 @@ function fightTable(fight) {
   lines.push(fight.name + ' - a room ' + width + ' by ' + height + ' px, '
     + fight.rows.length + ' phases');
   lines.push('');
-  lines.push('  phase  held at   standable    worst    in a corner   biggest piece   spots   '
-    + 'claims: ' + CLAIMS.map((c) => c.key).join(' '));
+  lines.push('  phase  held at   standable    worst    in a corner   biggest piece   spots  '
+    + ' sent/s   claims: ' + CLAIMS.map((c) => c.key).join(' '));
   for (const row of fight.rows) {
     const claims = CLAIMS.map((c) => (row.byBit[c.key] * 100).toFixed(1).padStart(5)).join(' ');
     lines.push('      ' + String(row.phase) + '  ' + pct(row.band).padStart(5) + '   '
       + pct(row.free).padStart(8) + '  ' + pct(row.worst).padStart(7) + '     '
       + pct(row.tight).padStart(6) + '        ' + pct(row.biggest).padStart(6) + '   '
-      + row.spots.toFixed(1).padStart(5) + '     ' + claims
+      + row.spots.toFixed(1).padStart(5) + '   ' + row.sent.toFixed(2).padStart(6) + '     '
+      + claims
       + (row.pull === null ? '' : '   drag ' + row.pull));
   }
   return lines;
@@ -635,8 +656,11 @@ const FOREWORD = [
   'and a shell leaves the door it is holding open standing room. `worst` is the single tightest step',
   'of the watch; `in a corner` is how often the room was down to under 40%; `biggest piece` and',
   '`spots` say how the free room is cut up, because a shell across the room can leave 60% free and',
-  'still put it all on the other side of the wall. `claims` is what took each share of the room -',
-  'a place two things claim is counted under both, so those columns can add to more than 100%.',
+  'still put it all on the other side of the wall. `sent/s` is how many separate things the fight',
+  'puts into the room per second - shots, spokes, blades, bodies - which is the bill a beat that',
+  'carries a second promise pays out of its ride (`with`) and does not add to. `claims` is what',
+  'took each share of the room - a place two things claim is counted under both, so those columns',
+  'can add to more than 100%.',
 ];
 
 const FOOTNOTES = [

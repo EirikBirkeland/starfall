@@ -2541,4 +2541,15 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       are - they are tutorials, and a wide first fight is a fact about the game that the table above
       says is currently true and should stay true.
 
-- [ ] Make the last phase of each fight contest the room, with `tools/boss-pressure.js` as the ruler.
+      Session 148 took the first of those two asks and found it wanted a mechanism and not a number: a
+      phase can now write one beat as *carrying* another (`with` on a beat row), and the carried half is
+      drawn into the same halt on one clock and paid for out of the ride, which is what keeps the result
+      a denser beat rather than a louder fight. The Warden's last phase spends it - its ring and its
+      spokes land in one stop now - and reads 93.4% standable at the promise against 95.4% before, and
+      79.6% against 86.8% three seconds out, worst moment 51.7% against 59.8%, free glass in 4.6 pieces
+      against 2.8. It is so far the only fight that can take it: the Hive's pressure is bodies, and a
+      body cannot be promised, so the ruler reads that fight flat no matter what is done to it; and the
+      Eclipse's door is 1.0 rad wide against a blade band of 0.9, so pairing its two beats would ask a
+      question with no room in the answer. Both are worked out where the numbers live, NOTES session 148.
+      What is left of this item is those two fights, and the lever for them is a beat that walls nothing
+      - bodies on marks, which the sun has never had.

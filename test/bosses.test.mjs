@@ -17,7 +17,7 @@ import { isBossBody } from '../src/game/bosses.js';
 import { hear } from '../tools/headless/hear.js';
 import {
   bossFlare, bossHullShare, bossName, bossPhase, bossPhaseCount, bossTint, bossWarning,
-  spokeCount,
+  carriedBeatsOf, spokeCount,
 } from '../src/game/bosses.js';
 import { scriptedRun, stepTheWorld, bossOnTheField, enemyAt } from '../tools/headless/scripted.js';
 
@@ -450,4 +450,44 @@ test('stepWorld keeps the world alive through a whole boss fight, unsupervised',
   assert.equal(field.boss, null, 'the thing never died in a minute of being shot');
   assert.equal(fieldIsCaged(field), false);
   assert.equal(field.bossesDown, 1);
+});
+
+// ---------------------------------------------------------------------------
+// A beat that carries one (game/bosses.js `takeBeat`, `with` in a phase row)
+// ---------------------------------------------------------------------------
+
+test('every pairing a boss writes names a beat that phase wrote', () => {
+  // `with` is the only place a boss row points at one of its own other rows, and a row that is not
+  // there is a phase that cannot be played. The fight would find out minutes into a run, so the
+  // whole table is asked here - and what the shipped game pairs is written down while we are here,
+  // so a session that unpairs it has to say so in the test as well as in the table.
+  const pairs = [];
+  for (const { id, phase, index } of everyPhase()) {
+    for (const [carrier, carried] of carriedBeatsOf(phase)) {
+      pairs.push(id + ' phase ' + (index + 1) + ': ' + carrier + ' carries ' + carried);
+    }
+  }
+  assert.deepEqual(pairs, ['warden phase 3: bullets carries spokes'],
+    'the crowd of pairings the game ships is not the one NOTES says it ships');
+});
+
+test('a pairing that cannot be played is refused out loud', () => {
+  const phase = BALANCE.bosses.warden.phases[2];
+  const shipped = phase.bullets.with;
+  try {
+    phase.bullets.with = 'sweep';                    // a row this Warden never writes
+    assert.throws(() => carriedBeatsOf(phase), /never wrote/);
+
+    phase.bullets.with = 'bullets';                  // a beat carrying itself
+    assert.throws(() => carriedBeatsOf(phase), /cannot carry itself/);
+
+    phase.bullets.with = 'call';                     // a legal pair, and then the carried
+    phase.call.with = 'spokes';                      // beat trying to carry one of its own
+    assert.throws(() => carriedBeatsOf(phase), /cannot carry one of its own/);
+  } finally {
+    phase.bullets.with = shipped;
+    delete phase.call.with;
+  }
+  assert.deepEqual(carriedBeatsOf(phase), [['bullets', 'spokes']],
+    'the test left its patch on the table');
 });

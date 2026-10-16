@@ -339,3 +339,23 @@ test('the whole look runs, and every phase gets a row', () => {
     'the table did not print one row per phase');
   assert.match(run.stdout, /THE WARDEN/);
 });
+
+test('the sent/s column is the fight\'s own tally over the watch', () => {
+  // The column a pairing is priced with, so it had better be arithmetic and not a vibe: the fight's
+  // counters over the seconds it was watched (game/bosses.js `bossShots` and its three siblings).
+  const run = pressure(['--boss', 'warden', '--seconds', '20']);
+  assert.equal(run.status, 0, run.stderr);
+  const rows = run.stdout.split('\n').filter((line) => /^      \d  /.test(line));
+  const sent = rows.map((line) => Number(line.trim().split(/\s+/)[7]));
+  assert.equal(sent.length, BALANCE.bosses.warden.phases.length);
+  for (const rate of sent) {
+    assert.ok(rate > 0 && Number.isFinite(rate), 'a phase of the ring sent ' + rate + ' things a second');
+  }
+
+  // The first phase is one beat and nothing else: `spokes` beams out of every `wait + windup`, so
+  // the column has to be that rate and not a number invented beside it.
+  const one = BALANCE.bosses.warden.phases[0];
+  const rate = one.spokes / (one.wait + one.windup);
+  assert.ok(Math.abs(sent[0] - rate) / rate < 0.15,
+    'phase 1 sends ' + sent[0] + ' a second, and its row says ' + rate.toFixed(2));
+});
