@@ -16260,8 +16260,8 @@ The first `sweep` walked a blade's arc in sub-angles and claimed a band at each.
 leave a hole `reach x d - 2 x half` wide at the far end of a long blade - a hole in a claim is a place
 the tool swears is safe - and `test/boss-pressure.test.mjs`'s loose-blade test found it by asking about
 a place in the middle of the arc. A sweep is claimed as an arc now: `offTheBlade` asked at whichever
-bearing of the sweep lies nearest the place, once per place instead of once per step, which is both exact
-and about six times cheaper than the stepping was.
+bearing of the sweep lies nearest the place, once per place instead of once per step - exact, and the
+whole nine-row look still runs in about a second.
 
 ### Verified
 Full suite **2471/2471** (2458 at HEAD, +12 in `test/boss-pressure.test.mjs` and +1 in
