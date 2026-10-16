@@ -118,7 +118,7 @@ test('a corner that lands exactly on a sampled bearing is still outline', () => 
   const gap = edgeGap({ type: 'a', r: 25, shape: hexagon }, { type: 'b', r: 27, shape: hexagon });
   assert.ok(Math.abs(gap.worst - 2) < 1e-6,
     'two hexagons two px apart part by ' + gap.worst.toFixed(3) + ' px at their widest bearing');
-  assert.ok(gap.mean > 1.8 && gap.mean < 2,
+  assert.ok(gap.mean > 1.85 && gap.mean < 1.95,
     'two hexagons two px apart mean ' + gap.mean.toFixed(3) + ' px apart');
 
   // And the share: faces bowed out to 0.9r enclose a disc of 0.9r, so the answer is 0.81 - and it

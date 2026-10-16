@@ -110,7 +110,7 @@ export const COVERS = {
   sniper: 0.83,     // 84% - the lens stood taller again, and no longer: same two corners
   drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
   darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
-  tank: 0.80,       // 83%
+  tank: 0.90,       // 91% - six faces bowed halfway out, corners exactly where they always were
   shielder: 0.80,   // 84% - the face is wider than the body it stands on
   spitter: 0.90,    // 92%
   bomber: 0.90,     // 94%

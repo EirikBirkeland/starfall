@@ -221,7 +221,22 @@ export const CROWD_SHAPES = {
   // a slow spin (game/kinds.js `walksHeavy`), so a hexagon is the honest shape for a body that
   // is a rolling weight rather than a pointed one. It is bigger than everything else here by
   // a mile, and that is what tells it apart.
-  tank: plainPolygon(6),
+  //
+  // The faces are bowed, and they were flat for as long as the crowd had any shape at all. Flat
+  // faces on a hexagon stand at cos 30 = 0.87 of the radius their corners reach, which left 17% of
+  // the biggest hurtbox in the game - 26 px, the one a player most often shoots at - as air. They
+  // go to 0.93 now, which is halfway between the flat chord and the circle. The drifter's faces were
+  // picked the same way - flat at 0.5, bowed to 0.8, a touch past its halfway - and this is exactly
+  // halfway. The drawing covers 91% of the circle that hurts you instead of 83%, and the corners
+  // have not moved, so the body reaches exactly as far past its hurtbox as it ever did: 1.00r, what
+  // a flat hexagon reaches, and what a disc would reach too.
+  //
+  // What it gives the crowd is nothing, which is not the usual shape story. The closest pair this
+  // body has is tank against bomber, two big warm bodies 8 px apart in size, and their outlines
+  // parted 4.1 px flat and part 5.3 bowed: a bowed face cannot line up flush with a stud the way a
+  // flat one could. That pair was carried by size and colour anyway, so the outline was never what
+  // the pair rested on - it is just no longer spending itself to nearly nothing.
+  tank: bulged(6, 1.0, 0.93),
 
   // The bomber: a mine - six studs out to a foot and cut back between them, so its edge is the
   // roughest thing in the crowd at any turn. That is the honest drawing for the body whose whole
@@ -293,9 +308,16 @@ function shipDart(spike) {
  * them in a scratch file was a sweep measuring somebody's copy. Nothing in the game imports them -
  * the table above is the only thing in `src/` that calls them, and `shipDart` under them is one body
  * written in the vocabulary rather than a word of it.
+ *
+ * Since session 146 no *round-faced* body is drawn as a plain polygon any more, which leaves
+ * `plainPolygon` unworn by the crowd. It stays, and not for sentiment: it is the zero a bow is
+ * measured against - `bulged(n, 1, cos(180/n))` is the same outline, one word away - it is the first
+ * word every sweep reaches for, and it is what `test/shape-lab.test.mjs` uses to put a corner
+ * exactly on a sampled bearing. (`flanks` still draws straight runs between its points; a dart is
+ * made of runs.)
  */
 
-/** A regular polygon: the shape a body that only walks is drawn with. */
+/** A regular polygon: what a bow stands at when it has not been bowed at all. */
 export function plainPolygon(sides) {
   return (ctx, r) => polygon(ctx, 0, 0, r, sides, 0);
 }

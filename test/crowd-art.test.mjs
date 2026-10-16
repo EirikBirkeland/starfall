@@ -24,8 +24,8 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { CROWD_SHAPES, crowdShape } from '../src/render/shapes.js';
 import {
-  crowdBodies, crowdPairs, edgeGap, hurtboxFit, profile, COVERS, noseCeiling, NOSE_HEADROOM_R,
-  ONE_SHAPE_PX,
+  crowdBodies, crowdPairs, edgeGap, hurtboxFit, profile, inscribedShare, COVERS, noseCeiling,
+  NOSE_HEADROOM_R, ONE_SHAPE_PX,
 } from '../tools/shape-lab.js';
 import { BODY_FORMS, SAME_SIZE_RATIO, silhouettePairs, sharedSilhouettes } from '../tools/sights.js';
 
@@ -69,6 +69,30 @@ test('every silhouette is drawn where the simulation hurts it', () => {
         + REACH_AT_MOST_R + 'r, the crowd\'s own longest nose plus '
         + NOSE_HEADROOM_R + 'r; past that it eats shots it never felt');
   }
+});
+
+test('the tank is a hexagon with its faces bowed, reaching exactly as far as it hurts', () => {
+  // Three numbers have to hold together on the heaviest body, and the last is the only reason the
+  // first was allowed to move at all. A regular hexagon covers 3*sqrt(3)/(2*pi) = 83% of the circle
+  // around it - geometry, not a measurement - and that was the tank until session 146 bowed its
+  // faces out to 0.93 of the radius, half of the way from the flat chord at cos 30 to the circle,
+  // the same way the drifter's three faces were picked. Bowing can only ever add area between the
+  // corners, and the corners did not move, so the biggest body in the crowd eats not one shot more
+  // than it used to. A redraw that rounds the hexagon towards a disc breaks the second line; one
+  // that flattens the faces back out breaks the first and the third.
+  const tank = bodies.find((body) => body.type === 'tank');
+  const fit = hurtboxFit(tank.shape, tank.r);
+  const flatHexagon = (3 * Math.sqrt(3)) / (2 * Math.PI);
+  assert.ok(fit.covered > flatHexagon + 0.05,
+    'the tank covers ' + (fit.covered * 100).toFixed(0) + '% of the circle it hurts with, and a '
+      + 'flat hexagon covers ' + (flatHexagon * 100).toFixed(0) + '% of one; the faces are bowed, '
+      + 'so it has to cover meaningfully more');
+  assert.ok(Math.abs(fit.reachOverR - 1) < 0.001,
+    'the tank reaches ' + fit.reachOverR.toFixed(3) + 'r; its six corners are supposed to stand on '
+      + 'the hurtbox and nowhere past it');
+  assert.ok(inscribedShare(tank.shape, tank.r) >= 0.85,
+    'the tank\'s outline encloses ' + (inscribedShare(tank.shape, tank.r) * 100).toFixed(0)
+      + '% of its circle; faces standing 0.93r out enclose 0.93 squared, which is 86% of it');
 });
 
 test('every silhouette is symmetric about the axis it points on', () => {
