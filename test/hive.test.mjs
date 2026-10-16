@@ -23,7 +23,7 @@ import { fieldIsCaged } from '../src/game/field.js';
 import { world } from '../src/game/world.js';
 import { damageEnemy } from '../src/game/enemies.js';
 import { kindOf } from '../src/game/kinds.js';
-import { packOf } from '../src/game/flock.js';
+import { isClump, packOf } from '../src/game/flock.js';
 import {
   bossCells, bossCores, bossHullShare, bossPhase, bossShape, bossSummons, cellOpening,
   cellProgress, cellsStanding, coreCells, coreReach, coresStanding, isBossBody, isBossPart,
@@ -84,6 +84,27 @@ function lit(boss) {
 /** Every brood in the arena - the only swarmlings a scripted world can have are the hive's. */
 function brood(field) {
   return field.enemies.filter((body) => body.type === 'swarmling');
+}
+
+/** Every flock in the arena that is flying brood bodies. */
+function broods(field) {
+  const seen = new Set();
+  for (const body of brood(field)) {
+    const pack = packOf(body);
+    if (pack !== null) seen.add(pack);
+  }
+  return [...seen];
+}
+
+/** The body in `list` that `body` stands nearest to. */
+function nearest(list, body) {
+  let best = list[0];
+  let bestD = Infinity;
+  for (const one of list) {
+    const d = Math.hypot(body.x - one.x, body.y - one.y);
+    if (d < bestD) { best = one; bestD = d; }
+  }
+  return best;
 }
 
 /** Do to the core what everything else does to a body that is about to stop existing. */
@@ -263,28 +284,43 @@ test('the cells light before they open, and what lights is what opens', () => {
   }
 });
 
-test('what comes out of one mouth is one pack', () => {
+test('one beat lets out one flock, however many mouths opened', () => {
   const field = scriptedRun(106);
   const boss = hiveOnTheField();
+  const spec = HIVE.phases[0].spawn;
+
+  assert.ok(openingCells(CELLS.count, spec.share) > 1,
+    'phase 1 lights one mouth, so this cannot see a beat gather its mouths into one flock');
+  assert.ok(until(() => lit(boss).length > 0, 30), 'the hive never opened anything');
+  const shown = lit(boss).length;
 
   assert.ok(until(() => brood(field).length > 0, 30), 'nothing ever came out of the hive');
   steps(0.4);
 
   const born = brood(field);
+  assert.equal(born.length, shown * spec.each,
+    shown + ' mouths lit and ' + born.length + ' bodies arrived');
   assert.ok(born.length >= 2, 'one body is not a swarm');
   assert.equal(born[0].kind, kindOf('swarmling'),
     'the brood are a kind of their own, which is one thing too many to learn');
 
-  // One pack per mouth: every body has a pack, and the packs are in the world's list, which is
-  // what lets them bunch and commit and dive as one thing (game/flock.js).
-  const packs = new Set();
+  // One flock per beat, and not one per mouth: the mouths that light are neighbours round the
+  // ring, so a mass lets out one clump that bunches, commits and dives as one thing
+  // (game/flock.js) - which is the whole of what the ring drawn round a clump is a tell *for*.
+  const packs = broods(field);
+  assert.equal(packs.length, 1,
+    'a beat that lit ' + shown + ' mouths flew ' + packs.length + ' flocks');
   for (const body of born) {
     const pack = packOf(body);
     assert.ok(pack !== null, 'a brood body is flying on its own');
     assert.ok(field.flocks.indexOf(pack) >= 0, 'its pack is not in the world');
-    packs.add(pack);
   }
-  assert.ok(packs.size <= born.length / 2, 'every body arrived with a pack of one');
+  assert.equal(packs[0].n, born.length, 'the flock does not know all its bodies');
+
+  // ... and a beat's brood is worth a tell of its own, which is the bargain between this fight and
+  // that eye: a clump of the swarm is drawn once, and a pair is not.
+  assert.ok(isClump(packs[0]),
+    'a beat lets out ' + packs[0].n + ' bodies, which is not a clump');
 });
 
 test('the smaller the mass, the smaller the swarm', () => {
@@ -647,6 +683,40 @@ test('every piece opens on the same beat, and the brood come out of all of them'
   assert.equal(bossSummons(boss) - before, perBeat,
     'one beat sent ' + (bossSummons(boss) - before) + ' bodies and ' + perBeat
       + ' was what the pieces add up to');
+});
+
+test('a piece lets out its own flock, and the three of them are the fight', () => {
+  const field = scriptedRun(131);
+  const boss = hiveOnTheField();
+  breakItOpen(field, boss);
+  const spec = SPLIT.spawn;
+  const perBeat = SPLIT.cores * openingCells(SPLIT.cells.count, spec.share) * spec.each;
+
+  const was = new Set(brood(field));
+  const before = bossSummons(boss);
+  assert.ok(until(() => bossSummons(boss) > before, 30), 'no piece ever opened anything');
+  const born = brood(field).filter((body) => !was.has(body));
+  assert.equal(born.length, perBeat, 'one beat sent something other than what the pieces add up to');
+
+  // Three pieces, three flocks. A flock's middle has to be a middle, and bodies born on the far
+  // side of the room would be a clump drawn round nothing - so the beat is one event in three
+  // places, and the mouth that lit is the mouth its own piece's bodies came out of.
+  const hubs = bossCores(boss).map((core) => core.enemy);
+  const packs = [...new Set(born.map(packOf))];
+  assert.equal(packs.length, SPLIT.cores,
+    'one beat flew ' + packs.length + ' flocks and there are ' + SPLIT.cores + ' pieces');
+  for (const pack of packs) {
+    const bodies = born.filter((body) => packOf(body) === pack);
+    assert.equal(bodies.length, openingCells(SPLIT.cells.count, spec.share) * spec.each,
+      'a piece let out the wrong number of bodies');
+    const home = nearest(hubs, bodies[0]);
+    for (const body of bodies) {
+      assert.equal(nearest(hubs, body), home, 'one flock came out of two different pieces');
+    }
+    // And a pair, which is what the row says and what the eye agrees is not a clump: three pieces
+    // are three places to read already (balance.js `split.spawn`, game/flock.js `isClump`).
+    assert.ok(!isClump(pack), 'a fragment\'s brood was big enough to be drawn as a clump');
+  }
 });
 
 test('a piece with nothing left to open opens its own core', () => {

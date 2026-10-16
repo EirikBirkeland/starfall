@@ -27,11 +27,14 @@
 // flock is. The ring therefore lands 40-60 px across and the line is a fraction of the window, which
 // is the scale the read wanted: one shape per clump, a handful per frame.
 //
-// What it is NOT drawn for: a pack of two. The hive's brood comes out of a mouth two bodies at a
-// time (balance.js `phases[].spawn.each`), which is a pair and not a clump - two nose lights are
-// already two lights more than you can miss, and a ring round each of the thirty pairs a late hive
-// leaves standing would be thirty rings where the read wanted three. So a pack has to be worth the
-// word "clump" before it gets one, and `MIN_BODIES` says where that line is drawn.
+// What it is NOT drawn for: a pack of two. A fragment of the split hive lets `each` bodies out of
+// its one lit mouth (balance.js `split.spawn`), which is a pair and not a clump - two nose lights
+// are already two lights more than you can miss, and a ring round each of the twelve pairs a late
+// split leaves standing would be twelve rings where the read wanted three. So a pack has to be
+// worth the word "clump" before it gets one, and `isClump` says where that line is drawn. A
+// whole hive is on the other side of it: every mouth a body lights on a beat sends its bodies into
+// one flock (game/bosses.js `openTheCore`), so the second boss's first two phases are clumps of
+// four and six on one clock, and they wear the ring like any wave does.
 //
 // None of it is simulated. Every number here is read - the middle, the spread, the pace and the clock
 // are rebuilt from the crowd each step in game/flock.js and nothing in game/ reads them back - so a
@@ -47,17 +50,15 @@
 
 import { PALETTE } from '../core/palette.js';
 import { clamp, TAU } from '../core/math.js';
-import { BALANCE } from '../game/balance.js';
-import { beatProgress, isBracing, isCommitted } from '../game/flock.js';
+import { beatProgress, isBracing, isClump, isCommitted } from '../game/flock.js';
 import { onScreen } from './camera.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 
-// A pack this small is a pair, not a clump - see the foreword. Half the smallest flock the wave
-// director will send (`pack.min`, so this is four) is where a bunch of bodies starts reading as one
-// thing with a shape of its own; a hive's brood - two bodies out of one mouth, on purpose - stays
-// under that line and keeps its own two lights instead of borrowing a ring every four and a half
-// seconds, which is what the flock's whole cycle costs.
-const MIN_BODIES = Math.ceil(BALANCE.kinds.swarmling.pack.min / 2);
+// Whether a pack is a clump at all is the pack's own answer (game/flock.js `isClump`), so that the
+// eye and the fight agree on the number: a whole hive's beat is (two neighbours' mouths, four
+// bodies, on one clock) and a fragment's brood is not - two bodies out of its one mouth, on
+// purpose - and keeps its own two lights instead of borrowing a ring every four and a half seconds,
+// which is what the flock's whole cycle costs.
 
 // The ring. Its radius follows the clump's own spread - which does tighten as the bunching comes,
 // only a little - and the arc eaten off it is the beat running out: one clock, two ways of reading
@@ -106,7 +107,7 @@ function stroke(ctx, x, y, radius, from, to) {
 export function drawFlockTells(ctx, packs) {
   for (let i = 0; i < packs.length; i++) {
     const pack = packs[i];
-    if (pack.n < MIN_BODIES) continue;
+    if (!isClump(pack)) continue;
     if (isBracing(pack)) drawBrace(ctx, pack);
     else if (isCommitted(pack)) drawLine(ctx, pack);
   }

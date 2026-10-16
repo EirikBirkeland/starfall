@@ -32,12 +32,33 @@
 // where its bodies are standing and out of each one's own `phase`, which is what lets a
 // walk that reads it still be a function of the seed and nothing else.
 
+import { BALANCE } from './balance.js';
 import { cueBeep } from './cues.js';
 import { clamp, hypot } from '../core/math.js';
 
 /** The two named beats of a pack. Between them it is gathering, which is `''`. */
 const BRACED = 'brace';
 const DIVING = 'dive';
+
+/**
+ * How many bodies it takes before a pack is a **clump**.
+ *
+ * Half the smallest flock the wave director will send (`pack.min`, so this is four) is where a
+ * bunch of bodies starts reading as one thing with a shape of its own - and it is where a whole
+ * hive's brood sits, because a beat's mouths are neighbours and their bodies fly in one flock
+ * (game/bosses.js `openTheCore`). Under it is a pair: two nose lights are already two lights more
+ * than anyone can miss, and a ring round every pair a late split hive leaves standing would be a
+ * dozen rings where the read wanted three. So the number is asked here, next to the pack it is a
+ * fact about, and both the eye that draws a clump's tell (render/flock.js) and the fight that
+ * fields one answer from it.
+ */
+const MIN_BODIES = Math.ceil(BALANCE.kinds.swarmling.pack.min / 2);
+
+/** Is this pack a clump - one thing made of many bodies, rather than a pair that happens to share
+ * a clock. */
+export function isClump(pack) {
+  return pack !== null && pack.n >= MIN_BODIES;
+}
 
 /**
  * How far a body of this pack is from its own middle, on average, right now.

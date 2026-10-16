@@ -1987,9 +1987,12 @@ export const BALANCE = {
       // that takes the bar down. `windup` is how long the cells are lit for and is held to
       // `bosses.telegraphMin` like every other promise here.
       //
-      // The brood are one pack per cell that opened (game/flock.js), so what comes out of one
-      // mouth bunches, commits and dives as one thing - which is what the kind is, and what
-      // makes six bodies one threat to read instead of six.
+      // The brood of one beat are one flock (game/flock.js), whichever mouths lit: the cells that
+      // light are neighbours round the ring, so what comes out of a mass bunches, commits and dives
+      // as one thing - which is what the kind is, and what makes six bodies one threat to read
+      // instead of six. It is also what the ring and the fuse drawn round a clump are for
+      // (render/flock.js): a beat that spent itself in three pairs on three clocks would give that
+      // eye nothing to draw. So `share` x `each` is what a beat is worth, and not what one mouth is.
       phases: [
         {
           tint: PALETTE.amber,
@@ -2089,6 +2092,13 @@ export const BALANCE = {
             // What a fragment's mouths spend. `share` is a share of that fragment's own mass - one
             // mouth of its three lights - and `each` is the same two bodies a full-sized cell lets
             // out, so three fragments opening are one beat and about what phase 2 was sending.
+            //
+            // And a pair, which is the one place the fight is allowed to stop short of a clump: a
+            // fragment has three cells and one mouth is what a share of three rounds to, so two
+            // bodies out of it is as big a flock as one fragment can field, and three fragments are
+            // three places to read already. It is why this phase keeps the nose lights and does not
+            // wear the ring round a clump (render/flock.js) - twelve rings, one per fragment-pair,
+            // is twelve things to look at where the read wants three.
             spawn: {
               type: 'swarmling', share: 0.34, each: 2, windup: 0.95,
               gap: 10, step: 0.42, impulse: 230,

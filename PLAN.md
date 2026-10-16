@@ -2623,3 +2623,31 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       and +1 stamp each while bracing, +2 stamps each while diving, no blur and no gradient, and
       0.225 -> 0.237 ms of a frame on this box at 45 flock bodies - a twentieth of a percent of a 60 fps
       budget, against the one read in the game that a clump is a thing.
+
+- [x] The second boss's brood is a flock and not a crowd of pairs. Session 151 drew the ring and the
+      line and then found there was nothing to draw on the hive: every mouth let out `each: 2` bodies as
+      a pack of its own, so a 40 s watch of the second boss's cage counted 6-12 packs of two bodies and
+      exactly zero clumps for the new eye - while the comment on that very row was still selling "six
+      bodies one threat to read instead of six". Settled on the fight's side and not on the prose's:
+      **a mass's brood is one flock** (game/bosses.js `openTheCore`), made at the first mouth that
+      opens, because the cells a beat lights are neighbours round the ring and their bevy should leave
+      as one thing. Nothing was added and nothing taken away - phase 1 still sends 4 bodies a beat and
+      phase 2 still 6, they simply arrive as one clump of four and one of six instead of two and three
+      pairs on separate clocks, and one buzz per beat instead of three. `tools/boss-pressure.js` agrees
+      the room is the room: over three seeds `crowd` and `sent/s` do not move at all, and on the near
+      watch the standable share moves by under half a point while the worst moment (8 s, which is what a
+      run is actually left with) is where it was or looser - 73.2/72.8/72.0 free becomes 72.1/72.3/71.6 in
+      phase 1, and 58.3/49.5/51.8 becomes 57.9/62.5/55.9 in the third. The long 40 s watch is the one
+      place it reads *tighter* (phase 3's worst 55.2/55.2/56.7 -> 46.6/42.8/49.9) and that is the
+      ruler's own caveat doing it: nothing shoots back, so a passive ship is being camped by a hundred
+      bodies after a minute and a clump that camps closer claims more of the room than a pair that
+      drifts. The near watch is the one the tool tells you to read, and it says the fight is the same
+      fight with three things to read where there were six. A *fragment* of the split hive still lets
+      out a pair, and stays that way on purpose: a piece has three cells and a share of three rounds to
+      one of them lighting, so two bodies is as big a flock as a piece can field, and three pieces are three
+      places to read already - so the last phase keeps its nose lights and the row says so where it is
+      written. `isClump` moved out of the painter into `game/flock.js`, next to the pack it is a fact
+      about, so the eye and the fight answer one question off `pack.min` - four bodies, which is now not
+      a coincidence but where a whole hive's beat sits. The reference run is byte for byte what it was
+      (a wave's swarm never passes through `broodFrom`) and the suite is 2514, two up: a beat that lit
+      two mouths has to fly one flock, and one flock must never come out of two different pieces.

@@ -1442,8 +1442,12 @@ function letThemOut(world, boss, phase) {
  * edge - so nothing is born inside a body that hurts you, and the mouth you watched is the mouth
  * they came out of, edge for edge.
  *
- * They are one pack per mouth (game/flock.js), which is what a swarmling *is*: bodies that bunch,
- * commit and dive as one thing, so six of them are one threat to read and not six.
+ * Everything this mass lets out on this beat flies in one flock (game/flock.js), which is what a
+ * swarmling *is*: bodies that bunch, commit and dive as one thing, so six of them are one threat
+ * to read and not six. The cells that light are neighbours round the ring, so their bevy leaves as
+ * one clump and dives down one line - which is the whole of what the ring and the fuse drawn round
+ * it (render/flock.js) are for, and a beat that spent itself in three pairs on three clocks would
+ * have nothing for that eye to draw.
  *
  * And a body whose whole mass has been shot off opens its own core instead - the light in the
  * middle of it is the same countdown the cells wore, fanned out along the way it is facing, and it
@@ -1451,36 +1455,50 @@ function letThemOut(world, boss, phase) {
  */
 function openTheCore(world, core, phase, spec) {
   const enemy = core.enemy;
+  // Made at the first mouth that actually opens, so a mass with nothing lit spends no flock.
+  let pack = null;
   let sent = 0;
 
   for (let i = 0; i < core.cells.length; i++) {
     const cell = core.cells[i];
     if (cell.stage !== OPENING || cell.hp <= 0) continue;
-    sent += broodFrom(world, spec, phase, cell.x, cell.y, cell.r,
+    if (pack === null) pack = broodPack(world, spec, cell.x, cell.y);
+    sent += broodFrom(world, spec, phase, pack, cell.x, cell.y, cell.r,
       Math.atan2(cell.y - enemy.y, cell.x - enemy.x));
     cell.stage = '';
     cell.timer = 0;
   }
 
   if (sent === 0 && living(core.cells) === 0) {
-    sent += broodFrom(world, spec, phase, enemy.x, enemy.y, enemy.r, core.angle);
+    pack = broodPack(world, spec, enemy.x, enemy.y);
+    sent += broodFrom(world, spec, phase, pack, enemy.x, enemy.y, enemy.r, core.angle);
   }
   return sent;
 }
 
 /**
+ * The flock one mass's brood flies in, stood at the mouth it was made at - or null for a kind
+ * that flies alone, which is every kind but the swarm.
+ */
+function broodPack(world, spec, x, y) {
+  const kind = BALANCE.kinds[spec.type];
+  if (kind.flock === undefined) return null;
+  const pack = newPack(kind.flock, x, y);
+  world.flocks.push(pack);
+  return pack;
+}
+
+/**
  * One mouth opening: `each` bodies of the kind the row named, thrown out of it along `bearing`
- * and `step` radians apart. Answers how many came out, because a summon volley counts itself.
+ * and `step` radians apart, flying in `pack`. Answers how many came out, because a summon volley
+ * counts itself.
  *
  * They are the crowd's own kind and nothing about them is special (the ring's summons are built
  * the same way, game/bosses.js `sendCall`): a swarm that was a new kind of body would be a
  * second thing to learn on top of the mass that is already being learned.
  */
-function broodFrom(world, spec, phase, x, y, r, bearing) {
+function broodFrom(world, spec, phase, pack, x, y, r, bearing) {
   const middle = (spec.each - 1) / 2;
-  const kind = BALANCE.kinds[spec.type];
-  const pack = kind.flock === undefined ? null : newPack(kind.flock, x, y);
-  if (pack !== null) world.flocks.push(pack);
 
   for (let i = 0; i < spec.each; i++) {
     const angle = bearing + (i - middle) * spec.step;

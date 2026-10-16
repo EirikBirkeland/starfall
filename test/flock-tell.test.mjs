@@ -33,8 +33,8 @@ const ship = field.player;
 const F = BALANCE.kinds.swarmling.flock;
 /** A clump: well over the smallest flock the wave director sends, so it is worth a tell. */
 const CLUMP = 12;
-/** A pair: what a hive's brood is made of, and not a clump. */
-const PAIR = 2;
+/** A pair: what a fragment of the split hive lets out of its one mouth, and not a clump. */
+const PAIR = BALANCE.bosses.hive.phases[2].split.spawn.each;
 
 // The title screen draws the menu crowd and no ship, so get a run going first.
 game.pressMouse(640, 360);
@@ -265,17 +265,22 @@ test('the frame asks for the ring, not just the test', () => {
   assert.equal(arcs.length, 3, 'the frame drew ' + arcs.length + ' arcs round the clump, not 3');
 });
 
-test('the smallest flock the director sends is a clump, and gets the tell', () => {
-  // `pack.min` is the fewest bodies a wave may arrive as, and `each` is how many a hive's mouth lets
-  // out. The line between a clump and a pair has to fall between the two numbers (render/flock.js).
+test('the smallest flock the director sends is a clump, and a fragment\'s pair is not', () => {
+  // `pack.min` is the fewest bodies a wave may arrive as, and a fragment of the split hive lets
+  // `each` bodies out of its one lit mouth. The line between a clump and a pair has to fall between
+  // the two numbers (game/flock.js `isClump`), and a whole hive's beat is on the clump side of it
+  // because its mouths fly together - which is test/hive.test.mjs' to say.
   const least = BALANCE.kinds.swarmling.pack.min;
-  const brood = BALANCE.bosses.hive.phases[0].spawn.each;
-  assert.ok(least > brood, 'a wave\'s smallest pack is ' + least + ' bodies and a mouth lets out '
-    + brood + ', so there is a line to draw between them');
+  assert.ok(least > PAIR, 'a wave\'s smallest pack is ' + least + ' bodies and a piece lets out '
+    + PAIR + ', so there is a line to draw between them');
 
   const clump = braceOf(arenaWith(least, WEST.x, WEST.y, 40));
   assert.ok(paint().circles.length > 0,
     'a pack of ' + least + ' bodies was refused a ring: spread ' + clump.pack.spread.toFixed(1));
+
+  const pair = braceOf(arenaWith(PAIR, WEST.x, WEST.y, 20));
+  assert.equal(paint().circles.length, 0,
+    'a fragment\'s brood of ' + PAIR + ' bodies was drawn a clump');
 });
 
 test('two clumps cost two tells, not one per body', () => {
