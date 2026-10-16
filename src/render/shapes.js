@@ -165,6 +165,15 @@ export function shipShape(name) {
 export const CROWD_SHAPES = {
   // The drifter: three flat faces and no ideas. It is the plainest body in the game because
   // it is the plainest enemy - it walks at you - and it is what every tank comes apart into.
+  //
+  // It covers 42% of the circle that hurts it, the worst share in the crowd, and it stays that way
+  // on purpose: the faces were bowed out to 75% and put back. A 15 px violet body and a 17 px
+  // magenta one are 0.56 of a step of colour apart for an eye with no red cone and 1.13x apart in
+  // size, which is to say the *triangle* is the only thing that says which one a body is. Bow the
+  // faces to a rounded triangle - 75% covered, and it is a good shape, corners exactly where they
+  // were - and the two outlines come to 3.9 px, which is one shape, and neither colour nor size is
+  // left to pay for it. The plain triangle is not the drifter being lazy, it is the shielder's
+  // colour being nearly the drifter's; see the item at the foot of PLAN.md.
   drifter: plainPolygon(3),
 
   // The weaver: a quatrefoil - four shoulders with a body between them, no points on it. It used
@@ -239,13 +248,13 @@ export const CROWD_SHAPES = {
   // The sniper: an eye, pointed where it is pointing. It is the only body in the game that
   // never moves, so the shape is the whole of how it is recognised - and an eye is the honest
   // shape for a thing whose entire being is a line of sight.
-  sniper: (ctx, r) => {
-    ctx.beginPath();
-    ctx.moveTo(r * 1.5, 0);
-    ctx.quadraticCurveTo(0, r, -r * 1.5, 0);
-    ctx.quadraticCurveTo(0, -r, r * 1.5, 0);
-    ctx.closePath();
-  },
+  //
+  // It used to be a hairline of an eye: the two flanks stood half a radius off the axis, so the
+  // drawing covered 53% of the 16 px circle that hurts you, and the pupil the frame lights inside it
+  // (render/entities.js, EYE_LIGHT) is nine pixels of light in a body that stood eight pixels either
+  // side of its axis. The corners are exactly where they were - the lens is taller and no longer, so
+  // nothing about it reaches past the hurtbox a shot can be stopped by - and it covers 74% now.
+  sniper: lens(1.5, 1.4),
 };
 
 /** One kind's silhouette, and a loud answer for a kind nothing draws. */
@@ -267,6 +276,23 @@ function shipDart(spike) {
 /** A regular polygon: the shape a body that only walks is drawn with. */
 function plainPolygon(sides) {
   return (ctx, r) => polygon(ctx, 0, 0, r, sides, 0);
+}
+
+/**
+ * A lens: two quadratic flanks meeting in points `tip` radii fore and aft, each bulging out to
+ * `height` / 2 radii at the middle. It is the shape of a body that is *all axis* - the way it is
+ * pointed is the way it is aimed - and how much of its own hurtbox it covers is `height`'s
+ * business alone: the tips stay put however tall the lens is, so a taller lens fills the circle
+ * it is hurt by without ever reaching a pixel further past it.
+ */
+function lens(tip, height) {
+  return (ctx, r) => {
+    ctx.beginPath();
+    ctx.moveTo(r * tip, 0);
+    ctx.quadraticCurveTo(0, r * height, -r * tip, 0);
+    ctx.quadraticCurveTo(0, -r * height, r * tip, 0);
+    ctx.closePath();
+  };
 }
 
 /**

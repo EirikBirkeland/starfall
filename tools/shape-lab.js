@@ -46,9 +46,18 @@
 // each one: it has to cover most of the hurtbox it is hurt by, or a shot that lands visibly
 // misses, and it must not stand far outside it, or a shot that misses visibly lands. Both are
 // measured off the rasterised body, in share-of-hurtbox and in px of reach.
+//
+// ### Running it
+//
+// `node tools/shape-lab.js` prints what every body in the crowd covers, worst first, and
+// `node tools/shape-lab.js --show sniper` draws one of them in text with the two bad states
+// marked out. What each body is held to is pinned per kind in `test/crowd-art.test.mjs`; which
+// pairs of bodies have to be told apart, and what each pair has left to tell it with, is read
+// out by `tools/palette-check.js`, which borrows this file's outline distance to do it.
 
 import { BALANCE } from '../src/game/balance.js';
 import { CROWD_SHAPES, crowdShape } from '../src/render/shapes.js';
+import { pathToFileURL } from 'node:url';
 
 const TAU = Math.PI * 2;
 const BEARINGS = 96;   // how finely a radius profile is sampled
@@ -250,18 +259,65 @@ export function hurtboxFit(shape, r) {
   };
 }
 
-/** The drawn area in square px. */
-export function area(shape, r) {
-  const ext = extent(shape, r);
-  const step = SAMPLE;
-  let count = 0;
+/**
+ * The two states of a body, as text: where the drawing is, and where the hurtbox is.
+ *
+ * One character per cell of the plane around a body drawn at `r`, at about `cellPx` px to a cell:
+ *
+ *   `#`  drawn and hurt          the body, which is the point
+ *   `o`  hurt and not drawn      where a shot that was stopped had visibly stopped in the air
+ *   `+`  drawn and not hurt      where a shot that looked like it landed did nothing
+ *   `.`  neither
+ *
+ * The two bad states are this file's two rules, and this is the only place they can be seen rather
+ * than counted. A shape that is all nose is all `+`; a shape drawn inside its own circle is all `o`.
+ */
+export function hurtboxArt(shape, r, cellPx = 1.5) {
   const polys = outline(shape, r);
-  for (let y = ext.up - 1; y <= ext.down + 1; y += step) {
-    for (let x = ext.back - 1; x <= ext.forward + 1; x += step) {
-      if (inside(polys, x, y)) count++;
+  const ext = extent(shape, r);
+  const step = Math.max(SAMPLE, cellPx);
+  // The frame of the art is the drawing and the hurtbox together: a body drawn smaller than the
+  // circle that hurts it has to have the empty air in the picture, or the picture is a lie.
+  const x0 = Math.min(ext.back, -r) - 1, x1 = Math.max(ext.forward, r) + 1;
+  const y0 = Math.min(ext.up, -r) - 1, y1 = Math.max(ext.down, r) + 1;
+  const out = [];
+  for (let y = y0; y <= y1; y += step) {
+    let line = '';
+    for (let x = x0; x <= x1; x += step) {
+      let drawn = false, hurt = false;
+      for (let dy = 0; dy < step; dy += SAMPLE) {
+        for (let dx = 0; dx < step; dx += SAMPLE) {
+          const px = x + dx, py = y + dy;
+          if (!drawn && inside(polys, px, py)) drawn = true;
+          if (!hurt && Math.hypot(px, py) <= r) hurt = true;
+        }
+      }
+      line += drawn && hurt ? '#' : hurt ? 'o' : drawn ? '+' : '.';
     }
+    out.push(line);
   }
-  return count * step * step;
+  return out.join('\n');
+}
+
+/**
+ * One row per crowd body: what it covers of its own hurtbox and how far it reaches past it.
+ *
+ * Worst-covered first, because the report is read to find the body that needs work. `bar` is 20
+ * cells, one per five percent, which is coarser than the number beside it on purpose: the row is
+ * for glancing and the number is for arguing with.
+ */
+export function fitRows(bodies = crowdBodies()) {
+  return bodies.map((body) => {
+    const fit = hurtboxFit(body.shape, body.r);
+    return {
+      type: body.type,
+      r: body.r,
+      covered: fit.covered,
+      reach: fit.reachOverR,
+      missed: fit.missed,
+      bar: '#'.repeat(Math.round(fit.covered * 20)).padEnd(20, '.'),
+    };
+  }).sort((x, y) => x.covered - y.covered);
 }
 
 /** One crowd body, as the balance sheet and the shape table draw it. */
@@ -306,24 +362,92 @@ export function crowdPairs(bodies = crowdBodies()) {
   return rows;
 }
 
-/** The shapes as a reader can see them without a browser: one row of text per body. */
-export function ascii(shape, r, cellPx = 1.5) {
-  const polys = outline(shape, r);
-  const ext = extent(shape, r);
-  const step = Math.max(SAMPLE, cellPx);
-  const out = [];
-  for (let y = ext.up - 1; y <= ext.down + 1; y += step) {
-    let line = '';
-    for (let x = ext.back - 1; x <= ext.forward + 1; x += step) {
-      let any = false;
-      for (let dy = 0; dy < step && !any; dy += SAMPLE) {
-        for (let dx = 0; dx < step && !any; dx += SAMPLE) {
-          if (inside(polys, x + dx, y + dy)) any = true;
-        }
+const USAGE = `node tools/shape-lab.js            what every body in the crowd covers of its own hurtbox
+node tools/shape-lab.js --show K   one body drawn in text: what is drawn, what is hurt, and the gap
+
+--show takes a kind name (drifter, weaver, ...) or "worst" for the least-covered body of them all.`;
+
+function readArgs(argv) {
+  const opts = { show: null, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--help' || arg === '-h') opts.help = true;
+    else if (arg === '--show') {
+      const kind = argv[++i];
+      if (kind === undefined) {
+        console.error('--show wants a kind name, or "worst"');
+        process.exit(2);
       }
-      line += any ? '#' : '.';
+      opts.show = kind;
+    } else {
+      console.error('shape-lab does not know the argument ' + arg);
+      console.error(USAGE);
+      process.exit(2);
     }
-    out.push(line);
   }
-  return out.join('\n');
+  return opts;
 }
+
+function head(title) {
+  process.stdout.write('\n' + title + '\n' + '='.repeat(title.length) + '\n\n');
+}
+
+/** One body in text, with the two bad states counted out. */
+function showBody(type) {
+  if (BALANCE.kinds[type] === undefined) {
+    console.error('no enemy kind is called ' + type + '; the crowd is '
+      + Object.keys(BALANCE.kinds).join(', '));
+    process.exit(2);
+  }
+  const body = crowdBody(type);
+  const fit = hurtboxFit(body.shape, body.r);
+  const lines = [body.type + ', drawn at ' + body.r + ' px, which is the circle that hurts you', ''];
+  lines.push(hurtboxArt(body.shape, body.r), '');
+  lines.push('  # drawn and hurt    o hurt and not drawn: ' + (fit.missed * 100).toFixed(0)
+    + '% of the hurtbox');
+  lines.push('  + drawn and not hurt    the drawing stands ' + fit.reachOverR.toFixed(2)
+    + 'r out at its furthest');
+  return lines.join('\n');
+}
+
+function coverReport(rows) {
+  const lines = [];
+  lines.push('STARFALL shape lab - ' + rows.length
+    + ' bodies, measured off the paths render/shapes.js draws');
+  lines.push('');
+  lines.push('What each body covers of the circle that hurts it');
+  lines.push('='.repeat('What each body covers of the circle that hurts it'.length));
+  lines.push('');
+  lines.push('  A bullet is stopped at its own radius plus the body\'s from the body\'s middle, so the');
+  lines.push('  drawing owes that circle a solid fill: `covers` is the share of it the silhouette holds,');
+  lines.push('  and a shot that lands in the rest was visibly stopped in the air beside the body. `past`');
+  lines.push('  is the other way round - how far the drawing reaches past the circle, where a shot looks');
+  lines.push('  like it hit and was not. Both are measured on the filled path alone; the frame lays a 2 px');
+  lines.push('  line and a glow over it, so an eye is given a little more than this. The bars are 5% wide.');
+  lines.push('');
+  for (const row of rows) {
+    lines.push('  ' + row.type.padEnd(11) + String(row.r).padStart(2) + ' px  ' + row.bar + '  '
+      + (row.covered * 100).toFixed(0).padStart(3) + '%   ' + row.reach.toFixed(2) + 'r past');
+  }
+  lines.push('');
+  lines.push('  What each of these is held to is pinned per kind in test/crowd-art.test.mjs, and the shape');
+  lines.push('  of a miss is `--show worst`. Which pairs of bodies the crowd has to tell apart, and what');
+  lines.push('  each pair has left to tell it with, is the palette report\'s business: palette-check.js.');
+  return lines;
+}
+
+function main(argv) {
+  const opts = readArgs(argv);
+  if (opts.help) {
+    process.stdout.write(USAGE + '\n');
+    return 0;
+  }
+  const rows = fitRows();
+  const lines = opts.show === null ? coverReport(rows)
+    : [showBody(opts.show === 'worst' ? rows[0].type : opts.show)];
+  process.stdout.write(lines.join('\n') + '\n');
+  return 0;
+}
+
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) process.exit(main(process.argv.slice(2)));

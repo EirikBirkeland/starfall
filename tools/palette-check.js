@@ -175,7 +175,8 @@ function reportForms() {
   process.stdout.write('  `px of outline` is how far one body\'s edge stands from the other\'s, in the world,\n');
   process.stdout.write('  with the two allowed to turn against each other: under ' + ONE_SHAPE_PX + ' px everywhere and\n');
   process.stdout.write('  they are one shape, over ' + THIN_SHAPE_PX + ' px and the shape is doing the work on its own.\n');
-  process.stdout.write('  What a pair cannot have is none of the three.\n\n');
+  process.stdout.write('  What a pair cannot have is none of the three. The same ruler prints what each body\n');
+  process.stdout.write('  covers of its own hurtbox: `node tools/shape-lab.js`.\n\n');
   if (shared.length === 0) {
     process.stdout.write('  every body in the crowd has a silhouette of its own.\n');
   }

@@ -2385,3 +2385,34 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       that fills more of its own hurtbox without losing its outline, and that is a shape job with the
       ruler already in hand. The sniper is the one to try first: it never moves, its lens covers half
       its circle, and a body the player stands still in front of is a body whose edges get studied.
+
+      **The sniper is done; the other three are blocked, and by what is now measured (session 141).**
+      The eye is a `lens(tip, height)` now and it was made taller and no longer - the same two corners
+      at 1.5r, the flanks standing 0.7r off the axis instead of half a radius - which takes it from 53%
+      to 74% of its own circle without a pixel more of over-draw, and gives the pupil the frame lights
+      inside it some room to sit in. `tools/shape-lab.js` is a report now (`node tools/shape-lab.js`,
+      and `--show worst` draws one body in text with the empty air marked), and the floors are pinned
+      one per kind in `test/crowd-art.test.mjs` instead of as one floor at the worst body's share.
+
+      The drifter and the darter cannot be fattened, and the reason is colour and not shape. Bow the
+      drifter's three faces out - 75% covered, corners exactly where they were, a good shape - and its
+      outline comes within 3.9 px of the shielder's, and a 15 px violet body against a 17 px magenta
+      one has 0.56 of a step of colour and 1.13x of size, so nothing is left to pay for the pair and
+      the palette report fails it: the *flatness* of those three faces is the only thing that says
+      which of the two a body is. Fatten the darter's spear to 81% and its outline comes within 2.9 px
+      of the weaver's clover, which is 0.43 of a step apart and 1.10x - the same failure, one pair
+      over. The swarmling is left alone on purpose: it wears the ship's own dart because a shoal of
+      twenty that borrow your silhouette is the kind's whole argument, and a 2.1r nose is what a nose
+      costs. So what is left of this item is not a shape job; see the next one.
+- [ ] Two pairs of the crowd are nearly one colour, and they are the lock on the crowd's shapes. The
+      palette report's silhouette section prints every pair the eye has to tell apart and what carries
+      it, and two of them carry nothing but outline: the drifter against the shielder at 0.56 of a step
+      (violet against magenta, for an eye with no red cone, at 1.13x of size) and the weaver against
+      the darter at 0.43 (pink against red at 1.10x). Because those pairs are carried by shape alone,
+      neither the drifter nor the darter can be drawn any fatter than its outline - which is why three
+      of the crowd's nine bodies still under-fill their own hurtboxes (42%, 45%, 56%: `node
+      tools/shape-lab.js`) while the rest clear 74%. A colour visit to those two pairs - one step
+      between the bodies, on the axis the worst eye keeps - is worth about 30 points of coverage on
+      two of the commonest bodies in the game, and it is a palette session rather than a shape one:
+      `PALETTE.violet`, `PALETTE.magenta`, `PALETTE.pink` and `PALETTE.red` are each used by more than
+      the one body, and the whole promise list has to be re-read after them.

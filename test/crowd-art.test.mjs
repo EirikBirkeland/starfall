@@ -29,15 +29,31 @@ import {
 import { BODY_FORMS, SAME_SIZE_RATIO, silhouettePairs, sharedSilhouettes } from '../tools/sights.js';
 
 /**
- * The least of the hurtbox a drawing may cover.
+ * What each body has to cover of its own hurtbox, as a share of the disc.
  *
- * The floor in the shipped crowd is the drifter's plain triangle at 42% - three faces inscribed in
- * the circle that hurts it, which is a lot of empty air on the most common body in the game, and
- * it is written down as a follow-up rather than prettied here. What this bar is for is the next
- * shape somebody adds: a body drawn as a stick, or as three dots, is a body a run cannot see being
- * hit, and that is a bug nobody would notice until a shot went through an enemy on the screen.
+ * One number per kind and not a single floor, because the crowd's worst share is a decision and not
+ * a threshold: the swarmling wears the ship's own dart and a body whose length is a nose cannot fill
+ * a circle and keep the nose, and the drifter's three flat faces are the only thing that parts a
+ * violet body from a magenta one 13% bigger (render/shapes.js has both arguments). A single floor
+ * set at the worst body's share would let a thinning of the other eight pass unnoticed, which is
+ * exactly the regression this table is for: a flank shaved, a tail lengthened, a body quietly
+ * redrawn as a hairline.
+ *
+ * The comment on each row is what the body covers today; the number is that, with a point or two of
+ * room left to breathe. It goes up when a body is made fatter. It comes down only with an argument
+ * written where the shape is.
  */
-const COVERS_AT_LEAST = 0.4;
+const COVERS = {
+  drifter: 0.41,    // 42% - three flat faces, and the faces are the shielder's problem
+  swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
+  darter: 0.55,     // 56% - same again, and the weaver is what stops it getting any fatter
+  sniper: 0.70,     // 74% - the lens was made taller, and no longer
+  tank: 0.80,       // 83%
+  shielder: 0.80,   // 84%
+  spitter: 0.90,    // 92%
+  bomber: 0.90,     // 94%
+  weaver: 0.95,     // 100%
+};
 
 /**
  * How far past its own radius a silhouette may reach.
@@ -62,11 +78,14 @@ test('every kind is drawn as exactly one shape, and nothing draws a shape no kin
 });
 
 test('every silhouette is drawn where the simulation hurts it', () => {
+  assert.deepEqual(Object.keys(COVERS).sort(), Object.keys(BALANCE.kinds).sort(),
+    'the coverage table and the crowd are not the same list');
   for (const body of bodies) {
     const fit = hurtboxFit(body.shape, body.r);
-    assert.ok(fit.covered >= COVERS_AT_LEAST,
+    assert.ok(fit.covered >= COVERS[body.type],
       body.type + ' covers ' + (fit.covered * 100).toFixed(0) + '% of the ' + body.r
-        + ' px circle it hurts with; shots that land on it would miss it');
+        + ' px circle it hurts with, and the bar for it is ' + (COVERS[body.type] * 100).toFixed(0)
+        + '%; shots that land on it would miss it');
     assert.ok(fit.reachOverR <= REACH_AT_MOST_R,
       body.type + ' reaches ' + fit.reachOverR.toFixed(2) + 'r out and the bar is '
         + REACH_AT_MOST_R + 'r; past that it eats shots it never felt');
@@ -116,17 +135,16 @@ test('no two bodies are one shape with nothing to tell them apart', () => {
 test('which bodies share a silhouette is a written-down list, not a drift', () => {
   // The same habit as the palette's promise list: a new kind given an old silhouette, or an old one
   // resized or re-coloured into a match, has to be argued with in words here instead of joining
-  // quietly. Nine of the crowd's thirty-six pairs are one shape; every one of them is paid for.
+  // quietly. Eight of the crowd's thirty-six pairs are one shape; every one of them is paid for.
   assert.deepEqual(sharedSilhouettes().map((pair) =>
     pair.a + ' / ' + pair.b + ' - ' + pair.carriedBy), [
+    'spitter / sniper - colour',
     'weaver / spitter - both',
     'spitter / shielder - colour',
     'drifter / darter - both',
+    'shielder / sniper - colour',
     'weaver / sniper - both',
-    'darter / sniper - both',
     'drifter / weaver - both',
-    'spitter / sniper - colour',
-    'drifter / sniper - colour',
     'darter / swarmling - size',
   ]);
   for (const pair of sharedSilhouettes()) {
@@ -137,14 +155,16 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
 });
 
 test('what hangs on a thin outline alone is a written-down list too', () => {
-  // Over the bar and not by much, with no colour and no size behind it: three pairs. They are not
-  // failed - a still picture cannot see a lunge, a weave, or twenty bodies bunching up to dive,
-  // and all three are bodies whose walking is the loudest thing about them (a mine that turns and
-  // breathes, a weaver that rocks, a spitter that holds its mouth on you) - but they are the
-  // thinnest ice in the crowd and this is where a session is told so.
+  // Over the bar and not by much, with no colour and no size behind it: four pairs. They are not
+  // failed - a still picture cannot see a lunge, a weave, or twenty bodies bunching up to dive, and
+  // every one of them is a body whose walking is the loudest thing about it (a mine that turns and
+  // breathes, a weaver that rocks, a darter that stops dead to line itself up, an eye that lights
+  // before it fires) - but they are the thinnest ice in the crowd and this is where a session is
+  // told so.
   const thinly = pairs.filter((pair) => pair.carriedBy === 'thinly')
     .map((pair) => pair.a + ' / ' + pair.b);
-  assert.deepEqual(thinly, ['bomber / shielder', 'weaver / darter', 'spitter / bomber']);
+  assert.deepEqual(thinly, ['bomber / shielder', 'weaver / darter', 'bomber / sniper',
+    'spitter / bomber']);
 });
 
 test('the ruler can say "one shape", or "different" means nothing', () => {
