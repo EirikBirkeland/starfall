@@ -1,5 +1,37 @@
 # Starfall — changelog
 
+## 1.9.7 — 2026-10-16
+The hive no longer dies inside its own split, and there is a ruler for the room a fight leaves.
+- **A hive that reached its last phase with the honeycomb whole could be killed by its own split.**
+  The phase-3 split sheds the mass through the same door a run's gun does, so every shed cell charged
+  the hull bar for the mass coming off - on top of the split paying that same share, which is 30% of
+  the hive's whole length. Cross the last mark with the mass standing and the bar ran out *inside* the
+  shed, and the split then buried a boss that was already buried and the frame threw. Coming off under
+  a run's gun is the run's to pay for; a shed the framework does is not, and the shed lets go of the
+  mass first now, which is what that guard was written for. It needed one fat late hit across a mark
+  3% deep, and the reference run never happened to land one.
+- **`tools/boss-pressure.js` is the ruler session 139 asked for.** It never asks whether a ship gets
+  hit - every instrument here already measures the dodging, and the bot is too good at it to learn
+  anything about the fight. It asks how much of the cage a ship may sit in and *stay* sitting in: the
+  live box cut into hull-width cells, each attack claiming room with the test the attack itself would
+  use, and a telegraph claiming a place only once there is not a whole promise left to leave it in.
+  That last rule is the whole measurement - a spoke with 0.6 s to go is a place you may stand, the
+  same spoke with 0.2 s left is a wall - and 0.6 s is `bosses.telegraphMin`, the game's own promise,
+  so the headline column means "room left to a ship that has one promise to answer".
+- **What the first reading says.** At the game's own promise the fights barely contest space: the
+  third phase leaves 95.4% of the cage standable under the Warden, 96.6% under the Hive and 92.1%
+  under the sun, and no reading of any phase of any fight ever had the ship in a corner. Ask the same
+  room three seconds ahead and it does bite - the sun to 81.0%, its worst moment 52.5% free and its
+  free glass split into pieces - so the wall exists and arrives only for a ship that is not watching.
+  The finding, and the ruler to price the fix with, are in PLAN.
+- **Three numbers came out of `game/bosses.js` on the way**, read helpers beside the ones the renderer
+  already borrows: how many seconds are left of the beat a fight is holding (a duration, where
+  `beatProgress` was a share), the shell a shell being armed will throw, and which way a lit fan
+  turns. A warning and the harm it warns of are the same four or five numbers, which is the only
+  reason a measurement like this can be made without guessing.
+- 13 tests added (12 holding the ruler claim by claim, one holding the split), suite 2458 -> 2471,
+  and the reference run is byte for byte what it was.
+
 ## 1.9.6 — 2026-10-16
 The tank's six faces are bowed, so the biggest body in the arena stops leaving a sixth of itself in the air — and the ruler that measures the crowd can no longer lose a corner.
 - **The tank covers 91% of its own hurtbox now**, up from 83%. Flat faces on a hexagon stand at

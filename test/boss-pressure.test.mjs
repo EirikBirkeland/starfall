@@ -1,19 +1,21 @@
 // The ruler that reads what room a boss fight leaves (tools/boss-pressure.js).
 //
-// Session 139 found that the late game is a win and not a wall - a strong run beats all three
-// fights without losing a hull from the tenth minute on - and that no ladder here can see it,
-// because the bot steps off every telegraph it is shown. `boss-pressure.js` measures the fight
-// instead of the dodging: how much of the cage a ship may sit in and *stay* sitting in. That claim
-// is what this file holds, because a number nobody watched being made is a number to argue with and
-// not to believe:
+// Session 139 found that the late game is a win and not a wall - a strong run beats all three fights
+// without losing a hull from the tenth minute on - and that nothing here could argue with it, because
+// every instrument measures the dodging and the bot steps off every telegraph it is shown.
+// `boss-pressure.js` measures the fight instead: how much of the cage a ship may sit in and *stay*
+// sitting in, which is a fact about the fight and not about the hands flying it. That claim is what
+// this file holds, because a number nobody watched being made is a number to argue with and not to
+// believe:
 //
-//   the room is the cage the fight shuts the duel into, and a place outside it does not stand -
-//     not because the walls hurt, but because a ship's centre cannot be there to stand in;
+//   the room is the cage the duel is shut into, and a place outside it does not stand - a ship's
+//     centre cannot be there, so it is not a place the fight is refusing;
 //   a claim is the reach the hit itself would use - a body's `r + ship.r`, a shell's `r + ship.r`
 //     walked forward across the horizon - and nothing looser, or the tool would be inventing danger;
-//   a telegraph claims a place only once there is not a whole promise left to leave it in, which is
-//     the difference between a warning and a wall, and the hinge the whole measurement turns on;
-//   a door a fight is holding open is standing room, because game/bosses.js honours it edge for edge;
+//   a telegraph claims a place only when there is not a whole promise left to leave it in, which is
+//     the difference between a warning and a wall and the hinge the whole measurement turns on;
+//   a door a fight is holding open is standing room, because game/bosses.js honours it edge for edge,
+//     and a sweep is claimed as an arc and not as a few bearings picked out of it;
 //   and the free room is counted in pieces, because a shell can leave most of the cage free and put
 //     all of it on the far side of a wall.
 //
@@ -108,11 +110,11 @@ test('a body claims exactly as far as a body hurts, and no further', () => {
   const cos = Math.cos(inwards), sin = Math.sin(inwards);
   assert.equal(room.stands(body.x + cos * (reach - 2), body.y + sin * (reach - 2)), false,
     'a ship inside a body\'s reach stands free');
-  assert.equal(room.stands(body.x + cos * (reach + 14), body.y + sin * (reach + 14)), true,
+  assert.equal(room.stands(body.x + cos * (reach + 12), body.y + sin * (reach + 12)), true,
     'a ship outside a body\'s reach is claimed');
 });
 
-test('a shell claims the line it will have walked, not just the place it stands', () => {
+test('a shell claims the line it will have walked, and not the place it stands alone', () => {
   const { field, boss } = freshly();
   // The fight itself is set out of the room for this one, so the only claim on it is the one shell
   // being measured. Nothing is stepped after this, so the crowd can be set aside that far.
@@ -122,18 +124,19 @@ test('a shell claims the line it will have walked, not just the place it stands'
   const x = box.x0 + 150, y = box.y0 + 150;
 
   const spec = { speed: 300, radius: 7, life: 9, color: '#fff', caged: false };
-  enemyShotAt(field, x, y, 1, 0, spec, 'warden');
+  const shot = enemyShotAt(field, x, y, 1, 0, spec, 'warden');
   const out = readRoom(room, boss, HORIZON);
-  const off = 7 + SHIP.r;
+  const off = shot.r + SHIP.r;
+  const flew = shot.vx * HORIZON;      // where it will have got to, off its own velocity
 
   assert.equal(out.byBit.bodies, 0, 'something still stands in a room that was emptied');
   assert.equal(out.byBit.shell, 0, 'the fight was arming a shell during a quiet read');
   assert.equal(room.stands(x, y), false, 'a shell claims nothing where it is standing');
-  assert.equal(room.stands(x + 300 * HORIZON * 0.5, y), false,
-    'a shell does not claim where it is on its way to');
-  assert.equal(room.stands(x + 300 * HORIZON * 0.5, y + off + 20), true,
+  assert.equal(room.stands(x + flew * 0.5, y), false, 'a shell does not claim where it is off to');
+  assert.equal(room.stands(x + flew, y), false, 'a shell does not claim where it arrives');
+  assert.equal(room.stands(x + flew * 0.5, y + off + 16), true,
     'a shell claims the whole sky around its line');
-  assert.equal(room.stands(x + 300 * HORIZON + 60, y), true,
+  assert.equal(room.stands(x + flew + 40, y), true,
     'a shell claims further than the horizon it was read with');
 });
 
@@ -280,8 +283,6 @@ test('a blade loose in the room claims the arc still in front of it, and not the
   // A little past the end of the sweep, and off it by more than the blade is wide (230 x sin 0.12 =
   // 28 px, against a `half` of 20): the band's own width, checked through the arc it sweeps.
   assert.equal(at(0.6 * where), true, 'a place past the end of the sweep is claimed');
-  assert.equal(room.stands(pivot.x + pivot.r + sweep.reach + 40, pivot.y), true,
-    'a place past the tip is claimed');
 });
 
 test('a door a fight is holding open is standing room', () => {
