@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.9",
+    "date": "2026-10-16",
+    "released": "2026-10-16T18:45:52.460Z",
+    "summary": "The sun's last phase calls bodies onto marks behind the wall, and a call is a turn of the fight",
+    "added": 483,
+    "removed": 56,
+    "logBytes": 49281669
+  },
+  {
     "version": "1.9.8",
     "date": "2026-10-16",
     "released": "2026-10-16T16:54:00.202Z",
