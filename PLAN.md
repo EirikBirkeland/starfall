@@ -2479,3 +2479,39 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       the comment that says so. At the same time the lens was stood taller a second time, to 84% of its
       own circle: `--show sniper` is nearly solid now. `palette-check --strict`, `contrast-check
       --strict` and 2431 tests are clean and the reference run is byte for byte what it was.
+
+- [x] Promote the shape sweep to a tool. Three sessions in a row (142, 143, 144) hand-wrote the same
+      ninety lines in `.scratch/` to answer one question - what would the crowd say if this body were
+      fatter, thinner, or a different red - and a harness that lives in a scratch file is a harness
+      that quietly stops matching the gates two sessions later. `node tools/try-body.js draft.mjs` is
+      those ninety lines with a file format on them: a draft exports `drafts`, one key per body it
+      changes, and a change is `{ shape, colour, fill, covers }` written with the same builders
+      `src/render/shapes.js` ships (`bulged`, `lens`, `lobed`, `flanks`, `studded`, `plainPolygon`,
+      now exported for the purpose). The tool writes the draft into the real tables, measures it with
+      the real rulers (`hurtboxFit`, `silhouettePairs`, `auditSights`, `auditSky`, `auditMarks`), puts
+      every table back, and prints PASS or FAIL per draft - non-zero exit when nothing in the files
+      would ship, so a sweep that found nothing cannot be mistaken for a result.
+      **Nothing in it is a hand-written bar**, which is what the scratch versions kept getting wrong:
+      the coverage floors are `COVERS` in `tools/shape-lab.js` (moved there from
+      `test/crowd-art.test.mjs`, because a bar only a test can see is invisible to the tool that draws
+      the proposal up), the ceiling on a nose is `noseCeiling()` measured off the crowd, the colour
+      promises and the crowded list come from `tools/sights.js`. A draft that draws a body *thinner*
+      than the one it replaces fails even when it clears the written floor - every floor in COVERS was
+      read off the body that shipped, so a bar alone could not see ground being given up; saying "I
+      meant to" is `covers: 0.62` on the draft, which is one line next to the argument the shape
+      already keeps in `src/render/shapes.js`.
+      **What the report prints besides a verdict**: the shipped numbers and the drafted ones in the
+      same columns, the pairs that could be one shape either side of the change, and the crowd's three
+      lists - one shape, thin outline only, one colour - counted against the shipped crowd with every
+      pair that changed hands named next to what it now stands on. That is the finding a shape or
+      colour visit ships with and it is usually not a failure: run the pre-session-144 sniper red
+      through it and it says `5 stand under a step of colour (ships with 3)` and names `darter /
+      sniper` at 0.45, which is the whole cost of that visit in three lines instead of a page of notes.
+      Two loose ends were picked up on the way: `crowdedColours()` is now the ruler's (`tools/sights.js`)
+      and `test/palette-read.test.mjs` pins its own list through it, so a session cannot have two
+      answers to "how crowded is the crowd"; and `inscribedShare` prints beside the coverage bar in
+      `tools/shape-lab.js`, which is what a written floor cannot express - a flat triangle reaches 1r
+      at three corners and encloses a quarter of the circle it hurts with, whoever wrote the bar.
+      22 tests in `test/try-body.test.mjs`; suite 2432 -> 2454 (measured off a worktree of HEAD, not off
+      the last NOTES line, which was one out), and the reference run is byte for byte what it was - a
+      ruler is not a game and had better not move one.

@@ -24,7 +24,7 @@ import { oklab, oklch, separation } from '../tools/colour-lab.js';
 import {
   SIGHTS, SKY, MEANINGS, SAME_SIZE_RATIO,
   auditSights, auditSky, auditPair, auditMarks, markFor, markNames,
-  marked, measure, promiseOf, promised, marginOf, sharedSilhouettes, shipBorrowers,
+  marked, measure, promiseOf, promised, marginOf, sharedSilhouettes, crowdedColours, shipBorrowers,
 } from '../tools/sights.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -279,15 +279,9 @@ test('the crowd shares colours, and says which pairs do', () => {
   // it (a mid blue at half an opacity over a near-black sky, which lands at 0.482 of lightness) and a
   // body taken down to 0.517 is nearly its match; a wall and a body have nothing but lightness for an
   // eye with no hue, and that is the axis this visit spent.
-  const crowded = [];
-  const bodies = SIGHTS.filter((s) => BALANCE.kinds[s.id] !== undefined);
-  for (let i = 0; i < bodies.length; i++) {
-    for (let j = i + 1; j < bodies.length; j++) {
-      const best = separation('normal', measure(bodies[i]).lab, measure(bodies[j]).lab).ratio;
-      if (best < 1) crowded.push(bodies[i].id + ' / ' + bodies[j].id);
-    }
-  }
-  assert.deepEqual(crowded.sort(), [
+  // The list is the ruler's, not this file's: `crowdedColours()` in tools/sights.js is the same
+  // measurement `tools/try-body.js` prints for a draft, so a session cannot have two answers.
+  assert.deepEqual(crowdedColours().map((row) => row.name), [
     'bomber / swarmling',
     'darter / swarmling',
     'spitter / bomber',

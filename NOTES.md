@@ -15941,3 +15941,121 @@ because what a body looks like is not what it does, and this changed only what i
    the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
    the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
    afterimage.
+
+## Session 145 — the sweep is a tool now: `tools/try-body.js`, and two tests read the ruler instead of a copy of it
+
+### What was on the shelf
+An uncommitted tree, not a clean one. Session 144's first "what should come next" was *promote the
+sweep harness - third session, three copies of the same ninety lines*, and a session had started it
+and ended without committing: `tools/try-body.js` (563 lines) and `test/try-body.test.mjs` were
+sitting in the tree untracked, `src/render/shapes.js` had its six builders exported, `COVERS` and a
+new `inscribedShare`/`noseCeiling` had gone into `tools/shape-lab.js` - and **the suite was red**:
+`test/try-body.test.mjs` did not even parse (the same five names imported from `tools/shape-lab.js`
+twice, on line 33 and again on line 37, so `crowdBody` was declared twice). So this session was
+finishing and verifying somebody else's item rather than starting a new one, which is what NOTES.md is
+for. Nothing of the design was wrong; three assertions were, and one real gap was left open.
+
+### What shipped
+- **`tools/try-body.js`**, the sweep with a file format on it: `node tools/try-body.js draft.mjs
+  [more.mjs...]`, a draft file exporting `drafts = [{ label, drifter: { shape, colour, fill, covers } }]`,
+  a PASS/FAIL block per draft, and a non-zero exit when *nothing* in the files would ship. It works by
+  writing the draft into the shipped tables (`CROWD_SHAPES`, `BALANCE.kinds`, the crowd's `SIGHTS`
+  rows), measuring with the shipped rulers, and putting every one back - so it judges a draft with
+  `silhouettePairs` and `auditSights` themselves and not with a transcription of them.
+- **The six builders in `src/render/shapes.js` are exported** (`plainPolygon`, `bulged`, `lens`,
+  `studded`, `lobed`, `flanks`), so a draft is written in the same words as the shipped table. A sweep
+  that re-implements `lens` in a scratch file is a sweep measuring somebody's copy of `lens`; that is
+  how session 144's harness ended up carrying its own.
+- **`COVERS` moved from `test/crowd-art.test.mjs` into `tools/shape-lab.js`** (values identical, the
+  comment rewritten). The test still holds the crowd to it and now imports it; the reason it moved is
+  in its header: a bar only a test can see is invisible to the tool that draws the proposal up, which
+  is precisely how a session ships a draft it had already measured as too thin.
+- **`crowdedColours()` is in `tools/sights.js`** and `test/palette-read.test.mjs` pins its list through
+  it instead of running its own loop over `SIGHTS` (same list, same three pairs, one fewer copy of the
+  arithmetic). The crowded list is the one a *colour* moves and `try-body` prints it, so the ruler had
+  to own it or the tool and the test would disagree about what "crowded" means.
+- **The report gained the crowd's three lists**, counted against the shipped crowd with every pair that
+  changed hands named next to what it now stands on: `11 pairs share an outline (ships with 11), 2 are
+  told apart by a thin outline and nothing else (ships with 2), 3 stand under a step of colour (ships
+  with 3)`, then `+ darter / sniper is under a step of colour now - 0.45 of a step`. That is the
+  finding a shape or colour visit actually ships with - session 143 went from eight shared pairs to
+  eleven and *shipped* - and a bare PASS/FAIL hides it. Feeding it the pre-session-144 sniper red says
+  the whole cost of that visit in three lines: two pairs back under a step, `bomber / sniper` back on
+  the thin list.
+- **`inscribedShare` prints beside the coverage bar in `tools/shape-lab.js`** (it was in the uncommitted
+  draft, untested and unprinted): what an outline provably holds, the disc it never steps inside, squared.
+  A flat triangle reaches 1r at three corners and no nearer than 0.5r anywhere else, so it encloses a
+  quarter of the circle it hurts with, and "its bar is 40%" stops being the interesting sentence.
+
+### The three wrong assertions, which are the part to remember
+1. **`no crowd body is called saucer`.** `validateDraft` catches an unknown key before `applyChange`
+   ever runs, so the message a draft actually gets is "talks about saucer, which is not a crowd body
+   and is not `label`; the crowd is ...". That is the better sentence of the two (it names the whole
+   crowd), so the test moved to it. `applyChange`'s own guard stays: it is the guard for a direct
+   caller, and a draft file never reaches it.
+2. **`r.about === 'darter / weaver'`.** A pair is named in *crowd* order, which is `BALANCE.kinds`
+   order, and the weaver comes before the darter there. The test now sorts the two names before it
+   compares, and says so: a pair is a pair whichever side the ruler happened to list it from.
+3. **`countLines(text, 'drifter / spitter') === 1`.** True when every pair could be mentioned once,
+   and false the moment the summary line could also name a pair - the drifter draft legitimately names
+   `drifter / spitter` twice, once as a pair row and once to say it left the shared list. Counting
+   *lines that contain a name* was the wrong question; `countPairRows` counts lines that *start* at the
+   pair-row indent, which is the thing with a count. Same for `spitter / sniper`.
+
+### The gap that was worth filling
+The tool judged a draft and said nothing about the crowd: a PASS was a PASS however much the palette had
+moved. That is the exact blind spot the last three sessions wrote about by hand, so `measureCrowd` now
+carries the three lists and `printLists` prints them. Two things had to be chosen honestly first:
+**which** thin list (the pinned `carriedBy === 'thinly'` debt, 2 pairs, and not `thinSilhouettes()`'
+wider 4-6 px band, 9 pairs, which sounds like the same thing and is not), and **what a pair that left a
+list is measured by** - `colourSteps()` asks `separation('normal', …)` directly, because a pair that
+left the crowded list has by definition a number the list no longer contains.
+
+### Surprises
+- **A tool can print a self-contradiction and pass its own tests.** The first draft that grew a nose
+  printed "it may reach 2.15r out, which is the crowd's longest nose (2.30r) with 0.05r of room": the
+  ceiling came from `base` (the shipped crowd) and the nose from `longestNose()`, measured on the
+  *drafted* tables one line later. `base.nose` now travels with `base.ceiling`. Worth pausing on: both
+  numbers were "measured off the crowd", and only one of them was measured off the crowd the sentence
+  was talking about.
+- `1 of 2 draft would ship as drawn.` The plural was keyed to the number that *passed*. Keyed to the
+  number of drafts now, which is the noun it agrees with.
+- The habit of re-measuring history paid again: `noseCeiling()` is now *derived* (`longestNose() + 0.05`)
+  rather than written as `2.15` in `test/crowd-art.test.mjs`, so the day a body grows a nose the bar
+  moves and the test that quotes it says so in words. It also means `2.15` appears nowhere as a promise.
+- Two dead imports left behind by earlier sessions (`THIN_SHAPE_PX` in `test/crowd-art.test.mjs`,
+  `CROWD_SHAPES` in `tools/shape-lab.js`, both unused at HEAD) and one dead function in the new tool
+  (`pctHeader`, never called). A file is read cold every session; the cheapest cleanliness is deleting
+  what nothing calls.
+
+### Verified
+Full suite **2454/2454**, measured against HEAD the same way session 143 did it (a `git worktree` of
+HEAD, run in the same minute as the working tree): HEAD measures **2432** - so NOTES' "2431" was one
+out, in the same direction as the last time this was checked - and the whole 22 between the two numbers
+is `test/try-body.test.mjs`. `tools/simulate.js --seed 20261006 --trace` byte for byte what it was:
+10m00s / 73,982 / level 57. `palette-check --strict` and `contrast-check --strict` clean, `node --check` on every touched
+file, and a manual sweep of three drifter drafts read back the shipped numbers in the right columns.
+
+**No release this session.** Nothing a player sees changed: the reference run is identical, and what is
+new is a ruler and a report. Releases are how the owner sees the game get better, and this session made
+the *next* shape visit cheaper, not the game. The work is committed and tagged history is untouched.
+
+### What should come next
+1. **The kindest-turn question, unchanged from 142-144 and now cheaper than ever.** Seven of the crowd's
+   eleven shared pairs involve the sniper or the spitter, both of which *always* face the ship
+   (`game/kinds.js`), so "best-aligned over a relative turn" is pessimistic for exactly the pairs that
+   dominate the list. Handing the ruler each kind's turn as data - with its own test - would either
+   relax the list or say the tightness is real. `try-body.js` is now the place that answer would print.
+2. **The last three crowded pairs are all the swarmling and the bomber**: `darter / swarmling` 0.31,
+   `bomber / swarmling` 0.70, `spitter / bomber` 0.60. The swarm is bright scarlet on purpose (twenty of
+   them have to read as weather) so this wants a lever other than a step of lightness - possibly size,
+   possibly the flock's own spacing, which no static ruler can see. Nobody has asked why a clump of
+   twenty is measured as one body at all.
+3. Now that a draft is cheap, a session could spend one *looking* rather than fixing: sweep each of the
+   nine bodies for the fatter shape that costs nothing, and see whether the crowd can be collectively
+   rounder than it is with the eleven shared pairs unpaid for rather than the twelve-or-more a naive
+   fattening buys. `try-body` will refuse the ones that are not free, in bulk, in seconds.
+4. Unchanged from 139-144: the late game wants a *fight* and not a crowd (boss phase tables, not hull);
+   the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
+   the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
+   afterimage.

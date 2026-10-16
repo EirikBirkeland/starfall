@@ -24,44 +24,24 @@ import assert from 'node:assert/strict';
 import { BALANCE } from '../src/game/balance.js';
 import { CROWD_SHAPES, crowdShape } from '../src/render/shapes.js';
 import {
-  crowdBodies, crowdPairs, edgeGap, hurtboxFit, profile, ONE_SHAPE_PX, THIN_SHAPE_PX,
+  crowdBodies, crowdPairs, edgeGap, hurtboxFit, profile, COVERS, noseCeiling, NOSE_HEADROOM_R,
+  ONE_SHAPE_PX,
 } from '../tools/shape-lab.js';
 import { BODY_FORMS, SAME_SIZE_RATIO, silhouettePairs, sharedSilhouettes } from '../tools/sights.js';
 
-/**
- * What each body has to cover of its own hurtbox, as a share of the disc.
- *
- * One number per kind and not a single floor, because the crowd's worst share is a decision and not
- * a threshold: the swarmling wears the ship's own dart and a body whose length is a nose cannot fill
- * a circle and keep the nose. A single floor set at the worst body's share would let a thinning of
- * the other eight pass unnoticed, which is exactly the regression this table is for: a flank shaved,
- * a tail lengthened, a body quietly redrawn as a hairline.
- *
- * The comment on each row is what the body covers today; the number is that, with a point or two of
- * room left to breathe. It goes up when a body is made fatter. It comes down only with an argument
- * written where the shape is.
- */
-const COVERS = {
-  swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
-  sniper: 0.83,     // 84% - the lens stood taller again, and no longer: same two corners
-  drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
-  darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
-  tank: 0.80,       // 83%
-  shielder: 0.80,   // 84%
-  spitter: 0.90,    // 92%
-  bomber: 0.90,     // 94%
-  weaver: 0.95,     // 100%
-};
+/* What each body has to cover of its own hurtbox is `COVERS`, in tools/shape-lab.js: the same table
+ * `tools/try-body.js` refuses a draft under, because a bar only a test can see is invisible to the
+ * tool that draws the proposal up - which is how a session ships a draft it had already measured as
+ * too thin. Its reason is written there, next to the ruler that measures it. */
 
 /**
  * How far past its own radius a silhouette may reach.
  *
- * A nose is the house convention - the darter's spear and a swarmling's point stand twice their
- * radius out, which is what a thing that lunges looks like - so the bar is the longest nose in the
- * crowd (2.10r) rather than a round number. Past it a body eats shots it never felt, along the
- * very axis the player aims on.
+ * Measured, not written: the crowd's own longest nose plus a little room (`noseCeiling` in
+ * `tools/shape-lab.js`, which keeps the reason a nose is the house convention). A body that reaches
+ * past it eats shots it never felt, along the very axis the player aims on.
  */
-const REACH_AT_MOST_R = 2.15;
+const REACH_AT_MOST_R = noseCeiling();
 
 const bodies = crowdBodies();
 const pairs = silhouettePairs();
@@ -86,7 +66,8 @@ test('every silhouette is drawn where the simulation hurts it', () => {
         + '%; shots that land on it would miss it');
     assert.ok(fit.reachOverR <= REACH_AT_MOST_R,
       body.type + ' reaches ' + fit.reachOverR.toFixed(2) + 'r out and the bar is '
-        + REACH_AT_MOST_R + 'r; past that it eats shots it never felt');
+        + REACH_AT_MOST_R + 'r, the crowd\'s own longest nose plus '
+        + NOSE_HEADROOM_R + 'r; past that it eats shots it never felt');
   }
 });
 

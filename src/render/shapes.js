@@ -286,8 +286,17 @@ function shipDart(spike) {
   return flanks([[spike, 0], [-0.75, 0.7], [-0.35, 0]]);
 }
 
+/**
+ * The builders below (`plainPolygon`, `bulged`, `lens`, `studded`, `lobed`, `flanks`) are the whole
+ * vocabulary the crowd is drawn with, and they are exported for `tools/try-body.js`: a proposed
+ * body is then written in the same words as a shipped one, where a sweep that had to re-implement
+ * them in a scratch file was a sweep measuring somebody's copy. Nothing in the game imports them -
+ * the table above is the only thing in `src/` that calls them, and `shipDart` under them is one body
+ * written in the vocabulary rather than a word of it.
+ */
+
 /** A regular polygon: the shape a body that only walks is drawn with. */
-function plainPolygon(sides) {
+export function plainPolygon(sides) {
   return (ctx, r) => polygon(ctx, 0, 0, r, sides, 0);
 }
 
@@ -302,7 +311,7 @@ function plainPolygon(sides) {
  * has to go to `2 * face - tip * cos(pi / sides)`. Then a body can be given faces of a stated share
  * of its own hurtbox, which is the number `tools/shape-lab.js` measures coverage on.
  */
-function bulged(sides, tip, face) {
+export function bulged(sides, tip, face) {
   return lobed(sides, tip, 2 * face - tip * Math.cos(Math.PI / sides));
 }
 
@@ -313,7 +322,7 @@ function bulged(sides, tip, face) {
  * business alone: the tips stay put however tall the lens is, so a taller lens fills the circle
  * it is hurt by without ever reaching a pixel further past it.
  */
-function lens(tip, height) {
+export function lens(tip, height) {
   return (ctx, r) => {
     ctx.beginPath();
     ctx.moveTo(r * tip, 0);
@@ -328,7 +337,7 @@ function lens(tip, height) {
  * with straight faces, so the edge of it is the busiest thing in the crowd at whatever size it
  * is drawn.
  */
-function studded(points, tip, waist) {
+export function studded(points, tip, waist) {
   return (ctx, r) => {
     ctx.beginPath();
     for (let i = 0; i < points * 2; i++) {
@@ -347,7 +356,7 @@ function studded(points, tip, waist) {
  * them, with each swing one quadratic so the body has no corners to catch the eye. Drawn with a
  * lobe pointing along +x, like everything else here.
  */
-function lobed(n, tip, waist) {
+export function lobed(n, tip, waist) {
   return (ctx, r) => {
     ctx.beginPath();
     // The first lobe is always at bearing 0, which is the axis the body is turned to face where it
@@ -374,7 +383,7 @@ function lobed(n, tip, waist) {
  * about the axis it turns on to face where it is going - which is what a body that always
  * points at something has to be, and what test/crowd-art.test.mjs holds.
  */
-function flanks(top) {
+export function flanks(top) {
   return (ctx, r) => {
     ctx.beginPath();
     ctx.moveTo(r * top[0][0], r * top[0][1]);

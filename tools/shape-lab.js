@@ -58,7 +58,7 @@
 // out by `tools/palette-check.js`, which borrows this file's outline distance to do it.
 
 import { BALANCE } from '../src/game/balance.js';
-import { CROWD_SHAPES, crowdShape } from '../src/render/shapes.js';
+import { crowdShape } from '../src/render/shapes.js';
 import { pathToFileURL } from 'node:url';
 
 const TAU = Math.PI * 2;
@@ -85,6 +85,87 @@ export const ONE_SHAPE_PX = 4;
  * static ruler can see walking.
  */
 export const THIN_SHAPE_PX = 6;
+
+/**
+ * What each body has to cover of its own hurtbox, as a share of the disc.
+ *
+ * One number per kind and not a single floor, because the crowd's worst share is a decision and not
+ * a threshold: the swarmling wears the ship's own dart, and a body whose length is a nose cannot
+ * fill a circle and keep the nose. A single floor set at the worst body's share would let a
+ * thinning of the other eight pass unnoticed, which is exactly the regression this table is for: a
+ * flank shaved, a tail lengthened, a body quietly redrawn as a hairline.
+ *
+ * The comment on each row is what the body covers today; the number is that, with a point or two of
+ * room left to breathe. It goes up when a body is made fatter. It comes down only with an argument
+ * written where the shape is, in `src/render/shapes.js`.
+ *
+ * It lives here because it is a bar on a measurement and this file makes the measurement, and
+ * because two rulers read it: `test/crowd-art.test.mjs` holds the shipped crowd to it, and
+ * `tools/try-body.js` refuses a proposal that would come under it. A bar that only a test can see
+ * is invisible to the tool that draws up the proposal, which is how a session ends up shipping a
+ * draft it had already measured as too thin.
+ */
+export const COVERS = {
+  swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
+  sniper: 0.83,     // 84% - the lens stood taller again, and no longer: same two corners
+  drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
+  darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
+  tank: 0.80,       // 83%
+  shielder: 0.80,   // 84% - the face is wider than the body it stands on
+  spitter: 0.90,    // 92%
+  bomber: 0.90,     // 94%
+  weaver: 0.95,     // 100%
+};
+
+/**
+ * What an outline encloses, as a share of the hurtbox: the square of its closest bearing.
+ *
+ * This is not a bar and nothing is gated on it. It is a fact about a shape that a bar read off
+ * yesterday's drawing cannot express: an outline that never comes nearer than `q` of the radius to
+ * the middle *encloses* a disc of `q r`, and everything outside that disc is air a shot can stop in.
+ * A flat triangle - the drifter as it shipped until session 143 - reaches 1r at three corners and no
+ * nearer than 0.5r anywhere else, so it encloses a quarter of the circle it hurts with. Say that out
+ * loud and "its bar is 40%" stops being the interesting number about it.
+ */
+export function inscribedShare(shape, r) {
+  let nearest = Infinity;
+  for (const reach of profile(shape, r)) nearest = Math.min(nearest, reach);
+  // Capped at the whole hurtbox. An outline can enclose *more* than the circle that hurts you - the
+  // weaver's lobes stand 1.15r out all the way round - and the only claim worth printing is that it
+  // holds all of the circle there is.
+  return Math.min(1, (nearest / r) ** 2);
+}
+
+/**
+ * How far past its own radius a silhouette may reach, in radii.
+ *
+ * A nose is the house convention - the darter's spear and a swarmling's point stand twice their
+ * radius out, which is what a thing that lunges looks like - so the bar is the longest nose in the
+ * crowd with a little room, and not a round number: it is measured off the crowd by
+ * `noseCeiling()` below rather than written down, because "longest nose plus room" is the whole
+ * argument and the number has to follow the day a body grows a nose. Past the bar a body eats
+ * shots it never felt, along the very axis the player aims on.
+ *
+ * `test/crowd-art.test.mjs` holds every shipped body to it and `tools/try-body.js` refuses a
+ * proposal that grows one past it.
+ */
+export const NOSE_HEADROOM_R = 0.05;
+
+/**
+ * The bar itself, measured: the longest nose the crowd wears, plus `NOSE_HEADROOM_R`.
+ *
+ * Today the crowd's longest nose is 2.10r (a darter's spear and a swarmling's point, which are the
+ * same shape at two sizes), so the bar is 2.15r. Take it from here rather than writing 2.15 down -
+ * a bar copied out of a report is a bar that goes stale the day a body moves.
+ */
+export function noseCeiling(bodies = crowdBodies()) {
+  return Math.round((longestNose(bodies) + NOSE_HEADROOM_R) * 100) / 100;
+}
+
+/** How far the crowd's longest nose stands out, in radii: see `noseCeiling`. */
+export function longestNose(bodies = crowdBodies()) {
+  return Math.max(...bodies.map((body) => extent(body.shape, body.r).reach / body.r));
+}
 
 /**
  * A context that records a path instead of drawing it: the same trick
@@ -316,6 +397,8 @@ export function fitRows(bodies = crowdBodies()) {
       type: body.type,
       r: body.r,
       covered: fit.covered,
+      floor: COVERS[body.type],
+      encloses: inscribedShare(body.shape, body.r),
       reach: fit.reachOverR,
       missed: fit.missed,
       bar: '#'.repeat(Math.round(fit.covered * 20)).padEnd(20, '.'),
@@ -410,6 +493,13 @@ function showBody(type) {
     + '% of the hurtbox');
   lines.push('  + drawn and not hurt    the drawing stands ' + fit.reachOverR.toFixed(2)
     + 'r out at its furthest');
+  lines.push('');
+  lines.push('  covers ' + (fit.covered * 100).toFixed(0) + '% of the circle and its bar is '
+    + (COVERS[body.type] * 100).toFixed(0) + '%; its outline encloses '
+    + (inscribedShare(body.shape, body.r) * 100).toFixed(0) + '% of it, which is the part no shot'
+    + ' can stop in whatever the drawing does');
+  lines.push('  the crowd lets a body reach ' + noseCeiling() + 'r out, which is its longest nose ('
+    + longestNose().toFixed(2) + 'r) with ' + NOSE_HEADROOM_R + 'r of room');
   return lines.join('\n');
 }
 
@@ -430,8 +520,17 @@ function coverReport(rows) {
   lines.push('');
   for (const row of rows) {
     lines.push('  ' + row.type.padEnd(11) + String(row.r).padStart(2) + ' px  ' + row.bar + '  '
-      + (row.covered * 100).toFixed(0).padStart(3) + '%   ' + row.reach.toFixed(2) + 'r past');
+      + (row.covered * 100).toFixed(0).padStart(3) + '%   ' + row.reach.toFixed(2) + 'r past'
+      + '   bar ' + (row.floor * 100).toFixed(0) + '%   encloses '
+      + (row.encloses * 100).toFixed(0) + '%');
   }
+  lines.push('');
+  lines.push('  `bar` is the share written for that body in the COVERS table above - one per kind,');
+  lines.push('  because the worst share in the crowd is a decision about that body and not a');
+  lines.push('  threshold. `encloses` is what the outline provably holds: the disc it never steps');
+  lines.push('  inside, squared. A body whose nearest edge stands half the radius out has thrown');
+  lines.push('  away three quarters of the circle whatever a table says, and that is a fact about the');
+  lines.push('  shape and not a bar - which is the point of printing it next to one.');
   lines.push('');
   lines.push('  What each of these is held to is pinned per kind in test/crowd-art.test.mjs, and the shape');
   lines.push('  of a miss is `--show worst`. Which pairs of bodies the crowd has to tell apart, and what');

@@ -103,7 +103,7 @@
 import { PALETTE, parseColor, mixColors } from '../src/core/palette.js';
 import { BALANCE } from '../src/game/balance.js';
 import { ROWS as VIEW_ROWS } from '../src/game/settings.js';
-import { oklab, over, worstVision, VISIONS } from './colour-lab.js';
+import { oklab, over, separation, worstVision, VISIONS } from './colour-lab.js';
 import { crowdPairs, ONE_SHAPE_PX, THIN_SHAPE_PX } from './shape-lab.js';
 
 /** The colour a body sits on. The sky is a vertical gradient; this is its middle. */
@@ -362,6 +362,37 @@ export function sharedSilhouettes() {
 export function thinSilhouettes() {
   return silhouettePairs()
     .filter((pair) => pair.gap > ONE_SHAPE_PX && pair.gap <= THIN_SHAPE_PX);
+}
+
+/**
+ * The crowd pairs that stand less than a step of colour apart to an eye with all its cones.
+ *
+ * The third of the three lists a body is judged against, and the only one a *colour* moves: outline
+ * is what a shape visit changes, colour is what a palette visit changes, and a pair that came within
+ * a step of another body is the reason the next darkening gets refused. Not a gate - the step is
+ * what shape and size are allowed to buy, and `test/palette-read.test.mjs` pins the list pair by
+ * pair with the argument each one has left - but a report that cannot say how long the list is
+ * cannot say what a recolour cost, which is the finding most colour visits end on.
+ *
+ * Measured with `normal`, not with the worst eye: these are pairs the game *chose* to keep close, and
+ * the question is whether the best eye can still tell them, not whether the worst one can (that
+ * question is `promiseOf`'s, and it is gated).
+ *
+ * One row per pair - `name` is 'a / b' in crowd order, `steps` the separation the list is about -
+ * so a report can print the number and not just the fact.
+ */
+export function crowdedColours() {
+  const bodies = crowdSights();
+  const rows = [];
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const steps = separation('normal', measure(bodies[i]).lab, measure(bodies[j]).lab).ratio;
+      if (steps < FULL) {
+        rows.push({ a: bodies[i].id, b: bodies[j].id, name: bodies[i].id + ' / ' + bodies[j].id, steps });
+      }
+    }
+  }
+  return rows.sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
 }
 
 /**
