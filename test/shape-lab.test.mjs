@@ -166,11 +166,14 @@ test('the report prints every body, and says what the bars mean', () => {
   for (const type of Object.keys(BALANCE.kinds)) {
     assert.ok(out.includes(type), 'the report has no row for the ' + type);
   }
-  assert.match(out, /drifter.*42%/, 'the drifter covers the share it always covered');
+  assert.match(out, /swarmling.*45%/, 'the thin body in the crowd is the swarmling, on purpose');
+  assert.match(out, /drifter.*75%/, 'the drifter covers three quarters of the circle now');
   assert.match(out, /test\/crowd-art\.test\.mjs/, 'the report does not say where the bars are held');
 
   // The worst body first, so a reader sees the problem before the pretty rows.
-  assert.ok(out.indexOf('drifter') < out.indexOf('weaver'), 'the report is not worst-first');
+  const rows = fitRows();
+  assert.ok(out.indexOf(rows[0].type) < out.indexOf(rows[rows.length - 1].type),
+    'the report is not worst-first');
 });
 
 test('--show draws one body in text, and refuses a kind that is not in the crowd', () => {
@@ -181,7 +184,7 @@ test('--show draws one body in text, and refuses a kind that is not in the crowd
 
   const worst = shapeLab(['--show', 'worst']);
   assert.equal(worst.status, 0, worst.stderr);
-  assert.match(worst.stdout, /^drifter,/, '--show worst is not the least-covered body');
+  assert.match(worst.stdout, /^swarmling,/, '--show worst is not the least-covered body');
 
   const nonsense = shapeLab(['--show', 'saucer']);
   assert.equal(nonsense.status, 2);

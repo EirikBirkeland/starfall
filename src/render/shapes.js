@@ -163,17 +163,21 @@ export function shipShape(name) {
 // a silhouette must cover most of the hurtbox it is hurt by, and it must not stand far past
 // it, or shots land on nothing and bodies pass through each other.
 export const CROWD_SHAPES = {
-  // The drifter: three flat faces and no ideas. It is the plainest body in the game because
-  // it is the plainest enemy - it walks at you - and it is what every tank comes apart into.
+  // The drifter: three faces and no ideas. It is the plainest body in the game because it is the
+  // plainest enemy - it walks at you - and it is what every tank comes apart into.
   //
-  // It covers 42% of the circle that hurts it, the worst share in the crowd, and it stays that way
-  // on purpose: the faces were bowed out to 75% and put back. Bow them and the two outlines come to
-  // 3.9 px, which is one shape - and until session 142 that was the whole argument, because a 15 px
-  // violet body and a 17 px magenta one were 0.56 of a step of colour apart for an eye with no red
-  // cone, so the *triangle* was the only thing saying which one a body was. The palette has since
-  // bought that step (1.50 now: see the note on PALETTE.violet), so the rounded triangle is a shape
-  // this file is free to draw; what it has not yet done is draw it. The item is at the foot of PLAN.md.
-  drifter: plainPolygon(3),
+  // The faces are bowed, and they were flat for a reason that has since been paid off. Flat faces
+  // stand at half the radius the corners reach, so the triangle covered 42% of the 15 px circle that
+  // hurts you - the worst share in the crowd - and three shots in five that the game counted were
+  // seen to stop in the air beside it. Bowing the faces to 0.8 of the radius takes that to 75% and
+  // leaves the corners exactly where they were, so the body reaches no further past its hurtbox than
+  // it ever did. What it gives up is outline: a fuller body stands nearer the crowd's other full-ish
+  // bodies, and a rounded triangle comes within 2.2 px of a spitter, 2.8 of a sniper and 3.9 of a
+  // shielder's face. Colour pays for all three, and that is the whole licence for the change - the
+  // pair this body used to be told from by shape alone, drifter against shielder, is 1.49 steps of
+  // brightness apart since session 142 (see the note on PALETTE.violet), and a flat triangle was all
+  // that pair had before.
+  drifter: bulged(3, 1.0, 0.8),
 
   // The weaver: a quatrefoil - four shoulders with a body between them, no points on it. It used
   // to wear the ship's own dart with a shorter nose, which was a shape the eye already had two
@@ -193,16 +197,15 @@ export const CROWD_SHAPES = {
   // The darter: a long spear with a barbed tail. It is the only body in the crowd that is
   // longer than it is wide by a mile, which is what a thing that stops dead and comes down a
   // line at you should look like.
-  darter: (ctx, r) => {
-    ctx.beginPath();
-    ctx.moveTo(r * 2.1, 0);
-    ctx.lineTo(r * 0.3, r * 0.6);
-    ctx.lineTo(-r * 1.1, r * 0.34);
-    ctx.lineTo(-r * 0.5, 0);
-    ctx.lineTo(-r * 1.1, -r * 0.34);
-    ctx.lineTo(r * 0.3, -r * 0.6);
-    ctx.closePath();
-  },
+  //
+  // The cheek stands 0.9r off the axis. It used to stand 0.6r, which is why the spear covered only
+  // 56% of its own hurtbox: two thirds of the drawing is nose, and the circle that hurts you is the
+  // bit behind the point, so a thin cheek is a body shots pass through. Widening the head is the
+  // one way a spear can fill its circle and stay a spear - the point stays 2.1r out, the barb stays a
+  // barb - and it brings the outline to 3.1 px from the weaver's clover, which is one shape and is
+  // paid for by 1.21 steps of colour (session 142 again). The next nearest body is the drifter, at
+  // 3.2 px with both size and colour behind it.
+  darter: flanks([[2.1, 0], [0.3, 0.9], [-1.1, 0.34], [-0.5, 0]]),
 
   // The spitter: a fat back, a flat tail and a spout down the middle of it. Its mouth points at the
   // ship always (game/kinds.js), so the spout is the honest shape for the light the frame paints in
@@ -275,6 +278,21 @@ function shipDart(spike) {
 /** A regular polygon: the shape a body that only walks is drawn with. */
 function plainPolygon(sides) {
   return (ctx, r) => polygon(ctx, 0, 0, r, sides, 0);
+}
+
+/**
+ * A body of `sides` corners at `tip`, with every face bowed out to `face` (both in radii).
+ *
+ * It is `lobed` with the arithmetic done the other way round, because what a body *is called* - a
+ * rounded triangle - is a statement about its faces, and `lobed`'s third number is the control that
+ * bows them, which is not a thing anyone can read off a shape. The middle of a quadratic stands a
+ * quarter of the way from each end and half of the way from its control, and the two corners of a
+ * face of a `sides`-gon stand `cos(pi / sides)` of the tip on the axis between them, so the control
+ * has to go to `2 * face - tip * cos(pi / sides)`. Then a body can be given faces of a stated share
+ * of its own hurtbox, which is the number `tools/shape-lab.js` measures coverage on.
+ */
+function bulged(sides, tip, face) {
+  return lobed(sides, tip, 2 * face - tip * Math.cos(Math.PI / sides));
 }
 
 /**

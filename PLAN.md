@@ -2374,7 +2374,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over
       stdio rather than ACP. Shipped in 0.4.9.
-- [ ] Four bodies are drawn inside the circle that hurts them, and one of them is the commonest body
+- [x] Four bodies are drawn inside the circle that hurts them, and one of them is the commonest body
       in the game. `tools/shape-lab.js` measures how much of a kind's own `radius` disc its own
       silhouette covers, and the crowd reads: drifter 42%, swarmling 45%, sniper 53%, darter 56% -
       then 83% and up for the rest. A bullet is stopped at `bulletRadius + enemy.r` from the middle,
@@ -2410,6 +2410,27 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       bowed to a rounded triangle with its corners exactly where they are now, and the darter's head
       filled out from a 0.7r cheek to something nearer 1r. Re-run `node tools/shape-lab.js` after,
       because a fatter body moves the outline distances of everything it touches.
+
+      **Both drawn (session 143), and the item is closed.** The drifter's faces are bowed to 0.8 of
+      its radius with the corners exactly where they were - 42% -> 75% of its own circle, still
+      1.00r of reach - and `render/shapes.js` draws it with a new `bulged(sides, tip, face)`, which
+      is `lobed` with the arithmetic done from the face instead of from the control point, because
+      "faces at 0.8r" is the number a body is called by and the number `hurtboxFit` measures. The
+      darter's cheek went from 0.6r to 0.9r - 56% -> 78% - and its hand-written path became a
+      `flanks` row, so every body in the crowd is now one of the three forms the ruler measures.
+      Everything now reads 74% and up except the swarmling at 45%, which is the ship's own dart on
+      purpose and stays.
+
+      What it cost is the part that had to be measured and not hoped for: a fuller body is a rounder
+      body, and the crowd has only so much outline to go round. Pairs drawn as one shape went from 8
+      of the crowd's 36 to 11 - the drifter came within 2.2 px of a spitter, 2.8 of a sniper and 3.9
+      of the shielder's face, the darter within 3.1 of the weaver's clover - and every one of them is
+      paid for by colour, 1.21 to 2.43 steps for the worst eye that still keeps it. That is exactly
+      what session 142's brightness visit bought, and this is where the receipt is; one pair came out
+      of the list for nothing, the fuller darter standing 5.8 px from the swarmling's shape it used to
+      share. `test/crowd-art.test.mjs` holds both lists and the floors are up (0.74 drifter, 0.77
+      darter). `palette-check --strict` is clean and the reference run is byte for byte what it was,
+      which it had better be: a silhouette is not a simulation.
 - [x] Two pairs of the crowd are nearly one colour, and they are the lock on the crowd's shapes. The
       palette report's silhouette section prints every pair the eye has to tell apart and what carries
       it, and two of them carry nothing but outline: the drifter against the shielder at 0.56 of a step

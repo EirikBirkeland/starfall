@@ -33,21 +33,19 @@ import { BODY_FORMS, SAME_SIZE_RATIO, silhouettePairs, sharedSilhouettes } from 
  *
  * One number per kind and not a single floor, because the crowd's worst share is a decision and not
  * a threshold: the swarmling wears the ship's own dart and a body whose length is a nose cannot fill
- * a circle and keep the nose, and the drifter's three flat faces are the only thing that parts a
- * violet body from a magenta one 13% bigger (render/shapes.js has both arguments). A single floor
- * set at the worst body's share would let a thinning of the other eight pass unnoticed, which is
- * exactly the regression this table is for: a flank shaved, a tail lengthened, a body quietly
- * redrawn as a hairline.
+ * a circle and keep the nose. A single floor set at the worst body's share would let a thinning of
+ * the other eight pass unnoticed, which is exactly the regression this table is for: a flank shaved,
+ * a tail lengthened, a body quietly redrawn as a hairline.
  *
  * The comment on each row is what the body covers today; the number is that, with a point or two of
  * room left to breathe. It goes up when a body is made fatter. It comes down only with an argument
  * written where the shape is.
  */
 const COVERS = {
-  drifter: 0.41,    // 42% - three flat faces, and the faces are the shielder's problem
   swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
-  darter: 0.55,     // 56% - same again, and the weaver is what stops it getting any fatter
   sniper: 0.70,     // 74% - the lens was made taller, and no longer
+  drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
+  darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
   tank: 0.80,       // 83%
   shielder: 0.80,   // 84%
   spitter: 0.90,    // 92%
@@ -135,17 +133,30 @@ test('no two bodies are one shape with nothing to tell them apart', () => {
 test('which bodies share a silhouette is a written-down list, not a drift', () => {
   // The same habit as the palette's promise list: a new kind given an old silhouette, or an old one
   // resized or re-coloured into a match, has to be argued with in words here instead of joining
-  // quietly. Eight of the crowd's thirty-six pairs are one shape; every one of them is paid for.
+  // quietly. Eleven of the crowd's thirty-six pairs are one shape - it was eight before two bodies
+  // were filled out - and every one of them is paid for.
+  //
+  // Filling a body out to its own hurtbox makes it rounder, and a crowd of nine bodies drawn on nine
+  // dark discs has only so much outline to go round: bowing the drifter's faces brought the spitter
+  // from 5.3 px to 2.2, the sniper from 5.4 to 2.8 and the shielder from 6.7 to 3.9, and filling the
+  // darter's head brought the weaver from 4.5 to 3.1. Every one of those pairs is carried by colour -
+  // between 1.21 and 2.43 of a step for the worst eye that still has that colour - which is what
+  // session 142's brightness visit bought them with, and this list is where the debt is written. It
+  // is also why `darter / swarmling` left the list: the fuller spear stands 5.8 px from the shape it
+  // used to share.
   assert.deepEqual(sharedSilhouettes().map((pair) =>
     pair.a + ' / ' + pair.b + ' - ' + pair.carriedBy), [
+    'drifter / weaver - both',
     'spitter / sniper - colour',
+    'drifter / spitter - colour',
     'weaver / spitter - both',
     'spitter / shielder - colour',
-    'drifter / darter - both',
+    'drifter / sniper - colour',
     'shielder / sniper - colour',
     'weaver / sniper - both',
-    'drifter / weaver - both',
-    'darter / swarmling - size',
+    'weaver / darter - colour',
+    'drifter / darter - both',
+    'drifter / shielder - colour',
   ]);
   for (const pair of sharedSilhouettes()) {
     assert.ok(pair.gap <= ONE_SHAPE_PX, pair.a + ' / ' + pair.b + ' is not one shape at all');
@@ -163,7 +174,9 @@ test('what hangs on a thin outline alone is a written-down list too', () => {
   //
   // The weaver and the darter used to be on this list, a pink and a coral 0.43 of a step apart on an
   // eye with no blue cone and 4.5 px of outline apart. Session 142 moved four crowd entries in
-  // brightness and they came out the other side at 1.21, which is why they are not here now.
+  // brightness and the pair came out at 1.21 of a step, and filling the darter's head a session later
+  // took its outline from 4.5 px to 3.1 - so the pair is a shared silhouette now, carried by colour,
+  // and it is not here. Three more pairs crossed into one shape with it and none of them landed here.
   const thinly = pairs.filter((pair) => pair.carriedBy === 'thinly')
     .map((pair) => pair.a + ' / ' + pair.b);
   assert.deepEqual(thinly, ['bomber / shielder', 'bomber / sniper', 'spitter / bomber']);
