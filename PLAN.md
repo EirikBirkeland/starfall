@@ -2374,3 +2374,14 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       player and a different one can be attached with a config line. `node tools/agent-bridge.js`,
       or `--demo` to watch the wire; `tools/agent/README.md` has the tools and why this is MCP over
       stdio rather than ACP. Shipped in 0.4.9.
+- [ ] Four bodies are drawn inside the circle that hurts them, and one of them is the commonest body
+      in the game. `tools/shape-lab.js` measures how much of a kind's own `radius` disc its own
+      silhouette covers, and the crowd reads: drifter 42%, swarmling 45%, sniper 53%, darter 56% -
+      then 83% and up for the rest. A bullet is stopped at `bulletRadius + enemy.r` from the middle,
+      so on a drift round three shots in five that the game counted were seen to stop in empty air
+      beside the triangle. It is not new and it is not an emergency - the pointed shapes are what make
+      those four readable, and `test/crowd-art.test.mjs` holds the floor at 40% and prints every
+      body's share so the question is measured and not re-litigated - but the honest fix is a body
+      that fills more of its own hurtbox without losing its outline, and that is a shape job with the
+      ruler already in hand. The sniper is the one to try first: it never moves, its lens covers half
+      its circle, and a body the player stands still in front of is a body whose edges get studied.

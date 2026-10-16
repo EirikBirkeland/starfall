@@ -9,7 +9,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { visual } from '../core/rng.js';
 import { clamp, TAU, hypot } from '../core/math.js';
 import { markShare } from '../game/settings.js';
-import { polygon, shipPath, shipShape } from './shapes.js';
+import { polygon, shipPath, shipShape, crowdShape } from './shapes.js';
 import { paintR, paintX, paintY } from './interp.js';
 import { glowFor, makeStreak, paintGlow, paintStreak } from './glow.js';
 import { hitFlash } from './flash.js';
@@ -166,13 +166,10 @@ const FACE_LIGHT = 0.45;
 // as a crowd, and the light is because a pack that is bunching up to dive has to say so out
 // loud (game/flock.js). Borrowing the ship's shape is a decision and not an accident -
 // tools/sights.js measures what it costs the palette, and test/palette-read.test.mjs holds it.
-const SWARM_SPIKE = 2.1;          // how far the nose reaches out from a swarmling's body
+// The silhouettes themselves - this one and every other body's - are in render/shapes.js.
 const SWARM_CHARGE = 6;           // px of light at its nose while its pack braces
 const SWARM_BLUR_LENGTH = 18;     // px of blur a diving swarmling drags behind it
 const SWARM_BLUR_WIDTH = 6;
-// The weaver wears the same silhouette with a shorter nose, so it reads as one of the crowd
-// and not as a second ship - which is what tools/sights.js calls 'ship' for both of them.
-const WEAVER_SPIKE = 1.7;
 
 /**
  * How bright a bomber's death ring is right now, 0..1. It is a function of the
@@ -275,47 +272,6 @@ export function drawEnemyShots(ctx, alpha) {
       ctx.fill();
     }
   }
-}
-
-/** The dart's own silhouette: all nose and swept wings, and nothing behind them. */
-function dartPath(ctx, r) {
-  ctx.beginPath();
-  ctx.moveTo(r * 2.1, 0);
-  ctx.lineTo(r * 0.3, r * 0.6);
-  ctx.lineTo(-r * 1.1, r * 0.34);
-  ctx.lineTo(-r * 0.5, 0);
-  ctx.lineTo(-r * 1.1, -r * 0.34);
-  ctx.lineTo(r * 0.3, -r * 0.6);
-  ctx.closePath();
-}
-
-/**
- * The shielder's own silhouette: all face and no tail, flat side towards the ship,
- * because a face is what a thing that stands between you and its friends is made of.
- * It always points at the ship (game/kinds.js), so the flat side is never by accident.
- */
-function bulwarkPath(ctx, r) {
-  ctx.beginPath();
-  ctx.moveTo(r * 0.86, r * 0.94);
-  ctx.lineTo(-r * 0.42, r * 0.7);
-  ctx.lineTo(-r * 0.86, 0);
-  ctx.lineTo(-r * 0.42, -r * 0.7);
-  ctx.lineTo(r * 0.86, -r * 0.94);
-  ctx.lineTo(r * 0.34, 0);
-  ctx.closePath();
-}
-
-/**
- * The sniper's own silhouette: an eye, pointed where it is pointing. It is the only
- * body in the game that never moves, so the shape is the whole of how it is recognised -
- * and an eye is the honest shape for a thing whose entire being is a line of sight.
- */
-function lensPath(ctx, r) {
-  ctx.beginPath();
-  ctx.moveTo(r * 1.5, 0);
-  ctx.quadraticCurveTo(0, r, -r * 1.5, 0);
-  ctx.quadraticCurveTo(0, -r, r * 1.5, 0);
-  ctx.closePath();
 }
 
 let dartBlur = null;
@@ -1094,9 +1050,10 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   // walks - but a lone hexagon of wax is not a thing a player can read, and seven of them joined
   // up by one painter is a mass (render/boss.js, game/bosses.js `isBossPart`).
   if (isBossPart(world, enemy)) return;
-  // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind
-  // moves, this says what it is made of. A new kind that is not a plain polygon
-  // gets a branch here as well as its row there.
+  // A kind's look, as opposed to its behaviour: game/kinds.js says how a kind moves, and
+  // render/shapes.js says what it is made of - one entry per kind, which is also what
+  // tools/shape-lab.js measures and test/crowd-art.test.mjs holds. A new kind asks for both a row
+  // there and a shape here, and `crowdShape` says so out loud if the shape is missing.
   const look = BALANCE.kinds[enemy.type];
   const flash = hitFlash(enemy);
   // A hatchling is the same kind as its parent with a smaller body, so the halo
@@ -1127,12 +1084,7 @@ function drawEnemy(ctx, enemy, dim, alpha) {
   if (isLunging(enemy)) paintStreak(ctx, dartBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   else if (isDiving(enemy)) paintStreak(ctx, swarmBlurSprite(), 0, 0, 0, 1, DART_BLUR_LIGHT);
   ctx.fillStyle = look.fill;
-  if (enemy.type === 'weaver') shipPath(ctx, 0, 0, enemy.r, 0, WEAVER_SPIKE);
-  else if (enemy.type === 'darter') dartPath(ctx, enemy.r);
-  else if (enemy.type === 'shielder') bulwarkPath(ctx, enemy.r);
-  else if (enemy.type === 'swarmling') shipPath(ctx, 0, 0, enemy.r, 0, SWARM_SPIKE);
-  else if (enemy.type === 'sniper') lensPath(ctx, enemy.r);
-  else polygon(ctx, 0, 0, enemy.r, look.sides, 0);
+  crowdShape(enemy.type)(ctx, enemy.r);
   ctx.fill();
   if (enemy.elite) {
     ctx.lineWidth = ELITE_SOFT;

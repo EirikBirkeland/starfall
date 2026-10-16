@@ -997,7 +997,7 @@ export const BALANCE = {
     drifter: {
       radius: 15, speed: 76, hull: 3, score: 10, drop: 2,
       from: 0, cost: 2, weight: 6,
-      color: PALETTE.violet, fill: PALETTE.violetFill, sides: 3, glow: 16,
+      color: PALETTE.violet, fill: PALETTE.violetFill, glow: 16,
       death: { particles: 16, speed: 240, debris: 4, debrisSpeed: 120 },
       sound: { freq: 210, dur: 0.12 },
     },
@@ -1031,10 +1031,9 @@ export const BALANCE = {
     weaver: {
       radius: 10, speed: 172, hull: 1, score: 15, drop: 1,
       from: 0, cost: 3, weight: 5,
-      // `sides` is the fallback shape; the weaver is drawn with the ship's own pointed
-      // silhouette (render/entities.js, WEAVER_SPIKE) - tools/sights.js says what that costs
-      // the palette and what it buys.
-      color: PALETTE.pink, fill: PALETTE.pinkFill, sides: 3, glow: 14,
+      // The shape is in render/shapes.js with everyone else's: four shoulders, no points.
+      // tools/sights.js says what the palette has to do to keep it from the rest of the crowd.
+      color: PALETTE.pink, fill: PALETTE.pinkFill, glow: 14,
       wobble: { amount: 0.42, rate: 5.5 },
       spin: { rate: 9, amount: 0.35 },
       death: { particles: 12, speed: 240, debris: 2, debrisSpeed: 165 },
@@ -1043,8 +1042,7 @@ export const BALANCE = {
     darter: {
       radius: 11, speed: 104, hull: 2, score: 18, drop: 2,
       from: 60, cost: 4, weight: 3,
-      // `sides` is the fallback shape; the dart is drawn by its own silhouette.
-      color: PALETTE.red, fill: PALETTE.redFill, sides: 3, glow: 16,
+      color: PALETTE.red, fill: PALETTE.redFill, glow: 16,
       // The hunt, in four beats: it walks at you, stops dead to line itself up,
       // comes down that line faster than you can run, and rests while it comes
       // about. `commit` is how far off it will start an aim at all; `turn` how fast
@@ -1075,7 +1073,7 @@ export const BALANCE = {
     spitter: {
       radius: 14, speed: 66, hull: 5, score: 26, drop: 3,
       from: 180, cost: 6, weight: 2,
-      color: PALETTE.orange, fill: PALETTE.orangeFill, sides: 5, glow: 18,
+      color: PALETTE.orange, fill: PALETTE.orangeFill, glow: 18,
       // It keeps its distance and spits from there. `near`/`far` are the band it
       // tries to stand in - it walks in from beyond `far` and backs off inside
       // `near` - and `drift` is the sideways crawl that stops it sitting still
@@ -1108,7 +1106,7 @@ export const BALANCE = {
       // with fast ones a two-level ship cannot answer. Moving it together with the weaver middles
       // the batch at 2m11s, against the 3m17s the weaver move alone buys.
       from: 10, cost: 8, weight: 3,
-      color: PALETTE.amber, fill: PALETTE.amberFill, sides: 6, glow: 22,
+      color: PALETTE.amber, fill: PALETTE.amberFill, glow: 22,
       rotateRate: 0.55,
       // What it comes apart into: `into` of `type`, thrown outwards at `impulse`
       // from `offset` out. Naming the kind here is what lets the split be data.
@@ -1124,7 +1122,7 @@ export const BALANCE = {
     bomber: {
       radius: 18, speed: 96, hull: 7, score: 32, drop: 4,
       from: 360, cost: 7, weight: 3,
-      color: PALETTE.ember, fill: PALETTE.emberFill, sides: 8, glow: 20,
+      color: PALETTE.ember, fill: PALETTE.emberFill, glow: 20,
       // Its whole behaviour is its death. It walks at you - and that is all it does -
       // while the circle drawn round it says exactly what standing in it costs when it
       // finally goes off: `radius` px from its centre, `damage` in player shots, for
@@ -1165,9 +1163,9 @@ export const BALANCE = {
     shielder: {
       radius: 17, speed: 60, hull: 8, score: 40, drop: 4,
       from: 450, cost: 8, weight: 1,
-      // `sides` is the fallback shape; the bulwark is drawn by its own silhouette
-      // (render/entities.js), flat side towards whatever it is standing between.
-      color: PALETTE.magenta, fill: PALETTE.magentaFill, sides: 6, glow: 20,
+      // Its own silhouette (render/shapes.js), flat side towards whatever it is standing
+      // between - which is never by accident, because it always faces it.
+      color: PALETTE.magenta, fill: PALETTE.magentaFill, glow: 20,
       // The field (game/shields.js). Every other body standing `radius` px away is
       // covered: it gets a shield of `cap` points over it, and anything aimed at it
       // comes off the shield before it comes off the hull. Once a shield has soaked
@@ -1235,11 +1233,11 @@ export const BALANCE = {
     swarmling: {
       radius: 7, speed: 190, hull: 1, score: 10, drop: 1,
       from: 540, cost: 1, weight: 1,
-      // `sides` is the fallback shape; the swarmling is drawn with the ship's own pointed
-      // silhouette, its nose pulled out past twice the body (render/entities.js,
-      // SWARM_SPIKE), because at seven pixels the point and the colour are the whole of what
-      // twenty of them can be told by - and by the fact that they come as a pack.
-      color: PALETTE.swarm, fill: PALETTE.swarmFill, sides: 3, glow: 11,
+      // The ship's own pointed silhouette, its nose pulled out past twice the body
+      // (render/shapes.js, `shipDart`), because at seven pixels the point and the colour are the
+      // whole of what twenty of them can be told by - and by the fact that they come as a pack.
+      // tools/sights.js holds what wearing the player's own shape costs the palette.
+      color: PALETTE.swarm, fill: PALETTE.swarmFill, glow: 11,
       // The arrival (game/waves.js). A wave that rolls this kind buys a *pack*: one
       // entry in the wave's fan that turns into `into` bodies standing in a `clump`
       // px-wide clump on one side of the window. `min` is the smallest pack worth the
@@ -1289,10 +1287,9 @@ export const BALANCE = {
     sniper: {
       radius: 16, speed: 0, hull: 12, score: 90, drop: 6,
       from: 630, cost: 8, weight: 1,
-      // `sides` is the fallback shape; the eye is drawn by its own silhouette
-      // (render/entities.js), because the only thing a stationary body has to be
-      // recognised by is its shape.
-      color: PALETTE.sniper, fill: PALETTE.sniperFill, sides: 6, glow: 24,
+      // Its own silhouette (render/shapes.js), because the only thing a body that never moves
+      // has to be recognised by is its shape.
+      color: PALETTE.sniper, fill: PALETTE.sniperFill, glow: 24,
       // Bolted to the floor: the crowd walks round it instead of shoving it along
       // (game/enemies.js), and a bullet's kick does not budge it. This is what makes
       // the line it drew an hour ago still be the line it fires down.
@@ -1650,7 +1647,6 @@ export const BALANCE = {
       color: PALETTE.amber,
       fill: PALETTE.amberFill,
       glow: 70,
-      sides: 8,
       rooted: true,
       reward: { hull: 1 },
       death: {

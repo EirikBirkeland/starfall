@@ -104,6 +104,7 @@ import { PALETTE, parseColor, mixColors } from '../src/core/palette.js';
 import { BALANCE } from '../src/game/balance.js';
 import { ROWS as VIEW_ROWS } from '../src/game/settings.js';
 import { oklab, over, worstVision, VISIONS } from './colour-lab.js';
+import { crowdPairs, ONE_SHAPE_PX, THIN_SHAPE_PX } from './shape-lab.js';
 
 /** The colour a body sits on. The sky is a vertical gradient; this is its middle. */
 export const SKY = parseColor(PALETTE.bgMiddle);
@@ -133,55 +134,34 @@ export const MEANINGS = {
 };
 
 /**
- * The silhouette the eye is actually given, per body.
+ * What each crowd body's silhouette is *called*, for the pairs the audit prints.
  *
- * Not the `sides` number in the balance table: four kinds ask for a triangle or a hexagon
- * there and then draw themselves something else entirely, and it is the drawing an eye is
- * being asked to read. `render/entities.js` picks one silhouette per kind in `drawEnemy` -
- * `shipPath` for the weaver and the swarmling, its own `dartPath` for the darter, a
- * `bulwarkPath`, a `lensPath`, and a plain `polygon` for the rest - and
- * `test/palette-read.test.mjs` reads that branch and fails this table the day it
- * disagrees, for the reason every other number here is pinned: an audit of a shape nobody
- * draws is a formality. (Session 109 wrote this table by eye and got three of it wrong - it
- * called the weaver, the darter and the swarmling three darts, where the renderer gives one
- * of them a dart and two of them the ship. A wrong shape is a different mistake from a wrong
- * colour and needs a different remedy, which is what the pin is.)
+ * The shapes themselves are in `render/shapes.js` - one table, read by the renderer and by this
+ * audit alike, so a claim about a shape is a claim about the picture an eye is given. What is
+ * here is only the word, because the report needs to say "one is a bulwark and the other a
+ * lens" and a function is not a word.
  *
- * Two bodies share the ship's own form, and that is worth saying out loud: the weaver and
- * the swarmling are drawn with `shipPath`, the generic pointed-ship silhouette this game
- * paints its own ships with, ten and seven pixels across. They wear the player's family,
- * so colour and size are all that says "that one is not you" - which is why `promiseOf`
- * asks them for a whole step against the ship and not the 0.55 it asks of a pair whose
- * shapes already differ. `sharedSilhouettes` is the same question asked of the crowd, and
- * the report prints both.
+ * The words used to be load-bearing and wrong. Session 109 wrote a table of them by eye and got
+ * three rows wrong - it called the weaver, the darter and the swarmling three darts, where the
+ * renderer gave one of them a dart and two of them the ship - and everything built on it was
+ * about a picture nobody paints. A later session pinned the words to the renderer by reading
+ * its source with a regular expression, which caught a wrong word and could not catch a true
+ * word that described two shapes at once: 'pentagon' and 'hexagon' are two words for one body
+ * to an eye, and `sharedSilhouettes` believed the words. It measures now (tools/shape-lab.js),
+ * and these names are only labels: `test/crowd-art.test.mjs` holds that one word is never
+ * written over two shapes that the ruler can tell apart, and that every kind has exactly one.
  */
 export const BODY_FORMS = {
   drifter: 'triangle',
-  weaver: 'ship',
+  weaver: 'clover',
   darter: 'dart',
-  spitter: 'pentagon',
+  spitter: 'spout',
   tank: 'hexagon',
-  bomber: 'octagon',
+  bomber: 'studded',
   shielder: 'bulwark',
   swarmling: 'ship',
   sniper: 'lens',
 };
-
-/**
- * What each silhouette the renderer can pick is called in this table.
- *
- * The test that reads `drawEnemy`'s branch asks this what it means, so the words are in one
- * place: the renderer owns which shape a kind gets, this file owns what that shape is named.
- */
-export const PATH_FORMS = {
-  shipPath: 'ship',
-  dartPath: 'dart',
-  bulwarkPath: 'bulwark',
-  lensPath: 'lens',
-};
-
-/** The same, for the kinds that fall through to a plain polygon: `sides`, named. */
-export const POLYGON_FORMS = { 3: 'triangle', 4: 'square', 5: 'pentagon', 6: 'hexagon', 8: 'octagon' };
 
 /** One crowd body, as the balance sheet and the renderer draw it. */
 function body(type) {
@@ -349,46 +329,74 @@ function crowdSights() {
 }
 
 /**
- * Which bodies are drawn the same shape, and what each of them has left to say which is which.
+ * Which bodies are drawn as one shape, and what each of them has left to say which is which.
  *
- * Sharing a silhouette is allowed - the crowd is nine bodies in the warm half of the wheel and the
- * promise is about harm against help, not about bodies being unlike one another. What is not allowed
- * is sharing a shape and then paying for it with neither size nor colour: two bodies of one shape,
- * one size and one colour are one body, whoever painted them. So every pair in here has to clear a
- * step of colour for the eye with the least to work with, or stand further apart in size than
- * SAME_SIZE_RATIO (which is what `howMuch` calls "the same size"). The report prints this and
- * `--strict` fails it, so the list cannot be quietly grown by a new kind given an old silhouette.
+ * This used to be a question about names: two kinds written 'ship' were one shape and two kinds
+ * written 'pentagon' and 'hexagon' were two. It is a question about outlines now, measured by
+ * `tools/shape-lab.js` at the sizes the bodies are actually drawn at, allowed to turn against
+ * each other - which is how they are actually seen, since a body's turn is whatever it is
+ * pointing at and a tank's is a slow spin of its own.
+ *
+ * Sharing a silhouette is allowed - the crowd is nine bodies in the warm half of the wheel and
+ * the promise is about harm against help, not about bodies being unlike one another. What is not
+ * allowed is sharing one and then paying for it with neither size nor colour: two bodies of one
+ * shape, one size and one colour are one body, whoever painted them. So every pair here has to
+ * clear a step of colour for the eye with the least to work with, or stand further apart in size
+ * than `SAME_SIZE_RATIO`. The report prints this and `--strict` fails it.
+ *
+ * And one thing the ruler cannot see, said out loud: a crowd body also tells itself apart by how
+ * it walks, and no static measurement can read a lunge, a weave or a pack of twenty bunching up
+ * to dive. The pairs that clear it by shape alone are the pairs the frame is carrying; the ones
+ * that need the walking are printed as what they are.
  */
 export function sharedSilhouettes() {
-  const groups = [];
-  for (const sight of crowdSights()) {
-    const group = groups.find((each) => each.form === sight.form);
-    if (group === undefined) groups.push({ form: sight.form, members: [sight] });
-    else group.members.push(sight);
-  }
-  return groups.filter((group) => group.members.length > 1).map((group) => {
-    const pairs = [];
-    for (let i = 0; i < group.members.length; i++) {
-      for (let j = i + 1; j < group.members.length; j++) {
-        const a = group.members[i];
-        const b = group.members[j];
-        const worst = worstVision(measure(a).lab, measure(b).lab, RED_GREEN_EYES);
-        const sizeRatio = Math.max(a.size, b.size) / Math.min(a.size, b.size);
-        pairs.push({
-          a: a.id,
-          b: b.id,
-          sizeRatio,
-          colour: worst.ratio,
-          eyes: visionName(worst.vision),
-          carries: worst.ratio >= FULL || sizeRatio > SAME_SIZE_RATIO,
-          carriedBy: worst.ratio >= FULL
-            ? (sizeRatio > SAME_SIZE_RATIO ? 'both' : 'colour')
-            : (sizeRatio > SAME_SIZE_RATIO ? 'size' : 'nothing'),
-        });
-      }
-    }
-    return { form: group.form, members: group.members.map((member) => member.id), pairs };
+  return silhouettePairs().filter((pair) => pair.gap <= ONE_SHAPE_PX);
+}
+
+/**
+ * The pairs whose outline tells them apart, but not by much: over one shape and under
+ * `THIN_SHAPE_PX` of outline. Reported so that a session can see what the crowd is leaning on;
+ * not gated, because "4.6 px of outline and no colour" is a thinner ice than "one shape and no
+ * colour" and the game has walking to spend on it.
+ */
+export function thinSilhouettes() {
+  return silhouettePairs()
+    .filter((pair) => pair.gap > ONE_SHAPE_PX && pair.gap <= THIN_SHAPE_PX);
+}
+
+/**
+ * Every pair of crowd bodies, worst-told-apart first, with the answer to "what carries it".
+ *
+ * `gap` is px of outline, `sizeRatio` the ratio of the two bodies' radii and `colour` steps of
+ * colour for the eye that had the least to work with. `carriedBy` is the report's one-word
+ * answer: 'outline', 'size', 'colour', 'both', or 'nothing'.
+ */
+export function silhouettePairs() {
+  const rows = crowdPairs().map((pair) => {
+    const a = SIGHTS.find((sight) => sight.id === pair.a);
+    const b = SIGHTS.find((sight) => sight.id === pair.b);
+    const worst = worstVision(measure(a).lab, measure(b).lab, RED_GREEN_EYES);
+    const sizeRatio = Math.max(a.size, b.size) / Math.min(a.size, b.size);
+    const byColour = worst.ratio >= FULL;
+    const bySize = sizeRatio > SAME_SIZE_RATIO;
+    return {
+      a: pair.a,
+      b: pair.b,
+      gap: pair.gap,
+      worst: pair.worst,
+      sizeRatio,
+      colour: worst.ratio,
+      eyes: visionName(worst.vision),
+      same: pair.gap <= ONE_SHAPE_PX,
+      carries: pair.gap > ONE_SHAPE_PX || byColour || bySize,
+      carriedBy: pair.gap > THIN_SHAPE_PX
+        ? 'outline'
+        : (byColour && bySize ? 'both' : byColour ? 'colour' : bySize ? 'size'
+          : pair.gap > ONE_SHAPE_PX ? 'thinly' : 'nothing'),
+    };
   });
+  rows.sort((x, y) => x.gap - y.gap);
+  return rows;
 }
 
 /**
@@ -397,6 +405,12 @@ export function sharedSilhouettes() {
  * The one sharing of a shape that can cost a run - a thing wearing your own shape, coming at you -
  * and the reason `howMuch` promises them a whole step against the ship on every axis an eye keeps
  * instead of the 0.55 it asks of a pair whose shapes already differ.
+ *
+ * It used to be two borrowers: the weaver wore the ship's dart too, with a shorter nose, and that
+ * measured out at two fifths of a step of colour, the same size, and 2.5 px of outline between it
+ * and a darter's spear at any turn - one shape on two bodies a run has good reason to tell apart.
+ * The swarmling keeps it, because twenty of them arriving as a shoal is the kind's whole argument
+ * and it is a third of the ship's size.
  */
 export function shipBorrowers() {
   const ship = SIGHTS.find((sight) => sight.id === 'ship');

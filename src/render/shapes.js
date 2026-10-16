@@ -145,3 +145,187 @@ export function shipShape(name) {
   if (shape === undefined) throw new Error('no ship is drawn as ' + name);
   return shape;
 }
+
+// The crowd's silhouettes (PLAN 3.3, one row per kind in `BALANCE.kinds`).
+//
+// This is the only place the game says what a body is drawn as, and it has to be the only
+// place for the same reason the palette is defined once: the palette audit
+// (`tools/sights.js`, `tools/shape-lab.js`) has to measure the shape an eye is really given,
+// and a table of shape *names* written down somewhere else can be wrong without anything
+// noticing. Session 109 wrote one by eye and called three bodies darts where the renderer
+// gave one of them a dart and two of them the ship.
+//
+// Every shape is drawn pointing along +x around the origin it is put at, at the radius the
+// balance sheet gives the kind, and `render/entities.js` turns the body by `enemy.rot` - so
+// where a shape points is what the simulation says it is pointing at (game/kinds.js: a
+// drifter's nose is its way, a spitter's mouth is aimed at the ship, a tank's turn is its own
+// slow pace). Two rules hold every one of them, and test/crowd-art.test.mjs is the ruler:
+// a silhouette must cover most of the hurtbox it is hurt by, and it must not stand far past
+// it, or shots land on nothing and bodies pass through each other.
+export const CROWD_SHAPES = {
+  // The drifter: three flat faces and no ideas. It is the plainest body in the game because
+  // it is the plainest enemy - it walks at you - and it is what every tank comes apart into.
+  drifter: plainPolygon(3),
+
+  // The weaver: a quatrefoil - four shoulders with a body between them, no points on it. It used
+  // to wear the ship's own dart with a shorter nose, which was a shape the eye already had two
+  // other uses for - the ship, and the swarm that arrives in twenties - and `tools/shape-lab.js`
+  // measured what that cost: the outline of a 10 px ship-dart and the outline of a darter's spear
+  // never part by more than 2.4 px at any turn, and a pink body and a red body 0.43 of a step
+  // apart at the same size were then one body in one shape.
+  //
+  // A four-pointed star does not fix it either, and that is the interesting part: a star is a
+  // spear with three spare points, and the ruler turns bodies against each other, so it finds the
+  // turn where a pair of points lines up with a nose and a tail (measured: 3.0 px at tip 1.75).
+  // Shoulders are the answer because they are what a weaver is. It rocks its turn +-0.35 rad at
+  // nine rad/s (game/kinds.js `spin`), a round body rocks invisibly and a shouldered one ticks -
+  // four ticks to a quarter turn - and a shoulder is the one shape a spear cannot be turned into.
+  weaver: lobed(4, 1.55, 1.15),
+
+  // The darter: a long spear with a barbed tail. It is the only body in the crowd that is
+  // longer than it is wide by a mile, which is what a thing that stops dead and comes down a
+  // line at you should look like.
+  darter: (ctx, r) => {
+    ctx.beginPath();
+    ctx.moveTo(r * 2.1, 0);
+    ctx.lineTo(r * 0.3, r * 0.6);
+    ctx.lineTo(-r * 1.1, r * 0.34);
+    ctx.lineTo(-r * 0.5, 0);
+    ctx.lineTo(-r * 1.1, -r * 0.34);
+    ctx.lineTo(r * 0.3, -r * 0.6);
+    ctx.closePath();
+  },
+
+  // The spitter: a fat back, a flat tail and a spout down the middle of it. Its mouth points at the
+  // ship always (game/kinds.js), so the spout is the honest shape for the light the frame paints in
+  // it - and it is on the axis rather than off it for the same reason the sniper's eye is: a body
+  // that always turns to face something has to be symmetric about the way it faces, or it leans.
+  // A round blob was not honest at all: the pentagon it used to be stood 3.7-3.9 px from the darter,
+  // the drifter and the shielder at every turn, which is to say it was those bodies at other sizes.
+  spitter: flanks([
+    [1.70, 0], [1.15, 0.45], [0.60, 0.72], [-0.30, 0.92], [-1.10, 0.70], [-1.00, 0],
+  ]),
+
+  // The tank: six faces of the heaviest body in the crowd, and the only kind whose own turn is
+  // a slow spin (game/kinds.js `walksHeavy`), so a hexagon is the honest shape for a body that
+  // is a rolling weight rather than a pointed one. It is bigger than everything else here by
+  // a mile, and that is what tells it apart.
+  tank: plainPolygon(6),
+
+  // The bomber: a mine - six studs out to a foot and cut back between them, so its edge is the
+  // roughest thing in the crowd at any turn. That is the honest drawing for the body whose whole
+  // being is the burst coming out of its middle, which is what the frame already says with the
+  // fuse it breathes and the ring it lays on the floor (`drawEnemy`). Two drawings were measured
+  // and failed: an octagon, and then an eight-studded shell, both of which sat 3.7-3.9 px from a
+  // shielder's face at three quarters of a step of colour between them - two big warm bodies and
+  // nothing to say which. Six long studs is what the ruler asked for, and cannot be mistaken for
+  // a face at any turn.
+  bomber: studded(6, 1.50, 0.85),
+
+  // The shielder: all face and no tail, flat side towards the ship, because a face is what a
+  // thing that stands between you and its friends is made of. It always points at the ship
+  // (game/kinds.js), so the flat side is never by accident. The face is wider than the body it
+  // stands on - it used to be about as wide as the drifter is tall, and a 17 px six-sided slab
+  // is a drifter at 17 px: 3.8 px of outline between them, no size left to tell them apart by,
+  // and a shielder that reads as a fat drifter is a shielder nobody kills first.
+  shielder: flanks([
+    [0.50, 0], [0.82, 0.90], [0.05, 1.12], [-0.55, 0.92], [-1.02, 0],
+  ]),
+
+  // The swarmling: the ship's own silhouette again with its nose pulled further out, so that
+  // twenty of them read as a shoal (game/flock.js) rather than as a crowd.
+  swarmling: shipDart(2.1),
+
+  // The sniper: an eye, pointed where it is pointing. It is the only body in the game that
+  // never moves, so the shape is the whole of how it is recognised - and an eye is the honest
+  // shape for a thing whose entire being is a line of sight.
+  sniper: (ctx, r) => {
+    ctx.beginPath();
+    ctx.moveTo(r * 1.5, 0);
+    ctx.quadraticCurveTo(0, r, -r * 1.5, 0);
+    ctx.quadraticCurveTo(0, -r, r * 1.5, 0);
+    ctx.closePath();
+  },
+};
+
+/** One kind's silhouette, and a loud answer for a kind nothing draws. */
+export function crowdShape(type) {
+  const shape = CROWD_SHAPES[type];
+  if (shape === undefined) throw new Error('no crowd body is drawn as ' + type);
+  return shape;
+}
+
+/**
+ * The ship's own silhouette with its nose pulled out to `spike` times the body - the same four
+ * points `shipPath` draws, written as a flank so that every crowd body is one of the three
+ * forms the ruler can measure without a canvas: a polygon, a flank, a lobed body.
+ */
+function shipDart(spike) {
+  return flanks([[spike, 0], [-0.75, 0.7], [-0.35, 0]]);
+}
+
+/** A regular polygon: the shape a body that only walks is drawn with. */
+function plainPolygon(sides) {
+  return (ctx, r) => polygon(ctx, 0, 0, r, sides, 0);
+}
+
+/**
+ * A body of `points` studs: the outline goes out to `tip` and back to `waist` once per stud,
+ * with straight faces, so the edge of it is the busiest thing in the crowd at whatever size it
+ * is drawn.
+ */
+function studded(points, tip, waist) {
+  return (ctx, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const a = (i / (points * 2)) * TAU;
+      const rad = (i % 2 === 0 ? tip : waist) * r;
+      const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  };
+}
+
+/**
+ * A body of `n` lobes: the outline swings out to `tip` at every lobe and in to `waist` between
+ * them, with each swing one quadratic so the body has no corners to catch the eye. Drawn with a
+ * lobe pointing along +x, like everything else here.
+ */
+function lobed(n, tip, waist) {
+  return (ctx, r) => {
+    ctx.beginPath();
+    // The first lobe is always at bearing 0, which is the axis the body is turned to face where it
+    // is going, and every one after it is `1/n` of a turn further round.
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const between = a + TAU / (2 * n);
+      const next = a + TAU / n;
+      const x = Math.cos(a) * r * tip;
+      const y = Math.sin(a) * r * tip;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      ctx.quadraticCurveTo(
+        Math.cos(between) * r * waist, Math.sin(between) * r * waist,
+        Math.cos(next) * r * tip, Math.sin(next) * r * tip);
+    }
+    ctx.closePath();
+  };
+}
+
+/**
+ * A body written as one flank: pairs of [x, y] in radii, walked from the nose at +x round to
+ * the tail. The other flank is the mirror of it, so every body written this way is symmetric
+ * about the axis it turns on to face where it is going - which is what a body that always
+ * points at something has to be, and what test/crowd-art.test.mjs holds.
+ */
+function flanks(top) {
+  return (ctx, r) => {
+    ctx.beginPath();
+    ctx.moveTo(r * top[0][0], r * top[0][1]);
+    for (let i = 1; i < top.length; i++) ctx.lineTo(r * top[i][0], r * top[i][1]);
+    for (let i = top.length - 1; i > 0; i--) ctx.lineTo(r * top[i][0], -r * top[i][1]);
+    ctx.closePath();
+  };
+}

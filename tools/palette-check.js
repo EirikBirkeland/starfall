@@ -29,8 +29,9 @@ import { PALETTE } from '../src/core/palette.js';
 import { oklch, lightnessStar, STEP_OF } from './colour-lab.js';
 import {
   SIGHTS, SKY, auditSights, auditSky, auditMarks, markNames, measure, visionName, promised,
-  sharedSilhouettes, shipBorrowers, marginOf as margin,
+  sharedSilhouettes, thinSilhouettes, silhouettePairs, shipBorrowers, marginOf as margin,
 } from './sights.js';
+import { ONE_SHAPE_PX, THIN_SHAPE_PX } from './shape-lab.js';
 
 function readArgs(argv) {
   const opts = { all: false, strict: false, only: null };
@@ -134,43 +135,61 @@ function reportReported(pairs, opts) {
 }
 
 /**
- * Which bodies are drawn the same shape (tools/sights.js, `sharedSilhouettes`).
+ * Which bodies are drawn as one shape (tools/sights.js, `sharedSilhouettes`).
  *
  * The colour report judges pairs; this one asks the other half of PLAN section 4's sentence -
  * "by brightness and shape as well as hue" - and says which bodies the crowd asks the eye to
  * tell apart with colour and size alone. A shared silhouette is a choice the game is allowed to
  * make; a shared silhouette paid for by neither size nor colour is one body pretending to be two,
  * and that is what `--strict` fails on.
+ *
+ * It is measured, in px of outline, by `tools/shape-lab.js`: see that file for why an outline
+ * distance and not an overlap of area, and what the two bars mean.
  */
-/** What a pair that shares a silhouette has left to carry the difference, as the report says it. */
+/** What a pair has left to carry the difference, as the report says it. */
 const CARRIED_BY = {
   both: 'both of them carry it',
   colour: 'colour carries it',
   size: 'size carries it',
+  outline: 'its outline carries it',
+  thinly: 'only that thin outline carries it',
   nothing: 'NEITHER of them carries it',
 };
 
+function pairLine(pair) {
+  return '      ' + pad(pair.a + ' / ' + pair.b, 24)
+    + num(pair.gap, 1).padStart(4) + ' px of outline (worst bearing ' + num(pair.worst, 1)
+    + '), ' + num(pair.sizeRatio, 2) + 'x apart in size, '
+    + num(pair.colour, 2) + ' of a step apart in colour on ' + pair.eyes.toLowerCase()
+    + ' - ' + CARRIED_BY[pair.carriedBy];
+}
+
 function reportForms() {
   head('Who shares a silhouette');
-  const groups = sharedSilhouettes();
+  const shared = sharedSilhouettes();
+  const thin = thinSilhouettes();
   process.stdout.write('  Two bodies drawn the one shape leave colour and size to say which one it is.\n');
   process.stdout.write('  The crowd is allowed to do that - nine bodies cannot all be a different shape as\n');
   process.stdout.write('  well as a different colour - but it has to be a choice, so this is where the game\n');
   process.stdout.write('  says what it chose, and what each pair has left to carry the difference.\n\n');
-  if (groups.length === 0) {
+  process.stdout.write('  `px of outline` is how far one body\'s edge stands from the other\'s, in the world,\n');
+  process.stdout.write('  with the two allowed to turn against each other: under ' + ONE_SHAPE_PX + ' px everywhere and\n');
+  process.stdout.write('  they are one shape, over ' + THIN_SHAPE_PX + ' px and the shape is doing the work on its own.\n');
+  process.stdout.write('  What a pair cannot have is none of the three.\n\n');
+  if (shared.length === 0) {
     process.stdout.write('  every body in the crowd has a silhouette of its own.\n');
-    return 0;
   }
   let unpaid = 0;
-  for (const group of groups) {
-    process.stdout.write('  ' + pad(group.form, 12) + group.members.join(', ') + '\n');
-    for (const pair of group.pairs) {
-      if (!pair.carries) unpaid++;
-      process.stdout.write('      ' + pad(pair.a + ' / ' + pair.b, 24)
-        + num(pair.sizeRatio, 2) + 'x apart in size, '
-        + num(pair.colour, 2) + ' of a step apart in colour on ' + pair.eyes.toLowerCase()
-        + ' - ' + CARRIED_BY[pair.carriedBy] + '\n');
-    }
+  for (const pair of shared) {
+    if (!pair.carries) unpaid++;
+    process.stdout.write(pairLine(pair) + '\n');
+  }
+  if (thin.length > 0) {
+    process.stdout.write('\n  thin - the outline parts them, but by less than ' + THIN_SHAPE_PX + ' px:\n');
+    for (const pair of thin) process.stdout.write(pairLine(pair) + '\n');
+    process.stdout.write('  This band is reported and not failed. A body also says what it is by how it\n');
+    process.stdout.write('  walks, and no ruler that measures a still picture can see a lunge, a weave,\n');
+    process.stdout.write('  or a pack of twenty bunching up to dive.\n');
   }
   const borrowers = shipBorrowers();
   if (borrowers.length > 0) {
@@ -272,7 +291,7 @@ process.stdout.write('STARFALL palette check - ' + sights.length + ' sights, '
 reportSights(sights);
 reportPairs(pairs, opts);
 reportReported(pairs, opts);
-const unpaidForms = reportForms();
+const unpaidForms = reportForms(opts.all);
 reportSky(sky);
 const marks = auditMarks(sights);
 reportMarks(marks, opts);
