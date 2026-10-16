@@ -30,8 +30,8 @@ import { TAU } from '../src/core/math.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { killEnemy } from '../src/game/enemies.js';
 import { crowdBudget, crowdCost, roomToSpare, pickMember, updateWaves } from '../src/game/waves.js';
-import { braceProgress, divePace, isBraced, isDiving, newPack, nextDive, packOf, packSize,
-  updateFlocks } from '../src/game/flock.js';
+import { beatProgress, braceProgress, divePace, isBraced, isBracing, isCommitted, isDiving, newPack,
+  nextDive, packOf, packSize, updateFlocks } from '../src/game/flock.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 import { crowdUntilRoomIs as crowdUpToRoomIs } from '../tools/headless/balance-tools.js';
 
@@ -618,6 +618,70 @@ test('a dive is faster than the walk, and the tell counts down the same beat', (
     'a diving body covered ' + dived.toFixed(2) + ' px in a step, over its walking '
     + (body.speed * STEP).toFixed(2));
   assert.equal(braceProgress(body), 0, 'and the tell is off, because the beat it counted is over');
+});
+
+// --- what the pack publishes about itself, for the eye (render/flock.js) ------
+
+test('the pack publishes how wide its clump is', () => {
+  const field = runAged(723, LATE);
+  const tight = packAt(field, 9, 1500, 900, 0);
+  const wide = packAt(field, 9, 1500, 2100, 0);
+  // Stand the second pack out on a true circle of 60 px, so its own spread has an answer.
+  for (let i = 0; i < wide.bodies.length; i++) {
+    const angle = (i / wide.bodies.length) * TAU;
+    wide.bodies[i].x = 1500 + Math.cos(angle) * 60;
+    wide.bodies[i].y = 2100 + Math.sin(angle) * 60;
+  }
+
+  stepTheWorld();
+
+  assert.ok(tight.pack.spread < 1e-6,
+    'a pack standing in one place reports a clump of ' + tight.pack.spread.toFixed(3) + ' px');
+  // Every body the same distance from the middle, so the mean square distance is that distance.
+  assert.ok(Math.abs(wide.pack.spread - 60) < 1e-6,
+    'a ring of bodies 60 px out reads as ' + wide.pack.spread.toFixed(3) + ' px of spread');
+});
+
+test('the pack publishes the pace its dive would be flown at, and the frost is off it', () => {
+  const field = runAged(724, LATE);
+  const clump = packAt(field, 6, 1500, 900, 30);
+  const pack = clump.pack;
+  // The bodies' own pace, whatever the run's age has made of the kind's number.
+  const warm = clump.bodies[0].speed * F.dive.mul;
+
+  stepTheWorld();
+  assert.ok(Math.abs(pack.pace - warm) < 1e-6,
+    'a warm pack reports ' + pack.pace.toFixed(1) + ' px/s, over ' + warm.toFixed(1));
+
+  clump.bodies[0].frost = 0.5;
+  stepTheWorld();
+  const chilled = ((5 + 0.5) / 6) * warm;
+  assert.ok(Math.abs(pack.pace - chilled) < 1e-6,
+    'half of one body chilled and the pack dives at the mean of the bodies it has: '
+    + pack.pace.toFixed(1) + ' against ' + chilled.toFixed(1));
+});
+
+test('one beat, one countdown, however many bodies wear it', () => {
+  const field = runAged(725, LATE);
+  const pack = packAt(field, 7, 1500, 900, 20);
+  const p = pack.pack;
+
+  untilStage(field, p, 'brace');
+  assert.ok(isBracing(p), 'the pack says it is bunching, taken on the pack and not on a body');
+  assert.ok(!isCommitted(p));
+  const told = beatProgress(p);
+  for (const body of pack.bodies) {
+    assert.equal(braceProgress(body), told,
+      'two tells of one pack cannot be allowed to disagree about the time');
+    assert.equal(isBraced(body), true);
+  }
+
+  untilStage(field, p, 'dive');
+  assert.ok(isCommitted(p) && !isBracing(p));
+  for (const body of pack.bodies) {
+    assert.equal(isDiving(body), true);
+    assert.equal(braceProgress(body), 0, 'and the brace tell is off with the beat it counted');
+  }
 });
 
 test('a lone body asks the tell for nothing', () => {

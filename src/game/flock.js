@@ -40,6 +40,37 @@ const BRACED = 'brace';
 const DIVING = 'dive';
 
 /**
+ * How far a body of this pack is from its own middle, on average, right now.
+ *
+ * It comes out of the same two sums as the middle does: the mean of `x^2 + y^2`
+ * less the square of the mean is the mean square distance from the middle, so a
+ * step costs no extra walk of the crowd and no square root per body - one, at the
+ * end. It is derived state, like `cx`/`cy`: nothing in `game/` reads it back, and
+ * the only thing that wants it is the tell that goes round the pack
+ * (render/flock.js), which needs to know how big a clump it is drawing a ring round.
+ */
+function spreadOf(pack) {
+  const n = pack.n;
+  if (n === 0) return 0;
+  const mx = pack.sx / n;
+  const my = pack.sy / n;
+  const mean2 = pack.sq / n - (mx * mx + my * my);
+  // Rounding can take a pack standing in one place a hair below zero, and a NaN
+  // reaching a radius is a ring that never draws and a bug nobody can see.
+  return Math.sqrt(Math.max(0, mean2));
+}
+
+/**
+ * The pace this pack flies a committed line at, px/s: the mean of the pace of every
+ * body still in it (`divePace` for each), so a pack half of which is chilled commits
+ * to a shorter lunge than a warm one - which is what it does.
+ */
+function paceOf(pack) {
+  if (pack.n === 0) return 0;
+  return (pack.pq / pack.n) * pack.spec.dive.mul;
+}
+
+/**
  * A pack of bodies that arrived together and fly together from then on, stood at
  * (x, y) - the place it arrived at, which is its first middle until the crowd says
  * otherwise. `spec` is the kind's own flock numbers.
@@ -50,8 +81,11 @@ export function newPack(spec, x, y) {
     // are still flying in it, `cx`/`cy` their middle, `hx`/`hy` the average of the way
     // they are pointing (a short vector on purpose: a scattered pack agrees less).
     n: 0,
-    sx: 0, sy: 0, hx: 0, hy: 0,
+    sx: 0, sy: 0, sq: 0, pq: 0, hx: 0, hy: 0,
     cx: x, cy: y,
+    // How wide the clump is, and how fast it would fly a line. Both rebuilt from the
+    // crowd every step, beside the middle they are worked out with.
+    spread: 0, pace: 0,
     // The line the whole pack will fly when it commits, and the beat it is on.
     // `stageTime` is what the beat it is in was worth when it began, so the tell can
     // be drawn as a share of the beat it is telling you about.
@@ -70,26 +104,44 @@ export function packOf(enemy) {
 
 /** Is this body's pack bunching up for a dive right now - i.e. is it the telegraph. */
 export function isBraced(enemy) {
-  const pack = enemy.flock;
-  return pack !== null && pack.stage === BRACED;
+  return isBracing(enemy.flock);
 }
 
 /** Is this body's pack committed to its line right now. */
 export function isDiving(enemy) {
-  const pack = enemy.flock;
+  return isCommitted(enemy.flock);
+}
+
+/** Is this pack bunching up for a dive. Takes the pack, for the eye that draws one tell per pack. */
+export function isBracing(pack) {
+  return pack !== null && pack.stage === BRACED;
+}
+
+/** Is this pack committed to its line. Takes the pack, like `isBracing`. */
+export function isCommitted(pack) {
   return pack !== null && pack.stage === DIVING;
 }
 
 /**
- * How far through the brace a pack is, 0..1 - the countdown the tell is drawn from,
- * and nothing at all for a body that is not braced. It reads the pack's own clock
- * rather than the kind's numbers so that any beat can be counted down, whoever
- * declared it (same deal as `aimProgress` in game/kinds.js).
+ * How far through the beat a pack is, 0..1 - the countdown every tell of this pack's
+ * is drawn from. It reads the pack's own clock rather than the kind's numbers so that
+ * any beat can be counted down, whoever declared it (same deal as `aimProgress` in
+ * game/kinds.js), and it is one clock for the whole pack: the arc round the clump and
+ * the light at each of its bodies cannot disagree about the time.
+ */
+export function beatProgress(pack) {
+  if (pack === null) return 0;
+  return clamp(1 - pack.timer / (pack.stageTime || 1), 0, 1);
+}
+
+/**
+ * How far through the brace a body's pack is, 0..1, and nothing at all for a body that
+ * is not braced. The body's own nose light and the ring round its pack count down off
+ * this one number (render/flock.js).
  */
 export function braceProgress(enemy) {
   const pack = enemy.flock;
-  if (pack === null || pack.stage !== BRACED) return 0;
-  return clamp(1 - pack.timer / (pack.stageTime || 1), 0, 1);
+  return isBracing(pack) ? beatProgress(pack) : 0;
 }
 
 /** How many bodies are still flying in this pack. */
@@ -158,6 +210,8 @@ export function updateFlocks(world, dt) {
     pack.n = 0;
     pack.sx = 0;
     pack.sy = 0;
+    pack.sq = 0;
+    pack.pq = 0;
     pack.hx = 0;
     pack.hy = 0;
   }
@@ -170,6 +224,10 @@ export function updateFlocks(world, dt) {
     pack.n++;
     pack.sx += body.x;
     pack.sy += body.y;
+    pack.sq += body.x * body.x + body.y * body.y;
+    // The same frost `divePace` takes off a body, kept here as a raw pace per body so the
+    // pack's own number is the mean of the bodies that are actually flying in it.
+    pack.pq += body.speed * (1 - body.frost);
     pack.hx += Math.cos(body.rot);
     pack.hy += Math.sin(body.rot);
   }
@@ -186,6 +244,8 @@ export function updateFlocks(world, dt) {
     pack.cy = pack.sy / pack.n;
     pack.hx /= pack.n;
     pack.hy /= pack.n;
+    pack.spread = spreadOf(pack);
+    pack.pace = paceOf(pack);
     tickBeat(pack, dt, world.player);
   }
 }

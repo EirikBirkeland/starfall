@@ -6,8 +6,9 @@
 //   a pack costs the canvas what twenty plain bodies cost - no blur, no gradient, no
 //   dash pattern, however many of them there are, because twenty of anything has to be
 //   cheap enough to be worth having in the arena at all;
-//   the brace puts exactly one light on each body and nothing else, and a pack that is
-//   not bracing puts none - so the warning cannot shine while there is no warning;
+//   the brace puts exactly one light on each body, and one more for the clump they are
+//   one thing round (render/flock.js, counted in test/flock-tell.test.mjs), and a pack
+//   that is not bracing puts none - so the warning cannot shine while there is no warning;
 //   and the dive puts exactly one blur on each body, which is the only thing that says
 //   "these are coming at you" before they arrive.
 //
@@ -117,15 +118,16 @@ test('a pack costs the canvas bodies and nothing else', () => {
   assert.equal(cost.dashes - empty.dashes, 0, 'and no dash pattern, which is what the field and the fence cost');
 });
 
-test('a braced body lights its nose, and a gathering one does not', () => {
+test('a braced body lights its nose, and the clump wears one more', () => {
   clearTheSky();
   const plant = plantPack(S.pack.into, ship.x + 200, ship.y);
   const calm = costOnBeat(plant, '', 3);
   const braced = costOnBeat(plant, 'brace', 3);
 
-  assert.equal(braced.images - calm.images, S.pack.into,
-    'exactly one light per body, no more and no less');
-  assert.equal(braced.strokes, calm.strokes, 'and it is a light, not a shape');
+  assert.equal(braced.images - calm.images, S.pack.into + 1,
+    'exactly one light per body, and the one the whole clump wears - never one per pair');
+  assert.equal(braced.strokes - calm.strokes, 3,
+    'and the clump is three arcs however many bodies it rounds');
 });
 
 test('a diving pack drags one blur per body', () => {
@@ -137,6 +139,9 @@ test('a diving pack drags one blur per body', () => {
   assert.equal(diving.images - calm.images, S.pack.into,
     'exactly one blur per body');
   assert.equal(diving.gradients - calm.gradients, 0, 'baked once, like every other streak');
+  // ...and nothing for the clump, because a pack pinned at zero speed (plantPack holds them
+  // still) has no lunge left to promise. test/flock-tell.test.mjs counts the line, off bodies
+  // that are actually flying.
 });
 
 test('a lone swarmling is drawn like any other body', () => {

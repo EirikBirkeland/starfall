@@ -2594,3 +2594,32 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       one edit the column read 0.0 for every phase of every fight with nothing whatever wrong in the
       arithmetic. It is a Uint16Array now, and the test file paints one cell per claim bit and refuses
       a claim that comes back as nothing, or as something else.
+
+- [x] A brood of fifteen is one threat to read and not fifteen, and until now it was drawn as fifteen
+      nose lights. Session 150 left the question standing - the swarm commits in waves, and "a wave of
+      40 bodies arriving out of a 200-body crowd may need something coarser than a circle" - and the
+      census said the same thing from the other side: over a late run's waves there are three packs of
+      14-17 bodies on the arena at a time, ~40 px of spread between them, and a dive that closes 170-340
+      px of ground, so the clump has a size and a shape and nothing on the glass was drawing either.
+      **`render/flock.js`** draws one tell per pack, off numbers `game/flock.js` now publishes: a ring
+      round the clump standing 10 px outside its own spread with an arc of it left that gets eaten as
+      the brace runs out (the grammar of the ship's own dash ring, spent as a fuse and not a refill),
+      and for the dive a soft trail out to as far along the locked line as the pack still has to give -
+      which is the same capsule `tools/boss-pressure.js` counts as the pack's claim, so the light draws
+      what the ruler measures. The spread costs no extra walk of the crowd (mean square distance out of
+      the sums the middle was worked out of) and the pace is the mean of the bodies actually flying it,
+      so a half-chilled pack promises a shorter lunge, which is what it does. Neither is simulated and
+      the reference run is byte for byte the run it was.
+      Two findings, and the second is why the item ends where it does. `MIN_BODIES` is four, half the
+      smallest flock the wave director sends, because **a hive's brood is pairs**: every mouth lets out
+      `each: 2` bodies as its own pack, so over a 20 s watch of the second boss's cage the number of
+      clumps big enough to be drawn is zero and this file changes nothing about that fight - the session
+      150 note's "wave of 40 bodies" is thirty-two pairs on thirty-two clocks, and a per-pack tell
+      would be thirty-two rings where the read wanted three. That is a fact about the fight worth having
+      written down before anyone redesigns it. The other: 12 of 12 mutations of the new code were caught
+      (`test/flock-tell.test.mjs`, 13 tests, plus 3 in `test/swarm.test.mjs` for the two published
+      numbers and the one clock they share with the body's own light), including the renderer hook going
+      missing and the ring ceasing to follow its clump. What three clumps on the glass cost: +3 strokes
+      and +1 stamp each while bracing, +2 stamps each while diving, no blur and no gradient, and
+      0.225 -> 0.237 ms of a frame on this box at 45 flock bodies - a twentieth of a percent of a 60 fps
+      budget, against the one read in the game that a clump is a thing.

@@ -15,6 +15,7 @@ import { drawCage } from './boss.js';
 import { drawArmFans, drawBlades } from './arms.js';
 import { drawDarkness } from './darkness.js';
 import { drawArcs, drawBeams, drawBlastZones, drawBullets, drawEnemies, drawEnemyShots, drawBossLocks, drawFire, drawGhosts, drawLanceBeams, drawLanceLocks, drawLocks, drawMines, drawNova, drawOrbitals, drawPlayer, drawShards, drawShieldBubbles, drawShieldFields, drawTelegraphs, drawTether, drawTurrets } from './entities.js';
+import { drawFlockTells } from './flock.js';
 import { drawRings, drawSmoke, drawSparks, drawTexts } from './effects.js';
 import { drawIndicators } from './indicators.js';
 import { drawHUD } from './hud.js';
@@ -101,6 +102,9 @@ export function renderFrame(tick, input, pointer) {
     drawBullets(ctx, tick.alpha);
     // Under the crowd, so a darter sits on top of its own warning line.
     drawTelegraphs(ctx, world.enemies, tick.alpha);
+    // And the brood's clumps, for the same reason: a ring and a line are what the bodies round them
+    // are *for*, so they go under the bodies they describe (game/flock.js, render/flock.js).
+    drawFlockTells(ctx, world.flocks);
     // And under it for the same reason: a lock is a promise across the whole arena and
     // nothing standing in the middle of it may be allowed to hide it (game/beams.js).
     drawLocks(ctx, world.enemies, tick.alpha);
