@@ -16059,3 +16059,120 @@ the *next* shape visit cheaper, not the game. The work is committed and tagged h
    the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
    the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
    afterimage.
+
+---
+
+## Session 146 — the tank's faces are bowed, and the shape ruler stops losing corners. Shipped 1.9.6
+
+### What was on the shelf
+Clean tree at 1.9.5, and item 3 of session 145's list: *now that a draft is cheap, spend a session
+looking rather than fixing - sweep each of the nine bodies for the fatter shape that costs nothing.*
+So: `.scratch/fatten.mjs`, eighteen drafts, `tools/try-body.js` judging every one with the shipped
+gates. Two things came out of it, and the first one was not on the list.
+
+### The bug the sweep found in the ruler
+`profile()` casts a ray along each of 96 bearings and keeps the farthest segment crossing, refusing
+any crossing whose segment parameter `t` fell outside `[0,1]`. **A corner sitting exactly on a sampled
+bearing is a crossing for both of the segments that meet there** - once at the end of one, once at the
+start of the other - and the arithmetic landed a ulp or two outside the range on both sides at once
+(`t = 1.0000000000000056` and `t = -1.2e-15`, for a corner 26 px out), so both were refused and the
+body appeared to have no outline at all on that bearing. An n-gon has such a corner whenever n divides
+96, so the triangle, square, hexagon and octagon all do.
+
+Which shape trips it depends on the radius as well, and that part is luck. **None of the nine shipped
+bodies trips it at the radius it ships at** - which is why two full suite runs and four shape visits
+never saw it - but the tank's own hexagon loses the 300-degree bearing at 25 px and at 26.5 px, one
+and a half either side of the 26 it is drawn at; `studded(6)` (the bomber's builder) loses one at five
+radii between 12 and 24; the drifter's bowed triangle at 17.5 px; and `bulged(6, 1.0, 0.9)` - a hexagon
+with its faces bowed, exactly what a shape visit proposes for a fatter tank - loses one at the tank's
+own 26. **The sweep's tank rows were being measured through a hole in the tank.**
+
+And it lied in the flattering direction, which is the only direction a gate can be fooled by: a lost
+bearing reads as the outline collapsing to the middle, so that body's outline distance to *everything*
+in the crowd was inflated. `inscribedShare` answered 0% for a shape that provably encloses 81%.
+
+Fixed with a `CORNER_SLACK` of 1e-9 on the parameter and a clamp of `t` back on to the segment that
+owns the corner (so the distance counted is always a real point of the path - a corner counted from
+both sides costs nothing, because `far` is a maximum). **No shipped measurement moves**: the shape
+report, the palette report, `fitRows()` and `silhouettePairs()` are byte for byte what they were, and
+the reference run is untouched, because none of the nine bodies sat on a bad radius.
+
+Two tests in `test/shape-lab.test.mjs`, both verified to go red without the fix: one on a hexagon at
+25, 26 and 26.5 px (no empty bearing; two hexagons two px apart part by exactly 2 px at their widest
+and 1.91 px on average; a hexagon bowed to 0.9 encloses 0.81 and not 0), and one on the whole builder
+vocabulary - polygon, bowed polygon, studded shell, lobed body, for the side counts that divide 96 -
+closing over the middle on all 96 bearings.
+
+### The tank
+`plainPolygon(6)` -> `bulged(6, 1.0, 0.93)`. Flat faces on a hexagon stand at cos 30 = 0.866 of the
+radius their corners reach, so a sixth of the biggest hurtbox in the game was air - 4 px at the middle
+of each face, on the body a player most often shoots at. 0.93 is **halfway between the flat chord and
+the circle**, which is how the drifter's 0.8 was chosen in session 143 (flat at 0.5, bowed to 0.8, a
+touch past its halfway). Coverage 83% -> **91%**, `encloses` 75% -> **86%**, and the reach is unchanged
+at 1.00r because the corners never moved, so the tank eats not one shot it did not eat before. Swept
+at 0.90/0.93/0.95/0.97; all four pass every gate, 0.97 covers 96% and is a disc with hints in it, so
+the halfway is where it stops for the same reason the sniper's lens stopped at 1.6.
+
+It is the rarest kind of shape change: **every pair the tank is in got better.** Measured before and
+after, all eight: tank/bomber 4.1 -> 5.3 px, and the seven outline-carried pairs each gained the same
+1.1 px (tank/shielder 7.5 -> 8.7, tank/sniper 7.8 -> 9.0, spitter/tank 8.9 -> 10.0, drifter/tank 10.7
+-> 11.9, weaver/tank 11.1 -> 12.3, darter/tank 13.1 -> 14.2, tank/swarmling 18.9 -> 20.0). A flat face
+lines up flush with a bomber's stud; a bowed one cannot. `COVERS.tank` 0.80 -> 0.90 with it, per the
+house rule that a fatter body raises its own bar. `test/crowd-art.test.mjs` holds the three numbers
+that have to hold together, against geometry: more than a flat hexagon's 3*sqrt(3)/(2*pi) = 83%
+covered, the corners on the hurtbox and nowhere past, and the outline enclosing what faces at 0.93r
+owe (0.93 squared = 86%).
+
+`plainPolygon` is now unworn by the crowd. The note above it says why it stays (it is the zero a bow
+is measured against, it is what a sweep reaches for first, and the symmetry test leans on it).
+
+### The sweep's other results, measured honestly this time
+Recorded because `.scratch/` does not survive the session. All eighteen drafts PASS the shipped gates
+except one, and **PASS only means no uncarried debt crosses a bar** - the pair lines still show carried
+pairs going tighter, and that is a real cost:
+- `tank faces 0.90` now **FAILS**, at 87% against the 90% bar the shipped bow just raised. That is the
+  bar working, on a draft, one session after it was set.
+- **drifter** faces 0.85/0.90/0.95/1.00: covers 75 -> 80/85/91/96%. Free on the gates. The cost is that
+  `drifter / spitter` (2.2 px) and `drifter / sniper` (3.1) are *already* one-shape pairs carried by
+  colour alone, and every step up the faces tightens them - 2.0 and 2.5 at 0.90 - while
+  `drifter / darter` improves 3.2 -> 4.1. A session that wants this one has to say which of the four
+  pairs it is spending.
+- **darter** cheek 0.95/1.00/1.05/1.10: 78 -> 81/84/86/88%. Free on the gates. `darter / swarmling`
+  improves 5.8 -> 6.1; `darter / spitter` 4.2 -> 3.9 (over the one-shape bar, carried by 1.07 of a step
+  of colour) and `weaver / darter` 3.1 -> 2.9 both tighten. Cheek 1.05 already dips three pairs under 4.
+- **shielder** 1.05x/1.10x/1.15x: 84 -> 88/91/94%. The best of the remaining ones by margin - nothing
+  it touches is within 5.5 px already.
+- **spitter** faces 1.04x/1.08x: 92 -> 94/96%. `spitter / bomber` tightens 5.1 -> 4.5, and that pair is
+  carried by a thin outline plus 0.60 of a step, so it is one of the two `thinly told` pairs.
+- **sniper** lens 1.70 (height, not width): session 144 measured this as costing a twelfth one-shape
+  pair (3.8 px to the bomber) and it still does.
+The crowd's remaining shape debt is in three pairs, not shapes: `drifter / weaver` 1.3 px, and the two
+`thinly told` ones, `bomber / shielder` 4.1 and `spitter / bomber` 5.1.
+
+### Verified
+Full suite **2457/2457** (2454 at HEAD, +3 here). `tools/simulate.js --seed 20261006 --trace` byte for
+byte what it was - 10m00s / 73,982 / level 57 - checked against a trace generated from HEAD in the same
+session, and again after the shape change, because a body's shape is render-only and that is the proof.
+`palette-check --strict` and `contrast-check --strict` clean; the full palette report differs from the
+one at HEAD by exactly one line's numbers (tank/bomber 4.1 -> 5.3) plus the tank's coverage row.
+`node --check` on every file touched, every added line ASCII and under 102 columns, and both new
+assertion groups were mutation-checked by stashing the file they hold. Released **1.9.6**.
+
+### What should come next
+1. **The shielder is the next free one**, on the numbers above: 1.05x takes it 84 -> 88% and everything
+   it is near is already past 5.5 px. Worth its own argument first - a wider bulwark is a bigger face,
+   and the face is what the kind's whole drawing rests on - and the palette prose on the shielder is
+   already the longest in the file.
+2. **The kindest-turn question, unchanged from 142-145.** The tank is now the best evidence for it: it
+   buys 1.1 px on all eight of its pairs, and seven of those pairs are carried by outline alone, so a
+   turn that was *allowed* rather than *assumed* would be felt most by exactly the pairs that pay for
+   this body. Four sessions have said this; the ruler has all the data it needs and `try-body.js` is
+   where the answer would print.
+3. **The three pairs of real debt** (`drifter / weaver` 1.3 px on 2.24 of colour, `bomber / shielder`
+   4.1 on nothing else, `spitter / bomber` 5.1 on 0.60 of a step) and the two crowded pairs that are
+   all swarmling and bomber - none of which a shape visit can reach, and none of which has been asked
+   about by anything except a static ruler.
+4. Unchanged from 139-145: the late game wants a *fight* and not a crowd (boss phase tables, not hull);
+   the XP curve is a decision to take on purpose with the hangar re-priced after it; the browser half of
+   the performance pass; and `tools/power-ladder.js` has not been re-read since the deck grew the
+   afterimage.
