@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.2",
+    "date": "2026-10-16",
+    "released": "2026-10-16T01:13:06.587Z",
+    "summary": "The crowd's bodies are measured now, not named: four redrawn, and the sniper's eye fills three quarters of the circle that hurts you.",
+    "added": 1240,
+    "removed": 223,
+    "logBytes": 45382190
+  },
+  {
     "version": "1.9.1",
     "date": "2026-10-15",
     "released": "2026-10-15T22:32:59.745Z",
