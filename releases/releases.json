@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.3",
+    "date": "2026-10-16",
+    "released": "2026-10-16T03:37:08.632Z",
+    "summary": "Four crowd colours move in brightness: the drifter and the shielder, and the weaver and the darter, are a step of colour apart now",
+    "added": 55,
+    "removed": 32,
+    "logBytes": 46139987
+  },
+  {
     "version": "1.9.2",
     "date": "2026-10-16",
     "released": "2026-10-16T01:13:06.587Z",
