@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.6",
+    "date": "2026-10-16",
+    "released": "2026-10-16T13:57:45.189Z",
+    "summary": "The tank's faces are bowed, so the biggest body in the arena fills 91% of the circle that hurts you - and the shape ruler stops losing corners",
+    "added": 1347,
+    "removed": 56,
+    "logBytes": 47648245
+  },
+  {
     "version": "1.9.5",
     "date": "2026-10-16",
     "released": "2026-10-16T04:42:56.312Z",
