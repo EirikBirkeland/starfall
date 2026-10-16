@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.11",
+    "date": "2026-10-16",
+    "released": "2026-10-16T22:01:57.001Z",
+    "summary": "The hive's brood flies in one flock per beat: a clump to read, a ring to warn with",
+    "added": 166,
+    "removed": 41,
+    "logBytes": 50435307
+  },
+  {
     "version": "1.9.10",
     "date": "2026-10-16",
     "released": "2026-10-16T21:19:52.427Z",
