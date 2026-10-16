@@ -2404,6 +2404,12 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       over. The swarmling is left alone on purpose: it wears the ship's own dart because a shoal of
       twenty that borrow your silhouette is the kind's whole argument, and a 2.1r nose is what a nose
       costs. So what is left of this item is not a shape job; see the next one.
+      **Session 142 did the colour**, and both shapes are now paid for: the drifter and the shielder
+      stand 1.49 steps apart and the weaver and the darter 1.21, at the outline distance the fatter
+      drawings leave them (3.9 px and 2.9 px). What is left is drawing them: the drifter's three faces
+      bowed to a rounded triangle with its corners exactly where they are now, and the darter's head
+      filled out from a 0.7r cheek to something nearer 1r. Re-run `node tools/shape-lab.js` after,
+      because a fatter body moves the outline distances of everything it touches.
 - [x] Two pairs of the crowd are nearly one colour, and they are the lock on the crowd's shapes. The
       palette report's silhouette section prints every pair the eye has to tell apart and what carries
       it, and two of them carry nothing but outline: the drifter against the shielder at 0.56 of a step

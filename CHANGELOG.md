@@ -1,5 +1,18 @@
 # Starfall — changelog
 
+## 1.9.3 — 2026-10-16
+The crowd's warm half gets a lightness ladder: four bodies move in brightness and two pairs that were one colour wearing two shapes are now a step apart.
+- **Four palette entries moved, in brightness and only in brightness** - the hues are the ones each kind has always worn. The drifter went deeper into its violet (#7d5cf5), the shielder up out of its magenta
+  (#f95fff), the darter down into its red (#e83a55) and the weaver a shade up out of its pink (#ff6ad0). Brightness is the one axis every eye keeps, and both pairs were short on exactly the axis their worst
+  eye had left.
+- **The two pairs that were nearly one colour are a step apart now**: drifter against shielder 0.56 -> 1.49 steps for an eye with no red cone, weaver against darter 0.43 -> 1.21 for an eye with no blue cone.
+  The weaver/darter pair leaves the report's `thinly` list - the three bodies that hang on a thin outline alone are now written down in `test/crowd-art.test.mjs` as two fewer than they were.
+- **Three neighbouring pairs came up for nothing**: spitter/shielder 1.25 -> 1.40, shielder/sniper 1.18 -> 1.68, bomber/shielder 0.33 -> 0.76. **One pair went down** and says why in
+  `test/palette-read.test.mjs`: the darter and the sniper are now one colour (0.45), which the rule allows - they are 1.45x apart in size, 6.1 px of outline apart, and one of them never moves while the
+  other is the fastest thing in the arena. Deepening the sniper's own red one step would buy it back along with `swarmling / sniper`, and is a decision for a session that wants a darker sniper on its own account.
+- **What this buys is shapes, not colour**: the drifter can be bowed out from 42% of its own hurtbox to about 75% and the darter's head filled from 56% to about 81%, because both of those pairs are now
+  carried by colour at the outline distance the fattening leaves them at. Neither shape is drawn yet; the item at the foot of PLAN.md says exactly what each one costs.
+
 ## 1.9.2 — 2026-10-16
 Nine bodies are nine bodies, measured: what a body is drawn as is a shape a ruler can compare now, and the sniper's eye fills three quarters of the circle that hurts you.
 - **The crowd's silhouettes live in one table** (`src/render/shapes.js`), which the renderer draws from and the
