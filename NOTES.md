@@ -15928,8 +15928,8 @@ because what a body looks like is not what it does, and this changed only what i
    `shape-lab.js` as `--try <file.mjs>`: a candidate file exports `{ shapes, colours }` and the tool
    prints coverage, the shared/thin/crowded lists and the unpaid list with the shipped gates, then exits
    non-zero on an unpaid pair. `gates.mjs` is the draft and it already does all of it except the CLI.
-2. **The kindest-turn question, and it is cheaper now.** Six of the crowd's eleven shared pairs involve
-   the sniper or the spitter, both of which *always* face the ship (`game/kinds.js`), so "best-aligned
+2. **The kindest-turn question, and it is cheaper now.** Seven of the crowd's eleven shared
+   pairs involve the sniper or the spitter, both of which *always* face the ship (`game/kinds.js`), so "best-aligned
    over a relative turn" is pessimistic for exactly the pairs that dominate the list. Handing the ruler
    each kind's turn as data (with its own test) would either relax the list or say the tightness is real.
 3. **The last three crowded pairs are all the swarmling and the bomber**: `darter / swarmling` 0.31,
