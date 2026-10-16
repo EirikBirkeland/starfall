@@ -1,5 +1,41 @@
 # Starfall — changelog
 
+## 1.9.8 — 2026-10-16
+The Warden's last phase now walls the room off and asks you to stand in it, in the same beat.
+- **A beat can carry one.** A phase row may now write one of its beats as *carrying* another
+  (`with: 'spokes'` on the `bullets` row), and the framework halts once, draws both promises for
+  the longer of the two wind-ups on one clock, and lands both on the same step. The carried beat is
+  then not taken on its own any more: a fight that has started asking the big version of a question
+  stops asking the small one beside it. That is the difference between a denser beat and a louder
+  fight, and the price is paid out of the ride between halts rather than added to it. A pairing that
+  cannot be played - a row its phase never wrote, a beat carrying itself, a carried beat carrying
+  one of its own - is refused out loud at the table rather than quietly dropped, because the quiet
+  version is a boss that stopped doing one of its attacks and nobody noticing which one.
+- **The Warden's third phase spends it.** Its ring of shots and its eight spokes arrive in one halt
+  now: get into the door the hoop is showing you, *and* off the eight lines the hoop is also
+  showing you, on 0.72 s. The ride went 1.8 -> 2.4 s to pay for it, so the fight halts less often
+  and each halt asks both questions. Measured with `tools/boss-pressure.js`, the phase goes from
+  95.4% of the cage standable to 93.4% at the game's own promise, and from 86.8% to 79.6% three
+  seconds out - worst moment 59.8% free to 51.7%, and the free glass going from 2.8 pieces to 4.6.
+  Neither half of that pair ever cut the room into pieces on its own; the two of them together do.
+- **`tools/boss-pressure.js` grew a `sent/s` column**, the count of separate things a fight puts
+  into the room per second - shots, spokes, blades, bodies - read off the fight's own counters. It
+  is the accounting column that tells a denser phase from a louder one: this phase went 6.15 ->
+  11.05 things a second, and a ride long enough to pay that off in full (about 4.2 s) reads back to
+  exactly where the phase started, which is why the ride pays what it can and not all of it.
+- **What was *not* paired, and why.** The Eclipse's last phase tried the same thing and it went
+  back: its door is 1.0 rad wide and a blade's band is 0.9, so a door that opens on a band has
+  0.1 rad of standable wedge left in it. The fan and the wall are each about as wide as the other's
+  only answer, so that pairing asks a question with no room in the answer - which is written on the
+  phase now, before anybody tries it again. The Hive's last phase is untouched: its whole attack is
+  bodies that steer, and a steering body cannot be projected, so this ruler reads that fight flat
+  whatever is done to it.
+- **One old rule had to be made honest.** The test that every Warden phase is harder than the last
+  used to assert each phase's `wait` is shorter; patience stopped being the escalation on its own the
+  day a phase could buy a second promise with a longer ride. It now refuses a *longer* ride that
+  asks nothing more, and a new test measures what each phase actually sends per second (1.20, 4.90,
+  11.05) instead of reading it off the table. Suite 2472 -> 2481.
+
 ## 1.9.7 — 2026-10-16
 The hive no longer dies inside its own split, and there is a ruler for the room a fight leaves.
 - **A hive that reached its last phase with the honeycomb whole could be killed by its own split.**
