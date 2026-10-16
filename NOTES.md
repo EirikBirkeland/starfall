@@ -16794,3 +16794,111 @@ and the release.
    `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree (session
    150's note; somebody has to decide whether a tier ladder of telegraphs is a thing to build or a
    sentence to delete).
+
+## Session 152 - a mass's brood is one flock, so the hive's beat is a clump and wears the ring
+
+### What was on the shelf
+Session 151's first next-item: "settle the hive's `each: 2`". The clump's ring and dive line shipped the
+session before and the census had said the second boss gives them nothing to draw - every mouth lets out
+`each: 2` bodies as a pack of its own, so 6-12 packs of two bodies in the cage and zero clumps - while
+the comment on that very balance row was still claiming that what comes out of a mouth bunches, commits
+and dives as one thing and that this is what makes six bodies one threat to read. So either the sentence
+was a leftover from a row that never shipped, or the sentence was the design and the number was the
+accident. It measured as the second: the brood are the kind's whole idea and the fight was spending them
+in twos.
+
+### The answer I tried first, and why it is wrong
+`.scratch/hive-brood.mjs` is a new census that patches `phases[].spawn` at runtime (a share and an `each`
+per phase, which phase to drive the hull down to, how long to watch), so the sweep cost no edits to
+balance.js. The obvious move is fewer, bigger mouths for the same crowd: `share: 0.17, each: 4` for
+phase 1 and `share: 0.17, each: 6` for phase 2 - one mouth a beat instead of two and three, the same four
+and six bodies, and the census liked it: clumps of 4 and 6, one tell a frame at p90. The *lever* did not.
+`lightTheCore` lights `max(1, round(standing * share))` mouths, and that share is the whole of the reason
+to shoot the honeycomb; at 0.17 a six-cell mass and a two-cell mass light the same one mouth and breaking
+the mass stops thinning the brood, which is exactly what `test/hive.test.mjs`'s "the smaller the mass,
+the smaller the swarm" is there to catch. It went red and it was right. **`share` is a lever and not a
+size**: number of mouths, which is the reward for breaking them; `each` is what one mouth is worth; a
+beat is their product and neither can be bought without paying in bodies.
+
+### What landed
+**A mass's brood is one flock.** `game/bosses.js` `openTheCore` makes the flock once, at the first mouth
+that actually opens (`broodPack`, which also puts it in `world.flocks`), and every cell that beat lit puts
+its `each` bodies into that one. It works because the mouths a beat lights are *consecutive* round the
+ring (`lightTheCore` walks `cells[(core.turn + i) % standing]`): neighbours 50 px apart on a full hive,
+so the bevy leaves as one bunch and the flock's own `keep` of 92 px closes it the rest of the way. No
+number in balance.js moved. Phase 1 is one clump of four where it was two pairs, phase 2 one of six where
+it was three, and phase 3 is untouched because a fragment has one mouth to light - and that stays: a
+piece has three cells, a share of three rounds to one mouth, two bodies is as big a flock as a piece can
+field, and three pieces are three places to read already. The last phase keeps its nose lights and the
+split's row now says so.
+
+`isClump` and `MIN_BODIES` moved out of `render/flock.js` into `game/flock.js`, next to the pack they are a
+fact about, so the painter and the fight answer "is this a clump" off one number - and four bodies is no
+longer a coincidence but exactly where a hive's beat sits. The three places that said "one pack per cell"
+in prose (the hive row, the split row, `openTheCore`) now say what happens.
+
+### Numbers
+- Census, shipped rows, parked ship, 40 s, per phase. **Before:** packs p50 6 / 9 / 12, every pack two
+  bodies, clumps big enough to be drawn: zero. **After:** 3 / 3 / 12 packs of 4 / 6 / 2 bodies, and what
+  a frame is asked to draw is at most **one ring and one line in phase 1**, **two rings and one line in
+  phase 2** (p90 one ring), and still nothing in the third. Spread while bracing 27-31 px, which is the
+  same clump the wave flocks arrive at, so none of last session's sizes needed touching.
+- `tools/boss-pressure.js --boss hive`, three seeds, against a `git worktree` of HEAD. **Near watch
+  (8 s, what a run is actually left with):** `crowd` (12/23/41) and `sent/s` (1.00/0.75/0.75) identical in
+  every row, standable within half a point, and the worst moment level or looser - phase 1 73.2/72.8/72.0
+  free becomes 72.1/72.3/71.6, phase 2 62.9/71.2/71.2 becomes 65.8/70.8/71.3, phase 3 58.3/49.5/51.8
+  becomes 57.9/62.5/55.9. **Long watch (40 s):** phases 1 and 2 *loosen* (phase 1's worst 63.8/64.8/63.6
+  becomes 71.1/67.5/66.4 - three dive bearings became one) and phase 3 reads 6-12 points *tighter*. That
+  last one is the tool's own printed caveat and not the fight: nothing shoots back, so after a minute a
+  passive ship is being camped by 118 bodies and a clump camps closer than a pair drifts, over an
+  arrive-disc of some 430 px. The tool says read the near one; the near one says the fight is the same
+  fight with three things to read where there were six.
+- Reference run (`--seed 20261006 --trace`, aware bot, 10 min): **byte for byte the run it was**, diffed
+  line for line against the worktree - a wave's swarm is built by `waves.js` and never passes through
+  `broodFrom`, and the fight that run meets is the Warden. `tools/difficulty-arc.js --runs 24 --seed 300`
+  is identical too: 21 of 24 careless runs die before 4:00, so no careless run ever meets the hive.
+- Suite **2514**, one up. `test/hive.test.mjs`: "what comes out of one mouth is one pack" became **"one
+  beat lets out one flock, however many mouths opened"** - it asserts first that the row lights more than
+  one mouth, so it cannot go blind by accident, then one flock, `pack.n` the whole brood, and `isClump`;
+  and **"a piece lets out its own flock, and the three of them are the fight"** - three flocks to a beat,
+  each flock's bodies all nearest the same piece, and no piece's brood big enough to be drawn as a clump.
+  `test/flock-tell.test.mjs`'s threshold test reads the *split* row for its pair now, and also paints the
+  pair to prove it gets no ring. Mutation check: putting the merge back (every mouth its own flock) goes
+  red on the new test and on nothing else.
+
+### Surprises and lessons
+1. **`share` is a lever, not a size** - see above. If a later session wants bigger broods it has to say
+   which it is buying: more bodies, or the same bodies closer. Only the first belongs in `each`.
+2. **`simulate.js --at 600` does not put you in the second boss's fight.** The schedule still walks the
+   Warden first, so all twelve of those runs died to the wave crowd and measured nothing about the hive.
+   Boss fights are measured with `tools/boss-pressure.js` and the census; the bot's arc does not even
+   reach 10:00 (21 of 24 careless runs are dead before 4:00, which is the open "first two minutes"
+   question wearing a different hat).
+3. The same ruler, watched for 8 s and for 40 s, disagreed about the third phase by twenty points. Both
+   are written above rather than the flattering one, and the reason is in the tool's own caveats. A ruler
+   whose sample is a passive ship is a ruler of a state no run is in, and the longer you watch it the more
+   true that becomes.
+4. The census script is the cheapest thing in the box that can answer "what would the eye be asked for",
+   and patching `BALANCE` in one script is much faster than editing a row, running, and putting it back.
+
+### Left in the tree
+`src/game/bosses.js` (`openTheCore` makes one flock, new `broodPack`, `broodFrom` takes one),
+`src/game/flock.js` (`MIN_BODIES` and `isClump`, and a `balance.js` import - no cycle, balance imports
+only palette), `src/render/flock.js` (imports the answer and says who is not a clump now),
+`src/game/balance.js` (three stale sentences about one pack per mouth, comments only),
+`test/hive.test.mjs` (two tests rewritten or added, `broods` and `nearest` helpers),
+`test/flock-tell.test.mjs` (the threshold test and the pair's own paint), `.scratch/hive-brood.mjs`,
+PLAN, CHANGELOG and the release.
+
+### Next
+1. **`tools/perf-probe.js` still has no flock scene** - straight from session 151's list and more true
+   now: three clumps bracing is what the frame is actually asked to draw, in waves and in the hive both,
+   and the probe can only price 200 loose bodies with no pack at all. A `--flocks 3` scene is a small
+   addition to a tool that is otherwise honest about what it cannot measure.
+2. **Is the ring too loud, and is the hive's beat too quiet?** The eye has an answer for both now and no
+   human has looked. The census can count shapes per frame; only a person can say whether one ring per
+   clump over thirty pairs' worth of nose lights is the right amount of light on a late hive. Worth
+   leaving in the notes for whoever plays it next.
+3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20), whether the **first two minutes** are too harsh for a new player (needs a human), and the
+   `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree.
