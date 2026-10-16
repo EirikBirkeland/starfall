@@ -1,5 +1,31 @@
 # Starfall — changelog
 
+## 1.9.10 — 2026-10-16
+A pack of the swarm is one thing made of many bodies, and now the glass says so once instead of fifteen times.
+- **The clump gets a fuse.** When a flock bunches up to dive, a ring now stands round the whole clump -
+  10 px outside its own bodies, wherever they happen to be bunched - and the arc left of it is eaten as
+  the brace runs out. It is the same clock each body's own nose light has always counted down, so the
+  two cannot disagree, and it is the same grammar as your own dash ring: a part of a circle closing
+  over a circle is time. Up close you still read the bodies; from across the room, or through another
+  clump, you read the ring.
+- **The lunge gets a line.** When the pack commits, a soft trail reaches from it out to as far along
+  the locked line as it still has to give, with a light at the far end: this is how far the wave gets,
+  and it shortens as the dive spends itself and is gone when the dive is. That is the same measurement
+  the pressure ruler counts as the pack's claim on the room, so the light draws what the instrument
+  measures.
+- **A pair is not a clump.** The hive's brood comes out of a mouth two bodies at a time, and two
+  bodies already read with their own two lights; a ring round each of the thirty-odd pairs a late hive
+  leaves standing would be thirty rings where the read wanted three. So only a pack big enough to be
+  called a clump gets a tell, and the second boss is deliberately untouched.
+- **Measured.** Three clumps of fifteen on the glass (what a late run's waves actually hold) cost three
+  strokes and one light each while bracing, two lights each while diving: no blur, no gradient, and
+  0.225 to 0.237 ms of a frame here. The reference run is byte for byte the run it was, because none of
+  it is simulated - the pack's width and pace are read off the crowd every step and nothing feeds back.
+- Suite 2512, up 16: the ring's sweep and its sizing, one clock shared by the arc and the body's light,
+  the line reaching exactly as far as the pack then walks, a dive with nothing left drawing nothing,
+  a pair drawing nothing at all, the cull, the frame's own drawing, and 12 mutations of the new code
+  all caught.
+
 ## 1.9.9 — 2026-10-16
 The sun's last phase grew a third thing to do, and it is the first one the sun has never had: bodies.
 - **The Eclipse calls darters now.** Its third phase - the walking door, the fan of blades, the room
