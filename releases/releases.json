@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.8",
+    "date": "2026-10-16",
+    "released": "2026-10-16T16:54:00.202Z",
+    "summary": "The Warden's last phase walls the room and asks you to stand in it, in one beat",
+    "added": 555,
+    "removed": 50,
+    "logBytes": 48674460
+  },
+  {
     "version": "1.9.7",
     "date": "2026-10-16",
     "released": "2026-10-16T15:46:08.362Z",
