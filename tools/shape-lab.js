@@ -229,7 +229,48 @@ export function extent(shape, r) {
   return { forward, back, side, reach, up, down };
 }
 
-/** How far the outline stands from the middle along every bearing. */
+/**
+ * How far past the end of a segment a crossing still counts. See `profile`.
+ *
+ * It is on the segment *parameter*, not in pixels: a share of a billionth of a segment is a
+ * distance no measurement in this file can resolve, and the only thing it can change hands on is a
+ * corner sitting exactly on a sampled bearing.
+ */
+const CORNER_SLACK = 1e-9;
+
+/**
+ * How far the outline stands from the middle along every bearing.
+ *
+ * A bearing that finds no crossing reads 0, and that is the signal for a body that does not wrap
+ * the middle it is drawn around - which is what `test/shape-lab.test.mjs` and
+ * `test/crowd-art.test.mjs` look for. What it must *not* be is a lie about a body that does wrap
+ * it, and a strict `[0,1]` test on `t` told that lie.
+ *
+ * A corner sitting exactly on one of the 96 sampled bearings is a crossing for *both* of the
+ * segments that meet there - once at the end of one and once at the start of the other - and the
+ * arithmetic lands a ulp or two outside `[0,1]` on both sides at once, so both were refused and
+ * the body was left with a bearing where it appeared to have no outline at all. `t` came out
+ * `1.0000000000000056` on one segment and `-1.2e-15` on the next, for a corner 26 px out.
+ *
+ * Which corners land on a sampled bearing is arithmetic, not luck: an n-gon has one at a sampled
+ * bearing whenever n divides 96, so the triangle, the square, the hexagon and the octagon all do.
+ * Whether the error shows up then depends on the radius as well, and that part *is* luck - the
+ * shipped crowd reads clean at the nine radii it ships at, but the same shapes lose a bearing at
+ * others: the tank's hexagon at 25 px and at 26.5 px, the bomber's studded shell at five radii
+ * between 12 and 24, the drifter's bowed triangle at 17.5 px, and `bulged(6, ...)` - a hexagon
+ * with its faces bowed, the obvious thing to propose for a fatter tank - at the tank's own 26.
+ * So the crowd's outline numbers are right today and were one resize away from being silently
+ * wrong, which is what `test/shape-lab.test.mjs` now holds.
+ *
+ * And note which way the error went: a lost bearing reads as the outline collapsing to the middle,
+ * which inflates that body's outline distance to *everything* - it makes a body look more unlike
+ * the crowd than it is, which is the direction that lets a too-similar shape through. It also made
+ * `inscribedShare` answer 0% for a body that provably encloses 81% of its own circle.
+ *
+ * So a corner counts now, from either side of it, clamped back on to the segment it was found on.
+ * Both halves agree on how far the corner stands and `far` below is a maximum, so a corner counted
+ * twice costs nothing.
+ */
 export function profile(shape, r) {
   const segs = [];
   for (const poly of outline(shape, r)) {
@@ -245,8 +286,9 @@ export function profile(shape, r) {
       const denom = dx * ey - dy * ex;
       if (Math.abs(denom) < 1e-12) continue;
       const t = (p.x * dy - p.y * dx) / denom;   // along the segment
-      if (t < 0 || t > 1) continue;
-      const along = (p.x + t * ex) * dx + (p.y + t * ey) * dy;   // along the bearing
+      if (t < -CORNER_SLACK || t > 1 + CORNER_SLACK) continue;
+      const on = t < 0 ? 0 : (t > 1 ? 1 : t);    // the corner, on the segment that owns it
+      const along = (p.x + on * ex) * dx + (p.y + on * ey) * dy;   // along the bearing
       if (along > far) far = along;
     }
     out[b] = far;

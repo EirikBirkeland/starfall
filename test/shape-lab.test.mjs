@@ -16,9 +16,10 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { TAU } from '../src/core/math.js';
 import { BALANCE } from '../src/game/balance.js';
+import { bulged, lobed, plainPolygon, studded } from '../src/render/shapes.js';
 import {
   outline, extent, profile, edgeGap, oneShape, hurtboxFit, hurtboxArt, fitRows, crowdBodies,
-  crowdPairs, crowdBody, ONE_SHAPE_PX, THIN_SHAPE_PX,
+  crowdPairs, crowdBody, inscribedShare, ONE_SHAPE_PX, THIN_SHAPE_PX,
 } from '../tools/shape-lab.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -90,6 +91,64 @@ test('a profile is the outline seen as an edge, and it closes over the middle', 
   };
   assert.ok(profile(offset, 12).some((r) => r === 0),
     'a body drawn beside the middle read as wrapping it');
+});
+
+test('a corner that lands exactly on a sampled bearing is still outline', () => {
+  // The profile is read along 96 bearings, and a regular polygon has a corner exactly on one of
+  // them: a hexagon's sits at 300 degrees, which is bearing 80 of 96. The crossing there belongs to
+  // both of the segments that meet at the corner - at the very end of one and the very start of the
+  // other - and the arithmetic puts each a ulp or two outside its own `[0,1]`, so a strict test
+  // refused both and the body was left with a bearing where it had no outline at all.
+  //
+  // Whether a given shape trips it depends on its radius as well as its corner, and the answer
+  // moves with a pixel: the tank's own hexagon is clean at the 26 px it ships at and lost the
+  // bearing at 25 px, and `bulged(6, ...)` - the same hexagon with its faces bowed, which is the
+  // obvious thing for a shape visit to propose - loses it at 26. Both are here, because the crowd
+  // is one resize away from measuring wrong and a draft is measured at radii nobody has tried.
+  const hexagon = crowdBody('tank').shape;
+  for (const r of [25, 26, 26.5]) {
+    const holes = [...profile(hexagon, r)].filter((reach) => reach === 0).length;
+    assert.equal(holes, 0, 'a hexagon at ' + r + ' px read as empty on ' + holes
+      + ' of its 96 bearings');
+  }
+
+  // Two hexagons two px apart in size part by exactly 2 px at a corner and by less everywhere
+  // else, so 2 px is the worst bearing there is. A lost corner made that bearing 22 px wide - and
+  // the mean with it, which is the number the crowd's whole silhouette audit is measured on.
+  const gap = edgeGap({ type: 'a', r: 25, shape: hexagon }, { type: 'b', r: 27, shape: hexagon });
+  assert.ok(Math.abs(gap.worst - 2) < 1e-6,
+    'two hexagons two px apart part by ' + gap.worst.toFixed(3) + ' px at their widest bearing');
+  assert.ok(gap.mean > 1.8 && gap.mean < 2,
+    'two hexagons two px apart mean ' + gap.mean.toFixed(3) + ' px apart');
+
+  // And the share: faces bowed out to 0.9r enclose a disc of 0.9r, so the answer is 0.81 - and it
+  // is not the 0 the ruler answered for this exact shape, which `tools/try-body.js` then printed as
+  // a fact about a proposed body.
+  const bowed = bulged(6, 1.0, 0.9);
+  assert.ok(Math.abs(inscribedShare(bowed, 26) - 0.81) < 0.01,
+    'a hexagon bowed to 0.9r encloses ' + inscribedShare(bowed, 26).toFixed(3)
+      + ' of the circle it hurts with');
+});
+
+test('every body the builders can build closes over its middle on all 96 bearings', () => {
+  // The general promise behind the one above, said about the whole vocabulary rather than the one
+  // shape that happened to trip it: a polygon, a bowed polygon, a studded shell and a lobed body,
+  // for the side counts the crowd uses and a couple it does not, have to be found on every bearing
+  // this ruler reads. Those side counts include the ones that divide 96 - 3, 4, 6, 8, 12 and 16 -
+  // which are exactly the ones that put a corner on a sampled bearing.
+  const missing = [];
+  for (const sides of [3, 4, 5, 6, 8, 12, 16]) {
+    for (const [words, shape] of [
+      [sides + '-gon', plainPolygon(sides)],
+      [sides + '-gon bowed', bulged(sides, 1.0, 0.9)],
+      [sides + '-stud', studded(sides, 1.5, 0.85)],
+      [sides + '-lobe', lobed(sides, 1.55, 1.15)],
+    ]) {
+      const holes = [...profile(shape, 20)].filter((reach) => reach === 0).length;
+      if (holes > 0) missing.push(words + ' loses ' + holes + ' bearing' + (holes > 1 ? 's' : ''));
+    }
+  }
+  assert.deepEqual(missing, [], 'a body the ruler cannot see all the way round: ' + missing.join('; '));
 });
 
 test('two outlines are as far apart as the kindest turn between them allows', () => {
