@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 1.9.6 — 2026-10-16
+The tank's six faces are bowed, so the biggest body in the arena stops leaving a sixth of itself in the air — and the ruler that measures the crowd can no longer lose a corner.
+- **The tank covers 91% of its own hurtbox now**, up from 83%. Flat faces on a hexagon stand at
+  cos 30 = 0.87 of the radius their corners reach, so 4 px at the middle of every face of the
+  biggest body in the game — 26 px, the one a player most often shoots at — was air, and a shot that
+  landed in it was seen to stop beside the tank. The faces are bowed to 0.93, which is halfway
+  between the flat chord and the circle; the drifter's three faces were picked the same way. The
+  corners have not moved, so the body still reaches exactly 1.00r and eats not one shot it did not
+  eat before, and six faces are still six faces: a rolled weight, not a disc with hints.
+- **It cost the crowd nothing, which is not the usual shape story.** The closest pair this body has
+  is tank against bomber, two big warm bodies 8 px apart in size, and their outlines parted 4.1 px
+  flat and part 5.3 bowed — a bowed face cannot line up flush with a stud the way a flat one could.
+  Nothing changed hands between the three lists the audit prints, and the palette report moves by
+  exactly that one line. `COVERS.tank` went up with the drawing, from 0.80 to 0.90, as the table is
+  meant to.
+- **The shape ruler was losing corners.** It reads an outline along 96 bearings, and a regular
+  polygon has a corner exactly on one of them: the crossing belongs to both of the segments meeting
+  there, once at each of their ends, and the arithmetic landed a ulp or two outside `[0,1]` on both,
+  so both were refused and the body appeared to have no outline at all on that bearing. A lost
+  bearing reads as the outline collapsing to the middle, which inflates that body's distance to
+  everything else — the flattering direction, the one that lets a too-similar shape through a gate —
+  and it answered 0% enclosed for a hexagon with bowed faces that provably encloses 81%. None of the
+  nine shipped bodies tripped it at the radii they ship at; the tank's hexagon does at 25 px, the
+  bomber's studded shell at five radii between 12 and 24, and the drifter's triangle at 17.5 px, so
+  the crowd was one resize away from measuring wrong. A corner counts now, from either side.
+- **Why the second one matters for the first**: the bow was drafted with the broken ruler and
+  measured flattering by it. Every number above was re-measured after the fix, and no shipped
+  measurement moved by it — the crowd's report is byte for byte what it was.
+- Suite 2457, `palette-check --strict` and `contrast-check --strict` clean, and the reference run is
+  byte for byte what it was.
+
 ## 1.9.5 — 2026-10-16
 The sniper gets looked at on its own account for once: its eye fills four fifths of the circle that hurts you, it sits a step deeper in its red, and the three pairs the crowd owed it in colour are paid.
 - **The eye covers 84% of its own hurtbox now**, up from 74% and from 53% before that — same two corners
