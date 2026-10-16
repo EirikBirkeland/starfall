@@ -2390,7 +2390,8 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       The eye is a `lens(tip, height)` now and it was made taller and no longer - the same two corners
       at 1.5r, the flanks standing 0.7r off the axis instead of half a radius - which takes it from 53%
       to 74% of its own circle without a pixel more of over-draw, and gives the pupil the frame lights
-      inside it some room to sit in. `tools/shape-lab.js` is a report now (`node tools/shape-lab.js`,
+      inside it some room to sit in. (Session 144 stood the flanks to 0.8r off the axis, same corners:
+      84%, and the reason it stops there is written where the shape is.) `tools/shape-lab.js` is a report now (`node tools/shape-lab.js`,
       and `--show worst` draws one body in text with the empty air marked), and the floors are pinned
       one per kind in `test/crowd-art.test.mjs` instead of as one floor at the worst body's share.
 
@@ -2459,4 +2460,22 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       the crowded list with it and lift `bomber / sniper` out of the thin one, and that is a choice the
       sniper should make on its own account rather than one borrowed here. What this bought is the item
       above: the drifter's bowed faces (42% -> 75%) and the darter's fuller head (56% -> 81%) are paid
-      for, and neither is drawn yet.
+      for, and both are drawn (session 143).
+
+      **The sniper made that choice, and took its own lens with it (session 144).** The body went a step
+      deeper - `PALETTE.sniper` #d81e5b -> #bd1250, lightness 0.574 -> 0.517, hue and chroma left where
+      they were - and every promise the session had written as owed came off the report: the darter is
+      1.02 steps from the eye instead of 0.45, the swarmling 1.33 instead of 0.76, and both are off the
+      crowded list; `bomber / sniper` is off the thin one at 1.49. Deepening the one body in the arena
+      that never moves is the cheapest step the palette has, because it is not also being told apart by
+      how it walks, and it is the kind's own argument rather than a borrowed one: the eye is meant to be
+      the darkest red on the glass so that the white of its pupil and of its beam are the loudest light
+      on it. Its wash came up 0.20 -> 0.26 of an opacity to stay a body and not a hoop, and the sky audit
+      it belongs to came from its own smallest margin (0.08) to 0.23. What it cost: the eye
+      against the arena's own wall, 1.32 of a step to 0.75 against a promise of 0.4, because a wall is
+      measured where it is painted and lands at 0.482 of lightness - the sixth-tightest promise of 84,
+      and printed by name in the report and in `test/palette-read.test.mjs`, which now also holds the
+      claim itself (the body that never moves wears the deepest colour the crowd has) instead of trusting
+      the comment that says so. At the same time the lens was stood taller a second time, to 84% of its
+      own circle: `--show sniper` is nearly solid now. `palette-check --strict`, `contrast-check
+      --strict` and 2431 tests are clean and the reference run is byte for byte what it was.

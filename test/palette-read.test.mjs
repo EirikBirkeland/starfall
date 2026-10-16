@@ -264,13 +264,21 @@ test('the crowd shares colours, and says which pairs do', () => {
   // existing one has to be written down here, in words, rather than passing unnoticed - and the
   // day somebody re-silhouettes those bodies and the list shortens, that is a better palette.
   //
-  // `darter / sniper` joined in session 142, when the darter went down the lightness scale to get
-  // clear of the weaver. That is what the visit cost, and it is the trade the rule makes: the
-  // weaver and the darter were one shape at near-enough the same size, with nothing but colour to
-  // buy, while a sniper is 1.45x the size of a darter, 6.1 px of outline away, and stands perfectly
-  // still while a darter is the fastest thing in the arena. Deepening the sniper's own red by one
-  // step would take this pair off the list and `swarmling / sniper` with it; that is a decision for
-  // a session that wants the sniper darker on its own account, not one borrowed here.
+  // Two pairs were written by name in this comment as the last three sessions' debt, and both are paid
+  // now: `darter / sniper` and `swarmling / sniper` came off when the sniper's own body went a step
+  // down in lightness (#d81e5b -> #bd1250) and they stand 1.02 and 1.33 steps from it today. The
+  // darter landed on top of the eye in session 142, when it went down the scale to get clear of the
+  // weaver, and paying that bill is what a stationary body is for: a darter and a swarmling are told
+  // apart by how they run, and this one is told apart by being the darkest red in the arena - which is
+  // the kind's own argument, that the white of its pupil and of its beam should be the loudest light
+  // on the glass.
+  //
+  // What it cost, in the same coin: this body against the arena's own wall was 1.32 of a step apart
+  // and is 0.75, against a promise of 0.4 - the sixth-tightest of the table's 84 promises, and the
+  // report prints it by name whenever anybody runs it. The wall is measured where the renderer paints
+  // it (a mid blue at half an opacity over a near-black sky, which lands at 0.482 of lightness) and a
+  // body taken down to 0.517 is nearly its match; a wall and a body have nothing but lightness for an
+  // eye with no hue, and that is the axis this visit spent.
   const crowded = [];
   const bodies = SIGHTS.filter((s) => BALANCE.kinds[s.id] !== undefined);
   for (let i = 0; i < bodies.length; i++) {
@@ -281,11 +289,35 @@ test('the crowd shares colours, and says which pairs do', () => {
   }
   assert.deepEqual(crowded.sort(), [
     'bomber / swarmling',
-    'darter / sniper',
     'darter / swarmling',
     'spitter / bomber',
-    'swarmling / sniper',
   ]);
+});
+
+test('the body that never moves wears the deepest of the crowd', () => {
+  // `PALETTE.sniper`'s argument, measured instead of asserted: every warm hue in the palette is
+  // spoken for by something that walks, so the one body in the arena that stands still takes the
+  // darkest of them and lets the *white* of its pupil and of its beam be the loudest light on the
+  // glass. The crowd pays it in that coin - a darter, a swarmling and a bomber all came within a step
+  // of this body and going deeper was the one step that cost no other pair - so the claim is worth a
+  // test: lift the eye back up the lightness scale and this goes red along with the pairs that were
+  // bought with it.
+  const bodies = SIGHTS.filter((s) => BALANCE.kinds[s.id] !== undefined);
+  const lightness = (s) => oklab(measure(s).rgb).L;
+  const ranked = bodies.slice().sort((a, b) => lightness(a) - lightness(b));
+  assert.equal(ranked[0].id, 'sniper', 'the crowd has a darker body than the eye: ' + ranked[1].id
+    + ' at ' + lightness(ranked[1]).toFixed(3) + ' against the sniper\'s '
+    + lightness(ranked[0]).toFixed(3));
+  // And it is still a red rather than something else that happens to be dark - measured against the
+  // crowd's own red (the darter's) and not against a hue written down here.
+  const arc = (a, b) => {
+    const d = (a - b + 180) % 360;
+    return (d < 0 ? d + 360 : d) - 180;
+  };
+  const red = oklch(measure(sightOf('darter')).rgb).h;
+  const hue = oklch(measure(sightOf('sniper')).rgb).h;
+  assert.ok(Math.abs(arc(hue, red)) < 40, 'the sniper is ' + Math.abs(arc(hue, red)).toFixed(0)
+    + ' degrees round the wheel from the crowd\'s own red, which is not the same colour');
 });
 
 test('the table is measured against the middle of the sky the game paints', () => {

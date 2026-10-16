@@ -235,8 +235,29 @@ export const PALETTE = {
   // moves takes the deepest one: a blood red darker than the darter's red and
   // than the swarm's scarlet, which is what lets the *white* of its eye and of its
   // beam be the loudest light on the glass instead of another red in the crowd.
-  sniper: '#d81e5b',
-  sniperFill: 'rgba(216,18,72,0.20)',
+  //
+  // It went a step deeper still (0.574 -> 0.517 of lightness, the hue and the chroma
+  // left where they were) because the crowd had run out of anything else to tell it
+  // with: session 142's brightness visit put the darter down the scale to get clear of the
+  // weaver, and three bodies landed within a step of this one while it did - the darter at
+  // 0.45 of a step, the swarmling at 0.76, the bomber at 0.92, each measured on the eye that
+  // had the least to work with. Deepening the one that never moves is the cheapest step the
+  // palette has, because a stationary body is not also being told apart by how it walks. Now:
+  // darter 1.02, swarmling 1.33, bomber 1.49. The first two are off the report's crowded list,
+  // and `bomber / sniper` is off its thin one.
+  //
+  // What it cost: this body against the arena's own wall was 1.32 of a step apart and is 0.75,
+  // against a promise of 0.4 - the sixth-tightest of the table's 84 promises, and the report
+  // prints it by name. A wall is measured where the renderer paints it, a mid blue at half an
+  // opacity over a near-black sky, which lands at 0.482 of lightness; a body taken down to 0.517
+  // is nearly its match, and a wall and a body have only lightness for an eye with no hue at all.
+  //
+  // The wash came up while the line went down (0.20 -> 0.26 of an opacity) for the same
+  // reason and no other: a deepened outline over a 0.20 wash is a body with a hollow middle.
+  // Measured against the sky the wash clears the bar by 0.23 of a step now instead of by
+  // 0.08, which was the smallest margin anywhere in that audit.
+  sniper: '#bd1250',
+  sniperFill: 'rgba(189,18,80,0.26)',
   // The beam: the band of harm at the width its damage is paid out at, and the
   // white-hot axis down the middle of it. Nothing else in the game is nearly white
   // for longer than a bomber's flash, which is the whole point of the kind.

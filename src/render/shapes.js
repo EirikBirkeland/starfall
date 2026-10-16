@@ -254,9 +254,20 @@ export const CROWD_SHAPES = {
   // It used to be a hairline of an eye: the two flanks stood half a radius off the axis, so the
   // drawing covered 53% of the 16 px circle that hurts you, and the pupil the frame lights inside it
   // (render/entities.js, EYE_LIGHT) is nine pixels of light in a body that stood eight pixels either
-  // side of its axis. The corners are exactly where they were - the lens is taller and no longer, so
-  // nothing about it reaches past the hurtbox a shot can be stopped by - and it covers 74% now.
-  sniper: lens(1.5, 1.4),
+  // side of its axis. The two corners have never moved - only the flanks have been stood further off
+  // the axis, twice now - so nothing about the eye reaches past the hurtbox a shot can be stopped by,
+  // and it covers 84% of that circle, with 12.8 px of body either side of its axis for the pupil to
+  // sit in.
+  //
+  // 1.6 is where it stops, and it is worth writing why, because 1.7 covers 88% and nothing fails.
+  // A taller lens is a rounder lens, and a round body is a body the crowd already has: at 1.7 the eye
+  // comes within 3.8 px of a bomber's studs, which spends a new shared silhouette (the deeper red
+  // pays for it, at 1.49 steps - see PALETTE.sniper) and the crowd has only so much outline to go
+  // round. Four points of coverage for a twelfth pair drawn as one shape is a bad trade, and past
+  // that the argument is taste: at 1.8 the middle of the lens stands 0.9r off the axis, which is a
+  // disc with two thorns in it, and what makes this body an eye is that it comes to a point at both
+  // ends.
+  sniper: lens(1.5, 1.6),
 };
 
 /** One kind's silhouette, and a loud answer for a kind nothing draws. */

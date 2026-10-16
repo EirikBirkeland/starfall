@@ -26,12 +26,14 @@
 // Why not overlap of area instead - IoU, which is the obvious first attempt? Because area is
 // dominated by size: two round bodies of similar radius overlap by two thirds whatever they
 // are, and a difference of shape that an eye reads loudly (a spout, a fin, a nose) barely moves
-// the number. The outline distance ranks the pairs the way the eye does - these are the shipped
-// crowd, measured, and they are the three points of the scale:
+// the number. The outline distance ranks the pairs the way the eye does - these three points of the
+// scale are read off the shipped crowd, and every one of them moves the day a body is redrawn, so
+// `tools/palette-check.js` is the thing to believe (prose about measurements goes stale the moment a
+// body moves):
 //
-//     the drifter and the darter, a triangle and a spear        2.6 px (worst bearing 10.8)
-//     the drifter and the shielder, a triangle and a wall       6.7 px
-//     the tank and the sniper, two sizes and two families      11.6 px
+//     the drifter and the weaver, a bowed triangle and a clover       1.3 px (worst bearing 3.5)
+//     the spitter and the bomber, a spout and a mine                  5.1 px
+//     the tank and the swarmling, the biggest body and the smallest  18.9 px
 //
 // Sizes are still a cue - the audit has always said so, and `SAME_SIZE_RATIO` is its bar - but
 // they are a cue of their own, so shape is measured on its own here and a pair is allowed to be
@@ -179,9 +181,10 @@ export function profile(shape, r) {
  * which they match, they can be mistaken. `mean` is what a glance takes in and is what the bar is
  * measured against; `worst` is the single bearing that parts them most and `arc` the share of the
  * circle where they part by more than a pen width, both printed because they say which kind of
- * pair this is: `spitter / shielder` (2.8 px mean, 6.5 px worst, 22% of the circle) is two blobs
- * of one family at two sizes, and `darter / sniper` (3.4 px mean, 18.5 px worst, 9%) is two
- * bodies that agree nearly everywhere and scream at one bearing.
+ * pair this is: `spitter / shielder` (2.6 px mean, 5.8 px worst, 18% of the circle) is two blobs
+ * of one family at two sizes, and `darter / sniper` (5.3 px mean, 18.5 px worst, 59%) is a spear
+ * and an eye - one thin body and one fat one, parted over most of the circle and by a whole body's
+ * width where they are.
  *
  * Size is *not* divided out, which was tried and dropped: standing the two outlines on one radius
  * before differencing them can only shrink a difference, and the other reading that was tried -

@@ -43,7 +43,7 @@ import { BODY_FORMS, SAME_SIZE_RATIO, silhouettePairs, sharedSilhouettes } from 
  */
 const COVERS = {
   swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
-  sniper: 0.70,     // 74% - the lens was made taller, and no longer
+  sniper: 0.83,     // 84% - the lens stood taller again, and no longer: same two corners
   drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
   darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
   tank: 0.80,       // 83%
@@ -138,24 +138,28 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
   //
   // Filling a body out to its own hurtbox makes it rounder, and a crowd of nine bodies drawn on nine
   // dark discs has only so much outline to go round: bowing the drifter's faces brought the spitter
-  // from 5.3 px to 2.2, the sniper from 5.4 to 2.8 and the shielder from 6.7 to 3.9, and filling the
-  // darter's head brought the weaver from 4.5 to 3.1. Every one of those pairs is carried by colour -
-  // between 1.21 and 2.43 of a step for the worst eye that still has that colour - which is what
-  // session 142's brightness visit bought them with, and this list is where the debt is written. It
-  // is also why `darter / swarmling` left the list: the fuller spear stands 5.8 px from the shape it
-  // used to share.
+  // from 5.3 px to 2.2 and the shielder from 6.7 to 3.9, and filling the darter's head brought the
+  // weaver from 4.5 to 3.1. Every one of those pairs is carried by colour - between 1.21 and 2.43 of
+  // a step for the worst eye that still has that colour - which is what session 142's brightness
+  // visit bought them with, and this list is where the debt is written. It is also why `darter /
+  // swarmling` left the list: the fuller spear stands 5.8 px from the shape it used to share.
+  //
+  // The sniper's own visit re-ordered this list without lengthening it, which is the whole reason it
+  // was worth taking: a taller lens stood the eye 2.4 px from a shielder's face and 3.1 from a
+  // drifter's corner, and its deeper red paid for each of them at 2.09 to 2.25 of a step. The order
+  // below is what the ruler says now, and the one pair it bought elsewhere is in the test after this.
   assert.deepEqual(sharedSilhouettes().map((pair) =>
     pair.a + ' / ' + pair.b + ' - ' + pair.carriedBy), [
     'drifter / weaver - both',
     'spitter / sniper - colour',
     'drifter / spitter - colour',
+    'shielder / sniper - colour',
     'weaver / spitter - both',
     'spitter / shielder - colour',
-    'drifter / sniper - colour',
-    'shielder / sniper - colour',
-    'weaver / sniper - both',
     'weaver / darter - colour',
+    'drifter / sniper - colour',
     'drifter / darter - both',
+    'weaver / sniper - both',
     'drifter / shielder - colour',
   ]);
   for (const pair of sharedSilhouettes()) {
@@ -166,20 +170,23 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
 });
 
 test('what hangs on a thin outline alone is a written-down list too', () => {
-  // Over the bar and not by much, with no colour and no size behind it: three pairs. They are not
+  // Over the bar and not by much, with no colour and no size behind it: two pairs. They are not
   // failed - a still picture cannot see a lunge, a weave, or twenty bodies bunching up to dive, and
   // every one of them is a body whose walking is the loudest thing about it (a mine that turns and
-  // breathes, an eye that lights before it fires, a bomber that is the attack) - but they are the
-  // thinnest ice in the crowd and this is where a session is told so.
+  // breathes, a bomber that is the attack) - but they are the thinnest ice in the crowd and this is
+  // where a session is told so.
   //
   // The weaver and the darter used to be on this list, a pink and a coral 0.43 of a step apart on an
   // eye with no blue cone and 4.5 px of outline apart. Session 142 moved four crowd entries in
   // brightness and the pair came out at 1.21 of a step, and filling the darter's head a session later
   // took its outline from 4.5 px to 3.1 - so the pair is a shared silhouette now, carried by colour,
   // and it is not here. Three more pairs crossed into one shape with it and none of them landed here.
+  //
+  // `bomber / sniper` just left, and it is the pair the sniper's deeper red was for: a mine of studs
+  // and an eye 4.2 px of outline apart were 0.92 of a step apart in colour, and they are 1.49 now.
   const thinly = pairs.filter((pair) => pair.carriedBy === 'thinly')
     .map((pair) => pair.a + ' / ' + pair.b);
-  assert.deepEqual(thinly, ['bomber / shielder', 'bomber / sniper', 'spitter / bomber']);
+  assert.deepEqual(thinly, ['bomber / shielder', 'spitter / bomber']);
 });
 
 test('the ruler can say "one shape", or "different" means nothing', () => {
