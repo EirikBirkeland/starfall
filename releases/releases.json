@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.7",
+    "date": "2026-10-16",
+    "released": "2026-10-16T15:46:08.362Z",
+    "summary": "The hive stops dying inside its own split, and there is a ruler for the room a fight leaves",
+    "added": 1098,
+    "removed": 0,
+    "logBytes": 48259061
+  },
+  {
     "version": "1.9.6",
     "date": "2026-10-16",
     "released": "2026-10-16T13:57:45.189Z",
