@@ -379,6 +379,13 @@ test('what a real run was seen holding is inside the budgets - and a painted fra
   assert.ok(trial.clean < trial.windows, 'all ' + trial.windows + ' windows of painted frames came out'
     + ' clean, which would mean a played run could be weighed in bytes again - the row and its doc'
     + ' comment should then be re-asked, and this assertion changed on purpose and not quietly');
+  // Not the window's fault either: shrinking it is the obvious answer and it is measured out here.
+  assert.ok(trial.lengths.length >= 2, 'the trial tries more than one window length: '
+    + trial.lengths.map((one) => one.frames).join(', '));
+  for (const one of trial.lengths) {
+    assert.ok(one.clean < one.windows, 'a window of ' + one.frames + ' painted frames came out clean,'
+      + ' which is the same question as above at a different size');
+  }
   assert.ok(Object.keys(trial.reasons).length > 0, 'and every refusal says why: '
     + JSON.stringify(trial.reasons));
   assert.ok(trial.floor > row.bytesPerStep * 10, 'the dearest frame window floors at '

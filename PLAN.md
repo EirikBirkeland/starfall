@@ -1829,7 +1829,7 @@ When every item above is ticked, go back to the first unchecked item of mileston
       swarmlings with their packs on - and reads 1,301 canvas operations a frame and 0.016 ms a step at
       those 42 bodies, so when the swarm is thick on the plate a real flight can be compared against a
       flock and not only against a crowd.
-      **And one that does not need the flight, from session 156**: the plate's *step* half can be read
+      **And one that does not need the flight, from session 155**: the plate's *step* half can be read
       headless after all, because `main.js` times its own step loop and hands it to the plate every
       frame whether the panel is up or not (`render/debug.js` `frameCosts`). A watched 60 s of the late
       schedule reads **0.066 ms a step on average and 3.1 ms at its worst** - the same tail the plate has
@@ -1838,10 +1838,11 @@ When every item above is ticked, go back to the first unchecked item of mileston
       now weighs what such a run was *seen holding* - its mean crowd planted and weighed like any other
       load: **73 bodies, 1 shot and 52 sparks coming to 316 B a step and 3 B a body**, about three
       quarters of the planted schedule wall's 404 B, which is the comparison this box has been waiting
-      for, in bytes. What a whole *painted* headless frame throws away cannot be weighed here at all -
-      0 of 8 windows of 120 frames survived the ruler and the dearest floors at 106 KB a step, all of it
-      the fake browser's logging and none of it the game's - so the run is planted and not weighed, and
-      that is measured rather than believed (`test/alloc-probe.test.mjs` measures it).
+      for, in bytes. What a whole *painted* headless frame throws away cannot be weighed here at all - no
+      window of frames survived the ruler at any length tried (40, 120, 360) and the dearest of them
+      floors at 30 KB a step, all of it the fake browser's logging and none of it the game's - so the run
+      is planted and not weighed, and that is measured rather than believed
+      (`test/alloc-probe.test.mjs` measures it).
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read

@@ -534,16 +534,17 @@ export function seenLoad(seen) {
 }
 
 /**
- * How a frame trial is asked: frames in a window, how many warm it up, and how many are read.
- * A frame is two of the simulation's steps, so a window is a short one by this file's standards -
- * which is the finding, not a shortcut.
+ * How a frame trial is asked: which windows to try, how many warm each length up, and how many are read.
+ * A frame is two of the simulation's steps, so these are short windows by this file's standards - and
+ * they are tried in a set on purpose, because "your window was too big" is the obvious objection and it
+ * is answered by the measurement and not in prose (see `frameTrial`).
  */
-export const TRIAL_FRAMES = 120;
-export const TRIAL_WARM = 12;
-export const TRIAL_WINDOWS = 8;
+export const TRIAL_LENGTHS = [40, 120, 360];
+export const TRIAL_WARM = 5;
+export const TRIAL_WINDOWS = 5;
 
 /** One window of painted frames: the bytes a step of it threw away, and why the ruler would refuse it. */
-async function oneFrameWindow(game, scene, watch) {
+async function oneFrameWindow(game, scene, watch, frames) {
   await watch.settle();
   global.gc();
   global.gc();
@@ -551,7 +552,7 @@ async function oneFrameWindow(game, scene, watch) {
   const from = performance.now();
   const heapBefore = process.memoryUsage().heapUsed;
   const youngBefore = youngUsed();
-  for (let i = 0; i < TRIAL_FRAMES; i++) {
+  for (let i = 0; i < frames; i++) {
     holdScene(game, scene);
     game.step(FRAME_MS);
   }
@@ -559,35 +560,61 @@ async function oneFrameWindow(game, scene, watch) {
   const filled = youngUsed() - youngBefore;
   const to = performance.now();
   await watch.settle();
-  const steps = TRIAL_FRAMES * FRAME_MS / 1000 * STEPS_PER_SECOND;
+  const steps = frames * FRAME_MS / 1000 * STEPS_PER_SECOND;
   const why = watch.collectedSince(from, to) > 0 ? 'the collector came inside it'
     : (grown < 0 || filled < 0 || !readingsAgree(grown, filled)) ? 'its two readings disagreed' : '';
   return { bytes: Math.max(0, grown) / steps, why };
 }
 
+/** The trial at one window length: warm it, then read `TRIAL_WINDOWS` of them and count the refusals. */
+async function trialAtLength(game, scene, watch, frames) {
+  const reasons = {};
+  let clean = 0;
+  let floor = 0;
+  for (let i = 0; i < TRIAL_WARM + TRIAL_WINDOWS; i++) {
+    const window = await oneFrameWindow(game, scene, watch, frames);
+    if (i < TRIAL_WARM) continue;            // this is the warm-up, same rule as every load's
+    if (window.why === '') clean++;
+    else reasons[window.why] = (reasons[window.why] || 0) + 1;
+    if (window.bytes > floor) floor = window.bytes;
+  }
+  return { frames, windows: TRIAL_WINDOWS, clean, reasons, floor };
+}
+
 /**
  * Prove why a played run cannot be weighed here, instead of asserting it.
  *
- * Same scene, same ruler, one window at a time - but the windows are whole painted frames, and the
+ * Same scene, same ruler, one window at a time - but the windows are whole painted *frames*, and the
  * refusals are counted instead of hidden. What comes back is how many of them were clean, the reasons
  * for the ones that were not, and a **floor**: the dearest net growth seen, which is a floor because a
  * window the collector came into reports less than it spent.
+ *
+ * Three window lengths are tried, because shrinking the window is the obvious answer to "the collector
+ * keeps coming inside it" and it has to be ruled out rather than waved away. It does not work: none of
+ * the three lengths ever produced a clean window, and even the floors they report - what is left after
+ * the collector took its share - are twenty to a hundred times what the same load costs the game to
+ * step, because a painted frame spends the stub's bytes whether many of them are weighed together or
+ * few.
  *
  * It is read in the same process as the load it is being quoted against, after that load was weighed.
  * That order can only make a frame look dearer than it is, and the number is a floor either way.
  */
 export async function frameTrial(game, scene, watch) {
+  const lengths = [];
+  for (const frames of TRIAL_LENGTHS) lengths.push(await trialAtLength(game, scene, watch, frames));
   const reasons = {};
   let clean = 0;
+  let windows = 0;
   let floor = 0;
-  for (let i = 0; i < TRIAL_WARM + TRIAL_WINDOWS; i++) {
-    const window = await oneFrameWindow(game, scene, watch);
-    if (i < TRIAL_WARM) continue;              // this is the warm-up, same rule as every load's
-    if (window.why === '') clean++;
-    else reasons[window.why] = (reasons[window.why] || 0) + 1;
-    if (window.bytes > floor) floor = window.bytes;
+  for (const one of lengths) {
+    for (const why of Object.keys(one.reasons)) {
+      reasons[why] = (reasons[why] || 0) + one.reasons[why];
+    }
+    clean += one.clean;
+    windows += one.windows;
+    if (one.floor > floor) floor = one.floor;
   }
-  return { frames: TRIAL_FRAMES, windows: TRIAL_WINDOWS, clean, reasons, floor };
+  return { frames: TRIAL_LENGTHS, windows, clean, reasons, floor, lengths };
 }
 
 // --- one load, one process --------------------------------------------------------
@@ -873,6 +900,8 @@ async function main() {
       const trial = live.trial;
       const refused = Object.keys(trial.reasons)
         .map((why) => dec(trial.reasons[why] / trial.windows * 100, 0) + '% of them ' + why);
+      const lengths = trial.lengths.map((one) => int(one.frames) + ' frames: ' + int(one.clean)
+        + ' clean, floors ' + bytes(one.floor)).join('; ');
       console.log('');
       console.log('What a real run was seen holding: ' + dec(seen.mean.bodies, 1) + ' bodies, '
         + dec(seen.mean.shots, 1) + ' of its shots and ' + dec(seen.mean.sparks, 0)
@@ -892,10 +921,11 @@ async function main() {
         + ' ms a step on average and ' + dec(seen.stepWorst, 3) + ' ms at its worst'
         + ' (that worst is the collector, and `tools/perf-probe.js --peak` is where the plate is read)');
       console.log('  why the run is planted and not weighed: weighed a whole painted frame at a time, '
-        + int(trial.clean) + ' of ' + int(trial.windows) + ' windows of ' + int(trial.frames)
-        + ' frames came out clean' + (refused.length ? ' (' + refused.join('; ') + ')' : '')
-        + ', and the dearest of them is a floor of ' + bytes(trial.floor) + ' a step - which is this'
-        + ' stub\'s own bookkeeping (every logged draw call builds two objects), not the game\'s');
+        + int(trial.clean) + ' of ' + int(trial.windows) + ' windows came out clean - ' + lengths
+        + (refused.length ? '; ' + refused.join('; ') : '')
+        + '. The dearest floor is ' + bytes(trial.floor)
+        + ' a step, and it is this stub\'s own bookkeeping (every logged draw call builds two objects),'
+        + ' not the game\'s: no length survived, so there is no window size left to weigh a frame at');
     }
     console.log('');
     console.log('  (a scavenge of this heap measures 0.85-1.12 ms under `node --trace-gc`: that is the'
