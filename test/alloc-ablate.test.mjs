@@ -137,6 +137,13 @@ function ablate(args) {
   return spawnSync(process.execPath, [TOOL, ...args], { cwd: ROOT, encoding: 'utf8', timeout: 900000 });
 }
 
+test('a kind the game does not have is refused before anything is measured', () => {
+  const run = ablate(['--kind', 'dragonfruit']);
+  assert.equal(run.status, 1);
+  assert.match(run.stdout, /no enemy kind is called "dragonfruit"/);
+  assert.match(run.stdout, /swarmling/, 'the message should name the kinds there are');
+});
+
 test('the instrument notices where a shielder crowd spends its bytes', () => {
   const run = ablate(['--kind', 'shielder', '--bare', '--row', 'the crowd is not walked',
     '--steps', '200', '--windows', '3', '--json']);

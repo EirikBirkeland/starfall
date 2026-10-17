@@ -59,6 +59,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { bytes, BODY_BYTES } from './alloc-probe.js';
+import { BALANCE } from '../src/game/balance.js';
 import { table } from './headless/tables.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -424,6 +425,11 @@ function listRows() {
 export function main(argv) {
   const opts = readArgs(argv);
   if (opts.list) { listRows(); return 0; }
+  if (opts.kind !== 'mixed' && BALANCE.kinds[opts.kind] === undefined) {
+    console.log(`no enemy kind is called "${opts.kind}"; the kinds are `
+      + Object.keys(BALANCE.kinds).join(', ') + ', or ask the mixed crowd with --kind mixed');
+    return 1;
+  }
 
   const rows = chosenRows(opts.kind, opts.row);
   if (opts.custom) {
