@@ -336,7 +336,6 @@ export const BALANCE = {
   //
   // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
   // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
-  // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
   //
   // `offer` is how many places the rack has when a level is paid, where plainly that is `cards.offer`, and
   // it is the one rule of the six that takes away a *choice* rather than a thing. One - and one is the
@@ -350,15 +349,31 @@ export const BALANCE = {
   // is worth, and the ladder now measures that taste before it lets anything be priced off it. On the
   // aware hand - `--bot aware --challenges none,thin`, 24 seeds x 8m, 2026-10-17 - the deliberate plain
   // beat its own careless plain by 1.57x, and losing the choice cost a run **0.41x** of its middle score
-  // (22,060 against 53,846) while the careless hand, which never had a choice to lose, gave up 0.65x. On
+  // (22,060 against 53,846) while the careless hand, which never had a choice to lose, gave up 0.65x.
+  // That taste is now measured seed against seed as well (24 seeds x 5m, 2026-10-18: the picker was worth
+  // 1.95x a run per seed and 20 of the 24 seeds preferred it, p = 0.002 - the one hand of the three whose
+  // taste is a finding rather than a coin flip), and the same window priced the rule at 0.50x there. On
   // the default human hand the same rule reads 0.93x at 5m and 1.10x at 8m, and the ladder refuses to
-  // judge it there: that hand's taste for cards is worth less than a die (its careful plain scores 4,843
-  // against its careless plain's 5,333). Both readings are kept because the disagreement is the finding -
+  // judge it there: that hand's taste for cards cannot be shown to be worth anything (its careful plain
+  // scored 4,843 against its careless plain's 5,333 on 32 seeds and over it on 12 - two middles
+  // quarrelling - and seed against seed the two batches cannot be told apart, 17 of 32, p = 0.86).
+  // Both readings are kept because the disagreement is the finding -
   // what a picked card is worth depends on the picker, and a rule about picking can only be priced by a
   // hand that is good at it.
   //
+  // Why one hand has a taste and the others not is measured on its own in `tools/pick-taste.js`, seed
+  // against seed, and the answer is the `level` column: the aware batch is at level 39 when its window
+  // closes and the human batch is dead by level 7-8, so the second spent seven cards where the first
+  // spent thirty-eight, and a picked card is worth something only to a run that gets to spend a few
+  // dozen of them. That ladder's readings are 0.95x a run per seed on `human` (17 of 32 seeds, a coin),
+  // 1.41x on `naive` (20 of 32, a lean the ladder will not price with) and 1.95x on `aware` (20 of 24,
+  // p = 0.002 - the one shown difference of the three). No other written appetite was worth more on any
+  // hand, so the picker is not tuned to one pair of hands and broken for the other - on the short ones it
+  // is simply unspent.
+  //
   // How much to trust 0.41x: the same aware hand at 8 seeds instead of 24 reads 0.82x, with the deliberate
-  // taste 1.39x instead of 1.57x - the middle of a batch that hardly ever dies moves around a lot. Soft in
+  // taste 1.39x instead of 1.57x - the middle of a batch that hardly ever dies moves around a lot - and at
+  // a 5m window instead of 8m it reads 0.50x. Soft in
   // size, firm in direction: every reading this ladder will judge has the rule costing between a fifth and
   // three fifths of a run, and the only readings that say it is free are the ones it refuses to judge.
   challenges: {

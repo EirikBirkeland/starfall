@@ -2741,6 +2741,23 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       than the careless plain (4,843 against 5,333 on 32 seeds), so that hand's taste for cards is worth
       less than a die and a rule about a choice cannot be priced off it — the ladder now measures the taste
       of its deliberate hand (`dealTasteOf`) and refuses a deal verdict when the taste is not there, which
-      is the same shape as the rule about a touch needing a batch that lost hulls. Whether `wiseCard` has
-      simply gone stale on the human hand since it was tuned (NOTES sessions 31-32, 38) is a question for a
-      later session; every challenge number in the game is measured on that hand.
+      is the same shape as the rule about a touch needing a batch that lost hulls.
+      **Whether `wiseCard` had gone stale on that hand was asked next, and it has not** - but the asking
+      broke the ladder it was asked with. `tools/pick-taste.js` is a ladder for the picker itself: the same
+      seeds, the same feet, and five written-down appetites (the shipped one, the even spread with no order
+      at all, the ring bought level with the gun, the nova and the ring bought early, and the shipped order
+      turned round), each against the same bot rolling a die. Ranked the way the other ladders rank - one
+      batch's middle over the other's - the shipped appetite read **0.91x** its own die on the `human`
+      hands on 32 seeds and **1.18x** it on 12, which is two middles quarrelling and not a measurement.
+      Ranked **seed against seed** (the same seeds were flown for a reason; `tools/headless/pairs.js`) it
+      reads 0.95x a run per seed on `human` (17 of 32 seeds preferred it, a coin), 1.41x on `naive` (20
+      of 32, a lean and not a shown difference) and **1.95x** on `aware` (20 of 24, p = 0.002) - and that
+      last one is the only taste of the three the seeds will stand behind. Nothing beat the shipped
+      appetite on any hand, so the table is not shaped to one pair of hands and broken for the other. The
+      `level` column is why: **7-8**, **11-14**, **39**. A hand that is dead before the eighth level has
+      no build for a taste to buy and every appetite reads as a die, while the `flat` control - take the
+      shallowest line, no opinion about which - is worth 0.99x on the naive hands against the shipped
+      order's 1.41x, which says the order itself is carrying something on a pair of hands it was never
+      tuned on. Which is the same finding the rule needed, said with the rule taken out of it: a card
+      choice is worth what a run's length makes it, and a rule about choosing is priced on a hand long
+      enough to hold one - and by a ladder that ranks the seeds and not the middles.

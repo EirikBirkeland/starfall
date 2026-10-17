@@ -8,6 +8,11 @@
 // the tool's output and a decision in its code, and a decision nobody can run is a decision nobody
 // can keep.
 //
+// And the fifth, added after session 157 built the taste gate and session 158 found it was reading two
+// middles: a hand is only believed to have a card taste when the seeds it shared with its own die say
+// so. A deliberate hand whose middle is twice its die's and whose seeds split six-and-six is refused,
+// because a middle of a batch of this game's runs moves that much on its own.
+//
 // The rows below are made up. They are the shapes the ladder can come back with.
 
 import test from 'node:test';
@@ -16,10 +21,16 @@ import { verdictOf } from '../tools/challenge-cost.js';
 import { nameOf } from '../src/game/challenges.js';
 
 /** One row of what a batch reports, with the parts this file does not care about filled in. */
-function row(id, middleScore, middleDeath, hulls, died) {
+function row(id, middleScore, middleDeath, hulls, died, scores) {
   return {
     id,
     middleScore,
+    // The seeds this row flew. Twelve of them, every one scoring the middle, which is what a verdict
+    // written on middles has always assumed; a test that cares about the difference between the two
+    // hands its own scores to the seeds instead.
+    bySeed: new Map((scores === undefined
+      ? new Array(12).fill(middleScore)
+      : scores).map((score, i) => [i + 1, score])),
     middleDeath: middleDeath === undefined ? null : middleDeath,
     hulls: hulls === undefined ? 0 : hulls,
     bestScore: middleScore,
@@ -184,9 +195,40 @@ test('a deal rule is refused on a deliberate hand whose card taste is worth less
   const refused = verdictOf([PLAIN, row('thin', 97000, 300, 12)], PLAIN, noTaste);
   assert.deepEqual(problemsAbout(refused, 'thin'), [], 'nothing judged, so nothing failed');
   assert.equal(refused.skipped.length, 1);
-  assert.match(refused.skipped[0], /card taste is worth less than a die/);
+  assert.match(refused.skipped[0], /cannot be shown to pick better than a die/);
   assert.match(refused.skipped[0], /scored 90,000 against the careless hand/, 'with both readings');
   assert.match(refused.skipped[0], /--bot aware/, 'and the hand that does have taste');
+});
+
+test('a deliberate hand whose middle beats its die but whose seeds do not is refused too', () => {
+  // The gate used to be a quotient of two middles, and a middles-only reading of a batch whose scores
+  // are as spread as this game's is not a measurement: half these seeds doubled and half of them went
+  // slightly backwards, so the middle jumped to the doubled half and said "worth twice a die" while
+  // every seed said it could not tell. The pairs are what the gate reads now.
+  const careless = row('none', 100000, 300, 12, 12, new Array(12).fill(100000));
+  const deliberate = row('none', 200000, 300, 12, 12,
+    [200000, 200000, 200000, 200000, 200000, 200000, 90000, 90000, 90000, 90000, 90000, 90000]);
+  const deal = {
+    rows: [deliberate, row('thin', 140000, 300, 12)],
+    plain: deliberate,
+    carelessPlain: careless,
+  };
+  const refused = verdictOf([careless, row('thin', 97000, 300, 12)], careless, deal);
+  assert.deepEqual(problemsAbout(refused, 'thin'), [], 'twice a die by middles, and refused anyway');
+  assert.equal(refused.skipped.length, 1);
+  assert.match(refused.skipped[0], /6 of 12 seeds, p = 1\.000/);
+  assert.match(refused.skipped[0], /cannot be shown to pick better than a die/);
+
+  // The same two batches with the seeds mostly the other way on: eleven of twelve is a difference the
+  // pair can see, so the hand has a taste and the rule on top of it gets judged.
+  const persuaded = row('none', 200000, 300, 12, 12,
+    [200000, 200000, 200000, 200000, 200000, 200000, 200000, 200000, 200000, 200000, 200000, 90000]);
+  const judged = verdictOf([careless, row('thin', 140000, 300, 12)], careless, {
+    rows: [persuaded, row('thin', 140000, 300, 12)], plain: persuaded, carelessPlain: careless,
+  });
+  assert.deepEqual(judged.skipped.filter((line) => /cannot be shown/.test(line)), [],
+    'the taste was shown, so nothing was stood aside for want of it');
+  assert.deepEqual(problemsAbout(judged, 'thin'), [], 'and the rule was priced, at 0.70x, and paid for');
 });
 
 test('a deal rule on a ladder that never flew a deliberate hand is not passed, it is refused', () => {

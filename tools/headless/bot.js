@@ -29,7 +29,7 @@ import { bootGame } from './harness.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { escapeDirection, SKILL } from './threats.js';
 import { resetDodge, setDial, theHuman } from './human.js';
-import { isSynergy } from '../../src/game/upgrades.js';
+import { isSynergy, lineOf } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 import { Rng } from '../../src/core/rng.js';
 
@@ -126,9 +126,12 @@ export const DEFAULT_POLICY = 'aware';
  * The level-up choice, taken the way a player takes one: a number key.
  *
  * The `wise` policy is written down rather than clever, because a bot that picks perfectly
- * overstates a human and every number in NOTES.md was measured with this one. So: take the line
- * with the fewest ranks already in it, and break a tie in the order below - the share
- * lines all multiply the same damage per second, so spreading them is the strongest thing
+ * overstates a human and every number in NOTES.md was measured with this one. What it wants is all
+ * in `TASTE` below - the tie-break order, and the one line held back - and `tools/pick-taste.js` is
+ * the ladder that asks what each of them is worth, on each pair of hands the bot has.
+ *
+ * So: take the line with the fewest ranks already in it, and break a tie in the order below - the
+ * share lines all multiply the same damage per second, so spreading them is the strongest thing
  * to do while they are all short, and damage is the one that matters most when the crowd
  * out-scales the gun. Split shot sits second because it is the one line that buys coverage
  * rather than weight, and it is the crowd that kills this bot; pierce next, for the same
@@ -147,7 +150,8 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
 
 /**
  * Ranks of these lines count as this much deeper than they are when the bot chooses, so it
- * takes them late and rarely.
+ * takes them late and rarely. This is the other half of `TASTE`, and the dial `tools/pick-taste.js`
+ * sweeps alongside the order above.
  *
  * This one is measured rather than a hunch (NOTES session 31: 40 seeds, aware bot, 900 s
  * cap). Every line before it multiplies the gun - `fireRate` every shot, split shot every
@@ -175,6 +179,92 @@ const APPETITE = ['damage', 'split', 'ricochet', 'pierce', 'fireRate', 'bulletSp
  */
 const DEFERRED = { orbitals: 2 };
 
+/**
+ * The whole of the bot's card taste, in one mutable object, because a taste that cannot be swept
+ * cannot be checked either.
+ *
+ * `appetite` is the tie-break order above and `deferred` the handicap. `tools/pick-taste.js` flies
+ * the bot with a different one of these per row, against its own careless self on the same seeds,
+ * and that is the only way to find out what any of these numbers is worth - and, since a pair of
+ * hands that dies at four minutes and a pair that outlasts the window can very much want different
+ * cards, worth what on *which* pair of hands.
+ *
+ * The rule about synergy cards is not in here, and is not swept: an earned synergy is taken the
+ * moment it is face up whatever else is on the table, and that is a promise about what the game
+ * pays for a build rather than a number the bot could be talked out of.
+ *
+ * **What the taste is worth, and to whom** (tools/pick-taste.js, 5m windows, 2026-10-18, 32 seeds and 24
+ * on `aware`, every row ranked against the same bot rolling a die *on the same seeds*, which is the only
+ * ranking these batches support - see `tools/headless/pairs.js`). On the `aware` hands it is shown:
+ * **1.95x** a run per seed, and 20 of the 24 seeds preferred it (p = 0.002), at level 39 where the die
+ * died at 22. On the `naive` hands it reads **1.41x** a run per seed - on a pair of hands this appetite
+ * was never tuned on - but only 20 of 32 seeds agreed, which is a lean and not a difference, and the
+ * ladder says that instead of quoting the ratio. On the `human` hands it is nothing: **0.95x** a run per
+ * seed on 17 of 32 seeds, a coin, at level 7-8. That looked like staleness - the appetite was tuned on
+ * the aware bot in NOTES sessions 31, 32 and 38 and had never been asked anywhere else - and it is not.
+ * Read the levels: a taste is worth what the number of cards a hand lives to spend makes it worth, and
+ * those two short batches die with five to fourteen ranks taken while the aware one dies holding
+ * thirty-nine-some. Nothing beat the shipped taste on any of the three - not the ring taken early, not
+ * the even spread with no order at all, not the shipped order turned round - which is the other half of
+ * what that ladder was written to be able to say. So the appetite is not shaped to one pair of hands and
+ * broken for the other; it is *unspent* on the short ones. That is why a rule about the *deal* has to be
+ * priced on a hand long enough to hold one (tools/challenge-cost.js prices it on `aware` and refuses it
+ * on any hand that cannot be shown to pick better than its own die).
+ *
+ * The `flat` row - take the shallowest line, with no opinion about which - is the one that says most:
+ * 0.88x on `human`, 0.99x on `naive`, 1.55x on `aware`. Spreading the build out is worth most of the
+ * taste on a long run and nothing on a short one, and this particular order is what it adds on top:
+ * about four tenths of a run on the naive hands (1.41x against 0.99x, neither of them a shown
+ * difference) and two on the aware ones (1.95x against 1.55x, which is). The ring held two ranks back is
+ * worth what session 31 measured and not what this batch measured, which came out smaller and inside
+ * what a batch of runs jiggles by; it stands on the older, longer window and not on this one.
+ */
+export const TASTE = {
+  appetite: APPETITE,
+  deferred: DEFERRED,
+};
+
+/** The appetite: a list of line names, each one a line the deck really has. */
+function appetiteValue(key, value) {
+  if (!Array.isArray(value)) throw new Error(key + ' wants a list of line names');
+  for (const id of value) {
+    if (typeof id !== 'string') throw new Error(key + ' wants line names, and ' + id + ' is not one');
+    // lineOf throws for a name the deck has never heard of, which is the answer we want: a dial
+    // that takes a typo is a dial that reports what it was never set to.
+    lineOf(id);
+  }
+  return value.slice();
+}
+
+/** The handicap: a `name -> number` map of how many ranks to hold each line back by. */
+function deferredValue(key, value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(key + ' wants a name -> number map');
+  }
+  for (const id of Object.keys(value)) {
+    lineOf(id);
+    if (!Number.isFinite(value[id])) {
+      throw new Error(key + '.' + id + ' wants a number of ranks to hold it back');
+    }
+  }
+  return Object.assign({}, value);
+}
+
+/** The taste's two numbers, each checked the way only that one can be. */
+const TASTE_KEYS = {
+  appetite: appetiteValue,
+  deferred: deferredValue,
+};
+
+/** Put the bot's card taste over, the way `setDial` does the eyes and `setDashDial` the dash. */
+export function setTasteDial(dial) {
+  for (const key of Object.keys(dial)) {
+    if (TASTE[key] === undefined) throw new Error('the bot\'s card taste has no knob called ' + key);
+    TASTE[key] = TASTE_KEYS[key](key, dial[key]);
+  }
+  return TASTE;
+}
+
 /*
  * BURN is not in that table either, and is not going in it (NOTES session 38: twenty seeds with
  * the line in the deal against twenty with it out of the deck, same window). The bot takes it
@@ -189,7 +279,7 @@ const DEFERRED = { orbitals: 2 };
 
 /** How deep the bot thinks a line stands, handicaps and all. */
 function depthOf(ranks, id) {
-  return ranks[id] + (DEFERRED[id] === undefined ? 0 : DEFERRED[id]);
+  return ranks[id] + (TASTE.deferred[id] === undefined ? 0 : TASTE.deferred[id]);
 }
 
 function preferredCard(game, offer) {
@@ -213,8 +303,8 @@ function preferredCard(game, offer) {
 
 /** Where a line sits in the list above. A line nobody wrote down is the last resort. */
 function appetiteOf(id) {
-  const place = APPETITE.indexOf(id);
-  return place === -1 ? APPETITE.length : place;
+  const place = TASTE.appetite.indexOf(id);
+  return place === -1 ? TASTE.appetite.length : place;
 }
 
 // The dice the careless picker rolls, on a stream of its own.
@@ -549,7 +639,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, picks, dial, ship, weapon, challenge, at, dash }
+ * Options: { maxSeconds, every, onFrame, policy, picks, dial, taste, ship, weapon, challenge, at, dash }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -593,6 +683,10 @@ export function playOneRun(game, options) {
   // on them (tools/skill-ladder.js). Left alone by default, so every number already in NOTES.md was
   // made by the ordinary pair of eyes and still means what it says.
   if (opts.dial !== undefined) setDial(opts.dial);
+  // And the same door on the bot's card taste (tools/pick-taste.js is the ladder that uses it).
+  // Applied per run and not per process for the same reason the eyes are: a ladder flies its rows
+  // through one booted game, and each row has to say for itself what the bot was reaching for.
+  if (opts.taste !== undefined) setTasteDial(opts.taste);
 
   let frames = 0;
   let died = false;
@@ -765,7 +859,7 @@ export function endingItAt(seconds) {
  * of work and a silent terminal cannot be told apart from a stuck one.
  *
  * A batch is `playRuns`' options object: { seeds: [..], maxSeconds, every, policy, picks, dial,
- * ship, weapon, challenge, at, onRun }.
+ * taste, ship, weapon, challenge, at, onRun }.
  */
 export async function playBatches(batches, onBatch) {
   const first = batches[0] || {};

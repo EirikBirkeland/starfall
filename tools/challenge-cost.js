@@ -45,13 +45,16 @@
 // draw of one card against a random draw of three, which is close to nothing. So the ladder flies the
 // plain run and that rule a second time with the same careless feet answering the level-up on purpose
 // (`--picks wise`), and judges it there. Second, and found the hard way: a deliberate hand is only a
-// yardstick if its picks are worth something, and on the default `human` policy they are not - its
-// careful plain run scored *less* than its careless one at both 5 and 8 minutes (NOTES session 157), so
-// taking a choice away from it is worth nothing and the rule read as a gift. On `--bot aware` the same
-// pair is worth 57% of a run, and the rule costs 0.41x there. So the ladder prints what its deliberate
-// hand's taste is worth, and refuses to judge a deal rule on a hand whose taste is worth less than a
-// die. A rule about a choice can only be priced by a hand that makes good ones, and saying which hand
-// was flown beats passing what it could not see.
+// yardstick if its picks are worth something, and that has to be *shown* rather than read off the middles
+// of two batches - on the default `human` policy the careful plain's middle scored *under* its careless
+// one on 32 seeds and *over* it on 12 (NOTES sessions 157 and 158), which is two middles quarrelling and
+// not a reading. Asked seed against seed the same batches say the two cannot be told apart, so taking a
+// choice away from that hand is worth nothing measurable and the rule read as a gift. On `--bot aware`
+// the seeds all agree and the taste is worth most of a run, which is where the shipped 0.41x comes from.
+// So the ladder prints what its deliberate hand's taste is worth - by middles and by pairs - and refuses
+// to judge a deal rule on a hand that cannot be shown to pick better than a die. A rule about a choice can
+// only be priced by a hand that makes good ones, and saying which hand was flown beats passing what it
+// could not see.
 //
 // One column is deliberately missing: what a rule feels like. NO DASH measured against a bot that
 // presses the dash ten times a quarter-hour (NOTES session 114) may read as nearly free while a
@@ -65,6 +68,7 @@ import { playBatches, POLICIES, PICKS } from './headless/bot.js';
 import { BALANCE } from '../src/game/balance.js';
 import { CHALLENGES, isChallenge, nameOf, saysOf } from '../src/game/challenges.js';
 import { table, clock, int, dec } from './headless/tables.js';
+import { median, pairedRatio, isBetter, pairWords } from './headless/pairs.js';
 
 const DEFAULTS = {
   seeds: 8,
@@ -188,13 +192,6 @@ function readArgs(argv) {
   return opts;
 }
 
-/** Median, or null: a batch that never died has no middle of deaths to show. */
-function median(values) {
-  if (values.length === 0) return null;
-  const sorted = values.slice().sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
-}
-
 /**
  * Put one rule's number over what ships, for a sweep.
  *
@@ -267,6 +264,9 @@ async function measure(opts, specs) {
         return {
           id: spec.id,
           picks: spec.picks,
+          // seed -> that run's score, which is what a pair is made from: the deal table and the
+          // careless one are the same seeds, so the taste gate below is allowed to ask seed by seed.
+          bySeed: new Map(finished.map((s) => [s.seed, s.stats.score])),
           middleDeath: median(deaths),
           died: deaths.length,
           won: finished.filter((s) => s.won).length,
@@ -342,7 +342,7 @@ export function verdictOf(rows, plain, deal) {
   const touchable = plain !== undefined && plain.hulls > 0;
   const deliberatePass = deal !== undefined && deal.rows !== rows;   // a second table was flown
   const taste = dealTasteOf(deal);
-  const dealJudged = deliberatePass && taste !== null && taste > TASTE_WORTH_PRICING;
+  const dealJudged = deliberatePass && taste !== null && isBetter(taste);
   for (const row of rows) {
     if (row.id === PLAIN || plain === undefined || plain.middleScore === 0) continue;
     const ratio = row.middleScore / plain.middleScore;
@@ -368,7 +368,9 @@ export function verdictOf(rows, plain, deal) {
       if (!dealJudged) {
         skipped.push(nameOf(row.id) + ' is not priced by this ladder: ' + tasteWords(taste, deal)
           + '. It read ' + dec(ratio, 2) + 'x plain here, which is the same nothing. (`--bot aware` flies '
-          + 'the hand whose picks are worth pricing: NOTES session 157.)');
+          + 'the hand whose picks are worth pricing; `tools/pick-taste.js` says why this one has none - '
+          + 'it dies in its first twenty levels with a handful of cards spent, and a taste needs a '
+          + 'build to be worth anything.)');
         continue;
       }
       skipped.push(nameOf(row.id) + ' is priced on the deliberate table and not this one: it read '
@@ -397,14 +399,21 @@ export function verdictOf(rows, plain, deal) {
 
 /**
  * What the deliberate hand's card taste is worth: its plain run against the same policy's careless
- * plain run, which differ in nothing except how the level-up was answered.
+ * plain run, which differ in nothing except how the level-up was answered - counted **seed against
+ * seed**, because that is the only comparison here that is not moved by which seeds were flown.
  *
  * This is the ladder asking whether it is holding a yardstick at all, and on the shipped hand the answer
- * is no: on the `human` policy the careful plain scores *less* than the careless one (4,843 against
- * 5,333 on 32 seeds of 5m, and 5,205 against 5,715 at 8m - NOTES session 157), so that hand has no
- * taste to price the loss of. On the `aware` policy it is worth 57% of a run (53,846 against 34,179 on
- * 24 seeds of 8m), which is why ONE CARD is priced there and nowhere else. The bot's appetite is tuned
- * on the aware hand (tools/headless/bot.js, NOTES sessions 31 and 32) and this is what that costs.
+ * is no. On the `human` policy the careful plain's *middle* scored under the careless one on 32 seeds
+ * and over it on 12 (NOTES sessions 157 and 158) - two middles quarrelling, which is what this gate was
+ * written before and what it stopped being written on. Asked seed by seed the same batch says it cannot
+ * tell the picker from a die, and a hand that cannot be *shown* to pick better cannot say what losing
+ * the choice costs. On the `aware` policy the taste is worth most of a run and the seeds all agree, so
+ * ONE CARD is priced there and nowhere else.
+ *
+ * `tools/pick-taste.js` is the ladder that measures the taste on its own, with no rule in sight, and it
+ * says *why* the short-handed batches say nothing: they die with a handful of cards spent, where which
+ * handful buys nothing, while the aware batch is thirty-something levels deep and has spent thirty-some
+ * cards. That is a by-product of that ladder and not a finding of this one.
  *
  * Answers `null` when there is no careless plain to compare with - a ladder flown wholly on the
  * deliberate hand, which is a hand of unknown taste and prices nothing.
@@ -416,8 +425,8 @@ function dealTasteOf(deal) {
   // No careless plain next to it means the whole ladder was flown on the deliberate hand, which is a
   // hand of unknown taste and prices nothing.
   if (deliberate === undefined || careless === undefined) return null;
-  if (careless.middleScore <= 0) return null;
-  return deliberate.middleScore / careless.middleScore;
+  const pair = pairedRatio(deliberate.bySeed, careless.bySeed);
+  return pair.seeds === 0 ? null : pair;
 }
 
 /** Why the deliberate hand was not believed, in the words the refusal prints. */
@@ -425,13 +434,13 @@ function tasteWords(taste, deal) {
   if (taste === null || deal.plain === undefined || deal.carelessPlain === undefined) {
     return 'nothing was flown against it to show that it picks better than a die';
   }
-  return 'the hand answering the level-up on purpose scored ' + int(deal.plain.middleScore)
+  return 'the hand answering the level-up on purpose was worth ' + dec(taste.medianRatio, 2)
+    + 'x a run per seed against the careless hand on the same seeds and was chosen on '
+    + pairWords(taste) + ' (its plain run scored ' + int(deal.plain.middleScore)
     + ' against the careless hand\'s ' + int(deal.carelessPlain.middleScore)
-    + ', and a hand whose card taste is worth less than a die cannot say what losing the choice costs';
+    + '), and a hand that cannot be shown to pick better than a die cannot say what losing the '
+    + 'choice costs';
 }
-
-/** How much better the deliberate plain has to be to be believed. Anything less is a die with opinions. */
-const TASTE_WORTH_PRICING = 1;
 
 /**
  * The two questions one row can be asked against its own plain row: did it pay in the score column,
@@ -512,13 +521,19 @@ if (isMain) {
     printTable(deal.rows, deal.plain, opts, 'the same seeds and the same feet, answering the level-up '
       + DELIBERATE_PICKS + ' - which is the only table a rule about the deal can be read on', note);
     // And what that hand's taste is worth, because it is the number the verdict below is allowed to
-    // lean on: a deliberate hand that does not beat its own careless one has no taste to price.
+    // lean on: a deliberate hand that cannot be shown to beat its own careless one has no taste to price.
     if (deal.plain !== undefined && deal.carelessPlain !== undefined
         && deal.carelessPlain.middleScore > 0) {
+      const taste = dealTasteOf(deal);
       console.log('That hand\'s card taste is worth '
         + dec(deal.plain.middleScore / deal.carelessPlain.middleScore, 2)
         + 'x the careless hand\'s on the same seeds: its plain run scored '
-        + int(deal.plain.middleScore) + ' against ' + int(deal.carelessPlain.middleScore) + '.');
+        + int(deal.plain.middleScore) + ' against ' + int(deal.carelessPlain.middleScore)
+        + ', and counted seed against seed that is ' + pairWords(taste) + '.');
+      console.log('The verdict believes a rule about the deal only if the seeds say so too: '
+        + (isBetter(taste)
+          ? 'they do, so this hand has a taste and it can be priced.'
+          : 'they do not, so this hand has no taste to price and any deal rule here would be refused.'));
     }
   }
 
