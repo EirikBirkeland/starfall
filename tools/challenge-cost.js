@@ -8,9 +8,10 @@
 //   node tools/challenge-cost.js --bot aware --picks wise  the careful build, which hardly dies
 //   node tools/challenge-cost.js --bot naive              the worst pair of hands there is
 //   node tools/challenge-cost.js --no-dash                the bot never presses the dash at all
-//   node tools/challenge-cost.js --challenges none,brittle  two of the five rows
+//   node tools/challenge-cost.js --challenges none,brittle  two of the six rows
 //   node tools/challenge-cost.js --speed 1.3              the swift crowd's multiplier, tried live
 //   node tools/challenge-cost.js --hold 1.75              the thick crowd's, tried live
+//   node tools/challenge-cost.js --grace 0.75             the gap a hit leaves, tried live
 //   node tools/challenge-cost.js --strict                 non-zero unless the rules cost what they claim
 //
 // Why a yardstick at all: a challenge modifier is a rule about the whole run, and a rule about the
@@ -32,7 +33,7 @@
 // The swift crowd's multiplier is passed to the game through the balance row, which the sim reads
 // every time it builds a body, so `--speed` sweeps it without touching a source file - the same
 // trick `tools/ghost-grid.js` plays with the afterimage's radius. `--hold` is the same door on the
-// thick crowd's share of the arena.
+// thick crowd's share of the arena, and `--grace` the same door on the gap a hit leaves the ship.
 //
 // One column is deliberately missing: what a rule feels like. NO DASH measured against a bot that
 // presses the dash ten times a quarter-hour (NOTES session 114) may read as nearly free while a
@@ -54,18 +55,27 @@ const DEFAULTS = {
   // nothing about a touch; `naive` is harsher still and dies in the first minute of a plain run.
   policy: 'human',
   picks: 'random',
-  challenges: 'none,brittle,grounded,swift,thick',
+  challenges: 'none,brittle,grounded,merciless,swift,thick',
   // The shipped get-out habit (tools/headless/bot.js `DASH`), because NO DASH is a rule about a dash
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
   dash: true,
   speed: null,
   hold: null,
+  grace: null,
   strict: false,
 };
 
-/** The five rows the ladder can print: `none` beside the four rules. */
+/** The six rows the ladder can print: `none` beside the five rules. */
 const PLAIN = 'none';
+
+/**
+ * Which rules are about what a touch costs, and so need a batch that actually loses a hull before the
+ * ladder can see them. ONE HULL makes one touch the last one; SHORT GRACE makes the touches come in
+ * clusters. Neither shows up in a batch nobody wounded, and a pass bought by an instrument that could
+ * not see the rule would be worse than no pass.
+ */
+const TOUCH_RULES = ['brittle', 'merciless'];
 
 /**
  * How much of the middle score a rule has to take off to be believed.
@@ -90,6 +100,7 @@ function readArgs(argv) {
     else if (arg === '--no-dash') opts.dash = false;
     else if (arg === '--speed') opts.speed = Number(next());
     else if (arg === '--hold') opts.hold = Number(next());
+    else if (arg === '--grace') opts.grace = Number(next());
     else if (arg === '--strict') opts.strict = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -120,6 +131,10 @@ function readArgs(argv) {
     console.error('--hold wants a multiplier above 1, such as 1.5');
     process.exit(2);
   }
+  if (opts.grace !== null && !(opts.grace >= 0)) {
+    console.error('--grace wants a number of seconds; 0 takes the gap away altogether');
+    process.exit(2);
+  }
   return opts;
 }
 
@@ -147,6 +162,15 @@ function setSpeed(mul) {
 function setHold(mul) {
   if (mul === null) return;
   BALANCE.challenges.thick.holdMul = mul;
+}
+
+/**
+ * The same door on the gap a hit leaves the ship, which is read every time a hit lands. It is why 0 can
+ * be tried at all: the sweep is how the shipped number was shown to be a floor and not a preference.
+ */
+function setGrace(seconds) {
+  if (seconds === null) return;
+  BALANCE.challenges.merciless.grace = seconds;
 }
 
 /** One row per rule, on the same seeds. */
@@ -190,14 +214,15 @@ async function measure(opts) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Three of the four rules are judged and
+ * The verdict. A rule that costs nothing is not a challenge. Four of the five rules are judged and
  * one is not, and the difference is what the ladder can see.
  *
- *   **ONE HULL, SWIFT CROWD and THICK CROWD are judged**, ONE HULL provided the plain batch actually
- *     lost hulls - which is what says the ladder can see a rule about losing one at all. An aware bot
- *     that finishes a run with three hull in a body that costs one is not an instrument for that rule,
- *     and saying so beats failing a rule the instrument cannot reach. The two crowd rules need no such
- *     proviso: a crowd is in front of every pair of eyes, careless or not.
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD and THICK CROWD are judged**, the two rules about a touch
+ *     provided the plain batch actually lost hulls - which is what says the ladder can see a rule about
+ *     losing one at all. An aware bot that finishes a run with three hull in a body that costs one is
+ *     not an instrument for those two rules, and saying so beats failing a rule the instrument cannot
+ *     reach. The two crowd rules need no such proviso: a crowd is in front of every pair of eyes,
+ *     careless or not.
  *
  *   **NO DASH is reported and never judged**, and the reason is in the columns rather than in a
  *     paragraph: taking the jump away from a hand that presses it ten times a quarter-hour is a small
@@ -222,9 +247,9 @@ export function verdictOf(rows, plain) {
         + 'verdict about a person who uses it.');
       continue;
     }
-    if (row.id === 'brittle' && !touchable) {
+    if (TOUCH_RULES.indexOf(row.id) >= 0 && !touchable) {
       skipped.push(nameOf(row.id) + ' is not measurable on this ladder: the plain batch lost no '
-        + 'hulls at all, so a rule about what one touch costs cannot show up in it. Fly a worse hand '
+        + 'hulls at all, so a rule about what a touch costs cannot show up in it. Fly a worse hand '
         + '(`--bot naive`) or a careless one (`--bot human --picks random`).');
       continue;
     }
@@ -249,6 +274,7 @@ if (isMain) {
   const opts = readArgs(process.argv.slice(2));
   setSpeed(opts.speed);
   setHold(opts.hold);
+  setGrace(opts.grace);
   const rows = await measure(opts);
   const plain = rows.find((r) => r.id === PLAIN);
 
@@ -257,7 +283,8 @@ if (isMain) {
     + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
     + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
     + (opts.speed === null ? '' : ', the swift crowd at ' + dec(opts.speed, 2) + 'x')
-    + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x');
+    + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x')
+    + (opts.grace === null ? '' : ', a hit leaving ' + dec(opts.grace, 2) + 's');
   const note = 'Each row is the same seeds flown under one rule, `plain` being the game as it shipped.\n'
     + '`middle death` is the middle of the runs that died - a batch that never died has no middle and\n'
     + 'shows a dash - and `vs plain` is the middle score against plain\'s, so below 1.00x is less for\n'

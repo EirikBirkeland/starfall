@@ -2669,3 +2669,42 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       a coincidence but where a whole hive's beat sits. The reference run is byte for byte what it was
       (a wave's swarm never passes through `broodFrom`) and the suite is 2514, one up: a beat that lit
       two mouths has to fly one flock, and one flock must never come out of two different pieces.
+
+- [x] A fifth rule for the ladder: **SHORT GRACE** - a hit leaves the ship barely a moment of safety
+      instead of a second and a half. The four that shipped cover what a hull is worth, whether the ship
+      can jump, and how big and how quick the crowd is; nothing covered the one number that decides
+      whether a mistake can survive itself. `player.hitInvulnerability` is 1.5 s in which nothing can hurt
+      you, bought with the shove that throws the crowd off a ship that was just hurt, and it is the time
+      you spend walking out of the mistake rather than making another one. Take two thirds of it and a
+      touch that cost one hull costs two and a slow one three.
+      **Two other candidates were killed by the ruler before this one was built**, which is worth writing
+      down because both *looked* like difficulty and neither was: *every wave brings a gold body* reads
+      **3.69x** a careless run's middle score, because an elite is worth five times the score, drops
+      twice the shards and the ladder calls a gift what it is (with the gifts switched off it still reads
+      1.36x); and *the fights come early* - the whole schedule at two thirds of its marks - reads
+      **1.10x**, because a boss's cage and what it drops are worth more to a careless hand than the
+      minutes of crowd they replace. A rule the ladder cannot fail is not a rule, and
+      `tools/challenge-cost.js` said so in three minutes of simming each.
+      **Shipped as `BALANCE.challenges.merciless = { grace: 0.5 }`** over one new lever, `hitGraceOf(world)`,
+      asked in `hitPlayer` where the number is spent and answering `player.hitInvulnerability` whenever no
+      rule is flying - so an ordinary run is written by the same line it always was and the reference run is
+      byte for byte the run it was. The number is a **floor** and not a preference, which is the one thing
+      here that is not obvious: a body is shoved off a ship that was hurt, and a blade, a spoke and a fan of
+      shot are not, so a hazard that *stays* across the ship asks again every step and only this gap says how
+      often "again" is. With the gap taken whole the ask is a hull a frame and the run is over in a sixth of
+      a second, which is not a harder rule but one nobody can read - `test/challenge-merciless.test.mjs`
+      spends the row on 0 to show it, the only way to hold the claim since no batch of runs can be asked to
+      stand in a blade on purpose. The cost, on the same careless hand as the other four (8 seeds x 5m,
+      2026-10-17): the middle run dies at **3m11s against plain's 3m39s** and scores **0.77x** plain's
+      middle, having lost about the same hull in less time - the rule said as a number: the hulls did not
+      dry up, they came in clusters. The 0.5 was swept and not picked: a whole second of gap reads 1.00x and
+      0.75 s reads 0.97x, both above what the ladder will believe of a rule, so the gap had to be cut by more
+      than half before the card was a card, and 0 - the dearest at 0.62x - costs the beat a person needs to
+      answer the hit they just took. `tools/challenge-cost.js` grew `--grace` for that sweep and the ladder's
+      "this batch cannot see a rule about a touch" proviso now covers *both* rules about a touch, so the new
+      one is never passed by a batch nobody wounded. Suite 2539 -> **2546**: 5 in the new file (the gap a hit
+      leaves, a second touch at the one distance where the two runs differ, a run's opening second and a
+      dash's immunity standing untouched, the floor, and the run ending once), 1 in
+      `test/challenges.test.mjs` (the gap read off a run that was really flying) plus its lever checks
+      extended to all five rules, and 1 in `test/challenge-cost.test.mjs` - plus the two tests that walked
+      the key's cycle by hand, which now read the table instead of counting presses.

@@ -13,6 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { verdictOf } from '../tools/challenge-cost.js';
+import { nameOf } from '../src/game/challenges.js';
 
 /** One row of what a batch reports, with the parts this file does not care about filled in. */
 function row(id, middleScore, middleDeath, hulls) {
@@ -31,10 +32,15 @@ function row(id, middleScore, middleDeath, hulls) {
 
 const PLAIN = row('none', 100000, 300, 12);
 
-/** Every problem line that names this rule, so a test can ask about one rule at a time. */
+/**
+ * Every problem line that names this rule, so a test can ask about one rule at a time.
+ *
+ * Matched on the name and not the id, because a verdict is prose read out loud and says what the glass
+ * says (`ONE HULL`, not `brittle`) - which a helper matching ids in capitals would have quietly missed
+ * for the two rules whose names do not begin with their own id.
+ */
 function problemsAbout(verdict, id) {
-  const name = id.toUpperCase();
-  return verdict.problems.filter((line) => line.startsWith(name));
+  return verdict.problems.filter((line) => line.startsWith(nameOf(id)));
 }
 
 test('a rule that is paid for is passed, and a rule that pays nothing is failed', () => {
@@ -78,6 +84,24 @@ test('a rule the ladder cannot see is said out loud and never quietly passed', (
   const seeing = verdictOf([PLAIN, row('brittle', 39000, 90, 12)], PLAIN);
   assert.deepEqual(seeing.skipped, []);
   assert.deepEqual(seeing.problems, []);
+});
+
+test('SHORT GRACE needs the same wounded batch as ONE HULL, and is judged without it', () => {
+  // The other rule about what a touch costs. A batch nobody wounded cannot see touches arriving in
+  // clusters either, so it stands aside on the same proviso - and is judged the moment the batch can.
+  const blind = verdictOf([row('none', 100000, 300, 0), row('merciless', 99000, 300, 0)],
+    row('none', 100000, 300, 0));
+  assert.deepEqual(problemsAbout(blind, 'merciless'), [], 'nothing was lost, so nothing was judged');
+  assert.equal(blind.skipped.length, 1, 'and the blindness is printed');
+  assert.match(blind.skipped[0], /SHORT GRACE is not measurable/);
+
+  const soft = verdictOf([PLAIN, row('merciless', 97000, 300, 12)], PLAIN);
+  assert.equal(problemsAbout(soft, 'merciless').length, 1, 'a wounded batch judges it');
+  assert.match(problemsAbout(soft, 'merciless')[0], /0\.97x plain/);
+
+  const honest = verdictOf([PLAIN, row('merciless', 77000, 191, 12)], PLAIN);
+  assert.deepEqual(honest.problems, []);
+  assert.deepEqual(honest.skipped, []);
 });
 
 test('a rule about the crowd is judged whatever the hull column says', () => {

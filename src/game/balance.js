@@ -313,14 +313,36 @@ export const BALANCE = {
   // half of the performance pass is meant to fly to) - a share of 1.75 would stand 175 of them in a
   // scheduled run, which is a crowd nobody here has ever timed on a screen.
   //
+  // Re-read on 2026-10-17 with the same defaults the ladder ships with, this rule reads 0.93x plain's
+  // middle (2m48s, the same middle of deaths as above) rather than 0.60x, and the reason is the plain
+  // batch: the game as it now ships scores more for the same five minutes than the game that paragraph
+  // was written against did, so the share of it the crowd takes is smaller. Still a rule by the bar, but
+  // a twentieth of a margin rather than a quarter, and the share wants re-sweeping before that 0.60x is
+  // quoted again anywhere.
+  //
+  // `grace` is how long a ship is safe after a hit, where plainly that is `player.hitInvulnerability`.
+  // The number is a *floor* and not a preference, and what says so is 0: bodies are shoved off a ship
+  // that was hurt, but a blade, a spoke and a fan of shot are not, so a hazard that stays across the
+  // ship asks again every step and only this gap says how often "again" is. Take the gap whole and a
+  // blade standing on the ship is a hull a frame - which `test/challenge-merciless.test.mjs` holds, the
+  // one way to hold it, since no batch of runs can be asked to stand in a blade on purpose.
+  //
+  // 0.5 s, from `tools/challenge-cost.js --grace` on the careless hand (8 seeds x 5m, 2026-10-17;
+  // plain's middle run died at 3m39s for 5,715): half a second of grace reads 0.77x that middle score
+  // and 28s off the middle of deaths. The sweep is why the number is where it is - a whole second reads
+  // 1.00x and 0.75 s reads 0.97x, both of them above what the ladder may believe of a rule, so the gap
+  // has to be cut by more than half before the rule is a rule - and 0, the dearest of them at 0.62x,
+  // costs the beat a person needs to answer the hit they just took.
+  //
   // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
   // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
   challenges: {
-    brittle:  { hull: 1 },
-    grounded: { dash: false },
-    swift:    { speedMul: 1.4 },
-    thick:    { holdMul: 1.5 },
-    gatedOn:  { grounded: ['tether', 'afterimage'] },
+    brittle:   { hull: 1 },
+    grounded:  { dash: false },
+    merciless: { grace: 0.5 },
+    swift:     { speedMul: 1.4 },
+    thick:     { holdMul: 1.5 },
+    gatedOn:   { grounded: ['tether', 'afterimage'] },
   },
 
   // The awards (PLAN 3.7): what a run did that this save remembers, and the little stardust it pays

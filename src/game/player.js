@@ -19,7 +19,7 @@ import { noteDash, noteHullLoss } from './tally.js';
 import { updateOvercharge } from './overcharge.js';
 import { armDash, trailImages } from './afterimage.js';
 import { armTie, tieCords } from './tether.js';
-import { dashIsAllowed } from './challenges.js';
+import { dashIsAllowed, hitGraceOf } from './challenges.js';
 import { fire, shotsPerSecond } from './weapons.js';
 
 /**
@@ -280,6 +280,9 @@ export function updatePlayer(world, dt, input) {
  * `cause` says what did it - a body, a shot, or a blast (see game/tally.js, which
  * is where the three shapes are made). The tally needs it to say what the run died
  * of, and a body that touched the ship gets flashed for its trouble.
+ *
+ * The grace is asked for rather than read, because SHORT GRACE (game/challenges.js) is a rule about
+ * exactly this number, and a rule about a number has to be written where the number is spent.
  */
 export function hitPlayer(world, cause) {
   const spec = BALANCE.player;
@@ -288,7 +291,7 @@ export function hitPlayer(world, cause) {
 
   ship.hull--;
   noteHullLoss(world, cause);
-  ship.invuln = spec.hitInvulnerability;
+  ship.invuln = hitGraceOf(world);
   shakeIt(world, hit.shake);
   // The longest freeze in the game. For these milliseconds the ship is still
   // there, the crowd is still closing in, and nothing can be done about either -

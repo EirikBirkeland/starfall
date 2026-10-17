@@ -1,5 +1,36 @@
 # Starfall — changelog
 
+## 1.9.12 — 2026-10-17
+A fifth rule for the challenge key, and it is about the ship rather than the crowd.
+- **SHORT GRACE.** A hit now leaves you half a second of safety instead of a second and a half, which is
+  the difference between a mistake costing one hull and costing two or three. Press the rule key past NO
+  DASH and the title says which one it landed on: `SHORT GRACE · a touch leaves barely a moment to get
+  clear`. It keeps its own record like the other rules, on the title, on the ending's card and on the
+  codex's fifth rack.
+- **The axis the other four left empty.** ONE HULL says what one touch costs; this says how fast they can
+  arrive. Everything else the game promises about being hurt stands: a run still opens with its own second
+  of safety, a resumed run is still handed its breathing room, and a dash is still immunity whatever it
+  lands in.
+- **Why not take the gap away altogether**, which was the first idea: a body is shoved off a ship that was
+  just hurt, and a blade, a spoke and a fan of shot are not - so anything that *stays* across you asks
+  again every step, and this gap is the only thing saying how often "again" is. With no gap a boss's
+  blade is a hull a frame and the run is over before you have seen the second frame of it. The number is
+  a floor, and a test spends it at zero to show what the alternative was.
+- **Measured, and the number was swept rather than picked.** On the same careless hand as the other rules
+  (8 seeds, five minutes each) the middle run dies at 3m11s against plain's 3m39s and scores 0.77x
+  plain's middle, having lost about the same hull in less time - which is the rule said as a number: the
+  hulls did not dry up, they came in clusters. A whole second of gap reads 1.00x and three quarters of
+  one reads 0.97x, neither of which the ladder will believe of a rule, and zero is the dearest of them at
+  0.62x at the price of the beat you need to answer the hit you just took.
+- **Two candidates died on the way here**, both of which looked like difficulty and neither was. Making
+  every wave bring a gold body reads 3.69x a careless run's middle score, because an elite is worth five
+  times the score and drops twice the shards; bringing the three fights forward reads 1.10x, because a
+  boss's cage is worth more to a careless hand than the minutes of crowd it replaces.
+- Suite 2546, up 7: the gap a hit leaves, a second touch at the one distance where the two runs differ,
+  the run's opening second and a dash's immunity standing untouched, the floor, and the run ending once.
+  The 10-minute reference run is byte for byte what it was - with no rule flying the same number as ever
+  is written.
+
 ## 1.9.11 — 2026-10-16
 The second boss stopped breeding in pairs, so the swarm's new ring has something to go round.
 - **A beat lets out one flock.** Every mouth a mass lights on a beat used to push out its own two

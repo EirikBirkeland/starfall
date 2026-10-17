@@ -22,7 +22,8 @@
 //     crowd in it (the director holds while a fight is on, game/waves.js) and a second damage
 //     source with no number beside it is a number nobody has measured. The blade's one ask is a
 //     hull, and `player.hitInvulnerability` is what says it cannot take a second one while the
-//     ship is still standing inside it - the same bargain a spoke makes (game/beams.js).
+//     ship is still standing inside it - the same bargain a spoke makes (game/beams.js), and the
+//     one SHORT GRACE (game/challenges.js) tightens along with every other way the ship gets hurt.
 //
 //   **The blade drawn is the blade that hurts, edge for edge.** One number, `half`, says how far
 //     off its axis the light is painted and the harm is paid out, and one pair, `inner` and

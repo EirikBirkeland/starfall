@@ -29,8 +29,8 @@ import { shipRow, defaultShip } from '../src/game/ships.js';
 import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
   CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
-  dashIsAllowed, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, pauseWords, saysOf,
-  setChallenge, titleWords,
+  dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, pauseWords,
+  saysOf, setChallenge, titleWords,
 } from '../src/game/challenges.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -175,6 +175,7 @@ test('no challenge flying means every lever answers its neutral number', () => {
   assert.equal(dashIsAllowed(plain), true);
   assert.equal(crowdSpeedOf(plain), 1);
   assert.equal(crowdHoldOf(plain), 1, 'and the arena holds what it ships');
+  assert.equal(hitGraceOf(plain), BALANCE.player.hitInvulnerability, 'and a hit leaves its whole gap');
   assert.equal(cardIsUsable(plain, 'tether'), true);
   assert.equal(cardIsUsable(plain, 'afterimage'), true);
   assert.equal(titleWords(plain), '');
@@ -186,7 +187,9 @@ test('no challenge flying means every lever answers its neutral number', () => {
 });
 
 test('each rule moves exactly its own lever and none of the others', () => {
+  const plain = worldUnder('');
   const brittle = worldUnder('brittle');
+  assert.equal(hitGraceOf(brittle), BALANCE.player.hitInvulnerability);
   assert.equal(hullOverrideOf(brittle), BALANCE.challenges.brittle.hull);
   assert.equal(dashIsAllowed(brittle), true);
   assert.equal(crowdSpeedOf(brittle), 1);
@@ -196,18 +199,33 @@ test('each rule moves exactly its own lever and none of the others', () => {
   assert.equal(dashIsAllowed(grounded), false);
   assert.equal(hullOverrideOf(grounded), 0);
   assert.equal(crowdSpeedOf(grounded), 1);
+  assert.equal(hitGraceOf(grounded), BALANCE.player.hitInvulnerability);
+
+  // SHORT GRACE is the third rule about the ship rather than the crowd, and it reaches one number and
+  // no other: the gap after a hit.
+  const merciless = worldUnder('merciless');
+  assert.equal(hitGraceOf(merciless), BALANCE.challenges.merciless.grace);
+  assert.ok(hitGraceOf(merciless) < hitGraceOf(plain), 'a rule that left the gap alone was no rule');
+  assert.ok(hitGraceOf(merciless) > 0,
+    'the gap is short and not gone: with none a hazard that stays is a hull a step');
+  assert.equal(hullOverrideOf(merciless), 0);
+  assert.equal(dashIsAllowed(merciless), true);
+  assert.equal(crowdSpeedOf(merciless), 1);
+  assert.equal(crowdHoldOf(merciless), 1);
 
   const swift = worldUnder('swift');
   assert.equal(crowdSpeedOf(swift), BALANCE.challenges.swift.speedMul);
   assert.equal(crowdHoldOf(swift), 1);
   assert.equal(hullOverrideOf(swift), 0);
   assert.equal(dashIsAllowed(swift), true);
+  assert.equal(hitGraceOf(swift), BALANCE.player.hitInvulnerability);
 
   const thick = worldUnder('thick');
   assert.equal(crowdHoldOf(thick), BALANCE.challenges.thick.holdMul);
   assert.equal(crowdSpeedOf(thick), 1);
   assert.equal(hullOverrideOf(thick), 0);
   assert.equal(dashIsAllowed(thick), true);
+  assert.equal(hitGraceOf(thick), BALANCE.player.hitInvulnerability);
 
   assert.equal(isFlying(brittle, 'brittle'), true);
   assert.equal(isFlying(brittle, 'swift'), false);
@@ -334,6 +352,47 @@ test('the deal refuses a line that could do nothing under the rule', () => {
     'the two lines are never dealt even plainly, so the gate proved nothing');
 });
 
+/**
+ * Put a living body on the ship, give it one frame, and answer the gap the hit left.
+ *
+ * The body is taken back out and the freeze is burnt off before answering: a hit stops the world for a
+ * moment (game/effects.js `hitStop`) and a body left across the ship hurts again later, either of which
+ * lands on whichever test runs next rather than on this one.
+ */
+function touchTheShip() {
+  const ship = game.player;
+  ship.hull = 3;
+  ship.invuln = 0;
+  ship.dashLeft = 0;            // a dash is grace too, and a test can leave one running
+  ship.fireTimer = 5;
+  game.enemies.push(makeEnemy(world, 'drifter', ship.x, ship.y, {
+    hp: 99, speed: 0, drop: 0, score: 0,
+  }));
+  game.step(FRAME);
+  assert.equal(ship.hull, 2, 'the body went across the ship and nothing was paid');
+  const gap = ship.invuln;
+  game.enemies.length = 0;
+  frames(12);
+  return gap;
+}
+
+test('SHORT GRACE is the gap a run is actually flown with', () => {
+  // The lever on the module is one thing; that a hit in a played run writes it is another. This is the
+  // same claim test/challenge-merciless.test.mjs makes on a parked world, made here through the real
+  // loop - and it is the version that would notice the number being cached somewhere other than the hit.
+  game.chooseChallenge('');
+  launch();
+  assert.equal(touchTheShip(), BALANCE.player.hitInvulnerability,
+    'a plain run is left a second and a half to get clear');
+
+  game.chooseChallenge('merciless');
+  launch();
+  assert.equal(touchTheShip(), BALANCE.challenges.merciless.grace,
+    'the rule is what shortened it, in a run that was really flying');
+
+  game.chooseChallenge('');
+});
+
 // ---------------------------------------------------------------------------
 // The interface
 // ---------------------------------------------------------------------------
@@ -353,6 +412,8 @@ test('one key cycles the rule and the title says which one it landed on', () => 
     'the line does not say which rule is on: ' + game.screen.titleChallenge);
   press('KeyX');
   assert.equal(game.stats().challenge, 'grounded');
+  press('KeyX');
+  assert.equal(game.stats().challenge, 'merciless');
   press('KeyX');
   assert.equal(game.stats().challenge, 'swift');
   press('KeyX');

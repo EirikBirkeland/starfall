@@ -1060,7 +1060,8 @@ export function showLog(runs) {
  * Paint the codex's fifth rack: what this save has scored under each harder rule (game/challenges.js).
  *
  * One row per rule the game can name, in the order the key cycles them, so the rack is the same ladder
- * the title's line is: the mildest rule at the top and the sharpest at the bottom. A rule this save has
+ * the title's line is - the ship's own rules at the top and the crowd's at the bottom, and deliberately
+ * not sorted by what each one costs (game/challenges.js says why). A rule this save has
  * never been flown under keeps its name and gives up its glow, the way a codex row for a thing not met
  * does - it is a row about a thing that has not happened yet, and the lit rows are the ones that are.
  *

@@ -50,6 +50,20 @@ function frames(n) {
   for (let i = 0; i < n; i++) game.step(FRAME);
 }
 
+/**
+ * Press the rule key until the cycle lands on `id`.
+ *
+ * The cycle walks the table in its order and the table grows, so a test that wants one rule walks to it
+ * instead of counting presses - which a fifth rule would otherwise have moved along in silence.
+ */
+function pressUntil(id) {
+  for (let guard = 0; guard <= CHALLENGES.length; guard++) {
+    press('KeyX');
+    if (game.stats().challenge === id) return;
+  }
+  throw new Error('the key never landed on ' + id);
+}
+
 /** Put a body on the ship and run one frame: the run is over afterwards. */
 function killTheShip() {
   const ship = game.player;
@@ -299,6 +313,8 @@ test('a new run forgets that the last one beat the rule', () => {
 });
 
 test('the title says what the rule it was set to is worth', () => {
+  const built = CHALLENGES.find((c) => c.says === '');   // the crowd rules say their own number
+  const last = CHALLENGES[CHALLENGES.length - 1];
   clearRecords();
   fly(4321, 'brittle');           // the ending banks 4,321 under ONE HULL
   // The key is the only hand that paints this line, so the test uses the key. One press from nothing
@@ -309,14 +325,14 @@ test('the title says what the rule it was set to is worth', () => {
   assert.equal(game.screen.titleChallenge, titleWords(world), 'the glass says what the module says');
   assert.match(game.screen.titleChallenge, /4,321 BEST FOR THIS RULE$/,
     'the title kept the number quiet: ' + game.screen.titleChallenge);
-  // A rule with no record is set without a number being invented for it.
-  press('KeyX');
-  press('KeyX');
-  assert.equal(game.stats().challenge, 'swift');
-  assert.equal(game.screen.titleChallenge, 'CHALLENGE  SWIFT CROWD  \u00b7  ' + saysOf('swift'));
+  // A rule with no record is set without a number being invented for it. Walk on to the first rule whose
+  // sentence is arithmetic on its own row rather than prose beside it, however many presses that is.
+  pressUntil(built.id);
+  assert.equal(game.stats().challenge, built.id,
+    'the key never landed on the first rule with a built sentence');
+  assert.equal(game.screen.titleChallenge, 'CHALLENGE  ' + built.name + '  \u00b7  ' + saysOf(built.id));
   // The last rule on the ladder is said the same way, its own sentence built out of its own number.
-  const last = CHALLENGES[CHALLENGES.length - 1];
-  press('KeyX');
+  pressUntil(last.id);
   assert.equal(game.stats().challenge, last.id);
   assert.equal(game.screen.titleChallenge,
     'CHALLENGE  ' + last.name + '  \u00b7  ' + saysOf(last.id),

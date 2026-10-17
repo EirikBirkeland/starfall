@@ -1,14 +1,15 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Four ship: the ship stands on one hull; the dash is gone; the crowd and its
-// shots travel faster than they shipped; the arena holds more of the crowd than it ships. Every one of
-// them is a row in `BALANCE.challenges` and a question asked where the number it changes is already
-// read - the hull is written where the ship's
-// hull is written, the dash is refused where the dash is granted, the crowd's speed is multiplied
-// where a body's speed is worked out. Nothing is cached into a ship and nothing is kept in two
-// places, which is what makes an ordinary run untouched by any of this: with no challenge flying,
-// every lever below answers its neutral number and a run traces byte for byte what it always traced.
+// once it is flying. Five ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
+// moment after it; the crowd and its shots travel faster than they shipped; the arena holds more of the
+// crowd than it ships. Every one of them is a row in `BALANCE.challenges` and a question asked where the
+// number it changes is already read - the hull is written where the ship's hull is written, the dash is
+// refused where the dash is granted, the crowd's speed is multiplied where a body's speed is worked out,
+// and the gap after a hit is written where that gap is set. Nothing is cached into a ship and nothing is
+// kept in two places, which is what makes an ordinary run untouched by any of this: with no challenge
+// flying, every lever below answers its neutral number and a run traces byte for byte what it always
+// traced.
 //
 // Three decisions are worth having written down:
 //
@@ -44,12 +45,12 @@ const PERCENT = 100;
 /**
  * The challenges, in the order the key cycles through them.
  *
- * The order is the shape of the rule and not a ladder of severity: the two rules about your own ship
- * come first - what your hull is, then whether you can jump - and the two about the crowd's size and
- * speed come last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
- * `tools/challenge-cost.js` has measured all of them and the dearest (ONE HULL, at 0.39x a careless
- * run's middle score) is the first press. A hand that presses the key twice by accident lands on NO
- * DASH, which the ladder cannot price at all.
+ * The order is the shape of the rule and not a ladder of severity: the three rules about your own ship
+ * come first - what your hull is, then whether you can jump, then what a hit leaves you - and the two
+ * about the crowd's size and speed come last. It is worth saying plainly that it is *not* sorted by what
+ * each rule costs, because `tools/challenge-cost.js` has measured all of them and the dearest (ONE HULL,
+ * at 0.48x a careless run's middle score as of 2026-10-17) is the first press. A hand that presses the
+ * key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
@@ -59,6 +60,7 @@ const PERCENT = 100;
 export const CHALLENGES = [
   { id: 'brittle', name: 'ONE HULL', says: 'one touch and the run is over' },
   { id: 'grounded', name: 'NO DASH', says: 'the jump is gone, and so are the cards that need it' },
+  { id: 'merciless', name: 'SHORT GRACE', says: 'a touch leaves barely a moment to get clear' },
   { id: 'swift', name: 'SWIFT CROWD', says: '' },
   { id: 'thick', name: 'THICK CROWD', says: '' },
 ];
@@ -169,6 +171,29 @@ export function crowdSpeedOf(world) {
  */
 export function crowdHoldOf(world) {
   return isFlying(world, 'thick') ? challengeRow('thick').holdMul : 1;
+}
+
+/**
+ * How long a ship is safe after a hit, in seconds: a second and a half plain, and barely a moment
+ * under SHORT GRACE.
+ *
+ * This one number is what lets a mistake survive itself. A ship that walked into a body gets the crowd
+ * shoved off it and this long to walk out; shorten it and the same mistake costs two hull and a slow
+ * one costs three. That is the rule - but note that the gap is *shortened* and not taken away, and that
+ * is not squeamishness. Bodies are shoved off a ship that was hurt; a blade, a spoke and a fan of shot
+ * are not, and a ship standing in one of those is asked again every step, with only this gap saying how
+ * often "again" is. Take the gap whole and a boss's blade becomes a hull a frame, which is not a harder
+ * rule but a rule nobody can read - which is what `test/challenge-merciless.test.mjs` spends the row on 0
+ * to show, no batch of runs being able to be asked to stand in a blade on purpose.
+ *
+ * What the rule does *not* touch is every other promise about being hurt. The opening second of a run
+ * and the grace a resumed run is handed are game/run.js's business, and a dash is still invulnerable
+ * whatever it lands in (`isInvulnerable`, game/player.js). The gap after a hit is all this reaches.
+ */
+export function hitGraceOf(world) {
+  return isFlying(world, 'merciless')
+    ? challengeRow('merciless').grace
+    : BALANCE.player.hitInvulnerability;
 }
 
 /**
