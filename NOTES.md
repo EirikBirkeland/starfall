@@ -17156,3 +17156,97 @@ ruler-only session too.
    ~20), whether the **first two minutes** are too harsh for a new player (needs a human), the
    `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree, and
    PLAN's browser half of the performance pass - still the only unchecked box.
+
+## Session 155 - `--live` had never been believed: the game's own fight weighs 316 B a step, and a painted frame is not a window
+
+### The item on the shelf
+Session 154's next-item 2, verbatim: "**`--live` has never been believed.** Nothing so far compares what
+a *played* run throws away a step against the planted walls' 404 B - the row exists, but it is measured
+cold and prints a ceiling. That is the number the whole cliff discussion is standing on."
+
+### What the row used to say, and what it was worth
+It played 30 s inside one byte window and printed whatever was left when the collector came: **48 KB a
+step**, with a caption apologising for it ("played cold ... a ceiling, not a cost like the warmed rows
+above"). The apology was checked before anything was built: the *empty* arena, painted and cold and with
+the crowd taken out altogether, reads **34 KB a step** (`.scratch/live-empty.mjs`). So thirty of those
+forty-eight kilobytes were this box's own headless browser before the game spent a byte - the stub logs
+every draw call as two objects, and the schedule scene is 3,407 operations a frame. A row whose signal
+is a quarter noise is not a row.
+
+### What shipped - ruler only, nothing in the game
+1. **`tools/perf-probe.js`**: the peak watch is now `watchRealRun`, which plays one run and returns both
+   readings of it - `peak`, the busiest frame of every list, which is a **wall** and is what `--peak`
+   prints, and `mean` over the frames the ship was actually being flown, which is a **load**. One run
+   feeds both, so the two rulers cannot be quoting different afternoons (there is a test that the mean
+   never escapes its peak). It also returns `stopped`: the first state other than PLAY the window met,
+   because only counting flown frames means a window that outlives its run is a *shorter sample than was
+   asked for*, and `--peak` now names the guns that were not flown right through.
+2. **`tools/alloc-probe.js --live`**: two children - one watches a run and comes back with what it held,
+   a second weighs that mean as a normal load, warmed and alone in its process like every other row - and
+   `--json` prints a `LIVE` line beside `ROWS`.
+3. **`seenLoad`**: the mean planted **standing** and **ungated**, both by measurement (next section).
+4. **`frameTrial`**: the refusal itself, measured at three window lengths, so that the row's excuse is a
+   number and a sentence and not a shrug. `test/alloc-probe.test.mjs` fails if any length survives.
+
+### The number the cliff discussion was standing on
+Sixty seconds flown from the last mark on the boss schedule: mean **72.8 bodies, 0.9 of the ship's shots,
+52 sparks** (plus 0.6 of the arena's shots and 1.2 clumps beside them). Planted as 73/1/52 and weighed:
+**316 B a step, 3 B a body** - against the planted schedule wall's 404 B, and inside `STEP_BYTES` (896)
+and `BODY_BYTES` (5). **The game's own late fight is three quarters of the wall the ruler gates**, which
+is the comparison the byte pass has been asserting without ever making. The same watch's F3 plate read
+**0.066 ms a step on average and 3.06 ms at its worst**, which is session 150's scavenge: the cliff is
+where session 154 left it and the crowd's bytes are not it. A thing worth knowing came out of wiring it:
+the plate's *step* half is readable headless, because `main.js` times its own step loop and hands the
+frame to `render/debug.js` whether F3 is up or not - so the tail can be studied here, and only the paint
+half waits for the owner's flight.
+
+### Three decisions, each measured rather than asserted
+1. **Standing, not dying.** The same counts weighed mortal read about four times the step - 1.4 KB against
+   290 B at a 20 s window's mean - and the reason is this tool's own trigger finger: in one 30 s window
+   **1,103 of its 1,800 steps were under a planted shot**, so a mortal reading measures the planting, and
+   the holding is weighed against an arena where nothing is dying. A death is a *rate* and no mean of
+   bodies-on-the-glass carries one. Dying is the `fight` wall's business and is gated there.
+2. **A price list, not a wall.** The row moves with how well the bot flies: a run that clears the crowd
+   holds fewer bodies and the same bytes divide by a smaller number. Gating on a sampled mean would gate
+   the bot. Over-budget price rows are named in words by `overBudgetRows`, which is where this row shows
+   up if it ever costs more than 5 B a body.
+3. **The run cannot be weighed where it runs, and that is now measured**: 0 of 15 windows of painted
+   frames came out clean at any length tried (40, 120, 360 frames), every one refused by the collector,
+   and the floors they do report - what survives after the collector took its share - are 7.7-29.5 KB a
+   step, twenty to a hundred times what the same load costs the game to step. Shrinking the window is the
+   obvious objection and it is swept, not waved at.
+
+### Surprises and lessons
+1. **The window length is part of the number.** Mean bodies go 27.8 over 10 s, 39.5 over 15, 62.2 over 30,
+   72.8 over 60 - a run starts its window with whatever the launch left - and per-body follows it down
+   from 7 B to 3 B. So the test flies 30 s and its comment says why; a 15 s test would have asserted a
+   per-body figure of exactly 5 B and been one bad afternoon from failing.
+2. **My own scratch sweep was the wrong experiment** (`.scratch/live-sweep.mjs`, do not quote it): it drove
+   `playOneRun`, which launches a fresh run each call, so a 10-frame window measured a launch rather than
+   ten frames and "shorter windows are dearer" was an artifact. The tool's trial holds one scene and paints
+   it, which is the fair version - and a *clean* short window would not have proved anything anyway, since
+   every byte in it is the stub's regardless.
+3. **`--scene schedule --live` is the cheap call** (3.5 s: one gated scene and one watch) where bare
+   `--live` is the slow one (four scenes plus a 60 s watch). That is what makes the new test affordable to
+   keep in the suite.
+
+Suite 2,535 → 2,539. `node tools/simulate.js` unchanged (seed 1 aware wisp/pulse, 10m, 3,794 kills);
+`perf-probe --quiet` PASS at 5 gated scenes, `alloc-probe --quiet` PASS at 4 gated loads. **No release**:
+nothing a player sees or feels changed, which is the call sessions 150, 152, 153 and 154 made for
+ruler-only work.
+
+### Next
+1. **What is left of the performance question is one number a browser has to give**: what a scavenge *costs*
+   there. If a real plate's worst step is ~1.5 ms against a ~400 B step, then the planted walls explain
+   the mean and the tail is the collector - and the only lever big enough is session 154's next-item 1, a
+   structure-of-arrays crowd on typed arrays, which is a milestone and not a session and should not be
+   started on a compiler's mood.
+2. `--live` watches one seed and the default primary. `watchRealRun` already takes `weapon`, so
+   `--live --weapon swarm` is a flag and a line; a mean crowd per primary would say whether a swarm run
+   stands in more bodies than a lance run. Worth doing if anyone wants that comparison, not before.
+3. The watch could sample per *level* as easily as per window, which is the shape the schedule-growth
+   question is actually asked in - and the plate is already read there.
+4. Still open from earlier sessions: the ablate catalogue's `--scene brood` pass; the **shot-speed line**
+   (four seeds cannot tell 0.98 from 1.02; needs ~20); whether the **first two minutes** are too harsh
+   (needs a human); the `tierBonus.telegraph` sentence in PLAN; and PLAN's browser half of the performance
+   pass - still the only unchecked box, though the plate's step half is no longer part of what it waits on.
