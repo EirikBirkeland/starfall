@@ -545,8 +545,9 @@ function dumpTable(rows, plain) {
       + pair.losses + ' of the ' + pair.compared + ' seeds that could tell were won by plain, '
       + pair.wins + ' by the rule, ' + pair.ties + ' tied (p = '
       + (pair.p < 0.001 ? '<0.001' : pair.p.toFixed(3)) + '); the middle of the per-seed ratios is '
-      + (pair.medianRatio === null ? 'nothing to divide' : dec(pair.medianRatio, 2) + 'x')
-      + ', which is how badly one wild seed can speak.');
+      + (pair.medianRatio === null ? 'nothing to divide'
+        : dec(pair.medianRatio, 2) + 'x, which is printed to be looked at and not believed - one seed can '
+        + 'speak five times for itself in this game, as tools/headless/pairs.js explains') + '.');
   }
 }
 
