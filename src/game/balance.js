@@ -357,11 +357,10 @@ export const BALANCE = {
   // what a picked card is worth depends on the picker, and a rule about picking can only be priced by a
   // hand that is good at it.
   //
-  // How much 0.41x is worth trusting: on the same aware hand at 8 seeds instead of 24 it reads 0.82x, with
-  // the deliberate taste 1.39x instead of 1.57x. The middle of eight aware runs sits among the survivors and
-  // the middle of twenty-four does not, so the size of the price is soft and its direction is not - every
-  // reading the ladder is willing to judge has this rule costing a run between a fifth and three fifths of
-  // its score, and every reading it refuses to judge has it costing nothing.
+  // How much to trust 0.41x: the same aware hand at 8 seeds instead of 24 reads 0.82x, with the deliberate
+  // taste 1.39x instead of 1.57x - the middle of a batch that hardly ever dies moves around a lot. Soft in
+  // size, firm in direction: every reading this ladder will judge has the rule costing between a fifth and
+  // three fifths of a run, and the only readings that say it is free are the ones it refuses to judge.
   challenges: {
     brittle:   { hull: 1 },
     grounded:  { dash: false },

@@ -17359,3 +17359,135 @@ on. A batch of runs cannot be asked to stand in a blade on purpose. A scripted w
    `tierBonus.telegraph` sentence in PLAN, which names a number that does not exist in this tree; whether
    the first two minutes are too harsh (needs a human); and PLAN's browser half of the performance pass,
    still the only unchecked box, and still the owner's to take.
+
+## Session 157 - ONE CARD, the sixth rule: what a choice is worth depends on the picker, so the ladder now measures its own bot's card taste before believing a verdict. Released **1.9.13**
+
+### What was on the shelf
+Session 156's next-item 2, "a sixth rule wants the deck", written up in PLAN as an *After 1.0* item by a
+session that stopped halfway through building it. The tree arrived with the work in it and uncommitted: the
+rule (`thin` / **ONE CARD**, `BALANCE.challenges.thin = { offer: 1 }`, one lever `offerCountOf` asked where
+the deal counts its places), the fresh-line promise standing down on a one-place rack, a new 6-test file, and
+the ladder grown a second table that flies the same seeds with the level-up answered *on purpose*. It was
+green - 2554 tests after I fixed the one key-cycle test that still counted five presses - and it had never
+been measured, which is the half the PLAN item said had to happen before it shipped. One test file also
+needed the cycle's hard-coded order extended, which session 156's note had warned about and I still had to
+find by running it.
+
+The PLAN item's own worry ("the careless hand picks at random, so it never used the choice this rule takes
+away") turned out to be the smaller of two problems with pricing a rule about a choice.
+
+### What landed
+**ONE CARD**, third rule about the run rather than the crowd and the only one about PLAN 3.5's deck: the
+rack deals one card when a level is paid and the run takes it. Everything else about a level-up is the same
+deal - same weights, same synergy walking on to the table when it is earned, same two asks - which is what
+`offerCountOf` being asked in three places instead of a second deal buys. **The fresh-line promise stands
+down** where the rack has no room for a choice (`ROOM_FOR_A_CHOICE` in game/upgrades.js): on one place,
+keeping the promise that "one of these is a line you have not taken" would spend the only card on a fresh
+line every single time, so the rule would have been two rules - a thin rack *and* a run that can never
+commit. `test/challenge-thin.test.mjs`'s third test is the one that catches that: forty levels taken under
+the rule counting the times a line came back, which is exactly zero if the stand-down is ever removed. The
+rule's sentence counts its own rack ("the rack deals 1 card, and you take it"), so `--cards 2` cannot print
+a card that promises a place it no longer has.
+
+**The level-up line now names only the keys that answer** (`pickKeyWords` in render/cards.js). It said
+`1 2 3 OR CLICK` whatever was face up, which was a small lie and - found while writing the test - a lie the
+game could tell *before any rule was involved*, because a deck down to its last lines deals fewer than three
+cards. `test/level-up.test.mjs` reads the painted words now, and asserts that key 2 is refused as well as
+unnamed when there is one card.
+
+**The ladder grew a gate, not an exemption** (`tools/challenge-cost.js`). A rule about the deal is stood
+aside on the careless table (a die cannot miss a choice), priced on the deliberate one - *and the deliberate
+hand's taste for cards is now measured before anything is priced off it*: `dealTasteOf` divides the
+deliberate plain's middle score by the careless plain's, same seeds and same policy, and if that is not
+above 1 the ladder refuses to judge the rule and prints both numbers. The tool also prints the taste on the
+glass next to the second table, so a number quoted from it comes with the hand that made it.
+
+### Numbers
+All from `tools/challenge-cost.js`, all on 2026-10-17.
+
+- **The shipped price, on the only hand that can pay it**: `--bot aware --challenges none,thin --cards 1`,
+  24 seeds x 8m. The deliberate plain ran 53,846 against the careless plain's 34,179 - a taste for cards
+  worth **1.57x** - and taking the choice away cost a run **0.41x** of that (22,060), while the careless
+  hand, which never had a choice, gave up 0.65x. At 8 aware seeds the same command reads 0.82x with the
+  taste 1.39x, so the size of the price is soft and the direction is not: every reading the ladder will
+  judge puts this rule between a fifth and three fifths of a run.
+- **Why not two cards** (the sweep the item asked for, `--cards 2`, 16 seeds x 5m): **1.23x** careless and
+  **1.15x** deliberate - a gift, refused. A rack of two keeps the fresh-line promise and still leaves
+  something to choose between.
+- **The reading that had to be refused**: on the default `human` hand the *deliberate* plain scores less
+  than the careless one - 4,843 against 5,333 on 32 seeds at 5m, 5,205 against 5,715 at 8m. A taste worth
+  0.91x of a die. On that hand the rule read 0.93x (5m) and then **1.10x** (8m), i.e. a gift, and the
+  honest answer was that the instrument was blind and not that the rule was soft.
+- **The control that said the window was fine and the hand was not**: same 8-minute window, 24 seeds, the
+  two rules that were never in question - SWIFT CROWD **0.48x**, THICK CROWD **0.51x**. So the long window
+  is a valid yardstick (and, for the record, a *dearer* one: THICK CROWD reads 0.93x at 5m and 0.51x at 8m,
+  which is another reason the shipped 5m numbers want dating).
+- **`--strict` over all seven rows on the default hand: PASS**, with plain 5,715 / ONE HULL 0.48x / NO DASH
+  reported at 1.69x / SHORT GRACE 0.77x / SWIFT 0.56x / THICK 0.93x, and ONE CARD said out loud as not
+  priced by that ladder. Suite 2546 -> **2560**; `node tools/simulate.js` byte for byte the run it was
+  (seed 1 aware wisp/pulse, 10m, 3,794 kills).
+
+### Surprises and lessons
+1. **"A deliberate hand" is a claim and not a setting.** The ladder's second table was written on the
+   assumption that `--picks wise` is a hand that uses a choice. On the policy the ladder ships with, it is
+   measurably worse than the die it was written to replace. `wiseCard`'s appetite was tuned on the *aware*
+   hand at 900 s (NOTES sessions 31, 32 and 38) and nobody has re-asked it on `human` since; the ladder now
+   asks, every time, before it charges anything for a choice. When a rule's cost is a decision, the
+   instrument has to be shown to be good at deciding.
+2. **When two windows disagree, price the window before believing either.** The 8m reading of ONE CARD (a
+   gift!) was enough to make me ready to decline the rule. One cheap control run - the two rules nobody was
+   arguing about, through the same long window - said the window was fine and sent me looking for the real
+   problem, which was the hand. A ruler that flips should be tested on something known before it is
+   believed or thrown out.
+3. **The death column is not comparable when the plain batch hardly dies.** The hand with the taste to price
+   a choice is the hand that survives the window: the aware deliberate plain lost 1 run in 24 while the thin
+   batch lost 5, so "middle of deaths" there was one sample against five and it made the rule look like it
+   bought its way in. For a deal rule that column is now printed with its numbers and judged by nothing
+   (`DEATHS.report`); the score column - the one the rule really does pay - is still judged, and the five
+   ordinary rules are still held to both columns with no exemption at all (there is a test for exactly that).
+4. **A partially-applied multi-edit applies nothing.** One edit of a two-edit call failed to match and the
+   other half silently did not land either, and I read the error as "the first one went in". Twenty minutes
+   of simming later the tool threw `Cannot read properties of undefined` in its verdict. Re-read the file
+   after any edit call that complains, even when it names only the other half.
+5. **An interface claim wants a painted test.** `pickKeyWords` is trivial; the reason it is not a bug is that
+   the renderer counts the *table* and not the rule, and only the harness's word log can see that. Reading
+   the ask line took five lines and covers the rule-free case (a nearly-finished deck) that the rule test
+   could never reach.
+6. `test/alloc-probe.test.mjs`'s byte ratchet is the suite's one test that **times out instead of failing**
+   when the box is busy - 900 s, an empty assertion message and `null !== 0`, which looks exactly like a
+   regression. Alone it takes 82 s. Do not run the suite next to a ladder.
+
+### Left in the tree
+`src/game/challenges.js` (the row, `offerCountOf`, the third built sentence), `src/game/upgrades.js`
+(`ROOM_FOR_A_CHOICE` and the promise standing down, three places asking the lever, four stale sentences about
+"the three cards"), `src/game/balance.js` (`thin: { offer: 1 }` and the paragraph that says where its number
+came from and how far to trust it), `src/render/cards.js` (`pickKeyWords`), `tools/challenge-cost.js` (the
+second table, `--cards`, `dealTasteOf`, `DEATHS`, the taste printed on the glass), `test/challenge-thin.test.mjs`
+(new, 6), `test/challenges.test.mjs` (+2 and the six-press cycle), `test/challenge-cost.test.mjs` (5 new
+deal tests, one old one deleted), `test/level-up.test.mjs` (+1), PLAN (the item ticked, with the finding),
+CHANGELOG and the release.
+
+### Next
+1. **Is `wiseCard` stale on the human hand, or was it only ever tuned for the aware one?** That is the open
+   question this session found and did not answer, and it is bigger than ONE CARD: every challenge number in
+   `BALANCE.challenges` was measured on the `human` policy (with random picks, so the appetite is not in
+   those readings at all), but `tools/simulate.js`, `difficulty-arc.js` and `boss-pressure.js` all fly the
+   *aware* hand, where the appetite was measured and where it still pays 1.57x. Either re-sweep
+   `APPETITE`/`DEFERRED` for the human policy, or write in bot.js that the table is aware-shaped and make
+   anything that cares about card taste fly aware. Cheapest first step: one batch, `--picks wise` against
+   `--picks random` on both policies, and see whether the appetite's value is a policy or a drift.
+2. **The window is part of every challenge number and is written nowhere.** THICK CROWD reads 0.93x at 5m
+   and 0.51x at 8m; the rows quote the 5m figure and three of the five were measured weeks ago. Either date
+   and window each row (session 156 started dating them) or re-quote all six at both windows in one sitting -
+   the ladder is warm and it is an afternoon.
+3. **Play it.** The ladder can say ONE CARD costs an aware hand a fifth to three fifths of a run. It cannot
+   say whether a single card per level reads as *unfair*, whether the fresh-line stand-down makes a long run
+   under the rule feel like it is being handed the same three lines over and over (a test proves lines can
+   stack; nobody has looked), or whether the codex's sixth rack row fits. All owner-shaped questions now that
+   it is released.
+4. Still open from earlier sessions: the ablate catalogue's `--scene brood` pass; the **shot-speed line**
+   (four seeds cannot tell 0.98 from 1.02 and it needs ~20 - though session 111's `test/shot-speed.test.mjs`
+   already explains why it reads 1.00x, so this may be a line to delete rather than to measure); the
+   `tierBonus.telegraph` sentence in PLAN, which names a number that does not exist in this tree; whether the
+   first two minutes are too harsh (needs a human); `--live --weapon swarm` and a per-level watch; and
+   PLAN's browser half of the performance pass - still the only unchecked box, and still the owner's to take.
