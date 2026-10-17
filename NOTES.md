@@ -18252,3 +18252,112 @@ and not against a remembered number: 73,339 / level 57 / 4,894 shards, and every
 **1.9.15.** The game traces byte for byte what it traced at 1.9.14, but a long fight is a materially
 different machine story, and the owner's menu should have the version that does not throw away 3.5 MB a
 second after the third boss.
+
+## Session 164 - the bot learned to walk round a crowd for its loot, and the look turned out to be worth nothing
+
+### What was on the shelf
+Tree clean at `4f794c9` (1.9.15), suite green at 2620. Session 163's Next carried the item in its last
+paragraph: **a second loot habit - "walk to the pile the crowd is not sitting on, which is the
+difference between a person choosing a safe pile and `greedy` choosing the nearest one"**. The
+instrument had gained a hand that goes shopping (session 161) but exactly one way of shopping, and the
+ladder that chose *how far it walks* had never been asked *which pile it picks*.
+
+### What landed
+1. **`wary`, the second loot habit** (`tools/headless/loot.js`): the same walk with a look at who is
+   standing on the pile. `greedy`'s `worth / distance`, divided by `1 + (bodies within crowd px of the
+   shard)`. A discount and not a veto, in the pay's own units, so a pile twice as valuable buys its way
+   past twice as many bodies - and the game's numbers make that checkable, because an elite shard is
+   worth 6 and so buys past two bodies and not past six. Everything else is shared:
+   `shardToWalkFor(game, valueOf)` now takes the value as a callback, the two habits differ only in
+   that callback, and `walkTo` is the same three lines - so the reach, the rot rule, and the "never
+   overrules a dodge, never touches the pointer" rules cannot drift apart between them.
+2. **A third dial, `LOOT.crowd`**, swept by `tools/loot-habit.js --crowd N` the way `reach` is.
+3. **The ladder asks a second question.** It used to be able to ask only "is walking worth anything",
+   against the bot the net feeds; `--strict` failed if the habit banked nothing or banked loot at a
+   loss. Now `off,greedy,wary` all fly by default and the shipped habit is ranked **against the best
+   other walker**, head to head and seed against seed. A rival has to win twice - the middles by
+   `TIE_RATIO` *and* the sign test - to make it a FAIL; a lean is printed and not acted on. That gate
+   is the only reason the null below is a result rather than a shrug.
+4. **Tests: 2620 to 2626, all green.** A crowded pile loses to an identical clear one *and `greedy`
+   visibly does not notice*; an elite pile buys past two bodies and refuses to buy past six; `--crowd
+   0` collapses `wary` onto `greedy` (the attributability control, as a test); the reach and the rot
+   rule are pinned for both habits; `loot: 'wary'` flies by name and banks loot; and two spawn tests
+   on the ladder CLI - a bad `--crowd` refused before a run is played, and a one-seed flight that
+   prints all three rows, asks the head-to-head, and refuses to rank anything on fewer than 8 seeds.
+
+### Numbers, and why the finding is a null
+Twelve seeds of five minutes on the careless hand, every row against the same `greedy` middle of
+**29,888**:
+
+| the look's radius | wary's middle score | shards/run | died | head to head with `greedy` |
+|---|---|---|---|---|
+| 0 px (= `greedy`, byte for byte) | 29,888 | 1,670 | 4/12 | nothing to divide |
+| 80 px | 28,551 | 1,290 | 7/12 | 7 of 12 to greedy, p = 0.774 |
+| 150 px | 29,912 | 1,673 | 5/12 | 6 of 12, p = 1.000 |
+| 250 px (shipped) | 29,071 | 1,885 | 2/12 | 6 of 12, p = 1.000 |
+| 500 px | 29,229 | 1,622 | 4/12 | 7 of 12, p = 0.774 |
+
+On 32 seeds at the shipped 250 px: `greedy` 29,888 against `wary`'s 29,071 - **1.02x** the other way
+per seed, **16 of 32 each way**, p = 1.0 - with `wary` banking **1,859** shards a run to `greedy`'s
+**1,784** and dying **9 of 32** against **11**. The walk itself is worth **5.60x** a standing-still
+middle on those seeds (27 of 32 of them, p < 0.001) and dwarfs every one of those differences.
+
+So the look demonstrably works and buys nothing. A probe against both habits on the same seeds
+(`.scratch/wary-probe.mjs`) says they disagree about where to go on **23%** of the frames both answer
+(mean 23 deg apart), and that the ground `wary` walks toward really is emptier - **6.9** bodies within
+250 px of a point down the walk against `greedy`'s **8.3**. It banks more loot, dies less often, and
+scores 3% under. `steered` is the reading that explains it: **50%** of the frames against `greedy`'s
+46%, spent walking further for a pickier pile - and a ship that is walking is a ship that is not
+standing its ground and shooting, which is the lesson `tools/dash-habit.js` wrote down for the dash.
+
+**`greedy` is therefore still the shipped habit**, and `wary` is one line of `DEFAULT_LOOT_HABIT` away
+from being it if a future flight ever says otherwise. `crowd: 250` was chosen on the only column that
+can see the look at all (loot banked, deaths died), with the score column in a tie - said out loud in
+the file rather than dressed up as a sweep winner.
+
+### Verification
+`node --test` **2620 to 2626, all green** on an idle box. `node tools/loot-habit.js --strict` on the
+shipped defaults: PASS, exit 0, head to head "a lean, and nothing more". `node --check` on all four
+files touched. `git diff --stat -- src/` at commit time was **empty**, which is a stronger proof that
+no run can have moved than a re-flown reference would be: the game was not touched.
+
+### Surprises and lessons
+1. **A null needs a gate to be a null.** Had the ladder gone on asking only "habit vs standing still",
+   `wary` would have flown, passed on every column, and been *shipped* on the strength of its loot
+   column - three columns of noise from being wrong, and a default moved for a rounding error. The
+   head-to-head is what turned "wary banks more loot!" into a measured 16-16 tie.
+2. **Make a new variant degenerate onto the old one at a dial extreme, and test that it does.**
+   `--crowd 0` came back *byte for byte* the `greedy` batch - middle, shards, `steered`, deaths - which
+   is the cheapest possible proof that whatever the other rows say belongs to the look and not to the
+   arithmetic around it. It is also what lets the sweep be read as a dose-response curve at all.
+3. **The two columns nobody gates on were the only ones that moved** (shards/run, and deaths: 2 of 12
+   against 4 at 12 seeds). From the gated column alone the honest sentence is "does nothing"; with
+   those printed it is "does something, and pays for it in the score column", which is a different and
+   more useful sentence. Session 162's "print what you refuse to gate on", met from the other side.
+4. **A long-tailed batch can read the same middle at two sizes, by accident.** `greedy`'s middle was
+   **29,888** at 12 seeds *and* at 32 - one run's score standing in both middles. That made two quite
+   different flights look like the same number twice. Third session running that the pairs (11 of 12,
+   27 of 32) are the part of a ladder worth quoting and the middles the part worth glancing at.
+5. The `reach` note in `loot.js` is dated **2026-10-18** while git and the box clock say today is
+   **2026-10-17**: an earlier session dated a note from somewhere other than the clock. Left alone;
+   this session's numbers are dated from `git log`, and nobody should spend a moment on the mismatch.
+
+### Next
+1. The null says *which pile* is free. The habit-shaped question left in that corner is **patience**:
+   `steered` is about half the frames flown, and a player who starts a 600 px walk and gives up when
+   the crowd closes is not the same player as one who commits. A give-up timer is a `LOOT_HABITS` entry
+   and a row in the ladder, and unlike this one it has a plausible route to buying something, because
+   it makes the walk short instead of long.
+2. **`--loot` on `line-ab.js` and the other three ladders**, carried over since session 161. This
+   session makes it safer, not unnecessary: if the pile choice really is free then a `--loot` flight is
+   comparable between ladders, but the walk's 4-8x is not nothing, so every quote still has to name
+   which hand walked.
+3. Everything else carried over, unchanged: **decide which hand the challenge sheet speaks for**,
+   re-flying the seven ordinary quotes when the game moves, NO DASH's missing hand, the ablate
+   catalogue's `--scene brood` pass, the shot-speed line, the `tierBonus.telegraph` sentence in PLAN,
+   whether the first two minutes are too harsh, `--live --weapon swarm`, session 163's unattributed
+   ~110 B a step, and the browser half of the performance pass, which only the owner can take.
+
+### Released
+Nothing. `src/` was not touched: what changed is the instrument, and the game traces byte for byte what
+it traced at **1.9.15**.
