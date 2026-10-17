@@ -796,7 +796,10 @@ export function settled(scene, seconds, reps, kind, flocks) {
  * Only frames the run was being flown are counted. A frame spent reading the level-up card has the
  * crowd standing still, and a mean that averaged those in would be lighter than the fight it came
  * from; the frames before a launch and after an ending are the same mistake. The peak does not care
- * which frame it happened to fall on, but there is nothing to peak on in a paused one either.
+ * which frame it happened to fall on, but there is nothing to peak on in a paused one either. So
+ * `seconds` is the flown part of the window and can come back short of what was asked for, and
+ * `stopped` names the first state other than PLAY the window met (null if it never met one): a short
+ * sample is a shorter sample than was wanted, and a caller says so instead of dividing quietly.
  *
  * The F3 plate's own numbers come back with them (`render/debug.js`): main.js times its step loop and
  * hands the frame over every time round, so a headless run has real step milliseconds in it already.
@@ -816,6 +819,7 @@ export async function watchRealRun(game, options) {
   let stepWorst = 0;
   let frames = 0;
   let flown = 0;
+  let stopped = null;
   const last = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1].at;
   for (const seed of seeds) {
     await game.resetToTitle(seed);
@@ -828,7 +832,12 @@ export async function watchRealRun(game, options) {
       weapon,
       onFrame: (g) => {
         const w = g.world;
-        if (w.state !== STATE.PLAY) return;
+        if (w.state !== STATE.PLAY) {
+          // The window outlived the run: say in what, because a short sample is not the sample that
+          // was asked for and every mean below is divided by what it actually flew.
+          if (stopped === null) stopped = Object.keys(STATE).find((name) => STATE[name] === w.state);
+          return;
+        }
         frames++;
         flown += FRAME_MS / 1000;
         const now = {
@@ -847,7 +856,7 @@ export async function watchRealRun(game, options) {
   }
   for (const key of LISTS) mean[key] = frames > 0 ? mean[key] / frames : 0;
   return {
-    weapon, frames, seconds: flown, at: last, peak, mean,
+    weapon, frames, seconds: flown, at: last, stopped, peak, mean,
     stepAvg: frames > 0 ? stepSum / frames : 0,
     stepWorst,
   };
@@ -859,7 +868,7 @@ export async function watchRealRun(game, options) {
  */
 export async function peakOfRealRuns(game, seeds, minutes, weapon) {
   const seen = await watchRealRun(game, { seeds, seconds: minutes * 60, weapon });
-  return Object.assign({ weapon: weapon }, seen.peak, {
+  return Object.assign({ weapon: weapon, stopped: seen.stopped }, seen.peak, {
     stepAvg: seen.stepAvg, stepWorst: seen.stepWorst, seconds: seen.seconds,
   });
 }
@@ -871,10 +880,20 @@ function worstPeak(peaks, field) {
   return peaks.reduce((m, p) => Math.max(m, p[field]), 0);
 }
 
+/** Which runs were not flown right through their window, as `gun: STATE`; empty when all were. */
+export function stoppedNote(peaks) {
+  const early = peaks.filter((p) => p.stopped !== null);
+  if (early.length === 0) return '';
+  return ' - ' + int(early.length) + ' not flown right through ('
+    + early.map((p) => p.weapon + ': ' + p.stopped).join(', ')
+    + '), so a shorter sample than the window was';
+}
+
 function peakLines(peaks, seeds) {
   return table(
     'WHAT REAL RUNS WERE SEEN HOLDING',
-    peaks.length + ' primaries x ' + seeds.length + ' seeds, late in the schedule, live counts at their busiest',
+    peaks.length + ' primaries x ' + seeds.length
+      + ' seeds, late in the schedule, live counts at their busiest' + stoppedNote(peaks),
     'llrrrrrr',
     ['gun', 'bodies', 'shots', 'enemy shots', 'sparks', 'shards', 'step ms avg', 'step ms worst'],
     peaks.map((p) => [

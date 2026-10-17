@@ -33,7 +33,7 @@ import {
   SCENES, PLAN_SECTION_2, SIM_STEP_MS, PAINT_OPS, PAINT_WORST_OPS, PAGE_WRITES, STEPS_PER_FRAME,
   DEFAULT_SECONDS, DEFAULT_REPS, TELL_OPS, BROOD, FLOCK_CYCLE, settled, customScene, openScene, plantScene,
   holdScene, measureStep, measurePaint, measureBeats, beatsInsideBudget, sceneIsInsideBudgets,
-  verdictOf, peakOfRealRuns, watchRealRun, windowNote,
+  verdictOf, peakOfRealRuns, watchRealRun, stoppedNote, windowNote,
 } from '../tools/perf-probe.js';
 import { isClump, BEATS } from '../src/game/flock.js';
 
@@ -587,6 +587,17 @@ test('what a run held comes back as a peak and as a mean, and the mean is inside
   assert.ok(seen.stepAvg > 0 && seen.stepAvg < SIM_STEP_MS,
     'the plate read ' + seen.stepAvg.toFixed(3) + ' ms a step, mean');
   assert.ok(seen.stepWorst >= seen.stepAvg, 'the worst frame is not cheaper than the mean');
+  // A short sample is a shorter sample than was asked for, and the watch is the only place that knows.
+  assert.equal(seen.stopped, null, 'the window was flown right through, so nothing to report: '
+    + seen.stopped);
+});
+
+test('a run that was not flown right through its window says so in the peak table', () => {
+  assert.equal(stoppedNote([{ weapon: 'pulse', stopped: null }]), '',
+    'a window flown right through needs no note');
+  assert.match(stoppedNote([{ weapon: 'pulse', stopped: 'OVER' }, { weapon: 'arc', stopped: null }]),
+    /1 not flown right through \(pulse: OVER\)/,
+    'the state has to be named, because a mean over a wreck is not the fight');
 });
 
 // --- what a real run was seen holding ----------------------------------------

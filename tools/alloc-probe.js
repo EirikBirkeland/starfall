@@ -878,7 +878,9 @@ async function main() {
         + dec(seen.mean.shots, 1) + ' of its shots and ' + dec(seen.mean.sparks, 0)
         + ' sparks on average - ' + dec(seen.mean.enemyShots, 1) + ' of the arena\'s shots and '
         + dec(seen.mean.packs, 1) + ' clumps of the swarm beside them, over '
-        + dec(seen.seconds, 0) + ' s flown from ' + dec(seen.at, 0) + ' s in');
+        + dec(seen.seconds, 0) + ' s flown from ' + dec(seen.at, 0) + ' s in'
+        + (seen.stopped === null ? '' : ' (the run came up in ' + seen.stopped + ' partway through, so '
+          + 'this is a shorter sample than was asked for)'));
       console.log('  that mean, planted as a load: ' + int(live.load.bodies) + ' bodies, '
         + int(live.load.shots) + ' shots, ' + int(live.load.sparks)
         + ' sparks - the row above, weighed like every other row instead of being watched while it'
