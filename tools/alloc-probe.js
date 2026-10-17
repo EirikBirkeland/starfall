@@ -13,7 +13,8 @@
 //                                                              sparks
 //   node tools/alloc-probe.js --bodies 300 --sparks 900        a load of your own (measured, gated
 //                                                              against nothing)
-//   node tools/alloc-probe.js --live                           what a played run throws away
+//   node tools/alloc-probe.js --live                           weigh what a real run was seen holding
+//   node tools/alloc-probe.js --seconds 30                     how long that run is flown (60 s)
 //   node tools/alloc-probe.js --steps 300 --windows 12         a longer window, more of them
 //   node tools/alloc-probe.js --quiet                          the verdict and nothing else
 //
@@ -87,13 +88,12 @@ import { spawnSync } from 'node:child_process';
 import { PerformanceObserver, performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { BALANCE } from '../src/game/balance.js';
-import { STATE } from '../src/game/state.js';
 import { stepWorld } from '../src/game/world.js';
 import { drainCues } from '../src/game/cues.js';
 import { bootGame } from './headless/harness.js';
-import { playOneRun, FRAME_MS } from './headless/bot.js';
+import { FRAME_MS } from './headless/bot.js';
 import {
-  SCENES, settled, openScene, plantScene, holdScene, customScene,
+  SCENES, settled, openScene, plantScene, holdScene, customScene, watchRealRun,
 } from './perf-probe.js';
 import { table, int, dec } from './headless/tables.js';
 
@@ -495,49 +495,99 @@ export async function measureLoad(game, scene, opts, watch) {
 }
 
 /**
- * What a played run throws away: the crowd the game chose, the gun it chose, the waves as they
- * arrive. Here the window is one long stretch of frames and the steps are the game's own count, so a
- * frame that caught up after a stall is paid for honestly, and the collector is counted over the
- * stretch rather than pretended absent, so the number is what a young generation of this size costs a
- * player rather than what a single clean window would.
+ * What a played run was seen holding, in the shape every other load in this file is planted from.
  *
- * It is the one number in this file still played *cold*, and the row says so when it prints: a stretch is
- * one synchronous run of frames with no turn of the event loop in it, and so is the single 30-second run
- * played beforehand to set the scene, which means the row carries its own warm-up inside itself and reads
- * dearer than every warmed load above it. `warmWork` cannot be used here the way it is used on a planted
- * scene, because there is no window of repeatable work to measure - the work is a run, and a run played
- * to warm up is a run that had already ended by the time the window opened. Doing it properly means
- * playing two or three more of those 30-second runs with a turn of the event loop between them (~10 s of
- * the box each) before the measured stretch, which is a decision for whoever next needs this row to be a
- * cost and not a ceiling.
+ * This is what `--live` weighs, and it replaced a row that weighed the run itself - which was not a
+ * cost. A byte window is only a window if the collector stayed out of it, and a played run is driven a
+ * whole *painted frame* at a time (`game.step`), which fills this box's young generation in about a
+ * hundred frames: every honest window was refused, and what printed instead was a floor that the row
+ * apologised for - and most of those bytes were the headless browser's own bookkeeping (a draw call
+ * logged is two objects built) rather than anything the game spends. `frameTrial` below is that
+ * measurement, kept as a ruler so the decision can be re-asked instead of remembered.
+ *
+ * So the run is *watched* and what it held is planted: the mean crowd, shots and sparks over the
+ * frames the ship was actually being flown, at the dearest mark on the boss schedule. That puts the
+ * game's own fight in the same currency as the planted walls - the world's step, warmed, holding
+ * taken out - which is the whole reason the row exists.
+ *
+ * It is planted **immortal**, like three of the four walls, and that is a decision rather than an
+ * oversight. A mean of counts is a standing load: a death is a *rate*, and no mean of
+ * bodies-on-the-glass carries one. Measured mortal, these same 49 bodies cost four times the step -
+ * 1.4 KB against 290 B - but most of that is this tool re-planting every body its own planted shot
+ * ends, and the holding is only weighed against an arena where nothing is dying. What a crowd that is
+ * dying costs is the `fight` wall's job, and it is gated there.
+ *
+ * And it is a **price list, not a wall** (`gated: false`, like a crowd of one kind): the row moves with
+ * how well the bot flies - a run that clears the crowd faster holds fewer bodies, and the same bytes
+ * then divide by a smaller number. What the game can be *told* to hold is what the budgets are for; a
+ * sampled fight is printed, named if it goes over, and read against the walls rather than judged by them.
  */
-export async function measureLiveRun(game, seconds, watch) {
-  const at = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1].at;
-  await game.resetToTitle(20261011);
-  playOneRun(game, { maxSeconds: 30, at, policy: 'aware', picks: 'wise' });
-  await game.resetToTitle(20261011);
+export function seenLoad(seen) {
+  const mean = seen.mean;
+  return {
+    id: 'seen', name: 'what a real run was seen holding', gated: false,
+    onGlass: true, mortal: false, kind: null, flocks: 0, each: 0,
+    bodies: Math.max(1, Math.round(mean.bodies)),
+    shots: Math.max(0, Math.round(mean.shots)),
+    sparks: Math.max(0, Math.round(mean.sparks)),
+  };
+}
+
+/**
+ * How a frame trial is asked: frames in a window, how many warm it up, and how many are read.
+ * A frame is two of the simulation's steps, so a window is a short one by this file's standards -
+ * which is the finding, not a shortcut.
+ */
+export const TRIAL_FRAMES = 120;
+export const TRIAL_WARM = 12;
+export const TRIAL_WINDOWS = 8;
+
+/** One window of painted frames: the bytes a step of it threw away, and why the ruler would refuse it. */
+async function oneFrameWindow(game, scene, watch) {
   await watch.settle();
   global.gc();
   global.gc();
   await watch.settle();
   const from = performance.now();
-  const before = process.memoryUsage().heapUsed;
-  const stepsBefore = game.world.steps;
-  let ended = null;
-  playOneRun(game, {
-    maxSeconds: seconds, at, policy: 'aware', picks: 'wise',
-    onFrame: (g) => { if (g.world.state !== STATE.PLAY) ended = g.world.state; },
-  });
-  const grown = process.memoryUsage().heapUsed - before;
+  const heapBefore = process.memoryUsage().heapUsed;
+  const youngBefore = youngUsed();
+  for (let i = 0; i < TRIAL_FRAMES; i++) {
+    holdScene(game, scene);
+    game.step(FRAME_MS);
+  }
+  const grown = process.memoryUsage().heapUsed - heapBefore;
+  const filled = youngUsed() - youngBefore;
   const to = performance.now();
   await watch.settle();
-  const steps = game.world.steps - stepsBefore;
-  return {
-    bytesPerStep: steps > 0 ? grown / steps : 0,
-    steps, seconds,
-    collected: watch.collectedSince(from, to),
-    ended,
-  };
+  const steps = TRIAL_FRAMES * FRAME_MS / 1000 * STEPS_PER_SECOND;
+  const why = watch.collectedSince(from, to) > 0 ? 'the collector came inside it'
+    : (grown < 0 || filled < 0 || !readingsAgree(grown, filled)) ? 'its two readings disagreed' : '';
+  return { bytes: Math.max(0, grown) / steps, why };
+}
+
+/**
+ * Prove why a played run cannot be weighed here, instead of asserting it.
+ *
+ * Same scene, same ruler, one window at a time - but the windows are whole painted frames, and the
+ * refusals are counted instead of hidden. What comes back is how many of them were clean, the reasons
+ * for the ones that were not, and a **floor**: the dearest net growth seen, which is a floor because a
+ * window the collector came into reports less than it spent.
+ *
+ * It is read in the same process as the load it is being quoted against, after that load was weighed.
+ * That order can only make a frame look dearer than it is, and the number is a floor either way.
+ */
+export async function frameTrial(game, scene, watch) {
+  const reasons = {};
+  let clean = 0;
+  let floor = 0;
+  for (let i = 0; i < TRIAL_WARM + TRIAL_WINDOWS; i++) {
+    const window = await oneFrameWindow(game, scene, watch);
+    if (i < TRIAL_WARM) continue;              // this is the warm-up, same rule as every load's
+    if (window.why === '') clean++;
+    else reasons[window.why] = (reasons[window.why] || 0) + 1;
+    if (window.bytes > floor) floor = window.bytes;
+  }
+  return { frames: TRIAL_FRAMES, windows: TRIAL_WINDOWS, clean, reasons, floor };
 }
 
 // --- one load, one process --------------------------------------------------------
@@ -555,10 +605,10 @@ export function needsFlags() {
  *
  * One process per load is the whole point (`--child` below): the number a load gets depends on what
  * the process measured before it, and a ratchet that depends on which row of the table came first is
- * not a ratchet.
+ * not a ratchet. That is also why the run `--live` watches is watched in a process of its own: the
+ * load it hands back is weighed by a second child that has never seen anything else.
  */
-function spawnChild(load, opts) {
-  const spec = { load, steps: opts.steps, windows: opts.windows, live: opts.liveSeconds || null };
+function spawnChild(spec) {
   const child = spawnSync(process.execPath, [
     '--expose-gc',
     '--max-semi-space-size=' + (YOUNG_BYTES / 1024 / 1024),
@@ -575,14 +625,22 @@ function spawnChild(load, opts) {
   return JSON.parse(line.slice('RESULT '.length));
 }
 
-/** The child's whole job: measure one load, print it, get out. */
+/** One load, in its own process: the measuring spec the file was called with, plus the load. */
+function measureChild(load, opts, extra) {
+  return spawnChild(Object.assign({
+    load, steps: opts.steps, windows: opts.windows, live: null, trial: false,
+  }, extra || {}));
+}
+
+/** The child's whole job: measure one load - or watch one run - print it, get out. */
 async function measureOneChild(spec) {
   const opts = { steps: spec.steps, windows: spec.windows };
   const game = await bootGame({ root: ROOT, seed: 20261011 });
   const watch = watchCollector();
   let out;
   if (spec.live !== null) {
-    out = await measureLiveRun(game, spec.live, watch);
+    const seen = await watchRealRun(game, { seeds: [20261011], seconds: spec.live });
+    out = { seen, load: seenLoad(seen) };
   } else {
     await openScene(game, 20261011);
     plantScene(game, spec.load);
@@ -591,6 +649,9 @@ async function measureOneChild(spec) {
     out.name = spec.load.name;
     out.id = spec.load.id;
     out.wanted = spec.load.bodies;
+    // Read after the load was weighed, in the same process: that order can only make a painted frame
+    // look dearer than it is, and the number it reports is a floor either way.
+    if (spec.trial) out.trial = await frameTrial(game, spec.load, watch);
   }
   watch.stop();
   game.stop();
@@ -619,8 +680,9 @@ function sceneTable(results) {
 
 /**
  * Rows that are over the per-body budget without being walls: the price-list rows (`--kinds`, a named
- * scene, a load of your own) are measured and not gated, because the crowd the game actually fields is
- * gated as itself. But "measured and silent" is how a forty-byte body stays hidden behind a PASS, so
+ * scene, a load of your own, and the load a real run was seen holding) are measured and not gated,
+ * because the crowd the game actually fields is gated as itself and a sampled fight moves with how well
+ * the bot flies it. But "measured and silent" is how a forty-byte body stays hidden behind a PASS, so
  * every one of them that is over is named here in words instead of in a verdict.
  */
 export function overBudgetRows(results) {
@@ -684,7 +746,7 @@ async function main() {
   const loads = chosenLoads(opts);
   const results = [];
   for (const load of loads) {
-    const reading = spawnChild(load, opts);
+    const reading = measureChild(load, opts);
     // The stamp goes *after* the reading, and that order is a fix and not a style point: the measuring
     // child sends back a row of its own with the plain scene name in it, and spreading it after the
     // stamped name used to overwrite the stamp - so `--kinds` printed nine rows all called "the
@@ -703,9 +765,25 @@ async function main() {
   if (floor === undefined) {
     const empty = { name: 'the arena on its own', id: 'floor', bodies: 0, shots: 0, sparks: 0,
       onGlass: true, mortal: false, kind: null, gated: false, floor: true };
-    floor = spawnChild(empty, opts);
+    floor = measureChild(empty, opts);
     floor.name = empty.name;
     results.unshift({ ...floor, gated: false, perBody: null, ok: true, floor: true });
+  }
+  // `--live`, in two processes: one watches a real run and comes back with what it held, and a second
+  // weighs that load the way every other row is weighed - warmed, in a process that has measured
+  // nothing else. The row goes in before the per-body arithmetic below so that it gets the same figures
+  // the planted walls get; it is a price list beside them, and not a wall (see `seenLoad`).
+  let live = null;
+  if (opts.live) {
+    live = spawnChild({ load: null, steps: opts.steps, windows: opts.windows,
+      live: opts.seconds, trial: false });
+    const reading = measureChild(live.load, opts, { trial: true });
+    live.trial = reading.trial;
+    results.push({
+      ...reading,
+      name: rowName(live.load), id: live.load.id, gated: !!live.load.gated, floor: false,
+      perBody: null, ok: reading.bytesPerStep <= STEP_BYTES,
+    });
   }
   for (const r of results) {
     if (r.perBody === null && r.wanted > 0) {
@@ -718,9 +796,6 @@ async function main() {
       && r.warmSettled !== false;
   }
 
-  const live = opts.live
-    ? spawnChild({}, { ...opts, liveSeconds: opts.seconds })
-    : null;
   const verdict = verdictOf(results, floor.bytesPerStep);
 
   if (opts.json) {
@@ -732,6 +807,10 @@ async function main() {
       worstWindow: Math.round(r.worstWindow), voids: r.voids,
       warmSteps: r.warmSteps, warmSettled: r.warmSettled,
     }))) + ' floor ' + Math.round(floor.bytesPerStep));
+    if (live) {
+      console.log('LIVE '
+        + JSON.stringify({ seen: live.seen, load: live.load, trial: live.trial }));
+    }
   } else if (!opts.quiet) {
     const cpus = os.cpus();
     console.log('What a step throws away (PLAN section 2: "no allocation inside the per-frame loops").');
@@ -786,16 +865,35 @@ async function main() {
     console.log('');
     console.log('How long a young generation lasts, played at ' + int(STEPS_PER_SECOND)
       + ' steps a second:');
-    for (const r of results.filter((x) => x.gated || x.id === 'part')) console.log(youngLine(r));
+    for (const r of results.filter((x) => x.gated || x.id === 'part' || x.id === 'seen')) {
+      console.log(youngLine(r));
+    }
     if (live) {
+      const seen = live.seen;
+      const trial = live.trial;
+      const refused = Object.keys(trial.reasons)
+        .map((why) => dec(trial.reasons[why] / trial.windows * 100, 0) + '% of them ' + why);
       console.log('');
-      console.log('A played run: ' + bytes(live.bytesPerStep) + ' a step over ' + int(live.steps)
-        + ' steps (' + dec(live.seconds, 0) + ' s of the schedule, '
-        + (live.ended === null ? 'still flying when the window shut' : 'the run stopped early')
-        + ', ' + int(live.collected) + ' collections inside the stretch)');
-      console.log('  played cold - a stretch is one synchronous loop with no turn of the event loop in'
-        + ' it, so this row carries its own warm-up inside it and is a ceiling, not a cost like the '
-        + 'warmed rows above');
+      console.log('What a real run was seen holding: ' + dec(seen.mean.bodies, 1) + ' bodies, '
+        + dec(seen.mean.shots, 1) + ' of its shots and ' + dec(seen.mean.sparks, 0)
+        + ' sparks on average - ' + dec(seen.mean.enemyShots, 1) + ' of the arena\'s shots and '
+        + dec(seen.mean.packs, 1) + ' clumps of the swarm beside them, over '
+        + dec(seen.seconds, 0) + ' s flown from ' + dec(seen.at, 0) + ' s in');
+      console.log('  that mean, planted as a load: ' + int(live.load.bodies) + ' bodies, '
+        + int(live.load.shots) + ' shots, ' + int(live.load.sparks)
+        + ' sparks - the row above, weighed like every other row instead of being watched while it'
+        + ' runs. Standing and not dying: a death is a rate and no mean of counts carries one, so the'
+        + ' dying is the `fight` wall\'s');
+      console.log('  the run peaked at ' + int(seen.peak.bodies) + ' bodies, ' + int(seen.peak.shots)
+        + ' of your shots, ' + int(seen.peak.enemyShots) + ' of the arena\'s, '
+        + int(seen.peak.sparks) + ' sparks; the F3 plate read ' + dec(seen.stepAvg, 3)
+        + ' ms a step on average and ' + dec(seen.stepWorst, 3) + ' ms at its worst'
+        + ' (that worst is the collector, and `tools/perf-probe.js --peak` is where the plate is read)');
+      console.log('  why the run is planted and not weighed: weighed a whole painted frame at a time, '
+        + int(trial.clean) + ' of ' + int(trial.windows) + ' windows of ' + int(trial.frames)
+        + ' frames came out clean' + (refused.length ? ' (' + refused.join('; ') + ')' : '')
+        + ', and the dearest of them is a floor of ' + bytes(trial.floor) + ' a step - which is this'
+        + ' stub\'s own bookkeeping (every logged draw call builds two objects), not the game\'s');
     }
     console.log('');
     console.log('  (a scavenge of this heap measures 0.85-1.12 ms under `node --trace-gc`: that is the'

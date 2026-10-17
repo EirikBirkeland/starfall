@@ -6,7 +6,7 @@
 // neither of them can see garbage, and garbage is what makes the collector come - which is the one
 // thing that explains a frame costing fifteen times what the crowd inside it is worth (the F3 plate
 // sees worst steps of 1.4-1.7 ms; a scavenge of this heap costs about a millisecond of that). So
-// `tools/alloc-probe.js` weighs a step in bytes, and this file keeps three things true about it:
+// `tools/alloc-probe.js` weighs a step in bytes, and this file keeps five things true about it:
 //
 //   - **the instrument notices the loads it claims to notice**: a crowd costs more than an empty arena,
 //     and the two lists that live in pools - sparks, and the shots that only ever fly - cost nothing
@@ -26,7 +26,12 @@
 //     every frame, so the warm number is the one a player pays and the cold one was a ruler measuring
 //     its own compiler;
 //   - **the gated loads are inside both budgets**, which is the ratchet: a change that makes a step
-//     throw away more has to be argued about here, in bytes, and not discovered as a stutter.
+//     throw away more has to be argued about here, in bytes, and not discovered as a stutter;
+//   - **what a real run was seen holding is inside them too**, and that row is *planted* rather than
+//     weighed where it runs. `--live` watches a flown run, takes the mean crowd it held, and weighs
+//     that mean like any other load; the same test measures the alternative and refuses it, because a
+//     whole painted frame in this headless browser fills the young generation in well under a second
+//     (the bytes are the stub's bookkeeping, not the game's) so no honest window of frames exists.
 //
 // What is *not* in here is any claim about a browser. The young generation of a page is a different
 // size from the one this file asks node for, and how long a scavenge takes there is unknown from here;
@@ -44,7 +49,7 @@ import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
   bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs, rowName,
-  overBudgetRows,
+  overBudgetRows, seenLoad,
   FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES, readingsAgree,
 } from '../tools/alloc-probe.js';
 import { SCENES } from '../tools/perf-probe.js';
@@ -66,6 +71,20 @@ function rows(args) {
   const line = out.stdout.split('\n').find((l) => l.startsWith('ROWS '));
   const parts = line.slice('ROWS '.length).split(' floor ');
   return { rows: JSON.parse(parts[0]), floor: Number(parts[1]) };
+}
+
+/** The same, plus what `--live` watched. */
+function rowsAndRun(args) {
+  const out = probe(args);
+  assert.ok(out.stdout.includes('ROWS '), 'the probe printed no rows: ' + out.stderr);
+  const line = out.stdout.split('\n').find((l) => l.startsWith('ROWS '));
+  const parts = line.slice('ROWS '.length).split(' floor ');
+  const liveLine = out.stdout.split('\n').find((l) => l.startsWith('LIVE '));
+  return {
+    rows: JSON.parse(parts[0]), floor: Number(parts[1]),
+    live: liveLine === undefined ? null : JSON.parse(liveLine.slice('LIVE '.length)),
+    stdout: out.stdout,
+  };
 }
 
 // Short windows, because a whole ladder is a minute of the suite's life and the warm-up is what spends
@@ -304,6 +323,67 @@ test('the gated loads are inside the budgets - the ratchet', () => {
       + ' a step, over the ' + bytes(BODY_BYTES) + ' allowed');
   }
   assert.match(out.stdout, /VERDICT PASS/);
+});
+
+test('the mean of a run plants a load, standing and not dying', () => {
+  // The three knobs a run is sampled on are counts, and a planted load wants whole ones; and the crowd
+  // stands, because a death is a rate (see `seenLoad` for the measurement behind that).
+  const load = seenLoad({ mean: { bodies: 48.6, shots: 1.2, sparks: 39.7 } });
+  assert.equal(load.bodies, 49);
+  assert.equal(load.shots, 1);
+  assert.equal(load.sparks, 40);
+  assert.equal(load.mortal, false, 'a mean of counts cannot carry a death rate, so the crowd stands');
+  assert.equal(load.gated, false, 'a sampled fight moves with how well the bot flies it - price list');
+  assert.ok(load.onGlass, 'on the glass, like every crowd the painter is asked about');
+  // A run watched between two fights can average nothing at all, and a load of none bodies is not a row.
+  assert.equal(seenLoad({ mean: { bodies: 0.2, shots: 0, sparks: 0 } }).bodies, 1,
+    'a mean that rounds to nothing still plants one body, so the row is a crowd and not the empty arena');
+});
+
+test('what a real run was seen holding is inside the budgets - and a painted frame is no window', () => {
+  // Two halves of one measurement, one probe run: the crowd the game really fields, weighed in the same
+  // currency as the planted walls, and the reason it has to be weighed that way.
+  //
+  // The first half is the claim the whole byte pass has been standing on: the load a played run was
+  // actually holding is *under* the planted walls, not near them. Measured over 30 s flown from the last
+  // mark on the boss schedule, which is the dearest stretch the schedule has - and long enough that the
+  // mean is the crowd of a fight rather than of its first seconds, which matters: the mean crowd builds
+  // over the window (28 bodies over 10 s, 73 over 60), and a thin mean makes every body dearer.
+  //
+  // The second half is measured rather than asserted. A byte window has to be a stretch the collector
+  // stayed out of, and a played run is driven a whole painted frame at a time, so the trial tries that
+  // too, on the same load with the same ruler, and counts what it had to throw away. If the frame half
+  // ever fails the ruler is not being fussy - it means a headless frame stopped filling the young
+  // generation, and the honest answer is to put the old row back and weigh runs themselves again.
+  //
+  // One scene beside it rather than all four, because each load is measured in a process of its own and
+  // this file is already the slowest in the suite.
+  const seen = rowsAndRun(['--scene', 'schedule', '--live', '--seconds', '30', ...QUICK]);
+  const row = seen.rows.find((r) => r.id === 'seen');
+  assert.ok(row !== undefined, 'the seen load printed a row: ' + seen.stdout);
+  assert.ok(row.bodies > 10, 'the run had a crowd to measure: ' + row.bodies + ' bodies');
+  assert.ok(row.bodies <= BALANCE.waves.maxBodies,
+    'a played run held ' + row.bodies + ' bodies on average, over the wave director\'s own cap of '
+    + BALANCE.waves.maxBodies);
+  assert.ok(row.bytesPerStep <= STEP_BYTES, 'a real fight throws away ' + bytes(row.bytesPerStep)
+    + ' a step, over the ' + bytes(STEP_BYTES) + ' a load is allowed');
+  assert.ok(row.perBody <= BODY_BYTES, 'a body in a real fight costs ' + bytes(row.perBody)
+    + ' a step, over the ' + bytes(BODY_BYTES) + ' allowed');
+  // The watch that made the load: the means are what the row was planted from, so they have to agree.
+  assert.equal(Math.round(seen.live.seen.mean.bodies), row.bodies);
+  assert.ok(seen.live.seen.peak.bodies >= row.bodies, 'the mean is inside its own peak');
+  assert.ok(seen.live.seen.frames > 300, 'the run was flown, not skipped: ' + seen.live.seen.frames
+    + ' frames');
+
+  const trial = seen.live.trial;
+  assert.ok(trial.clean < trial.windows, 'all ' + trial.windows + ' windows of painted frames came out'
+    + ' clean, which would mean a played run could be weighed in bytes again - the row and its doc'
+    + ' comment should then be re-asked, and this assertion changed on purpose and not quietly');
+  assert.ok(Object.keys(trial.reasons).length > 0, 'and every refusal says why: '
+    + JSON.stringify(trial.reasons));
+  assert.ok(trial.floor > row.bytesPerStep * 10, 'the dearest frame window floors at '
+    + bytes(trial.floor) + ' a step against the same load\'s ' + bytes(row.bytesPerStep)
+    + ' - that is not an order of magnitude of harness, so the row is being unfair to it');
 });
 
 test('the empty arena is inside its own budget', () => {

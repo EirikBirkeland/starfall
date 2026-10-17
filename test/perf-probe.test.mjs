@@ -33,7 +33,7 @@ import {
   SCENES, PLAN_SECTION_2, SIM_STEP_MS, PAINT_OPS, PAINT_WORST_OPS, PAGE_WRITES, STEPS_PER_FRAME,
   DEFAULT_SECONDS, DEFAULT_REPS, TELL_OPS, BROOD, FLOCK_CYCLE, settled, customScene, openScene, plantScene,
   holdScene, measureStep, measurePaint, measureBeats, beatsInsideBudget, sceneIsInsideBudgets,
-  verdictOf, peakOfRealRuns, windowNote,
+  verdictOf, peakOfRealRuns, watchRealRun, windowNote,
 } from '../tools/perf-probe.js';
 import { isClump, BEATS } from '../src/game/flock.js';
 
@@ -563,6 +563,30 @@ test('two scenes print side by side, which is how a brood is read against its co
   assert.match(run.stdout, /the same brood, loose/);
   const rows = run.stdout.split('\n').filter((line) => /PASS|FAIL|-\s*$/.test(line) && !/VERDICT/.test(line));
   assert.ok(rows.length >= 2, 'both rows printed:\n' + run.stdout);
+});
+
+test('what a run held comes back as a peak and as a mean, and the mean is inside the peak', async () => {
+  // The same watch feeds two rulers: `--peak` prints the maxima (a wall: can any gun hold PLAN's 1,500
+  // shots) and `tools/alloc-probe.js --live` plants the means (a load: what the game was really
+  // holding). Both readings have to come from one run, or the two rulers would be quoting different
+  // afternoons - so this checks the pair, and that the mean never escapes the peak it came from.
+  const seen = await watchRealRun(game, { seeds: [3], seconds: 20 });
+  assert.ok(seen.frames > 60, 'a 20 s window is about 1,200 frames, and only flown ones count: '
+    + seen.frames);
+  assert.ok(seen.seconds > 15 && seen.seconds <= 20.5, 'the frames counted add up to the window asked'
+    + ' for and no more: ' + seen.seconds + ' s');
+  for (const key of ['bodies', 'shots', 'enemyShots', 'sparks', 'shards', 'packs']) {
+    assert.ok(seen.mean[key] <= seen.peak[key], key + ' cannot average above its own peak: '
+      + seen.mean[key] + ' against ' + seen.peak[key]);
+  }
+  assert.ok(seen.mean.bodies > 0, 'the run had a crowd in it to average');
+  assert.ok(seen.peak.bodies <= BALANCE.endless.growth.bodiesCeil,
+    'a run held ' + seen.peak.bodies + ' bodies, over the ceiling the director is capped at');
+  assert.ok(seen.peak.sparks <= BALANCE.effects.particleCap,
+    'sparks reached ' + seen.peak.sparks + ' and the spawner trims to ' + BALANCE.effects.particleCap);
+  assert.ok(seen.stepAvg > 0 && seen.stepAvg < SIM_STEP_MS,
+    'the plate read ' + seen.stepAvg.toFixed(3) + ' ms a step, mean');
+  assert.ok(seen.stepWorst >= seen.stepAvg, 'the worst frame is not cheaper than the mean');
 });
 
 // --- what a real run was seen holding ----------------------------------------

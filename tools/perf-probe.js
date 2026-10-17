@@ -783,44 +783,85 @@ export function settled(scene, seconds, reps, kind, flocks) {
 // --- what a real run was seen holding -----------------------------------------
 
 /**
- * The busiest live counts a played run produced, per list, for one primary. This is the only half of
- * the file that asks the game to be itself instead of being planted, and it is what turns "no gun
- * keeps 1500 shots in the air" from a comment into a reading - one gun at a time, because how many
- * shots are in the air is a property of the gun as much as of the game.
+ * What a played run held, watched frame by frame: the busiest frame of every list, and the mean over
+ * the frames the run was actually being flown.
+ *
+ * The two readings answer two different questions. The peak is a **wall**: "can any gun keep PLAN's
+ * 1,500 shots in the air" is a question about a maximum, and it is what `--peak` prints - one gun at a
+ * time, because how many shots are in the air is a property of the gun as much as of the game. The
+ * mean is a **load**: it is the crowd the game really fields, and it is what `tools/alloc-probe.js`
+ * plants when it wants to weigh a real fight in bytes instead of a planted one. Sampling one run for
+ * both is cheaper than playing two, and it keeps the two rulers quoting the same afternoon.
+ *
+ * Only frames the run was being flown are counted. A frame spent reading the level-up card has the
+ * crowd standing still, and a mean that averaged those in would be lighter than the fight it came
+ * from; the frames before a launch and after an ending are the same mistake. The peak does not care
+ * which frame it happened to fall on, but there is nothing to peak on in a paused one either.
+ *
+ * The F3 plate's own numbers come back with them (`render/debug.js`): main.js times its step loop and
+ * hands the frame over every time round, so a headless run has real step milliseconds in it already.
+ * What is *not* in here is the paint - the stub canvas measures its own bookkeeping, not a canvas's,
+ * which is why the painter is counted in operations instead.
  */
-export async function peakOfRealRuns(game, seeds, minutes, weapon) {
-  const peak = { weapon, bodies: 0, shots: 0, enemyShots: 0, sparks: 0, shards: 0, stepWorst: 0, stepAvg: 0 };
-  let samples = 0;
+export async function watchRealRun(game, options) {
+  const opts = options || {};
+  const seeds = opts.seeds === undefined ? [3] : opts.seeds;
+  const seconds = opts.seconds === undefined ? 60 : opts.seconds;
+  const weapon = opts.weapon;
+  const LISTS = ['bodies', 'shots', 'enemyShots', 'sparks', 'shards', 'packs'];
+  const peak = { weapon };
+  const mean = { weapon };
+  for (const key of LISTS) { peak[key] = 0; mean[key] = 0; }
+  let stepSum = 0;
+  let stepWorst = 0;
+  let frames = 0;
+  let flown = 0;
   const last = BALANCE.bosses.schedule[BALANCE.bosses.schedule.length - 1].at;
   for (const seed of seeds) {
     await game.resetToTitle(seed);
     resetCosts();
     playOneRun(game, {
-      maxSeconds: minutes * 60,
+      maxSeconds: seconds,
       at: last,
       policy: 'aware',
       picks: 'wise',
       weapon,
       onFrame: (g) => {
         const w = g.world;
-        peak.bodies = Math.max(peak.bodies, w.enemies.length);
-        peak.shots = Math.max(peak.shots, w.bullets.count);
-        peak.enemyShots = Math.max(peak.enemyShots, w.enemyShots.count);
-        peak.sparks = Math.max(peak.sparks, w.particles.count);
-        peak.shards = Math.max(peak.shards, w.shards.count);
-        // The F3 plate's own numbers (render/debug.js): main.js times its step loop and hands the
-        // frame over every time round, so a headless run has real step milliseconds in it already.
-        // What is *not* in here is the paint - the stub canvas measures its own bookkeeping, not a
-        // canvas's, which is why the painter is counted in operations instead.
+        if (w.state !== STATE.PLAY) return;
+        frames++;
+        flown += FRAME_MS / 1000;
+        const now = {
+          bodies: w.enemies.length, shots: w.bullets.count, enemyShots: w.enemyShots.count,
+          sparks: w.particles.count, shards: w.shards.count, packs: w.flocks.length,
+        };
+        for (const key of LISTS) {
+          if (now[key] > peak[key]) peak[key] = now[key];
+          mean[key] += now[key];
+        }
         const cost = frameCosts();
-        peak.stepWorst = Math.max(peak.stepWorst, cost.stepWorst);
-        peak.stepAvg += cost.stepAvg;
-        samples++;
+        if (cost.stepWorst > stepWorst) stepWorst = cost.stepWorst;
+        stepSum += cost.stepAvg;
       },
     });
   }
-  peak.stepAvg = samples > 0 ? peak.stepAvg / samples : 0;
-  return peak;
+  for (const key of LISTS) mean[key] = frames > 0 ? mean[key] / frames : 0;
+  return {
+    weapon, frames, seconds: flown, at: last, peak, mean,
+    stepAvg: frames > 0 ? stepSum / frames : 0,
+    stepWorst,
+  };
+}
+
+/**
+ * The busiest live counts a played run produced, per list, for one primary - the peak half of
+ * `watchRealRun` on its own, which is what `--peak` prints.
+ */
+export async function peakOfRealRuns(game, seeds, minutes, weapon) {
+  const seen = await watchRealRun(game, { seeds, seconds: minutes * 60, weapon });
+  return Object.assign({ weapon: weapon }, seen.peak, {
+    stepAvg: seen.stepAvg, stepWorst: seen.stepWorst, seconds: seen.seconds,
+  });
 }
 
 // --- printing -----------------------------------------------------------------
