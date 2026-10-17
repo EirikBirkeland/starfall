@@ -1,5 +1,33 @@
 # Starfall — changelog
 
+## 1.9.14 — 2026-10-17
+A seventh rule for the challenge key, and it is about the loot instead of the crowd.
+- **BY HAND.** The shard pull reaches two fifths as far as it ships with, so loot that is not nearly under
+  your ship stays where it fell and you have to fly at it. Everything else about a shard stands as it was:
+  it drops where the body fell, waits the same twelve seconds, pays the same, and is taken up at the same
+  touch - what the rule takes is the free half of every kill. Press the rule key past THICK CROWD and the
+  title says `BY HAND · the shard pull reaches only 40% as far`; it keeps its own record on the ending's
+  card and its own row on the codex's rack, like the six before it.
+- **Why a share and not a fixed reach.** So the ATTRACTOR card still sells something under the rule: five
+  ranks are five ranks of a shorter well, and the well keeps its shape as it shrinks, so a shard at the rim
+  of the short one is tugged as hard as one at the rim of the wide one. A rule that left a card with
+  nothing to do would be taking your level and not just your range.
+- **What it costs**: **0.55x** a careless run's middle score, the plain run winning 29 of the 32 seeds it
+  was flown on and the middle run dying at **3m03s against plain's 4m08s**. Swept, and the sweep is the
+  story - no pull at all, a fifth and two fifths all read 0.55x, while three fifths reads 0.58x and three
+  quarters 0.60x, so a run pays for the pull to stop being free and hardly anything for how much of it is
+  left. Two fifths is the widest cut that still charges the whole price, and it still leaves a near miss
+  worth flying for.
+- **The honest caveat.** The bots here never go looking for loot - they walk the arena and let the pull do
+  the collecting, because until this rule existed there was nothing to walk back for. On the best of them
+  the rule reads 0.12x, which is a bot with no answer and not a player having a hard night. What a person
+  who *means* to go and get the pile pays for it is a question for eyes on a screen - and the number is one
+  row, so if it reads as a wall rather than a squeeze that is a small change and not a rebuild.
+- Suite 2602, up 8: the pull under the rule at every rank of the attractor line and under no rule at all, a
+  shard between the two nets lying still under the rule while the same shard comes in plainly, the rim tug
+  being the same tug both ways, a shard laid on the ship still being banked, and the card saying the share
+  it charges.
+
 ## 1.9.13 — 2026-10-17
 A sixth rule for the challenge key, and the first one about the deck instead of the crowd.
 - **ONE CARD.** When you level up the rack deals *one* card instead of three, and which one is the game's
