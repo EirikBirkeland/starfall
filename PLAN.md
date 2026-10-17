@@ -1687,9 +1687,12 @@ When every item above is ticked, go back to the first unchecked item of mileston
       no pixels and nothing in the tool pretends an operation is a millisecond. Five scenes, four of
       them gated and the fifth PLAN's own sentence planted for the record: the schedule's 100 bodies on
       the glass with the spark cap is **0.04 ms a step and 1,966 operations a frame**, the endless wall
-      of 200 is **0.11 ms and 2,947** (dearest frame 3,008), the same crowd *dying* is **0.11 ms and
-      3,403** (dearest frame 3,638 - a death is a ring, a fire and a floating number, and a dead body
-      stops walking, so it is cheaper to simulate and dearer to look at), the same crowd spread over the
+      of 200 is **0.11 ms and 2,947** (dearest frame 3,008), the same crowd *dying* is **0.12 ms and
+      3,407** (dearest frame 3,642 - a death is a ring, a fire and a floating number, and since session
+      162 this file reads a step as the *middle* step of its best pass, on which a dying crowd is a shade
+      dearer to simulate than a standing one and much dearer to look at; the 0.11 ms this paragraph used
+      to quote was a mean over the window, and a dying crowd's tail pulled a mean the other way), the
+      same crowd spread over the
       arena is **1,341** (the camera is worth more than half the painter), and PLAN's literal
       600/1500/4000 is **1.0 ms and 8,503** - measured, printed, gated against nothing, because the game
       cannot be told to hold 4,000 sparks (the spawner trims to `effects.particleCap`, 900) and no gun

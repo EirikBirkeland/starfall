@@ -33,7 +33,7 @@ import {
   SCENES, PLAN_SECTION_2, SIM_STEP_MS, PAINT_OPS, PAINT_WORST_OPS, PAGE_WRITES, STEPS_PER_FRAME,
   DEFAULT_SECONDS, DEFAULT_REPS, TELL_OPS, BROOD, FLOCK_CYCLE, settled, customScene, openScene, plantScene,
   holdScene, measureStep, measurePaint, measureBeats, beatsInsideBudget, sceneIsInsideBudgets,
-  verdictOf, peakOfRealRuns, watchRealRun, stoppedNote, windowNote,
+  verdictOf, peakOfRealRuns, watchRealRun, stoppedNote, windowNote, stepStats,
 } from '../tools/perf-probe.js';
 import { isClump, BEATS } from '../src/game/flock.js';
 
@@ -327,14 +327,46 @@ test('the step number is the crowd and not the harness', async () => {
     'a frame is two steps, and the table that prints both says so');
 });
 
+test('a scheduling stall cannot move the middle step, and a real doubling still can', () => {
+  // Why `measureStep` times every step on its own instead of timing a pass: the suite runs thirty-odd
+  // files at once and the scheduler takes a step away from the process now and then. A 30 ms stall
+  // lands all of its milliseconds on one step of a 240-step window, which is more than the whole
+  // crowd costs - so a *mean* over the window pays for it, and the millisecond gate used to go red on
+  // a commit that had not touched a frame. The middle of the window does not blink.
+  const clean = new Float64Array(237).fill(0.1);
+  const plain = stepStats(clean);
+  assert.equal(plain.median, 0.1);
+  assert.equal(plain.worst, 0.1);
+  assert.ok(Math.abs(plain.mean - 0.1) < 1e-12, 'a window with nothing in it but 0.1 ms averages 0.1 ms');
+
+  const stalled = stepStats([...clean, 12, 30, 8]);
+  assert.equal(stalled.median, 0.1, 'three stalls in two hundred and forty steps change nothing');
+  assert.ok(stalled.mean > 0.2,
+    `the same window reads ${stalled.mean.toFixed(3)} ms as a mean, which is the mistake this file`
+    + ' used to gate on');
+  assert.equal(stalled.worst, 30, 'and the tail is still named, even though nothing gates on it');
+
+  // The mutation check: a statistic that throws the stalls away must not also throw away a step that
+  // really did get twice as dear. The stalled cheap window and the clean dear one stay in order.
+  assert.ok(stepStats(new Float64Array(240).fill(0.2)).median > stalled.median,
+    'a crowd that costs twice as much still reads as costing twice as much');
+
+  // The two edges of the middle: an odd window has one, an even window averages the pair.
+  assert.equal(stepStats([3, 1, 2]).median, 2);
+  assert.equal(stepStats([4, 1, 3, 2]).median, 2.5);
+  assert.throws(() => stepStats([]), /no steps/, 'a window that measured nothing is refused');
+});
+
 test('a crowd that is dying is dearer to paint and no dearer to step', async () => {
   // The reason the file plants a fight as well as a crowd: a death is the loudest thing a frame can do
   // (a ring, a fire, a spray, a floating number) and the loudest thing a step can skip (a body that is
   // gone stops walking and stops shoving). The paint half of that is exact - operations cannot be late -
   // and it is the claim this test is really keeping. The step half is a wall clock on a box that may be
-  // busy (the suite runs forty files at once), so it is a guard against a *surprise* - a death that
-  // cost ten times what a walk costs - and not a claim about which of the two scenes is the cheaper of
-  // the pair. Under load they trade places; a factor of two is what survives that.
+  // busy (the suite runs thirty-odd files at once), so it is a guard against a *surprise* - a death
+  // that cost ten times what a walk costs - and not a claim about which of the two scenes is the
+  // cheaper of the pair. Both readings are the middle step of a best pass now (see the test above),
+  // which is most of what used to trip this one; a factor of two is what is left over once a stall is
+  // out of the numbers, and it is still what survives a box on fire.
   const standing = await readScene(settled(SCENE_ID.endless, 2, 3, null));
   const dying = await readScene(settled(SCENE_ID.fight, 2, 3, null));
   assert.ok(dying.paint.total > standing.paint.total,
@@ -510,6 +542,8 @@ test('one scene, printed once, and --quiet prints only the verdict', () => {
   assert.equal(rows.length, 1, 'exactly one scene was measured:\n' + run.stdout);
   assert.match(run.stdout, /endless at the body wall/);
   assert.match(run.stdout, /ops mean\s+ops worst/, 'the painter is read twice and says so in the header');
+  assert.match(run.stdout, /step ms\s+step ms worst/,
+    'and so is the step - its middle and its tail, both printed');
   assert.match(run.stdout, /VERDICT PASS/);
 
   const quiet = probe(['--scene', 'endless', '--quiet', '--seconds', '1', '--reps', '1']);

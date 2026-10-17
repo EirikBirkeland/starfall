@@ -17,8 +17,9 @@
 // missing. There is no canvas in here: the harness's is a stub that counts what it is asked for.
 //
 //   **the simulation, in milliseconds.** One `stepWorld` at a scene's load, timed on this box, over
-//   `--seconds` of arena time. This is the real thing and it is the half the crowd is made of: the
-//   walk, the separation, the broad phase, every hit test. A frame at 60 fps is two of them.
+//   `--seconds` of arena time, and read as the middle step of the fastest pass rather than its mean.
+//   This is the real thing and it is the half the crowd is made of: the walk, the separation, the broad
+//   phase, every hit test. A frame at 60 fps is two of them.
 //
 //   **the painter, in canvas operations.** Strokes, fills, sprite stamps and words, one frame, with
 //   the interface taken back out (tools/headless/frame-cost.js) so a scene is only ever the arena.
@@ -68,6 +69,9 @@
 //                  moves no shipped frame, and a change that made a step ten times dearer would trip
 //                  it. A mid-range laptop is slower than this box by some factor nobody has measured,
 //                  which is exactly why the shipped frame is read off the F3 plate and not off here.
+//                  "What one step costs" is the *middle* step of the fastest pass, not its mean, for
+//                  the reason given on `measureStep`: a mean is what a scheduling stall writes, and a
+//                  gate that fails when the box is busy is a gate nobody will believe.
 //
 //   PAINT_OPS      what the *mean* painted frame of the arena may ask the canvas for, in operations.
 //                  These are not milliseconds and never will be (see above). The number is the busiest
@@ -528,15 +532,53 @@ export function holdScene(game, scene) {
 }
 
 /**
+ * What a window of per-step milliseconds is worth: the middle of it, the worst of it, and the mean of
+ * it - the last one only so that a reader can see how far the two disagree.
+ *
+ * Exported because the whole point of it is arithmetic a test can check without a box to be busy: a
+ * window of 240 steps at 0.1 ms with three stalls of 8, 12 and 30 ms in it reads 0.1 ms here and 0.31 ms
+ * as a mean. The mean is what this file used to gate on, and those stalls were the reason a millisecond
+ * gate went red now and again on a commit that had not changed a frame.
+ */
+export function stepStats(samples) {
+  const n = samples.length;
+  if (n === 0) throw new Error('a window with no steps in it has no cost');
+  const sorted = Float64Array.from(samples).sort();   // typed arrays sort numerically, unlike arrays
+  let sum = 0;
+  let worst = 0;
+  for (const ms of sorted) {
+    sum += ms;
+    if (ms > worst) worst = ms;
+  }
+  const middle = n >> 1;
+  return {
+    median: n % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2,
+    mean: sum / n,
+    worst,
+    steps: n,
+  };
+}
+
+/**
  * One scene's simulation cost: `seconds` of arena time, timed, with the crowd held at its planted
  * size. `holdMs` is the topping-up on its own, printed so that the subtraction can be seen.
  *
  * The window is run `reps` times, and the two kinds of number in it are combined differently:
  *
- *   - **the milliseconds take the best pass.** This is a wall clock and the box it runs on may be busy
- *     - the test suite runs forty files at once, on purpose - and a pre-empted pass reads slow and
- *     says nothing about the game, while the fastest pass of a handful is the one where the process
- *     mostly had its core. The paint needs no such care: an operation count cannot be late.
+ *   - **the milliseconds take the best pass, scored by the middle step in it.** This is a wall clock
+ *     and the box it runs on may be busy - the test suite runs thirty-odd files at once, on purpose -
+ *     and a pre-empted pass reads slow and says nothing about the game, while the fastest pass of a
+ *     handful is the one where the process mostly had its core. Choosing between passes is not enough
+ *     on its own, because a pass is scored as a total and one scheduling stall inside an otherwise
+ *     clean pass puts all of its milliseconds on one step: 30 ms lost to the scheduler spread over the
+ *     240 steps of a window is 0.125 ms a step, which is more than the whole crowd costs. So each step
+ *     is timed on its own and a pass is scored by the *middle* of its steps (`stepStats`), which a
+ *     handful of stalls cannot move; the passes are then compared on that, and the fastest still wins.
+ *     `worstStepMs` is the dearest step of that winning pass, printed alongside, because the middle is
+ *     exactly the number that cannot see a tail - what a garbage collection does to the dearest step of
+ *     a window is worth reading, even though nothing gates on it. What that tail is *made of* is
+ *     `tools/alloc-probe.js`'s question, and it is answered in bytes and not in milliseconds. The paint
+ *     needs no such care: an operation count cannot be late.
  *   - **the counts are summed over every pass.** Which pass happened to be fastest is a fact about the
  *     box; what the scene was holding is a fact about the game, and the world is a little further along
  *     the third time round (a crowd walks in, shots land, sparks get re-planted). Keeping the counts
@@ -556,23 +598,23 @@ export function measureStep(game, scene) {
   for (let i = 0; i < 30; i++) stepWorld(STEP, input);
 
   const reps = Math.max(1, Math.round(scene.reps));
-  const totals = { ms: 0, holdMs: 0, bodies: 0, packs: 0, shots: 0, sparks: 0 };
-  let bestMs = Infinity;
+  const totals = { holdMs: 0, bodies: 0, packs: 0, shots: 0, sparks: 0 };
+  let best = null;
   for (let rep = 0; rep < reps; rep++) {
     const pass = timeAStep(game, scene, steps, input, hold);
-    totals.ms += pass.ms;
+    const stats = stepStats(pass.stepMs);
     totals.holdMs += pass.holdMs;
     totals.bodies += pass.bodies;
     totals.packs += pass.packs;
     totals.shots += pass.shots;
     totals.sparks += pass.sparks;
-    if (pass.ms < bestMs) bestMs = pass.ms;
+    if (best === null || stats.median < best.median) best = stats;
   }
   const every = steps * reps;
-  const stepMs = bestMs / steps;
   return {
-    stepMs,
-    frameMs: stepMs * STEPS_PER_FRAME,
+    stepMs: best.median,
+    worstStepMs: best.worst,
+    frameMs: best.median * STEPS_PER_FRAME,
     holdMs: totals.holdMs / every,
     bodies: totals.bodies / every,
     packs: totals.packs / every,
@@ -582,29 +624,32 @@ export function measureStep(game, scene) {
 }
 
 /**
- * One pass over the window, in totals and not in averages: `measureStep` picks the fastest of these
- * for the milliseconds and adds all of them up for the counts.
+ * One pass over the window: every step timed on its own (`stepStats` scores the window this returns),
+ * the re-planting timed separately so it never counts as the game's, and the load summed up in totals
+ * rather than averages - `measureStep` adds the totals of every pass and divides by the whole run.
  */
 function timeAStep(game, scene, steps, input, hold) {
   const world = game.world;
+  const stepMs = new Float64Array(steps);
   let holdMs = 0;
   let bodies = 0;
   let packs = 0;
   let shots = 0;
   let sparks = 0;
-  const start = process.hrtime.bigint();
   for (let i = 0; i < steps; i++) {
     const h0 = process.hrtime.bigint();
     hold();
-    holdMs += Number(process.hrtime.bigint() - h0) / 1e6;
+    const h1 = process.hrtime.bigint();
     stepWorld(STEP, input);
+    stepMs[i] = Number(process.hrtime.bigint() - h1) / 1e6;
+    holdMs += Number(h1 - h0) / 1e6;
     bodies += world.enemies.length;
     packs += world.flocks.length;
     shots += world.bullets.count;
     sparks += world.particles.count;
   }
   return {
-    ms: Number(process.hrtime.bigint() - start) / 1e6 - holdMs,
+    stepMs,
     holdMs,
     bodies,
     packs,
@@ -906,14 +951,15 @@ function peakLines(peaks, seeds) {
 export function sceneLines(results) {
   return table(
     'THE SCENES',
-    'a scene is planted and held; the step is timed on this box, the painter is counted in operations',
-    'lllrrrrrrrrrrrl',
-    ['scene', 'bodies', 'packs', 'shots', 'sparks', 'step ms', 'sim ms/frame', 'strokes', 'fills',
+    'a scene is planted and held; the step is the middle step of the best pass, the painter counted',
+    'lllrrrrrrrrrrrrl',
+    ['scene', 'bodies', 'packs', 'shots', 'sparks', 'step ms', 'step ms worst', 'sim ms/frame',
+      'strokes', 'fills',
       'stamps', 'ops mean', 'ops worst', 'page/frame', 'page worst', 'gate'],
     results.map((r) => [
       r.name,
       int(r.live.bodies), dec(r.live.packs, 1), int(r.live.shots), int(r.live.sparks),
-      dec(r.step.stepMs, 3), dec(r.step.frameMs, 2),
+      dec(r.step.stepMs, 3), dec(r.step.worstStepMs, 2), dec(r.step.frameMs, 2),
       int(r.paint.strokes), int(r.paint.fills), int(r.paint.images),
       int(r.paint.total), int(r.paint.worst),
       dec(r.paint.dom, 2), int(r.paint.domWorst),
@@ -936,7 +982,7 @@ export function windowNote(chosen) {
     : windows.map((s) => dec(s, 1) + 's / ' + frames(s) + ' frames').join(', ')
       + ' of arena time, a scene watched as long as its own beat asks';
   return time + ', ' + (reps.length === 1 ? reps[0] : reps.join(' or '))
-    + ' timed pass(es) and the best of them';
+    + ' timed pass(es), the best of them by its middle step';
 }
 
 /**
@@ -1007,7 +1053,8 @@ async function main() {
     console.log('What a frame costs (PLAN section 2).');
     console.log('  box     ' + (cpus[0].model || 'a cpu').trim() + ', ' + cpus.length
       + ' cores, node ' + process.versions.node);
-    console.log('  budget  a step <= ' + dec(SIM_STEP_MS, 2) + ' ms; a painted arena <= '
+    console.log('  budget  a step <= ' + dec(SIM_STEP_MS, 2) + ' ms, counted as the middle step of'
+      + ' the best pass; a painted arena <= '
       + int(PAINT_OPS) + ' operations on the mean and ' + int(PAINT_WORST_OPS) + ' on its dearest frame'
       + '; the page <= ' + dec(PAGE_WRITES, 2) + ' writes a frame; and one clump\'s tell <= '
       + int(TELL_OPS) + ' operations on the frame it is drawn on');

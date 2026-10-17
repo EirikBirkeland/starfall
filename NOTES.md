@@ -18008,3 +18008,126 @@ level 8 / 77 shards without it, 9,179 / level 28 / 793 with it.
 Nothing. The game traces byte for byte what it traced at **1.9.14** - what changed is an instrument, and an
 instrument that is switched off by default. The next release is still a rule or a feel change; the honest
 candidate is still playing ONE CARD and BY HAND on a screen.
+
+## Session 162 - the millisecond gate was going red on a busy box: a step is read as its middle step now, not its mean
+
+### What was on the shelf
+Tree clean at `65a7c8e` (1.9.14), PLAN ticked except the browser half of the performance pass, which is
+the owner's. Session 161's Next had three instrument items and a carried-over list, and none of them were
+first: **the first thing a session does is run the checks, and `node --test` came back red on a commit
+that had not touched a frame.** One failure, `a crowd that is dying is dearer to paint and no dearer to
+step`, in `test/perf-probe.test.mjs`, on a tree nobody had touched, with nothing on the box but the suite
+itself. Bugs first, and a test that fails by itself is a bug with a price on it: every session from now
+on has to stop and work out whether its own change did it.
+
+### What landed
+1. **What actually broke was a statistic, not a scene.** The gate is `dying < standing * 2 + 0.05`. The
+   failure read `dying steps at 0.570 ms and standing at 0.199 ms`, against idle readings of 0.101 and
+   0.076 - so the *standing* crowd had been read twice its idle cost and the dying one seven times.
+   `measureStep` already knew milliseconds were noisy and already took the **best of three passes**; what
+   it did not know was that a pass is scored as a *total*, and one scheduling stall inside an otherwise
+   clean pass puts every millisecond of itself on one step. The window is 2 s of arena time at
+   `BALANCE.sim.step` = 1/120 s, so 240 steps: a 30 ms stall is 0.125 ms a step, which is more than the
+   whole endless wall of 200 bodies costs. Best-of-three cannot save a mean, because on a box with the
+   suite's thirty-odd workers all running, every pass gets stepped on. The two halves of the answer do
+   different jobs: **best-of-N picks which window to believe, a median picks which steps inside it.**
+2. **Every step is timed on its own now** (`timeAStep` returns a `Float64Array` of per-step
+   milliseconds), and a pass is scored by the middle of it: `stepStats(samples)` (new, exported) returns
+   `{ median, mean, worst, steps }`, `measureStep` keeps the pass with the lowest median, and the
+   reported `stepMs` is that median. Side effect worth having: the re-planting used to be timed as a
+   total and subtracted from the pass's total, which only worked because both covered the same steps -
+   now each step's sample is taken *between* two re-plantings and there is nothing to subtract.
+3. **The tail is printed and not gated.** The middle is exactly the number that cannot see a GC pause, so
+   `step ms worst` is a new column (the dearest step of the winning pass). It already had something to
+   say: the dying crowd's dearest step is **0.61 ms** against the standing crowd's **0.13** - that is the
+   death, and it is the same thing `tools/alloc-probe.js` weighs in bytes (0.85-1.12 ms for a scavenge of
+   that heap, session 155). It is also the only column that can see the JIT: `--scene schedule` alone
+   reads 0.05 ms worst, the same scene first in a full run reads 0.33. Nothing gates on it, and the
+   header prose says so: the budget is on the middle because the middle is the number a busy box cannot
+   move, and what the tail is *made of* is alloc-probe's question.
+4. **The unit test the statistic needed** (`test/perf-probe.test.mjs`, suite **2616 to 2617**): a window
+   of 237 steps at 0.1 ms plus stalls of 8, 12 and 30 ms reads 0.1 ms on the middle and **0.307 ms** as a
+   mean - the mistake, in the file, in the test that catches it; then the mutation check, a clean window
+   at 0.2 ms must still read dearer than the stalled cheap one, so the new statistic is not simply deaf;
+   then odd and even middles, and an empty window being refused. Plus one line in the print test claiming
+   the new column, and the comment over the two millisecond comparisons rewritten to say what a factor of
+   two is now protecting.
+5. **PLAN's paragraph updated, because a comment can be a bug** (session 161's lesson, applied the same
+   afternoon). It said the dying crowd "is cheaper to simulate and dearer to look at" and quoted 0.11 ms
+   for it. That was a mean: on the middle step the dying crowd reads **0.124 against the standing one's
+   0.111**, so the sentence was describing the tail of a dying window and calling it the crowd. The
+   number is 0.12 now, with the reason and the old reading named in the parenthesis rather than quietly
+   corrected.
+
+### Verification
+The reproduction, the fix and the mutation check are the same flight: full `node --test` on the box with
+twelve 4-minute `aware` flights running alongside, which is roughly the load that caught the original
+failure (the suite plus one small ladder). **HEAD fails it** - this time on the *other* comparison in the
+same test, `and nothing at all on this simulation` (the spread-vs-standing pair, line 351), which is
+worth knowing: both failures are the same two-sided comparison of two separately-timed scenes, so the
+next person to "find a regression" in one scene should look at the box first. **This tree passes it**,
+2617/2617, on the same load. Separately: a clean suite run on an idle box (2617), the perf file alone,
+`test/alloc-probe.test.mjs` + `test/pool.test.mjs` together (30), and the same perf file three times
+under 48 busy loops (all green).
+
+### Numbers
+The game is untouched - `git diff` is `tools/perf-probe.js`, `test/perf-probe.test.mjs`, that paragraph of
+PLAN and this file, and the reference read is unchanged: seed 1 aware wisp pulse 600 s traces **73,339 /
+level 57 / 4,894 shards**, alive at the cap. What the ruler reads now, on an idle box:
+
+| scene | step ms (middle) | step ms (worst) | was (mean of best pass) | ops mean |
+|---|---|---|---|---|
+| the schedule at full crowd | 0.034 | 0.07 | ~0.04 | 1,970 |
+| endless at the body wall | 0.111 | 0.13 | 0.101-0.113 | 2,951 |
+| the same crowd, dying | 0.124 | 0.61 | 0.076 | 3,407 |
+| the same crowd, spread out | 0.100 | 0.14 | ~0.10 | 1,345 |
+| PLAN section 2's sentence | 0.923 | 1.31 | ~1.0 | 8,507 |
+
+and under 48 busy loops, which is the whole point: the mean blew up to 0.34-0.44 ms on the standing
+crowd and the *ratio* between the two scenes swung 0.43 to 0.97 (pure noise, in both directions); the
+middle step read **0.16 ms** and the ratio sat at 0.97-1.09. `.scratch/step-stress.mjs` is the script
+that prints both from the same passes; `.scratch/step-noise.mjs` printed the interleaved readings.
+
+### Surprises and lessons
+1. **A millisecond gate needs a statistic, not just a best-of.** The file had the right instinct (take
+   the fastest pass) and the wrong unit of comparison. Two rules worth keeping: an *operation count* can
+   be gated tight because it cannot be late, and a *duration* has to be gated on something a stall cannot
+   move - which is a per-sample middle, not a best-of window's mean.
+2. **The old direction was an artefact and it was load-bearing in prose.** A dying crowd read *cheaper*
+   on a mean (0.076 against 0.101) and *dearer* on a middle (0.124 against 0.111). A mean is the sum, so
+   a window full of near-nothing steps (a body that is gone stops walking) buries the steps where the
+   death happens; the middle finds them. Nothing about the game moved. It is the second time this week a
+   comment was quoting a number that a change of statistic would flip.
+3. **A coin-toss gate is worse than no gate.** Session 118's note already recorded this exact flake ("a
+   perf-probe millisecond test failed while the ladder's ten shards were eating the box and passed on its
+   own... worth knowing before blaming a change for it"), and the note was the only defence. A future
+   session reading a red suite has to either re-run and hope or lose an hour; now the answer is neither.
+   If a gate fails on an idle box after this, it means something.
+4. **Print what you refuse to gate on.** The middle is blind to a tail, so the tail got a column instead
+   of a budget, and it paid for itself immediately (the death at 0.61 ms, the warm-up at 0.33). A number
+   nobody prints is a number nobody notices going up.
+
+### Next
+1. **`test/alloc-probe.test.mjs` is still the suite's flakiest file** (session 155's note). Its numbers
+   are byte counts and not milliseconds, so it is a different disease, but if it goes red again without a
+   change in `src/` the same medicine is available: probe a window several times and take the middle
+   rather than the pass that happened to land somewhere quiet.
+2. **If anyone wants a worst-step budget, the number is on the table** - 0.61 ms on the dearest gated
+   scene against `SIM_STEP_MS`'s 1.5. Do not write the budget before it has been read on a quiet box a
+   few times; `worst` is a sample and not a mean, and one sample is a story and not a bound.
+3. Session 161's list, unchanged and all still open: **decide which hand the challenge sheet speaks for**
+   (the seven quotes are all magnet-fed; the foraging hand is one hour of flights away), `--loot` on
+   `line-ab.js` and the other three ladders, and **a second loot habit** - walk to the pile the crowd is
+   not sitting on, which is the difference between a person choosing a safe pile and `greedy` choosing
+   the nearest one. It is a `LOOT_HABITS` entry and a row in `loot-habit.js`, and the ladder already
+   knows how to rank them.
+4. Also still open: re-fly the seven ordinary quotes when the game moves (twelve minutes, `--strict`); NO
+   DASH still has no hand that lives on the dash; nobody has played ONE CARD or BY HAND on a screen; the
+   ablate catalogue's `--scene brood` pass; the shot-speed line; the `tierBonus.telegraph` sentence in
+   PLAN naming a number this tree does not have; whether the first two minutes are too harsh; `--live
+   --weapon swarm`; and the browser half of the performance pass, which only the owner can take.
+
+### Released
+Nothing. The game traces byte for byte what it traced at **1.9.14**; what changed is the ruler that times
+a frame, and only in the direction of telling the truth about a busy machine. The honest candidate for the
+next release is still ONE CARD and BY HAND played on a screen.
