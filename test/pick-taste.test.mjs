@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import { PICKS, TASTE, setTasteDial } from '../tools/headless/bot.js';
 import { newRanks } from '../src/game/upgrades.js';
 import { verdictOf, BUILDS } from '../tools/pick-taste.js';
+import { median } from '../tools/headless/pairs.js';
 
 /** The shipped taste, so a test that bends it can put it back. */
 const SHIPPED = { appetite: TASTE.appetite.slice(), deferred: Object.assign({}, TASTE.deferred) };
@@ -124,7 +125,7 @@ function row(build, scores, middleDeath) {
     build,
     policy: 'human',
     bySeed: new Map(scores),
-    middleScore: medianOf(scores.map((s) => s[1])),
+    middleScore: median(scores.map((s) => s[1])),
     middleDeath: middleDeath === undefined ? null : middleDeath,
     died: middleDeath === undefined ? 0 : 1,
     bestScore: Math.max(...scores.map((s) => s[1])),
@@ -133,12 +134,6 @@ function row(build, scores, middleDeath) {
     middleLines: 8,
     hulls: 12,
   };
-}
-
-/** The same upper-middle the ladder uses, so a fixture's `middle score` means what the column means. */
-function medianOf(values) {
-  const sorted = values.slice().sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
 }
 
 /** Twenty-four seeds scored by one rule, which is how every fixture below is built. */

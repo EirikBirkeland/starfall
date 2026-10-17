@@ -71,9 +71,10 @@ export function signTest(wins, losses) {
  * What build `a` is worth against build `b`, seed by seed.
  *
  * Both sides are `seed -> score` maps from one batch each (`tools/headless/bot.js` hands every run's
- * seed back in its summary for exactly this). Only seeds both sides flew are compared; a seed either
- * side scored nothing on is set aside rather than counted as a preference, because 0 over 0 is not a
- * ratio and a ladder that counted it would be scoring the runs that never got going.
+ * seed back in its summary for exactly this). Only seeds both sides flew are compared. A seed the second
+ * build scored nothing on cannot be divided, so it still counts as a preference - scoring 400 where the
+ * other build scored nothing *is* a preference - but it does not count as a ratio, because 400 over 0 is
+ * not a number and a ladder that invented one would be scoring the runs that never got going.
  *
  * Returns `{ seeds, compared, wins, losses, ties, p, medianRatio }`:
  *   `seeds`      how many seeds both sides flew at all,

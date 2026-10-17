@@ -2761,3 +2761,21 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       tuned on. Which is the same finding the rule needed, said with the rule taken out of it: a card
       choice is worth what a run's length makes it, and a rule about choosing is priced on a hand long
       enough to hold one - and by a ladder that ranks the seeds and not the middles.
+
+- [ ] Every challenge number carries the **window, the hand and the pair** it was measured on, or the
+      ladder stops quoting it. Each of the six rules costs a number that sits in `BALANCE.challenges` as
+      a bare ratio - ONE HULL 0.48x, SHORT GRACE 0.77x, SWIFT 0.56x, THICK 0.93x - and none of them says
+      how long the window was, how many seeds were flown, or which pair of hands flew them. That is
+      already costing readings: today the same ladder reads ONE HULL 0.63x and THICK CROWD 0.65x at 5m
+      and 0.51x and 0.53x at 8m, and the crowd sweeps still cannot order a share of 1.3 from 1.75 at
+      either window. The window is part of the number, the game has changed underneath most of these
+      quotes, and nothing notices. So: a `measured { on, seeds, seconds, policy, picks, cost }` beside
+      each rule's lever, and `tools/challenge-cost.js` printing the quote next to its own reading -
+      saying whether it reproduced, called it stale, or that this ladder flew a different window and here
+      is the command that would check it - with `--strict` refusing a row whose quote the seeds do not
+      back.
+      **The trap is re-quoting the wrong kind of number.** Every one of those ratios is a middle of a
+      batch over another middle, which is what session 158 found can change sign with the seed count; a
+      fresh date on a middle is a dated noise. The paired reading (`tools/headless/pairs.js`) is what the
+      ladder should print and what the row should hold, and the sweeps for THICK's share and SWIFT's
+      multiplier want re-running on pairs before either number is quoted again.

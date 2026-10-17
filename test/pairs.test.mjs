@@ -91,15 +91,16 @@ test('the same edge on every seed is the difference the pair can see', () => {
   assert.ok(Math.abs(pair.medianRatio - 1.02) < 1e-9, 'the size is the per-seed ratio, not the ratio of middles');
 });
 
-test('only the seeds both sides flew are compared, and a seed that scored nothing is set aside', () => {
-  const a = new Map([[1, 500], [2, 300], [3, 100], [4, 0], [7, 200]]);
-  const b = new Map([[1, 400], [2, 300], [3, 200], [4, 0], [5, 900], [6, 900]]);
+test('only the seeds both sides flew are compared, and a seed that scored nothing divides nothing', () => {
+  const a = new Map([[1, 500], [2, 300], [3, 100], [4, 0], [5, 700], [7, 200]]);
+  const b = new Map([[1, 400], [2, 300], [3, 200], [4, 0], [5, 0], [6, 900]]);
   const pair = pairedRatio(a, b);
-  assert.equal(pair.seeds, 4, 'seed 7 alone on one side and 5, 6 alone on the other are not compared');
-  assert.equal(pair.wins, 1);
+  assert.equal(pair.seeds, 5, 'seed 7 alone on one side and 6 alone on the other are not compared');
+  assert.equal(pair.wins, 2, 'including the seed where the other build scored nothing at all');
   assert.equal(pair.losses, 1);
   assert.equal(pair.ties, 2, 'the two ties are seed 2 and the two runs that both scored nothing');
-  assert.equal(pair.medianRatio, 1, 'of the three seeds with something to divide - 1.25, 1, 0.5 - the middle is 1');
+  assert.equal(pair.medianRatio, 1,
+    'the middle of the three seeds that could be divided - 1.25, 1, 0.5 - and seed 5 is not one of them');
   assert.ok(isUndecided(pair), 'two seeds against two is nothing');
 });
 
