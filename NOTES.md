@@ -17622,3 +17622,10 @@ wisp/pulse, 10m, 3,794 kills, 73,339).
    and PLAN's browser half of the performance pass - still the only unchecked box, and still the owner's
    to take. Play the ONE CARD rule and say whether it reads as unfair; the ladder can price it and cannot
    feel it.
+
+### Released
+Nothing. The game traces byte for byte what it traced at **1.9.13** (`tools/simulate.js`: 10m, 73,339,
+level 57, 3,794 kills); what changed was the instruments and the prose around them, and a release whose
+changelog said "nothing you can see" would be a release the owner had to read for no reason. The next one
+should have a rule or a feel change in it - the window-and-date item above is the measurement half of that,
+and playing ONE CARD is the half nobody here can do.
