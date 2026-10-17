@@ -17,6 +17,10 @@
 //   node tools/alloc-probe.js --steps 300 --windows 12         a longer window, more of them
 //   node tools/alloc-probe.js --quiet                          the verdict and nothing else
 //
+// What this file cannot do is name the line a byte came from - a byte has no return address, and the
+// inspector's sampling profiler only sees what stayed alive. That question is `tools/alloc-ablate.js`:
+// it takes one line out of a copy of the game and reads the same load again.
+//
 // PLAN section 2 sets two rules for the frame and this file is the instrument for the second one.
 // The first - "use object pools for bullets, particles, and enemies" - was measured by
 // `tools/perf-probe.js` and is watched by `test/pool.test.mjs`; the second has never had a ruler held
@@ -269,7 +273,12 @@ export function chosenLoads(opts) {
   // subtracted from another one (`noBytes`, whose bytes are the spark cap's and not the clump's - a
   // clump is priced in operations, in tools/perf-probe.js). Everything over the per-body budget is
   // still named under the table, so ungated is not the same as silent. Three kinds are over it today:
-  // the darter on its sounds, the shielder and the swarmling on something nobody has chased down yet.
+  // the darter on the sounds it files, and the shielder and the swarmling on writes their walk makes
+  // once per body - which `tools/alloc-ablate.js` chased, and the answer is that it is not one line.
+  // Taking almost any part of the stand-off or the flocking walk out takes the whole 48 B a body with
+  // it, because what those crowds pay is a shape V8 compiled the crowd's loop into and not a thing the
+  // walk spends; the same edit made dearer on one kind and cheaper on another. A mixed crowd - the one
+  // the director fields, and the one the gate below is a gate on - pays 3 B a body.
   const priceList = (scene, kind) => {
     const load = settled(scene, undefined, undefined, kind);
     if ((kind !== null && kind !== undefined) || scene.noBytes === true) load.gated = false;
