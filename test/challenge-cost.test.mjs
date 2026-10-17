@@ -333,8 +333,8 @@ function lineAbout(report, id) {
 }
 
 /** The table a quote names, as `main()` hands them over: a hand, how it picked, and what it flew. */
-function tableFlown(policy, picks, plainRow, ruleRow) {
-  return { policy, picks, rows: [plainRow, ruleRow], plain: plainRow };
+function tableFlown(policy, picks, plainRow, ruleRow, loot) {
+  return { policy, picks, loot: loot === true, rows: [plainRow, ruleRow], plain: plainRow };
 }
 
 // The flight the quote below was made on: ten of the twelve seeds scored 0.60x, one tied, and one went the
@@ -445,6 +445,40 @@ test('a quote made on a hand this ladder never flew is left alone, with the comm
   assert.match(lineAbout(checked, 'thin'), /reproduced/);
 });
 
+test('a foraging flight does not get to check a quote the magnet-fed hand took', () => {
+  // Session 161 built a hand that goes and gets its own loot (tools/headless/loot.js), and the same
+  // rule on that hand is a different number entirely - BY HAND read 0.09x there against the 0.55x
+  // the ordinary hand says. Same eyes, same picker, same seeds, same window. So the habit is a third
+  // part of what "that hand" means, and a `--loot` flight must report that it checked nothing rather
+  // than come back and call every number on the sheet stale.
+  const foraged = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, TEN_DOWN, true)],
+    { seeds: 12, seconds: 300, swept: [], loot: true }, quotedOnly('brittle', quote()));
+  assert.deepEqual(foraged.problems, [], 'a flight on another hand is not a failed quote');
+  const line = lineAbout(foraged, 'brittle');
+  assert.match(line, /never flew that hand/);
+  assert.match(line, /goes and gets its own loot/);
+  assert.match(line, /lets the shard net bring the loot to it/);
+  assert.match(line, /--challenges none,brittle --seeds 12 --seconds 300/,
+    'and it still hands over the command that would check it');
+});
+
+test('a quote taken on a foraging hand says so, and only a foraging flight can check it', () => {
+  // The mirror image, and the reason `loot` lives on the quote rather than being inferred: the day a
+  // number is deliberately taken on the hand that walks for its pay, the ladder has to be able to
+  // ask for that hand back and the re-flight command has to carry `--loot` with it.
+  const m = quote({ loot: true });
+  const magnet = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, TEN_DOWN)],
+    { seeds: 12, seconds: 300, swept: [] }, quotedOnly('brittle', m));
+  assert.deepEqual(magnet.problems, []);
+  assert.match(lineAbout(magnet, 'brittle'), /never flew that hand/);
+  assert.match(lineAbout(magnet, 'brittle'), /--loot/, 'the command asks for the hand back');
+
+  const foraged = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, TEN_DOWN, true)],
+    { seeds: 12, seconds: 300, swept: [], loot: true }, quotedOnly('brittle', m));
+  assert.deepEqual(foraged.problems, []);
+  assert.match(lineAbout(foraged, 'brittle'), /reproduced/);
+});
+
 test('every number the game quotes for a rule brings its window, its hand and its pair', () => {
   // The shape promise on the real balance sheet: a bare ratio is not allowed back in. `cost` is the
   // paired reading (NOTES session 158), so the pair has to be there to go with it, and the pair has to
@@ -458,6 +492,10 @@ test('every number the game quotes for a rule brings its window, its hand and it
     assert.ok(m.seconds >= 120, at + ' was measured on a window too short to see a rule');
     assert.ok(POLICIES[m.policy] !== undefined, at + ' names a hand that exists');
     assert.ok(PICKS[m.picks] !== undefined, at + ' names a way of answering the level-up');
+    // Whether the hand goes and gets its own loot is the third part of "which hand" (session 161), and
+    // it is only ever said when it is true - a quote that let anything else in here would be naming a
+    // hand the ladder cannot fly.
+    assert.ok(m.loot === undefined || m.loot === true, at + ' has a loot habit nobody can fly');
     assert.ok(m.cost > 0 && m.cost < 1, at + ' does not cost anything (cost ' + m.cost + ')');
     assert.ok(Number.isInteger(m.plainWon) && m.plainWon >= 0, at + ' counts the seeds plain won');
     assert.ok(Number.isInteger(m.ruleWon) && m.ruleWon >= 0, at + ' counts the seeds the rule won');

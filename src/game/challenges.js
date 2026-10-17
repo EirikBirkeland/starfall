@@ -51,9 +51,10 @@ const PERCENT = 100;
  * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
  * about the crowd's size and speed, then the one about the loot the crowd leaves, and the one about the
  * deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
- * `tools/challenge-cost.js` has measured all of them and
- * the dearest (ONE HULL, at 0.61x a careless run's middle score as of 2026-10-17, with every one of the
- * twenty-four seeds it was measured on agreeing) is the first press. A
+ * `tools/challenge-cost.js` has measured all of them and the dearest of them on the hand this sheet is
+ * flown on is BY HAND - 0.55x a careless run's middle score as of 2026-10-17, and dearer yet on a hand
+ * that goes and gets its own loot - which is the sixth press, while the first is ONE HULL, at 0.61x with
+ * every one of the twenty-four seeds it was measured on agreeing. A
  * hand that presses the key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
@@ -209,17 +210,29 @@ export function crowdHoldOf(world) {
  * fell, still waits the whole of `shards.life` for a ship to come, still pays what it pays, and the
  * vacuum line's well still empties the floor when it opens - a run that paid for the well paid for it.
  *
- * **Which hand can price this one.** Not the best-behaved one in the house, which is the opposite of how
- * it usually goes. Every policy here walks the arena and lets the net do the collecting - none of them
- * has ever walked *back* to a pile it walked away from, because until this rule flew there was nothing to
- * walk back for - so the rule starves them all, and it starves the strongest of them worst: flown on the
- * aware hand over eight minutes it reads **0.12x** with nine of sixteen runs dying inside a window the
- * plain hand wins 0 of 16 of (NOTES session 160). That is not a person playing a harder game, it is a
- * bot with no answer at all to a net that stopped carrying. The row was therefore flown on the careless
- * hand the other ship-rules are priced on, where it reads 0.55x with twenty-nine of thirty-two seeds
- * agreeing, and what a person who *does* go and get the loot pays for it is a question for eyes on a
- * screen - which is the same gap NO DASH leaves open, and it is written here rather than in a changelog
- * because it is a limit on the instrument and not on the rule.
+ * **Which hand can price this one.** It depends what the hand wants, which is the interesting thing about
+ * the rule, and the ladder now measures that instead of guessing at it. Every policy used to walk the arena
+ * and let the net do the collecting - none of them had ever walked *back* to a pile it walked away from,
+ * because until this rule flew there was nothing to walk back for (NOTES session 160). Session 161 built
+ * one that does (`tools/headless/loot.js`, `tools/challenge-cost.js --loot`), and the same rule on the
+ * same seeds came back dearer, not cheaper: on the careless hand **0.09x** with thirty of thirty-two
+ * seeds agreeing, and on the aware hand over eight minutes **0.07x** with sixteen of sixteen - against
+ * the **0.55x**, twenty-nine of thirty-two, that the row carries.
+ *
+ * That ordering is the finding, and it is the opposite of the intuitive one. A hand that stands in the
+ * middle and lets the net work loses a bonus when the net stops; a hand that flies the arena for its pay
+ * loses its *engine*, because the walk is what turns loot into a build - levels 7 to 42 on the careless
+ * batch - and without the net the flight has to be made for every shard while the crowd is still on the
+ * ship that dropped it. So the more of the loot half of the game a hand plays, the more BY HAND costs it,
+ * and the number in the row is the cheapest of the three readings and not the middle one.
+ *
+ * The row keeps the careless magnet-hand number anyway, for one reason: every other rule on the sheet was
+ * priced on that hand, and a cost that can only be compared with its neighbours is worth more in the game
+ * than a truer one on a hand nothing else was flown on. `tools/challenge-cost.js` now counts the loot
+ * habit as part of what "that hand" means, so a `--loot` flight will report that it checked none of these
+ * numbers rather than call them all stale, and a quote may be taken on a foraging hand and say so (its
+ * `measured` row would carry `loot: true`). What still belongs to eyes on a screen is the one reading
+ * nobody can fly: a person chooses which piles to chase, and sits somewhere between these three.
  */
 export function shardReachMulOf(world) {
   return isFlying(world, 'byhand') ? challengeRow('byhand').reachMul : 1;

@@ -13,6 +13,11 @@
 //   node tools/simulate.js --dash              let the bot dash its way out of a crowd
 //   node tools/simulate.js --dash-habit dive   a different habit (tools/dash-habit.js compares
 //                                              them: off, escape, dive, along)
+//   node tools/simulate.js --loot              let the bot go and get its own loot instead of
+//                                              letting the shard net bring it to it (tools/
+//                                              headless/loot.js; tools/loot-habit.js compares
+//                                              the habits: off, greedy)
+//   node tools/simulate.js --loot-habit off    the same habit switched back off by name
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc, lance, swarm)
 //   node tools/simulate.js --ship bulwark      fly another ship (game/ships.js: wisp,
@@ -56,7 +61,7 @@ import { musicLedger } from '../src/audio/music.js';
 import { noiseVoices } from '../src/audio/noise.js';
 
 function readArgs(argv) {
-  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, picks: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined, dash: undefined };
+  const opts = { seed: 1, runs: 1, seconds: 600, trace: false, audio: false, every: 120, policy: undefined, picks: undefined, ship: undefined, weapon: undefined, need: undefined, at: undefined, dash: undefined, loot: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => {
@@ -75,6 +80,8 @@ function readArgs(argv) {
     else if (arg === '--trace') opts.trace = true;
     else if (arg === '--dash') opts.dash = true;
     else if (arg === '--dash-habit') opts.dash = next();
+    else if (arg === '--loot') opts.loot = true;
+    else if (arg === '--loot-habit') opts.loot = next();
     else if (arg === '--audio') opts.audio = true;
     else {
       console.error('unknown option: ' + arg);
@@ -264,6 +271,7 @@ if (isMain) {
     weapon: opts.weapon,
     at: opts.at,
     dash: opts.dash,
+    loot: opts.loot,
     // Printed as each run finishes: a batch of twenty long ones is minutes of work and
     // a silent terminal cannot be told apart from a stuck one.
     onRun: (summary) => {

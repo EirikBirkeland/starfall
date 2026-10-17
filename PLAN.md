@@ -2831,3 +2831,15 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       for eyes on a screen. What it exposed is bigger than the rule and is filed in NOTES: **the ladder
       has no hand that goes looking for loot**, so every build every ladder here has ever priced was a
       build the net dealt it.
+      **The next session built that hand** (`tools/headless/loot.js`, `tools/simulate.js --loot`, and
+      `tools/loot-habit.js` to choose how far it walks). It answers one question - nothing is wrong, where
+      do my feet go - and it can never outvote a dodge, which is what makes it safe to put on an
+      instrument; it is opt-in, because every number already in the game was measured without it. What it
+      measured is the finding, and it points the wrong way from the intuitive one: the walk is worth better
+      than **seven times** a standing-still run's middle on the careless hand with eleven of twelve seeds
+      behind it, which is what "the net dealt every build" had been worth all along; and it made this rule
+      **dearer, not cheaper** - 0.09x careless, 0.07x aware, against the 0.55x the row carries, because a
+      hand that flies for its pay loses an engine and not a bonus. The row keeps the magnet-fed number so
+      the seven rules stay comparable on one hand, and `tools/challenge-cost.js` now counts the loot habit
+      as part of which hand a quote names, so a `--loot` flight reports that it checked nothing instead of
+      calling the whole sheet stale.

@@ -17876,3 +17876,135 @@ The game itself is untouched: `node tools/simulate.js --trace` is byte for byte 
 ### Released
 **1.9.14** - BY HAND, the seventh challenge rule, on the key with the other six and on the codex's rule
 rack with a record of its own like theirs. The plain run traces byte for byte what it traced at 1.9.13.
+
+## Session 161 - the bot learned to go and get its own loot, and BY HAND turned out to be dearer than the game says
+
+### What was on the shelf
+Session 160 ended with one item and it was not a rule: **give the bot a loot habit**. Every policy in
+`tools/headless/` answered "nothing is wrong" with *drift back to the middle* and let `shards.magnetRadius`
+do the collecting, so no hand in the house had ever walked back for a pile it walked away from - and BY
+HAND, the rule that cuts the net, had shown what that cost the instrument (0.12x on the aware hand, level
+7 down to level 1 on the careless one). Tree clean at `00840be` (1.9.14), 2603 tests green.
+
+### What landed
+1. **`tools/headless/loot.js`** - the habit. It answers one question, *nothing is wrong, where do my feet
+   go*, and it is asked from one door: `idleDirection` in `bot.js`, which is what each policy answers when
+   it is not fleeing (naive when nothing is within its panic range, aware when `escapeDirection` is under
+   `calm`, human through the same `wantedDirection` its eyes are reading). So **a shard can replace the
+   drift to the middle and can never outvote a dodge** - which is the one property that makes it safe to
+   put on a measuring instrument at all, and there is a test that plants a shard at right angles to a body
+   and insists the ship takes the body. Target choice is one pass over the live shards: best
+   `worth / distance` wins, so an elite's pile is worth four times the flight of a plain one at the same
+   distance; two things disqualify a shard first - further than `LOOT.reach`, and `life` shorter than
+   `distance / ship.maxSpeed + LOOT.grace`, because a pile that will have rotted before the ship arrives
+   is not on the floor. The pointer is never touched, same rule as the dash habit.
+2. **Opt-in, like `--dash`**: `tools/simulate.js --loot` / `--loot-habit NAME`, `{ loot: true }` for the
+   tools, `setLootHabit(name)`, and a per-run `foraged` count on every summary (how many frames the habit
+   had the wheel - which is how a ladder tells "never fired" from "found nothing"). Left out, the bot is
+   exactly the bot every number in this file was measured with, and the reference trace proves it (below).
+3. **`tools/loot-habit.js`** - the ladder that chose the shipped number, in `dash-habit.js`'s shape: the
+   same seeds per row, `off` as the floor, the verdict bought with the middle *score*, `--reach` and
+   `--grace` swept, `--strict`. Its two failures are that the habit banked nothing (dead instrument) and
+   that it banked loot at a score loss (a habit that walks the ship into a crowd it could have stayed out
+   of). `shards/run` and `steered` are on the table because `middle death` alone would have lied here.
+4. **The sweep, and why 700 px.** 12 seeds x 5m of the careless hand (`human`, `random`, get-out dash);
+   the floor row - the same bot standing still - middles at 3m39s, 3,835, 9 of 12 died, 281 shards a run,
+   level 7.
+
+   | reach | middle death | died | middle score | vs off | off won | shards/run | steered | level |
+   |---|---|---|---|---|---|---|---|---|
+   | 200 px | 2m44s | 4/12 | 31,675 | 8.26x | 10/12 (p 0.039) | 1,607 | 48% | 43 |
+   | 400 px | 3m41s | 4/12 | 30,325 | 7.91x | 11/12 (p 0.006) | 1,757 | 44% | 43 |
+   | **700 px** | 3m41s | 4/12 | 29,888 | 7.79x | 11/12 (p 0.006) | 1,670 | 45% | 42 |
+   | 1200 px | 3m41s | 4/12 | 29,888 | 7.79x | 11/12 | 1,670 | 45% | 42 |
+   | 2000 px | 3m41s | 4/12 | 29,888 | 7.79x | 11/12 | 1,670 | 45% | 42 |
+
+   700, 1200 and 2000 are **byte for byte the same batch**: past 700 px the walk never once found a shard a
+   nearer one had not already won, because a ship that kills where it stands has loot within a few hundred
+   px of it almost always. So the sweep cannot choose between 400 and the horizon, and the dial is a knob
+   with a plateau rather than a peak - said out loud in `loot.js` so nobody sweeps it again for pleasure.
+   200 middle-scored best and was refused on the other column: more trips, more of them spent in the crowd,
+   a middle of deaths a minute worse.
+5. **BY HAND, re-priced on a hand that wants the loot** (`tools/challenge-cost.js --loot`, and this is the
+   session's finding): on the same 32 seeds x 5m of the careless hand the rule reads **0.09x** with
+   **30 of 32** seeds behind it (middle death 1m44s against plain's 2m22s, 30 of 32 died against 11 of 32),
+   and on the aware hand over 8m **0.07x** with **16 of 16** (plain never died once, middle 57,564; the rule
+   4,279). The row carries 0.55x. The intuitive reading was that a hand which goes for the loot would not
+   mind the net going, and it is backwards: a hand standing in the middle loses a *bonus*, a hand that flies
+   the arena for its pay loses its *engine* (levels 7 to 42 on that batch), and every shard then has to be
+   gone to while the crowd is still on the ship that dropped it. **The more of the loot half of the game a
+   hand plays, the dearer BY HAND gets, and the number in the game is the cheapest of three readings.**
+6. **The quote machinery grew a third part of "which hand"** - which eyes, how they answer a level-up, and
+   whether they go and get their own loot. `--loot` on `challenge-cost.js` (default off, because every
+   `measured` row in the game was taken magnet-fed); `fliesTheHand` refuses to let a foraging flight check a
+   magnet-fed quote and says why in the line it prints, `quoteCommand` puts `--loot` back in the command it
+   hands over, and a `measured` row may now carry `loot: true` if a future session ever wants to quote the
+   foraging hand. Without this a `--loot` flight would have reported the whole sheet stale.
+7. Prose moved where the flights contradicted it: `game/challenges.js` `shardReachMulOf` (the "which hand
+   can price this" paragraph, which had said the ladder has no hand that goes looking), the `byhand`
+   `measured` row in `balance.js` (now says its 0.55x is the cheapest of three readings and why it is kept -
+   the other six rules were priced on that hand and a cost you cannot compare with its neighbours is worth
+   nothing in the game), and `challenges.js`'s header, which had been calling ONE HULL at 0.61x the dearest
+   rule when BY HAND at 0.55x had quietly beaten it since last session. PLAN's BY HAND item carries the
+   follow-up.
+8. Tests 2603 -> **2616**: eleven in the new `test/loot-habit.test.mjs` (walks to a shard past the net; the
+   reach's two sides and the dial going to zero; the rot test both sides of its own arithmetic; an elite pile
+   over a nearer plain one, and the plain one alone; never overruling a dodge; all three policies going
+   shopping; the pointer never moving; the shipped `reach` pinned against the net it has to beat; the habits
+   by name; the dials refusing a number that is not one; and one seed flown twice proving the walk banks more
+   and that `foraged` belongs to its own run), plus two in `challenge-cost.test.mjs` for the hand-matching in
+   both directions.
+
+### Numbers
+The game is untouched: `node tools/simulate.js --seed 1 --bot aware --ship wisp --weapon pulse --seconds
+600 --trace` is **byte for byte** what it traced at 1.9.14, proved against a `git worktree` of HEAD and not
+against a remembered number. Quick reads of what the habit does to a single seed: seed 3 aware 2m - 2,683 /
+level 8 / 77 shards without it, 9,179 / level 28 / 793 with it.
+
+### Surprises and lessons
+1. **The blind spot was worth better than seven times.** Not "the bot collects a bit more": on the careless
+   hand the middle run goes from level 7 and 281 shards to level 42 and 1,670, and the seeds are 11 of 12 one
+   way. Every ladder in this folder that prices a build - `line-ab.js`, `power-ladder.js`, `weapon-ladder.js`,
+   `pick-taste.js` - was pricing a build the net dealt, which is now written down rather than inherited. Their
+   numbers are still the magnet-fed hand's and are not wrong; they are one hand's numbers, and there is now
+   another hand.
+2. **A rule's price can move more with what the hand wants than with what the rule does.** 0.55x / 0.09x /
+   0.07x are all true measurements of BY HAND, and the differences are not noise - the pairs are 30 of 32 and
+   16 of 16. Which is the argument for quotes naming their hand instead of being bare ratios, and the argument
+   for `measured` rows gaining a `loot` field the day one is deliberately taken on the foraging hand.
+3. **A habit can be worth eight times the score and lose the deaths column.** Flown with `--no-dash` the
+   forager's middle of deaths came in at 1m20s against the standing-still bot's 2m41s while scoring 8.9x.
+   Walking the arena is more exposure; the dash is what makes it pay. That is `dash-habit.js`'s lesson again -
+   buy the verdict with the score and print the deaths - and the reason `shards/run` and `steered` are on this
+   table too: a single column would have let this habit look like a failure or, worse, looked like nothing.
+4. **A dial with a plateau is a finding, not a shrug.** If the next session changes how far loot drops or how
+   big the arena is, 700 px is the number to re-sweep first, because that is the one place the plateau could
+   stop being one. `--reach 200` and `--reach 1200` are the two ends to check.
+5. **A comment can be a bug.** `challenges.js` had been printing "the dearest rule is ONE HULL at 0.61x" in
+   the file that also held a 0.55x row; the sentence was written before BY HAND landed. Worth one grep pass
+   for quoted superlatives whenever a ladder adds a row.
+
+### Next
+1. **Decide which hand the sheet speaks for.** The seven quotes are all magnet-fed and mutually comparable;
+   the foraging hand is closer to a person, who does go for the loot. Re-flying all seven on `--loot` is about
+   an hour (`--challenges none,X --seeds 24/32 --seconds 300 --loot` per rule, ONE CARD on
+   `--bot aware --picks wise --seeds 24 --seconds 480 --loot`) and then either the rows carry `loot: true` or
+   NOTES says why they do not. Do not do it piecemeal: a sheet with two hands in it is worse than a sheet with
+   one that is named.
+2. **The other ladders want the same second hand.** `line-ab.js`, `power-ladder.js`, `weapon-ladder.js` and
+   `pick-taste.js` each take a `--loot`-sized flag the same way `challenge-cost.js` now does (and a line in
+   their output naming which hand was flown). The one to do first is `line-ab.js`, because the attractor and
+   magnetar lines are priced on a hand for which loot arrives by itself.
+3. **A second loot habit**, if the plateau says the dial is out of ideas: walk to the pile the *crowd is not
+   sitting on*, which is the difference between a person picking a safe pile and this habit picking the nearest.
+   It is a `LOOT_HABITS` entry and a row in `loot-habit.js`, and the ladder already knows how to rank them.
+4. Carried over, unchanged and still open: re-fly the seven ordinary quotes when the game moves (twelve minutes,
+   `--strict`); NO DASH still has no hand that lives on the dash; nobody has played ONE CARD or BY HAND on a
+   screen; the ablate catalogue's `--scene brood` pass; the shot-speed line; the `tierBonus.telegraph`
+   sentence in PLAN naming a number this tree does not have; whether the first two minutes are too harsh;
+   `--live --weapon swarm`; and the browser half of the performance pass, which only the owner can take.
+
+### Released
+Nothing. The game traces byte for byte what it traced at **1.9.14** - what changed is an instrument, and an
+instrument that is switched off by default. The next release is still a rule or a feel change; the honest
+candidate is still playing ONE CARD and BY HAND on a screen.

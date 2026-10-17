@@ -467,8 +467,15 @@ export const BALANCE = {
       // Two fifths is therefore the widest cut that still charges the full price, and it was taken over the
       // two gentler ones for the reason SHORT GRACE was: a cut the eye does not read is not a small card,
       // it is no card. It also leaves the ship a well at all - 58 px, so a near miss still pays - which a
-      // net of nothing would not have. On the ladder's best-behaved hand this rule reads worse than
-      // anything on this sheet, and game/challenges.js says why that hand cannot price a net.
+      // net of nothing would not have.
+      //
+      // This 0.55x is the *cheapest* reading of the rule on the sheet, and it is worth saying so because it
+      // is the counter-intuitive one. It is the price to a hand that stands in the middle and lets the net
+      // work; a hand that goes and gets its own loot (tools/headless/loot.js, `challenge-cost.js --loot`)
+      // pays 0.09x of its middle on the same 32 seeds with thirty of them agreeing, and 0.07x on the aware
+      // hand over eight minutes with all sixteen, because for that hand the flight is what turns loot into a
+      // build and the rule takes the engine, not a bonus. game/challenges.js `shardReachMulOf` has the whole
+      // of it, including why the row still quotes the cheapest of the three.
       measured: {
         on: '2026-10-17', seeds: 32, seconds: 300, policy: 'human', picks: 'random',
         cost: 0.55, plainWon: 29, ruleWon: 3,

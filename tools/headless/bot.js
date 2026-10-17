@@ -14,7 +14,9 @@
 // All three answer the level-up choice when the run stops for one, with keys, the
 // way a player does (see `chooseCard` below). None of them dashes on its own: `--dash`
 // adds `dashEscape` below to whichever policy is running, which is what any line that lives
-// on the dash has to be measured with.
+// on the dash has to be measured with. None of them goes looking for loot either: `--loot` puts
+// `tools/headless/loot.js` behind the same three policies, which is what a rule about the shard net
+// has to be measured with.
 //
 // How the level-up is answered is a second, separate choice (`PICKS` below), because
 // `tools/difficulty-arc.js` has to ask what the game does to a player who does not think
@@ -29,6 +31,7 @@ import { bootGame } from './harness.js';
 import { BALANCE } from '../../src/game/balance.js';
 import { escapeDirection, SKILL } from './threats.js';
 import { resetDodge, setDial, theHuman } from './human.js';
+import { LOOT_HABITS, FORAGE, lootHabitOf, resetForage } from './loot.js';
 import { isSynergy, lineOf } from '../../src/game/upgrades.js';
 import { makeEnemy } from '../../src/game/kinds.js';
 import { Rng } from '../../src/core/rng.js';
@@ -87,7 +90,10 @@ function aimAtTheNearest(game) {
   return near;
 }
 
-/** Aim at the nearest thing and run from the one thing close enough to matter. */
+/**
+ * Aim at the nearest thing and run from the one thing close enough to matter - and when nothing is
+ * close enough to matter, go where the loot habit says (`tools/headless/loot.js`).
+ */
 function naiveFrame(game) {
   drive(game, wantedDirection(game, aimAtTheNearest(game)));
 }
@@ -101,7 +107,7 @@ function awareFrame(game) {
   aimAtTheNearest(game);
 
   const escape = escapeDirection(game.world);
-  drive(game, escape.pressure < SKILL.calm ? driftToMiddle(game) : escape);
+  drive(game, escape.pressure < SKILL.calm ? idleDirection(game) : escape);
 }
 
 /**
@@ -590,12 +596,25 @@ export function botFrame(game, policy, picks) {
 
 function wantedDirection(game, near) {
   const ship = game.player;
-  if (!near) return driftToMiddle(game);
+  if (!near) return idleDirection(game);
 
   const dist = Math.sqrt(near.distance2) || 1;
   if (dist < PANIC_RANGE) {
     return { x: (ship.x - near.enemy.x) / dist, y: (ship.y - near.enemy.y) / dist };
   }
+  return idleDirection(game);
+}
+
+/**
+ * Where the ship goes when nothing is wrong: whatever the loot habit says, and the middle of the
+ * arena when it has nothing to say. Every policy answers its idle question through here - the naive
+ * one when nothing is close, the aware one when nothing is on its way to the ship, the human one
+ * through the same `wantedDirection` the eyes are reading - so this is the one door a habit about
+ * going shopping can be put behind, and the one place a dodge can never be replaced by a shard.
+ */
+function idleDirection(game) {
+  const somewhere = lootHabit(game);
+  if (somewhere !== null) return somewhere;
   return driftToMiddle(game);
 }
 
@@ -606,6 +625,21 @@ function driftToMiddle(game) {
     x: (arena.w / 2 - ship.x) / arena.w * 2,
     y: (arena.h / 2 - ship.y) / arena.h * 2,
   };
+}
+
+/**
+ * Which loot habit is running. Module state, because the three policies are functions and not
+ * objects, and set per run by `playOneRun` - the same shape `setDial` and `setTasteDial` settled on
+ * for the other dials a tool turns between runs. `off` is the shipped answer, which is no habit at
+ * all: every number in NOTES.md was measured by a bot that never went looking for anything.
+ */
+let lootHabit = LOOT_HABITS.off;
+
+/** Put a loot habit on the bot (`true` for the shipped one, a name for one of the others, `off`). */
+export function setLootHabit(name) {
+  lootHabit = name === undefined || name === false ? LOOT_HABITS.off : lootHabitOf(name);
+  resetForage();
+  return lootHabit;
 }
 
 /**
@@ -639,7 +673,7 @@ export function fingerprint(game) {
 
 /**
  * Play one run on a game that is already sitting on its title screen.
- * Options: { maxSeconds, every, onFrame, policy, picks, dial, taste, ship, weapon, challenge, at, dash }
+ * Options: { maxSeconds, every, onFrame, policy, picks, dial, taste, ship, weapon, challenge, at, dash, loot }
  */
 export function playOneRun(game, options) {
   const opts = options || {};
@@ -650,6 +684,12 @@ export function playOneRun(game, options) {
   // is what every number already in NOTES.md was measured with; `true` is the shipped get-out and
   // a name picks one of the others (tools/dash-habit.js is the ladder that compares them).
   const dash = opts.dash === undefined || opts.dash === false ? null : dashHabitOf(opts.dash);
+  // Which loot habit, if any (tools/headless/loot.js). Leaving it out is the bot that never goes
+  // looking for a shard, which is what every number already in NOTES.md was measured with; `true`
+  // is the shipped walk to the nearest pile and a name picks one of the others
+  // (tools/loot-habit.js is the ladder that compares them). Set before a frame, and it puts the
+  // habit's own counter back to zero for this run.
+  setLootHabit(opts.loot);
   // Checked before a single frame, because a batch of twenty long runs is the wrong place to
   // find out the picker's name was spelled wrong.
   pickerOf(picks);
@@ -802,6 +842,10 @@ export function playOneRun(game, options) {
     // its own sheet, so this stays readable after the next run starts.
     tally: game.world.tally,
     frames: frames,
+    // How many frames the loot habit had the wheel (tools/headless/loot.js). 0 when no habit was
+    // asked for, and 0 when one was asked for and never found a shard worth walking to - which are
+    // two different things a ladder has to be able to tell apart.
+    foraged: FORAGE.steered,
     seconds: +(frames * FRAME_MS / 1000).toFixed(2),
     stats: game.stats(),
     screen: game.screen,
@@ -859,7 +903,7 @@ export function endingItAt(seconds) {
  * of work and a silent terminal cannot be told apart from a stuck one.
  *
  * A batch is `playRuns`' options object: { seeds: [..], maxSeconds, every, policy, picks, dial,
- * taste, ship, weapon, challenge, at, onRun }.
+ * taste, ship, weapon, challenge, at, dash, loot, onRun }.
  */
 export async function playBatches(batches, onBatch) {
   const first = batches[0] || {};

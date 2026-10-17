@@ -14,6 +14,11 @@
 //   node tools/challenge-cost.js --reach 0.25             the shard net's reach, tried live
 //   node tools/challenge-cost.js --grace 0.75             the gap a hit leaves, tried live
 //   node tools/challenge-cost.js --cards 2                ONE CARD's rack, tried at another size
+//   node tools/challenge-cost.js --loot                   the bot goes and gets its own loot
+//                                               (tools/headless/loot.js) instead of letting the net
+//                                               bring it - the only hand a rule about the net can
+//                                               honestly be priced on, and a hand none of the
+//                                               numbers in the game were taken on
 //   node tools/challenge-cost.js --bot aware --challenges none,thin
 //                                               ONE CARD, on the one hand that can price a choice
 //   node tools/challenge-cost.js --dump                   print every seed behind the readings
@@ -106,6 +111,12 @@ const DEFAULTS = {
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
   dash: true,
+  // Whether the hand goes and gets its own loot. Off by default, because every `measured` row in the
+  // game was taken on a hand that lets the shard net bring the loot to it, and a ladder that quietly
+  // changed the hand under those numbers would be checking nothing. `--loot` is the hand a rule about
+  // the net wants (game/challenges.js `byhand`, NOTES session 160) - and `quotesReport` will refuse
+  // to let it check a quote the magnet-fed hand took, which is the same honesty in the other direction.
+  loot: false,
   speed: null,
   hold: null,
   reach: null,
@@ -189,6 +200,7 @@ function readArgs(argv) {
     else if (arg === '--picks') opts.picks = next();
     else if (arg === '--challenges') opts.challenges = next();
     else if (arg === '--no-dash') opts.dash = false;
+    else if (arg === '--loot') opts.loot = true;
     else if (arg === '--speed') opts.speed = Number(next());
     else if (arg === '--hold') opts.hold = Number(next());
     else if (arg === '--reach') opts.reach = Number(next());
@@ -314,6 +326,9 @@ async function measure(opts, specs) {
         // `none` is the game as it shipped, which the game calls no challenge at all.
         challenge: spec.id === PLAIN ? '' : spec.id,
         dash: opts.dash,
+        // `false` is the bot the net feeds, which is what every quote in the game was taken on; a
+        // name is one of the ways of going and getting it (tools/headless/loot.js).
+        loot: opts.loot,
         onRun: (summary) => { finished.push(summary); },
       },
       report: () => {
@@ -608,7 +623,37 @@ function shownWords(pair) {
 /** The window and the hand a quote was made on, in the words the ladder prints. */
 function quoteWindow(m) {
   return m.seeds + ' seeds x ' + clock(m.seconds) + ', the ' + m.policy + ' hand answering the level-up '
-    + m.picks + ', as of ' + m.on;
+    + m.picks + (m.loot === true ? ', going and getting its own loot' : '') + ', as of ' + m.on;
+}
+
+/**
+ * Does this flight fly the hand a quote names?
+ *
+ * A hand has three parts now: which eyes, how they answer a level-up, and whether they go and get
+ * their own loot. The first two are what the quotes in the game were written with, and the third was
+ * added after them (tools/headless/loot.js, NOTES session 160) - so a foraging flight is a different
+ * instrument whatever it shares with a quote in seeds and window, and letting it check a magnet-fed
+ * quote would call every number on this sheet stale the first time anybody flew a bot that walked for
+ * its pay.
+ */
+function fliesTheHand(table, m) {
+  return table.policy === m.policy && table.picks === m.picks
+    && !!table.loot === (m.loot === true);
+}
+
+/**
+ * Why this flight is not the quote's hand, when the reason is the loot habit. Empty when the two
+ * agree about it, because then the plain "this ladder never flew that hand" says enough.
+ */
+function handWords(m, flown) {
+  const words = (foraging) => (foraging
+    ? 'a hand that goes and gets its own loot'
+    : 'a hand that lets the shard net bring the loot to it');
+  if (!!flown.loot === (m.loot === true)) return '';
+  return ' This flight flew ' + words(flown.loot) + ' and the quote was taken on '
+    + words(m.loot === true) + ', which are two different instruments whatever their windows have in '
+    + 'common - and the farthest apart they can be for a rule about the net, since what a free net '
+    + 'is worth to a hand that never walks for loot is not what it is worth to one that always does.';
 }
 
 /** The shortest command that re-flies one quote exactly. */
@@ -618,6 +663,9 @@ function quoteCommand(m, id) {
   // The deliberate table is what the default already adds on its own; any other way of answering the
   // level-up has to be asked for by name.
   if (m.picks !== DEFAULTS.picks && m.picks !== DELIBERATE_PICKS) parts.push('--picks ' + m.picks);
+  // A quote taken on a hand that goes and gets its own loot says so, and the command has to ask for
+  // that hand back or the re-flight would be a different hand wearing the same window.
+  if (m.loot === true) parts.push('--loot');
   parts.push('--challenges ' + PLAIN + ',' + id);
   parts.push('--seeds ' + m.seeds);
   parts.push('--seconds ' + m.seconds);
@@ -658,13 +706,13 @@ export function quotesReport(tables, flown, quoteOf) {
       continue;
     }
     const quote = quotePair(m);
-    const table = tables.find((t) => t.policy === m.policy && t.picks === m.picks);
+    const table = tables.find((t) => fliesTheHand(t, m));
     const row = table === undefined ? undefined : table.rows.find((r) => r.id === id);
     const plain = table === undefined ? undefined : table.plain;
     if (row === undefined || plain === undefined || plain.middleScore === 0) {
-      lines.push(name + ' is quoted at ' + dec(m.cost, 2) + 'x (' + quoteWindow(m) + '), and this ladder '
-        + 'never flew that hand against its own plain run, so it has no reading of it. `'
-        + quoteCommand(m, id) + '` would check it.');
+      lines.push(name + ' is quoted at ' + dec(m.cost, 2) + 'x (' + quoteWindow(m)
+        + '), and this ladder never flew that hand against its own plain run, so it has no reading of it.'
+        + handWords(m, flown) + ' `' + quoteCommand(m, id) + '` would check it.');
       continue;
     }
     const pair = pairedRatio(row.bySeed, plain.bySeed);
@@ -741,9 +789,10 @@ if (isMain) {
 
   // Every table this flight produced, keyed the way a quote names a hand (policy + how it picked). A
   // rule's `measured` row says who flew it, and this is what says whether they were flown here at all.
-  const tables = [{ policy: opts.policy, picks: opts.picks, rows, plain }];
+  const tables = [{ policy: opts.policy, picks: opts.picks, loot: opts.loot, rows, plain }];
   if (needsDeal) {
-    tables.push({ policy: opts.policy, picks: DELIBERATE_PICKS, rows: deal.rows, plain: deal.plain });
+    tables.push({ policy: opts.policy, picks: DELIBERATE_PICKS, loot: opts.loot, rows: deal.rows,
+      plain: deal.plain });
   }
   // Which of the quoted numbers this flight wrote over. A sweep of a rule's own number is a measurement
   // of the sweep, and saying so out loud is what keeps it from being read back as the shipped one.
@@ -770,7 +819,9 @@ if (isMain) {
   printTable(rows, plain, opts, 'the challenges, on ' + opts.seeds + ' seeds of ' + clock(opts.seconds)
     + ', ' + opts.policy + ' bot'
     + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
-    + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash') + sweep, note);
+    + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
+    + (opts.loot ? ', going and getting its own loot' : ', letting the net bring the loot')
+    + sweep, note);
   if (opts.dump) dumpTable(rows, plain);
 
   // The deal rules again, on a hand that picks on purpose. Same seeds, same feet, same everything but
@@ -812,7 +863,8 @@ if (isMain) {
 
   // The second question: not "is this rule hard enough to be a rule", which the verdict above answers,
   // but "is the number the game carries for it still the number this ladder measures".
-  const quotes = quotesReport(tables, { seeds: opts.seeds, seconds: opts.seconds, swept });
+  const quotes = quotesReport(tables, { seeds: opts.seeds, seconds: opts.seconds, swept,
+    loot: opts.loot });
   console.log('');
   console.log('What the game quotes each rule for, and what this flight says about it:');
   for (const line of quotes.lines) console.log('  - ' + line);
