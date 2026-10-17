@@ -369,8 +369,8 @@ export function verdictOf(rows, plain, deal) {
         skipped.push(nameOf(row.id) + ' is not priced by this ladder: ' + tasteWords(taste, deal)
           + '. It read ' + dec(ratio, 2) + 'x plain here, which is the same nothing. (`--bot aware` flies '
           + 'the hand whose picks are worth pricing; `tools/pick-taste.js` says why this one has none - '
-          + 'it dies in its first twenty levels with a handful of cards spent, and a taste needs a '
-          + 'build to be worth anything.)');
+          + 'it dies around level seven with half a dozen cards spent, and a taste needs a build to be '
+          + 'worth anything.)');
         continue;
       }
       skipped.push(nameOf(row.id) + ' is priced on the deliberate table and not this one: it read '
