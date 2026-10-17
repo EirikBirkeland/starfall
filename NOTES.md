@@ -17032,3 +17032,127 @@ ruler-only session.
    `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree, and
    PLAN's browser half of the performance pass - which now also has a brood row (1,301 operations a
    frame at 42 bodies) for whoever puts the F3 plate up to compare a real late flight against.
+
+## Session 154 - the byte hunt found no line: a crowd's garbage is a shape the compiler picked, and now there is a ruler that says so
+
+### What was on the shelf
+Session 153's first next-item: the shielder and the swarmling throw away **48 B and 32 B a body a step**
+where the other seven kinds throw away nothing, and `BODY_BYTES` is 5. It asked for the mixed crowd to be
+re-checked first, because a crowd of a dozen shielders standing in the gated schedule crowd "cannot be
+right" against a mixed reading of 0 B a body.
+
+**The mixed reading was never 0.** `--scene schedule` reads 404 B a step, 3 B a body, PASS - and the 0 B
+that session 153 remembered was the row-stamp bug it had just fixed, seen from the other side: the row it
+read as the mixed crowd was `--kinds`' first row, all drifters. So the mixed crowd does pay its share
+(3 B a body, and `--parts` says the crowd alone is 364 B of a 388 B step, with sparks and shots at 0 B
+between them), the gate is on the right load, and the hunt was really about two crowds the director never
+sends: a hundred bodies of one kind.
+
+### The instrument, which is what shipped
+`tools/alloc-ablate.js`. A byte has no return address and the inspector's sampling profiler only sees
+what stayed alive, so the question goes sideways: **take one line out, warm the load again from scratch,
+read the same row.** Sixteen rows, each an exact piece of source text plus what to leave instead
+(`--list` prints them with the question each asks); the edits are applied to **a copy of `src/` and
+`tools/` in the system's temporary folder**, reset before every row, deleted on the way out unless
+`--keep`, so the game is never edited even for a moment and a session cannot leave a half-removed line
+behind. The copy is measured by `tools/alloc-probe.js --json` run from inside it, with all of the probe's
+warming and window-refusing intact. `--kind mixed` asks about the crowd the director fields, `--bare`
+takes the shots and sparks out of the load, `--edit/--find/--repl` asks a question the catalogue does not
+have. Because the rows are literal text, a row that has drifted out of the source says `not in the source
+any more` instead of measuring nothing - and `test/alloc-ablate.test.mjs` fails on that drift before
+anybody sits through a measurement to find it.
+
+### What it found, and the finding is not a line
+A hundred shielders on the glass with no shots and no sparks: **4.8 KB a step, 48 B a body.** Taken out
+one at a time, each of these *on its own* takes the whole of it back to the arena's own 64 B:
+
+| the row | what came off |
+| --- | --- |
+| the crowd is not walked | the whole of it |
+| the crowd is not separated | the whole of it |
+| glide writes nothing | the whole of it |
+| glide leaves the shove alone (two of its four writes) | the whole of it |
+| glide with no x write (one write) | the whole of it |
+| nobody is fooled by an image (`step.ship = ship`) | the whole of it |
+| the bait is asked once a step, not once a body | the whole of it |
+| the shielder walks like a drifter | the whole of it |
+| holdTheBand does not drift sideways / does not clamp to the wall | the whole of it |
+| the crowd keeps no px/py | nothing |
+| nobody holds a field, nobody is guarded (the shielder's own kind-work) | nothing |
+| the band answer is a `Float64Array` | nothing |
+| glide's answers rounded to whole px | nothing |
+
+Nine different lines, each the whole of it: that is not a spender, that is a **threshold**. Taking almost
+anything out of the crowd's loop makes V8 compile it into a shape where the bytes are not there, and
+putting a little *more* in can tip it the other way - rounding the walk's answers to whole pixels cost the
+*swarmling* crowd **+4.7 KB a step**. Two probes ruled out the obvious mechanics: a `Float64Array` cannot
+box and the bytes stayed put, and `%DebugPrint` (with `--allow-natives-syntax`) says every number field of
+an enemy is a boxed `HeapNumber` at representation `@ Any` - under pointer compression there is no
+unboxed double field in the object to lose, so whether a write costs a box is the compiler's business, not
+the source's. `core/math.js`'s `hypot` and the pooled cues in `game/cues.js` remain the two honest shapes
+here: they take work out of the loop instead of moving it around inside it.
+
+### Nothing shipped to the game, deliberately
+The one lever that looked shippable was the bait question: `quarryFor` is called once per body per step to
+answer "is there an image in the arena for this body to be nearest", and the answer is no unless the run
+owns that upgrade - so ask once a step (`imagesStanding(world)`) and hand the ship to every body
+otherwise. It zeroes the all-shielder row. It does **not** move the load the game fields: the mixed crowd
+went 401 B → 388 B a step, inside the noise, and `tools/perf-probe.js` called the step time a wash
+(0.038 ms hoisted against 0.035-0.040 ms as it is). Shipping it would be paying for a compiler's mood with
+a change to the fight, so it is in the catalogue as the row `the bait is asked once a step` instead, where
+the next session can re-ask it against a different load.
+
+**Two decisions out of that.** The per-kind rows stay a price list and never a gate: a gate there would
+gate V8's inlining decisions rather than anything the game does, and half a dozen unrelated edits would
+trip it. And `BODY_BYTES` stays asked of the *mixed* crowd - 3 B measured against 5 B budgeted - which is
+session 153's second next-item, answered no.
+
+### Surprises and lessons
+1. **A microcosm has to use what it writes.** `.scratch/boxing.js` reproduced the walk's exact writes on
+   the enemy's exact shape and read 0 B a step, and I nearly took that as proof the writes were free:
+   nothing in the loop ever read `x` back, so the whole thing was dead code. The lesson is the same one the
+   probe already carries - a measurement that refuses to look at its own answer is not a measurement.
+2. **The ruler was right and my notes were wrong.** Session 153's "the probe reads the mixed crowd at 0 B
+   a body" was the mis-stamped row it had just fixed, remembered from the wrong side. Worth writing down
+   because the fix - read the row again before chasing it - is cheap and I skipped it.
+3. Stepping one subsystem at a time (`.scratch/byte-sites.js`) does name the *system*: it put the shielder's
+   bytes in `updateEnemies`, which was where they were. It could not say which of the forty lines in there,
+   which is what the ablation rig is for. Keep both; ship the second.
+4. `%DebugPrint` under `--allow-natives-syntax` is the cheapest way to ask a field what it really is, and
+   here it answered a question I had not thought to ask (there are no unboxed double fields at all).
+5. An ablation rig that can only make a load cheaper is measuring itself. The rounding row is in the
+   catalogue precisely because it made one dearer.
+
+### Left in the tree
+`tools/alloc-ablate.js` (16 rows, `--list/--kind/--row/--bare/--scene/--steps/--windows/--json/--keep` and
+the one-off `--edit`), `test/alloc-ablate.test.mjs` (8 tests: every row's text still exists, every row
+leaves the copy parseable, a vanished needle is a problem and not a silence, the rows are named and about
+a kind that exists, the flag parser, `verdictOf`'s readings, and one real measurement - a shielder crowd
+dears by more than a kilobyte with its walks in and comes back under a quarter of that with them out), and
+`tools/alloc-probe.js`'s header and price-list comment now point at the new tool and say what the chase
+found instead of "nobody has chased this down". Suite 2526 → 2534, 2m10s; `tools/simulate.js` unchanged
+(seed 1 aware wisp/pulse, 10m, 3,794 kills). In `.scratch`: `abl/abl.mjs` and `abl/try.js` (the rig this
+grew from), `byte-sites.js`, `byte-walk.js`, `boxing.js`, `map-check.js`, `byte-why.js`, `alloc-sites2.js`.
+**No release**: nothing a player sees or feels changed, which is the call sessions 150 and 152 made for a
+ruler-only session too.
+
+### Next
+1. **The crowd's byte bill can only come down by taking writes out, not moving them.** The walk writes four
+   doubles a body a step and the px/py snapshot two more, and which of them box is the loop's compilation.
+   The only candidate that is a real reduction is the px/py snapshot - two writes a body, wanted by the
+   renderer and nobody else - so ask `tools/perf-probe.js` what a painted frame is worth if bodies were
+   drawn where they *are* instead of interpolated between where they were and where they went. If a frame
+   is cheaper, that is two writes gone and a step time gone with them; if not, leave it alone. A genuine
+   fix is a structure-of-arrays crowd on typed arrays, which is a milestone and not a session, and it
+   should not be started on a compiler's say-so - only if the F3 plate in a real browser shows scavenges
+   the planted walls do not explain.
+2. **`--live` has never been believed.** Nothing so far compares what a *played* run throws away a step
+   against the planted walls' 404 B - the row exists, but it is measured cold and prints a ceiling. That
+   is the number the whole cliff discussion is standing on.
+3. Whether the ablate catalogue should grow a `--scene brood` pass - the clumps' beat is 4.6 s, so a
+   crowd row off the default window is a coin toss on whether a tell is on the glass, and the flock scenes
+   already know their own window (`perf-probe.js`'s `settled` honours it; `--scene` here passes through).
+4. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02; needs
+   ~20), whether the **first two minutes** are too harsh for a new player (needs a human), the
+   `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree, and
+   PLAN's browser half of the performance pass - still the only unchecked box.
