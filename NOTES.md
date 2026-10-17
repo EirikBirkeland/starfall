@@ -17250,3 +17250,112 @@ ruler-only work.
    (four seeds cannot tell 0.98 from 1.02; needs ~20); whether the **first two minutes** are too harsh
    (needs a human); the `tierBonus.telegraph` sentence in PLAN; and PLAN's browser half of the performance
    pass - still the only unchecked box, though the plate's step half is no longer part of what it waits on.
+
+## Session 156 - a fifth challenge rule, chosen by a bake-off: SHORT GRACE cuts the gap a hit leaves. Released **1.9.12**
+
+### What was on the shelf
+Nothing on the list. The one unchecked box in PLAN is the browser half of the performance pass and this box
+has no browser, and session 155's own next-items were all ruler work (a `--live --weapon swarm` flag, a
+per-level watch, the ablate catalogue's `--scene brood` pass). So this session went to PLAN's *After 1.0*
+idea list, wrote a new item there, and built it: **a fifth challenge rule**. The four that ship cover what
+a hull is worth (ONE HULL), whether the ship can jump (NO DASH), and how big and how quick the crowd is
+(SWIFT CROWD, THICK CROWD). The axis nobody had taken is the deck and the ship's own mercy, and the rule
+that ships sits on the second of those.
+
+### The bake-off came before the code, which is the part worth keeping
+Four candidate rules, one scratch script (`​.scratch/fifth-rule.mjs`, `fifth-rule2.mjs`, `grace-sweep.mjs`),
+each patched onto `BALANCE` between batches of `playBatches` and flown on the ladder's own careless hand
+(8 seeds x 5m, `human` eyes, random picks, get-out dash). Two and a half minutes of simming per candidate,
+and three of the four died:
+
+| candidate | middle score vs plain | verdict |
+|---|---|---|
+| every wave brings a gold body (elite from 0s, chance 1) | **3.69x** | a gift, not a rule: an elite is 5x score, 2x shards |
+| ...with the elite's gifts off (no big shard, no heal) | 1.36x | still a gift |
+| the fights come early (schedule x0.67) | 1.10x | a gift: a cage and its drops beat the crowd it replaces |
+| ...more early still (x0.5) | 0.94x | fails the bar anyway |
+| a level costs 1.6x / 2.2x of the crowd | 0.58x / 0.64x | a real cost - but it is a dial, not a rule |
+| **a hit leaves 0.5s of grace instead of 1.5s** | **0.77x** | shipped |
+
+That is what `tools/challenge-cost.js`'s "a rule that scores above 0.95x plain is a flavour setting" bar is
+for, and it earned its keep in about eight minutes total. The elite finding is the one to remember: gold
+bodies are *good for the player* - score x5, shards x2, and a hull back when one is missing - and the tally
+says so directly (`eliteKilled` ran 1,101 in a batch where the middle run scored 3.69x plain's). If anyone
+ever wants an elite rule it has to take the gifts away, and even then it is worth less than nothing.
+
+### What shipped
+`BALANCE.challenges.merciless = { grace: 0.5 }` and one lever, `hitGraceOf(world)`, asked in `hitPlayer`
+where the number is spent and answering `BALANCE.player.hitInvulnerability` when no rule flies. Name
+`SHORT GRACE`, sentence "a touch leaves barely a moment to get clear" - hand-written rather than built out
+of the row, because it names no number and so cannot go stale (the two crowd rules build theirs because
+their numbers are the sentence). Third in the cycle, after the ship's other two rules. Everything else -
+the title line, the glass beside the clock, the pause rack, both ending cards, the codex's fifth rack, the
+per-rule record - already walks `CHALLENGES`, so none of it needed a line. `tools/challenge-cost.js` grew
+`--grace` beside `--speed` and `--hold`, its default row list went to six, and its "this batch cannot see a
+rule about a touch" proviso went from one rule to a `TOUCH_RULES` pair, so the new rule is never passed by
+a batch nobody wounded. Suite 2539 -> **2546**; `--strict` over all six rows: PASS (plain 3m39s/5,715, ONE
+HULL 0.48x, NO DASH reported-not-judged at 1.69x, SHORT GRACE 3m11s/4,424 = 0.77x, SWIFT 0.56x, THICK
+0.93x). The reference run is byte for byte the run it was.
+
+### The number is a floor, and only a scripted hazard can prove it
+`player.hitInvulnerability` is 1.5 s, and the first draft of this rule said 0. That is a hull **per step**
+for anything that stays across the ship: `updateArms`, `beams` and a spitter's fan all ask `isInvulnerable`
+every step and none of them get shoved off the way a body is (hitPlayer shoves the crowd, not the ship). So
+the gap has to survive *something*, and the sweep picked the shortest number the ladder will still believe -
+1 s reads 1.00x, 0.75 s 0.97x (both refused by the bar), 0.5 s 0.77x, 0 the dearest at 0.62x and the death
+sentence above. `test/challenge-merciless.test.mjs` holds the floor by nailing a body to the ship for 1.2 s
+and counting hulls: plainly 1, under the rule 2-3, with the row spent at 0 all six at once and the run over.
+Two things tried and abandoned, both worth writing down: a `--at 280` window flown into the Warden with the
+*careless* hand dies at 0m36s and never sees the duel; with the *aware* hand one run in six dies at all, so
+its "middle death" is noise and the hull column moved 7 -> 9 over six runs, which is nothing to hang a claim
+on. A batch of runs cannot be asked to stand in a blade on purpose. A scripted world can.
+
+### Surprises and lessons
+1. **`dashLeft` is a distance and not a time.** The test set `ship.dashLeft = 0.2` expecting a fifth of a
+   second of dash immunity and got one step of it, because `beginDash` writes `spec.distance` and `dashStep`
+   spends pixels. The assertion now asks the row for `BALANCE.player.dash.distance` and only claims the
+   immunity itself, not a duration.
+2. **A hit freezes the world and a test inherits the freeze.** `hitPlayer` sets `world.freeze`, `stepWorld`
+   returns false while it lasts, and `invuln` does not tick during it (it is spent in `updatePlayer`). So a
+   helper that plants a body, steps once and walks off leaves both a swallowed frame and a live body across
+   the ship for whichever test runs next - which is how "kill the ship in one frame" started failing two
+   tests later. The helpers now take the body back out and burn the freeze before answering.
+3. **A test helper that matched the wrong string could silently pass.** `test/challenge-cost.test.mjs`'s
+   `problemsAbout(verdict, id)` filtered on `id.toUpperCase()`, which happens to match `SWIFT CROWD` and
+   `THICK CROWD` and does not match `ONE HULL`. It was only ever asserted against the empty list for
+   `brittle`, so it had never been wrong out loud - and `SHORT GRACE` would have made a fourth rule where a
+   failed verdict looked like a missing one. It matches `nameOf(id)` now, with the reason in its comment.
+4. **Two tests counted the key's presses instead of reading the table.** They hard-coded "three presses is
+   SWIFT CROWD", which a fifth rule moves in silence; one walks the cycle with `pressUntil`, the other (the
+   cycle's own test) keeps its hard-coded order on purpose, because that order *is* its subject.
+5. **The old numbers drift and nobody notices.** Writing the new row's numbers meant re-reading the ladder,
+   and THICK CROWD now reads 0.93x where `BALANCE.challenges` says 0.60x - same seeds, same window, same
+   hand - because the *plain* batch got stronger somewhere since (the same batch's middle of deaths is
+   unchanged at 2m48s; its middle score moved). ONE HULL likewise reads 0.48x against the 0.39x quoted in
+   `challenges.js`. Both still pass; both numbers in the prose are now dated and the thick row says plainly
+   that its share wants re-sweeping before 0.60x is quoted again. A measured number with no date on it is a
+   number that quietly becomes fiction.
+6. `src/ui/screens.js` claimed the codex's rule rack runs "the mildest at the top and the sharpest at the
+   bottom", which `challenges.js` spends a paragraph denying. One line of prose fixed at the same time.
+
+### What should come next
+1. **Re-sweep THICK CROWD's share.** Its margin over the ladder's bar went from a quarter to a twentieth
+   between the row being written and today, and the paragraph in `BALANCE.challenges` still argues for 1.5
+   off a 0.60x that no longer reproduces. `tools/challenge-cost.js --hold 1.3`, `1.75`, 16 seeds, and put
+   the date on whatever wins. The same sweep is worth doing to `swift.speedMul` while the ladder is warm.
+2. **A sixth rule wants the deck.** The bake-off measured one and put it aside as a dial rather than a rule
+   (a level costing 1.6x the crowd costs a run 0.58x, which the ladder would happily believe), and the two
+   deck-shaped ideas are unmeasured: a one-card rack (`cards.offer: 1` - note that `guaranteeSomethingNew`
+   would then force every card to be a fresh line and no line could ever be stacked twice, so the guarantee
+   has to be told to sit out when there is no room for a choice) and a rule that gates lines beyond NO
+   DASH's two (`gatedOn` already exists and is nearly free). Write the item in PLAN before building either.
+3. **`challenge-cost.js` cannot price a rule about a duel.** My `--at` attempt read the crowd before the
+   boss rather than the duel. A `--at` flag on the ladder plus a window that starts a fight, with the aware
+   hand, would make rules about the three fights priceable at all - and it is the same hole that makes NO
+   DASH unjudgeable today.
+4. Still open from earlier sessions: the ablate catalogue's `--scene brood` pass; the **shot-speed line**
+   (four seeds cannot tell 0.98 from 1.02 and it needs ~20 - though session 111's `test/shot-speed.test.mjs`
+   already explains *why* it reads 1.00x, so this may be a line to delete rather than to measure); the
+   `tierBonus.telegraph` sentence in PLAN, which names a number that does not exist in this tree; whether
+   the first two minutes are too harsh (needs a human); and PLAN's browser half of the performance pass,
+   still the only unchecked box, and still the owner's to take.
