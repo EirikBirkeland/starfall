@@ -209,14 +209,27 @@ export function addText(world, x, y, string, color) {
   if (over > 0) world.texts.trim(over);
 }
 
-/** The share of its own speed each shape has left after this step. */
-const dragOf = {};
-
+/**
+ * Move every spark, ring and label on the glass one step: drift, drag, tumble, and out when its time
+ * is up. "The share of its own speed a shape has left after this step" is what the three pows below
+ * are, and each spark picks one of them by its own `shape`.
+ */
 export function updateEffects(world, dt) {
-  // Three pows, refilled in place, so the loop under them allocates nothing.
-  for (const shape in BALANCE.effects.shapes) {
-    dragOf[shape] = Math.pow(BALANCE.effects.shapes[shape].drag, dt);
-  }
+  // Three pows, into three locals, and picked by name in the loop under them.
+  //
+  // They used to live in one module object keyed by shape name, refilled in place under a comment
+  // claiming the loop therefore allocated nothing. It allocated a great deal, once V8 finished with the
+  // function: `dragOf[p.shape]` is a *keyed* read out of a dictionary-mode object, and a keyed read of
+  // a double has to hand back a tagged value, so it builds a HeapNumber. Two reads a spark a step, 900
+  // sparks on the cap, and the dying crowd went from **735 B a step to 29 KB** the moment the compiler
+  // stopped being able to prove the numbers were doubles - which took about 10 minutes of arena time,
+  // and is why this sat in the game unnoticed while every byte budget in `tools/alloc-probe.js` passed.
+  // A lookup that is three named loads and two comparisons is not slower than a dictionary, and it
+  // cannot box.
+  const shapes = BALANCE.effects.shapes;
+  const sparkDrag = Math.pow(shapes[SPARK].drag, dt);
+  const debrisDrag = Math.pow(shapes[DEBRIS].drag, dt);
+  const smokeDrag = Math.pow(shapes[SMOKE].drag, dt);
 
   const particles = world.particles;
   for (let i = particles.count - 1; i >= 0; i--) {
@@ -230,8 +243,9 @@ export function updateEffects(world, dt) {
     p.py = p.y;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vx *= dragOf[p.shape];
-    p.vy *= dragOf[p.shape];
+    const drag = p.shape === SPARK ? sparkDrag : (p.shape === DEBRIS ? debrisDrag : smokeDrag);
+    p.vx *= drag;
+    p.vy *= drag;
     p.rot += p.spin * dt;
   }
 

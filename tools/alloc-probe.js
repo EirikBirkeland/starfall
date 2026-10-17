@@ -124,13 +124,13 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 //
 // Where the three budgets stood when they were last moved: measured on a load that has actually been
 // warmed (see `warmWork`), on this box and reproducible to under one percent, the empty arena throws
-// away **64 B** a step, the schedule crowd **407 B**, the endless wall **514 B**, the same crowd dying
-// **735 B** and spread out **499 B**; a body costs **2-3 B** and 900 sparks and 60 shots together cost
-// the step *nothing* over an empty arena. All three budgets came down when the warm-up was fixed - by
-// 4x on the floor, 2x on a load and 2x on a body - because what the old numbers were mostly measuring
-// was V8 still compiling the step, and a ratchet set against a compiler cannot be tightened by anything
-// the game does. That is the point of a ratchet: it goes down when the game does, or it is only a
-// ceiling.
+// away **16 B** a step, the schedule crowd **354 B**, the endless wall **449 B**, the same crowd dying
+// **713 B** and spread out **454 B**; a body costs **2 B** and 900 sparks alone cost the step *nothing*
+// over an empty arena (60 shots alone cost 1 B). All three budgets came down when the warm-up was
+// fixed - by 4x on the floor, 2x on a load and 2x on a body - because what the old numbers were mostly
+// measuring was V8 still compiling the step, and a ratchet set against a compiler cannot be tightened
+// by anything the game does. That is the point of a ratchet: it goes down when the game does, or it is
+// only a ceiling.
 //
 // They came down a second time when the **sound queue** went onto a pool (game/cues.js). Every cue used
 // to be a fresh object and a fight asks for 1.7 sounds a step - a darter's beat, two shots landing, a
@@ -139,13 +139,23 @@ export const GROWN_YOUNG_BYTES = 16 * 1024 * 1024;
 // against the 984 B and 574 B they were. Records go round a pool now, and what a sound costs a step is
 // a spawn, a hand of field writes and a clear instead of an allocation.
 //
-// STEP_BYTES sits inside PLAN section 2's 1 KiB on purpose: **896 B**, which is 22% over the dearest
-// gated load (the crowd dying, at 735 B) and - deliberately - *under* the 984 B that same load threw
+// And a third time when `updateEffects` stopped looking its drags up in a dictionary keyed by shape
+// name (game/effects.js has the note): a keyed read of a double has to be handed back boxed, which is
+// 16 B a spark twice a step once V8 stops being able to prove the number is a double - and it proved it
+// could, for about ten minutes of arena time, which is why every budget here passed while the game threw
+// away **29 KB a step**. Most of what the floor row was measuring was that same lookup: the empty arena
+// fell **64 B → 16 B**, and every crowd row with it by about a fifth. The 735 B the dying crowd used to
+// read was a rung and not a measurement; warmed to the bottom it reads **713 B**, which is what the
+// budget below is 25% over.
+//
+// STEP_BYTES sits inside PLAN section 2's 1 KiB on purpose: **896 B**, which is 25% over the dearest
+// gated load (the crowd dying, at 713-716 B) and - deliberately - *under* the 984 B that same load threw
 // away before the sound queue went onto a pool. A gate that the last fix would have passed is a gate
 // nobody believes, so this one was checked the way every budget in this file has been checked: put the
-// allocation back in a copy of the tree and watch it fail. BODY_BYTES is a third over the 3 B a body
-// costs at that same wall.
-export const FLOOR_BYTES = 128;
+// allocation back in a copy of the tree and watch it fail. It failed at 29 KB for the drag dictionary.
+// BODY_BYTES is two and a half times the 2 B a body costs at that same wall - loose on purpose, because
+// three of the nine kinds are over it on their own and a mixed crowd is what the gate is for.
+export const FLOOR_BYTES = 48;
 export const STEP_BYTES = 896;
 export const BODY_BYTES = 5;
 
@@ -154,19 +164,37 @@ export const BODY_BYTES = 5;
  * measuring window on purpose, because what a load needs is steps and every window pays for two full
  * collections to get them. `WARM_MIN_STEPS` is the floor on the warm-up (a load that looks flat after
  * two probes has not started getting cheap yet) and `WARM_MAX_STEPS` the ceiling, so a box that never
- * settles gets a complaint instead of a hang. Measured on these six loads with these settings: the
- * empty arena and the two pools want about 23,000 steps, the 100-body crowd 27,000, the two 200-body
- * walls 20,000-47,000 and PLAN section 2's impossible scene 42,000 - so a full ladder is about a
- * minute, which is the price of a number that means something. The width is not a free knob: a probe of
- * 2,000 steps steps further before it decides and reads the same crowd about a fifth cheaper again, so
- * 1,000 is the width the three budgets above were set against and moving it means moving them.
+ * settles gets a complaint instead of a hang. Measured on these loads with these settings: **24,000 to
+ * 51,000 steps a load** - the empty arena and the two pooled lists about 24,000-33,000, the 100-body
+ * crowd 35,000, the two 200-body walls 41,000-51,000 - so a full ladder is about a minute, which is the
+ * price of a number that means something. The width is not a free knob: a probe of 2,000 steps steps
+ * further before it decides and reads the same crowd about a fifth cheaper again, so 1,000 is the width
+ * the three budgets above were set against and moving it means moving them.
  */
 export const WARM_PROBE_STEPS = 1000;
 export const WARM_MIN_STEPS = 12_000;
 export const WARM_MAX_STEPS = 300_000;
 /** Probes that have to agree before the load counts as warm... */
 export const WARM_QUIET = 6;
-/** ... and how far apart they may be. The readings bounce; a band tells a bounce from a fall. */
+/**
+ * ... how far apart probes may be (the readings bounce; a band tells a bounce from a fall), and how
+ * long the floor has to have stopped falling before the flat stretch counts as warm.
+ *
+ * A plateau is not a settle. A load falls in **rungs**: measured on `the schedule crowd alone` (100
+ * bodies, no shots, no sparks) it reads 1,300 B a step, then ~840, ~720, ~480, ~350, ~286 - every rung
+ * flat for thousands of steps, every one cheaper than the last by more than the band, the way down a
+ * background compile finishing. Six probes sit inside the band on a rung every time, so a rule that
+ * stops on the first band stops on whichever rung the compiler happened to have reached, and the same
+ * load then reads **369 B a step in one process and 289 in the next** - a fifth of the whole crowd,
+ * which is more than the differences two rows of this table are asked about.
+ *
+ * So the warm-up is over when the *cheapest reading it has seen* has not fallen for `WARM_HOLD_STEPS`
+ * and the probes under the wheel are flat. A rung cannot satisfy that: it takes a fall to leave a rung,
+ * and a fall restarts the clock. `WARM_MIN_STEPS` alone cannot either - a load can be flat on a rung at
+ * the minimum and still have two rungs left, which is what this file used to do and why two processes
+ * could disagree about a crowd by 80 B a step.
+ */
+export const WARM_HOLD_STEPS = 12_000;
 export const WARM_BAND = 1.10;
 /**
  * How far a window's two readings - the heap and its young generation - may disagree before the window
@@ -413,9 +441,11 @@ async function measureWindows(work, opts, watch) {
  * The warm-up is *windows*, not a step loop, and that is the finding: V8 finishes the code it compiles
  * in the background when the event loop turns, so a warm-up that never turns leaves the load running on
  * whatever it started on and the reading is two to five times what the load costs. See the header. Each
- * probe here is one ordinary window - collections, two readings, refused if the collector came into it
- * - and the load is warm when the last `WARM_QUIET` probes all landed within `WARM_BAND` of each other,
- * which is the reading itself saying it has stopped falling.
+ * probe here is one ordinary window - collections, two readings, refused if the collector came into it -
+ * and the load is warm when the probes under the wheel agree within `WARM_BAND` *and* the cheapest of
+ * them has not fallen for `WARM_HOLD_STEPS`. Both halves are the reading itself saying it has stopped
+ * falling: the band says "flat now", the hold says "flat for long enough that whatever rung was coming
+ * next has had its turn" (see `WARM_HOLD_STEPS` for why the band alone is not enough).
  *
  * A *band* of probes and not "this one was near the best" matters: the readings bounce on the way down
  * (the endless wall dips to 831 B a step, rises to 1,080, and only then settles near 580), and a rule
@@ -429,19 +459,40 @@ export async function warmWork(work, watch) {
   const probes = [];
   let steps = 0;
   let voids = 0;
+  let floor = Infinity;          // the cheapest probe since the last fall out of it
+  let fellAt = 0;                // and where that fall happened
   while (steps < WARM_MAX_STEPS) {
     const probe = await oneWindow(work, WARM_PROBE_STEPS, watch);
     if (probe === null) { voids++; probes.length = 0; continue; }
     steps += WARM_PROBE_STEPS;
+    // A probe more than a band below the floor is the next rung appearing, and it starts the clock
+    // again. One inside the band is a bounce and does not - the floor follows the bounces down too,
+    // or a load that dips and recovers would never be believed.
+    if (probe.bytes * WARM_BAND < floor) { floor = probe.bytes; fellAt = steps; }
+    else if (probe.bytes < floor) floor = probe.bytes;
     probes.push(probe.bytes);
     if (probes.length > WARM_QUIET) probes.shift();
-    if (steps >= WARM_MIN_STEPS && probes.length === WARM_QUIET) {
-      const lo = Math.min(...probes);
-      const hi = Math.max(...probes);
-      if (hi <= lo * WARM_BAND) return { steps, settled: true, voids };
-    }
+    if (warmEnough(probes, steps, fellAt)) return { steps, settled: true, voids };
   }
   return { steps, settled: false, voids };
+}
+
+/**
+ * Whether the probes so far say the load is warm: the last `WARM_QUIET` of them within `WARM_BAND` of
+ * each other, and the cheapest reading of the whole warm-up not having fallen for `WARM_HOLD_STEPS`.
+ * Exported because it is the arithmetic a test can check without a box to be warm: a rung and a settle
+ * look the same to the first half of that rule and nothing else.
+ */
+export function warmEnough(probes, steps, fellAt) {
+  if (steps < WARM_MIN_STEPS || steps - fellAt < WARM_HOLD_STEPS) return false;
+  if (probes.length < WARM_QUIET) return false;
+  let lo = Infinity;
+  let hi = 0;
+  for (const probe of probes) {
+    if (probe < lo) lo = probe;
+    if (probe > hi) hi = probe;
+  }
+  return hi <= lo * WARM_BAND;
 }
 
 /**
@@ -844,8 +895,10 @@ async function main() {
     console.log('  box     ' + (cpus[0].model || 'a cpu').trim() + ', ' + cpus.length
       + ' cores, node ' + process.versions.node);
     console.log('  method  one process per load, warmed first: measured in ' + int(WARM_PROBE_STEPS)
-      + '-step windows until ' + int(WARM_QUIET) + ' of them in a row came within '
-      + dec((WARM_BAND - 1) * 100, 0) + '% of each other, each one starting from an emptied young'
+      + '-step windows until the cheapest of them had stopped falling for '
+      + int(WARM_HOLD_STEPS / 1000) + 'k steps and ' + int(WARM_QUIET)
+      + ' of them in a row came within ' + dec((WARM_BAND - 1) * 100, 0)
+      + '% of each other, each one starting from an emptied young'
       + ' generation and handing the event loop back on the way - which is the whole of what makes a'
       + ' load warm. Then ' + int(opts.steps) + ' steps a window, ' + opts.windows + ' windows a load,'
       + ' best taken, and any window the collector came into - or whose two readings of it disagreed -'
@@ -860,7 +913,8 @@ async function main() {
     const warmed = results.map((r) => r.warmSteps).filter((n) => Number.isFinite(n));
     const unwarmed = results.filter((r) => r.warmSettled === false).map((r) => r.name);
     console.log('  warmed before reading: ' + int(Math.min(...warmed)) + '-' + int(Math.max(...warmed))
-      + ' steps a load, until ' + int(WARM_QUIET) + ' windows in a row stopped beating each other'
+      + ' steps a load, until the floor stopped falling and ' + int(WARM_QUIET)
+      + ' windows in a row agreed'
       + (unwarmed.length > 0 ? ' - NEVER SETTLED: ' + unwarmed.join(', ') + ' was still getting cheaper'
         + ' at ' + int(WARM_MAX_STEPS) + ' steps, so its number is a ceiling and not a measurement' : ''));
     const thrown = results.reduce((m, r) => Math.max(m, r.voids || 0), 0);

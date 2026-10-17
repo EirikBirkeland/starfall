@@ -98,6 +98,43 @@ test('a chunk tumbles and coasts, where a spark stops dead', () => {
     'a chunk coasted ' + chipRun.toFixed(1) + ' px against a spark\'s ' + sparkRun.toFixed(1));
 });
 
+/**
+ * One particle of each shape, born at the same point with the same velocity, written field by field the
+ * way a spawner writes one. What the three of them do to a step is then a function of nothing but their
+ * own shape - which is the whole claim of `updateEffects`' three drags.
+ */
+function oneOfEachShape(field) {
+  return SHAPES.map((shape) => {
+    const p = field.particles.spawn();
+    p.x = 400; p.y = 400; p.px = 400; p.py = 400;
+    p.vx = 300; p.vy = -120;
+    p.life = 30; p.max = 30; p.size = 2; p.color = '#ffffff';
+    p.shape = shape;
+    p.rot = 0; p.spin = 0;
+    return p;
+  });
+}
+
+test('each shape is dragged by its own number, and only its own', () => {
+  const field = scriptedRun(13);
+  // The code under test picks one of three drags by name, so the three names it knows have to be the
+  // three the game has - otherwise a fourth shape would be dragged as smoke and no test would notice.
+  assert.deepEqual(Object.keys(BALANCE.effects.shapes), SHAPES,
+    'the shapes the drags are taken for are not the shapes the game has');
+  const drags = SHAPES.map((shape) => BALANCE.effects.shapes[shape].drag);
+  assert.equal(new Set(drags).size, SHAPES.length,
+    'three shapes with the same drag would make this test prove nothing');
+
+  const mine = oneOfEachShape(field);
+  stepTheWorld({});
+  for (let i = 0; i < SHAPES.length; i++) {
+    const shape = SHAPES[i];
+    const want = 300 * Math.pow(BALANCE.effects.shapes[shape].drag, STEP);
+    assert.ok(Math.abs(mine[i].vx - want) < 1e-9,
+      shape + ' came out of the step at ' + mine[i].vx + '; its own drag says ' + want);
+  }
+});
+
 test('the wake appears while the engines are lit', () => {
   const field = scriptedRun(9);
   assert.equal(puffs(field).length, 0, 'nothing at rest');

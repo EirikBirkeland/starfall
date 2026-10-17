@@ -49,8 +49,9 @@ import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
   bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs, rowName,
-  overBudgetRows, seenLoad,
+  overBudgetRows, seenLoad, warmEnough,
   FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES, readingsAgree,
+  WARM_QUIET, WARM_BAND, WARM_MIN_STEPS, WARM_HOLD_STEPS,
 } from '../tools/alloc-probe.js';
 import { SCENES } from '../tools/perf-probe.js';
 
@@ -116,9 +117,14 @@ test('a young generation lasts as long as the rate says and no longer', () => {
 
 test('the verdict fails on the floor as well as on a load', () => {
   const inside = [{ name: 'a wall', gated: true, bytesPerStep: 100, ok: true }];
-  assert.equal(verdictOf(inside, 100).pass, true);
-  assert.equal(verdictOf([{ name: 'a wall', gated: true, bytesPerStep: 1e6, ok: false }], 100).failed
-    .join(), 'a wall');
+  // The floor is quoted against the budget rather than as a raw number, because the budget came down by
+  // a factor of nearly three the day the game stopped boxing its own drags, and a hard-coded 100 here
+  // would be a second place for that number to live (and a second place for it to be wrong).
+  assert.equal(verdictOf(inside, FLOOR_BYTES).pass, true);
+  assert.equal(verdictOf(inside, FLOOR_BYTES + 1).pass, false,
+    'and it is the floor itself that is judged, not only what sits on it');
+  assert.equal(verdictOf([{ name: 'a wall', gated: true, bytesPerStep: 1e6, ok: false }], FLOOR_BYTES)
+    .failed.join(), 'a wall');
   const overFloor = verdictOf(inside, 1e6);
   assert.equal(overFloor.pass, false);
   assert.ok(overFloor.failed.includes('the empty arena'));
@@ -138,6 +144,36 @@ test('a window whose two readings disagree is not a reading', () => {
   // The absolute half of the bound, for a window too small to compare percentages over.
   assert.ok(readingsAgree(4000, 0), 'a tiny window keeps its 4 KB of slack');
   assert.equal(readingsAgree(5000, 0), false, 'and no more than that');
+});
+
+test('a plateau on the way down is not a settle', () => {
+  // The warm-up stops when the probes under the wheel agree *and* the floor has stopped falling, and
+  // both halves are needed. These are real probe readings off `the schedule crowd alone`, which falls
+  // in rungs (1,300, ~840, ~720, ~480, ~350, ~286 B a step) with each rung flat for thousands of steps:
+  // the six probes below are the plateau at 17,000 steps that used to be believed, and the load was
+  // still going to fall twice more. A file that stops there reads 369 B a step in one process and 289
+  // in the next, which is a fifth of the crowd and more than the differences the table is asked about.
+  const rung = [523, 479, 480, 503, 492, 480];
+  assert.equal(rung.length, WARM_QUIET, 'six probes, which is what a plateau is made of');
+  const hi = Math.max(...rung);
+  const lo = Math.min(...rung);
+  assert.ok(hi <= lo * WARM_BAND, 'the plateau really is inside the band, so the band alone lets it by');
+  // ... and it is refused, because the last rung appeared 4,000 steps ago.
+  assert.equal(warmEnough(rung, 17_000, 13_000), false, 'a rung is flat and not warm');
+  // Flat for the hold now, and the same six probes are believed - which is the whole rule: a fall is
+  // the only thing that can reset the clock, and a fall means another rung may still be coming.
+  assert.equal(warmEnough(rung, 25_000, 13_000), true, 'flat for the hold is warm');
+  assert.equal(warmEnough(rung, 25_000, 25_000 - WARM_HOLD_STEPS + 1), false,
+    'one step short of the hold is not');
+  // A bounce is refused however long it has been going: these are six ordinary probes off the dying
+  // crowd, whose cost rides and falls with how many bodies happened to die in the window.
+  const bouncy = [796, 847, 802, 898, 918, 985];
+  assert.ok(Math.max(...bouncy) > Math.min(...bouncy) * WARM_BAND);
+  assert.equal(warmEnough(bouncy, 60_000, 10_000), false, 'a load that is still moving is not warm');
+  // And the two floors on it: too few steps of warm-up, and too few probes to judge.
+  assert.equal(warmEnough(rung, WARM_MIN_STEPS - 1, 0), false, 'the warm-up has a minimum');
+  assert.equal(warmEnough(rung.slice(0, WARM_QUIET - 1), 60_000, 0), false,
+    'and a probe short of a full band is no band at all');
 });
 
 test('every flag is refused with a sentence before a number can be printed', () => {
@@ -237,9 +273,11 @@ test('a crowd costs the step something, and it is a fraction of what it used to 
   // while `core/grid.js` emptied its cells with `cell.length = 0`, **31 B** once a cell was a count and a
   // store and `game/awards.js` stopped listing the ranks table every step, **3-5 B** once the crowd's
   // walks called `core/math.js`'s `hypot` instead of `Math.hypot` and the load had been warmed before it
-  // was weighed, and **2-3 B** since the sound a darter's beat asks for became a record off a pool
-  // (`game/cues.js`) rather than an object per note. The bound below is where it sat
-  // before the last of those two fixes, so a regression that puts an allocation back in the walk trips
+  // was weighed, **2-3 B** once the sound a darter's beat asks for became a record off a pool
+  // (`game/cues.js`) rather than an object per note, and **2 B** since the warm-up stopped believing a
+  // rung and the crowd stopped paying for sparks it never had (the drag dictionary in `game/effects.js`,
+  // which was charged to every load in the file including this one). The bound below is where it sat
+  // before the last two of those, so a regression that puts an allocation back in the walk trips
   // this and a rounding error does not.
   assert.ok(crowd.perBody < 31, 'a body used to cost 31 B a step; it now costs ' + crowd.perBody);
 });
@@ -261,14 +299,15 @@ test('all three together is the crowd, and not the crowd plus the two free lists
   const crowd = parts.rows.find((r) => r.name === 'the schedule crowd alone');
   const both = parts.rows.find((r) => r.name === 'all three together');
   // Said in bytes, like the test above it, and for the same reason. This was a ratio - `both` under 1.35x
-  // `crowd` - and the two numbers it divides do not move together: on a quiet box 900 sparks and 60 shots
-  // on top of the crowd cost **38-42 B** a step (a 1.11x ratio), and the same load measured while eight
-  // test files were running at once read **117-121 B**, which is a 1.36x ratio and a failing suite one
-  // run in five. The claim was never about a ratio - it is that two lists which live in pools throw away
-  // nothing worth naming - so it is bounded the way its neighbour is: what each list is allowed on its
-  // own, twice, which is 192 B on this floor against the 38-121 B measured. A regression that puts an
-  // object per spark back is 900 sparks at tens of bytes apiece, thousands of bytes a step, and this
-  // fails on it however busy the machine is.
+  // `crowd` - and the two numbers it divides do not move together; and while the warm-up could stop on a
+  // rung this pair read anything from **20 B to 230 B** a step depending on which rung two processes
+  // happened to land on, which is a suite that fails by itself. Now the warm-up goes to the bottom of the
+  // ladder and the same load reads **97-126 B** a step on this box, idle or with 28 hogs on 32 cores.
+  // The claim was never about a ratio - it is that two lists which live in pools throw away nothing worth
+  // naming - so it is bounded the way its neighbour is: what each list is allowed on its own, twice,
+  // which is 192 B against the 97-126 B measured (and about 0.12 B a thing a step - a twentieth of what
+  // a body costs). A regression that puts an object per spark back is 900 sparks at tens of bytes apiece,
+  // thousands of bytes a step, and this fails on it however busy the machine is.
   const allowance = Math.max(96, parts.floor * 0.25) * 2;
   const extra = both.bytesPerStep - crowd.bytesPerStep;
   assert.ok(extra <= allowance,
@@ -395,10 +434,13 @@ test('what a real run was seen holding is inside the budgets - and a painted fra
 
 test('the empty arena is inside its own budget', () => {
   // The floor is the noisiest number in the file (it is small, and a short window has less of the step
-  // to hide in): warmed, it reads 64 B a step here and did so on every one of a dozen runs, loaded and
-  // unloaded. It used to read 219-415 across the short windows these tests ask for, and that was the
-  // warm-up not warming. The budget is double the reading because what it is for is a whole system's
-  // worth of per-step lookups turning up here, not a rounding error.
+  // to hide in): warmed, it reads **16 B** a step here and did so on every one of a dozen runs, loaded
+  // and unloaded. It read 64 B until the day the game stopped writing three dictionary keys every step
+  // (the drags `updateEffects` looks up, boxed by a keyed read - game/effects.js has the note), and
+  // 219-415 B before the warm-up was fixed at all, which was the warm-up not warming. The budget is
+  // triple the reading because what it is for is a whole system's worth of per-step lookups turning up
+  // here, not a rounding error - and because a boxed number in a per-step loop is exactly what it is
+  // now tight enough to catch.
   assert.ok(parts.floor <= FLOOR_BYTES, 'the arena on its own throws away ' + bytes(parts.floor)
     + ' a step, over the ' + bytes(FLOOR_BYTES) + ' allowed - a lookup added to every step belongs in'
     + ' a system that needs it, not in the frame');

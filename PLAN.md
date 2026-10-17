@@ -2846,3 +2846,35 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       the seven rules stay comparable on one hand, and `tools/challenge-cost.js` now counts the loot habit
       as part of which hand a quote names, so a `--loot` flight reports that it checked nothing instead of
       calling the whole sheet stale.
+- [x] The byte ruler was reading a **rung**, and the rung was hiding **29 KB a step**. Session 162 left a
+      note that `test/alloc-probe.test.mjs` was the suite's flakiest file and that the medicine, if it went
+      red again, was to take a middle of several probes. It went red again on a tree that had not touched a
+      byte, and the medicine in the note would not have cured it, because the disease was not a busy box:
+      **the warm-up was stopping on a plateau.** A load does not cool smoothly - it falls in rungs, each one
+      flat for thousands of steps and each one a background compile finishing. Measured on `the schedule
+      crowd alone`: 1,300 B a step, then ~840, ~720, ~480, ~350, ~286. Six probes sit inside a 10% band on
+      every one of those rungs, so the old rule stopped on whichever rung the compiler happened to have
+      reached and two processes disagreed about the same crowd by **369 B against 289 B** - a fifth of the
+      whole crowd, which is more than the differences the table is asked to resolve. The rule is now *"the
+      cheapest probe has not fallen for 12,000 steps, and the six under the wheel agree"*, which a rung
+      cannot satisfy because leaving one is a fall and a fall restarts the clock (`warmEnough`, with the
+      rungs in its test). Warms to 24,000-51,000 steps a load instead of 20,000-47,000, and a full ladder
+      is still about a minute.
+      **What it found the moment it could see the bottom is the reason to have done it**: `the same crowd,
+      dying` read **29.1 KB a step** and failed its gate, 40 times what it had been reporting.
+      `game/effects.js` kept its three shape drags in one module object keyed by shape name and refilled it
+      in place, under a comment saying the loop under it therefore allocated nothing. `dragOf[p.shape]` is
+      a *keyed* read out of a dictionary-mode object, and a keyed read of a double has to be handed back
+      tagged: **a HeapNumber, 16 B, twice a spark a step**, 900 sparks on the cap. The compiler had been
+      proving it away, for about ten minutes of arena time - 73,000 steps - and then stopped being able to,
+      which is a 10-minute endless run throwing away 3.5 MB a second and scavenging every 0.3 s. Three
+      named loads and two comparisons cannot box, and the game's own numbers came down with it: the empty
+      arena **64 B → 16 B** (most of the old floor was this lookup, which runs every step whatever is on the
+      glass), the schedule crowd 407 → **354**, the endless wall 514 → **449**, the same crowd spread out
+      499 → **454**, and the dying crowd - warmed to the bottom for the first time - **713 B** against the
+      735 B every budget in this file has been quoting. `FLOOR_BYTES` comes down 128 → **48** (triple the
+      reading, and now tight enough to be the tripwire for this whole class of bug: the old game fails it
+      at 64 B); `STEP_BYTES` stays at 896, which is 25% over the dearest gated load and was checked the way
+      every budget here is checked - **the old code fails it at 29 KB**. The reference run is byte for byte
+      the run it was (a drag has never fed back into a run), the suite is 2,617 → 2,619, and the crowd rows
+      now reproduce to within 15 B with 28 hogs on 32 cores, which is what the flake was and is.

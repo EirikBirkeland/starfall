@@ -18131,3 +18131,124 @@ that prints both from the same passes; `.scratch/step-noise.mjs` printed the int
 Nothing. The game traces byte for byte what it traced at **1.9.14**; what changed is the ruler that times
 a frame, and only in the direction of telling the truth about a busy machine. The honest candidate for the
 next release is still ONE CARD and BY HAND played on a screen.
+
+## Session 163 - the byte ruler was stopping on a rung, and the rung was hiding 29 KB a step
+
+### What was on the shelf
+Tree clean at `4c69ec0` (1.9.14 + the perf-probe statistic fix). Session 162's Next named
+`test/alloc-probe.test.mjs` as the suite's flakiest file and said the medicine, if it went red again, was
+"probe a window several times and take the middle". It went red again, on a tree that had not touched a
+byte: `all three together is the crowd, and not the crowd plus the two free lists`, reading 230 B against
+a 192 B allowance. **The medicine in the note would not have cured this**, and that is the session's
+finding as much as anything is.
+
+### What was actually wrong
+1. **It is not the machine.** With 28 `while(true){}` hogs on 32 cores the `--parts` rows moved, but so
+   did they on an idle box: `the schedule crowd alone` read **289, 369 and 410 B a step in three
+   different processes** with the box as quiet as it gets, while `endless at the body wall` read 514/515
+   in six processes idle *and* busy. Something about that one load was bimodal per process, not about
+   timing.
+2. **Ruled out, cheaply**: the holding that gets subtracted (`holdBytesPerStep` is 7 B in every process);
+   a list growing unboundedly in the world (stepped a dying crowd 120,000 steps and printed every array,
+   pool and Map in the world every 10k - nothing grows but `runAwards`, 9 entries in 120k); and the window
+   count, mostly.
+3. **The warm-up was stopping on a plateau of a staircase.** The tell was `warmSteps`: the crowd process
+   that warmed to 17,000 steps reported 369 B, the one that reached 27,000 reported 289. A probe trace
+   (`.scratch/alloc-warm.mjs`, one process, 1,000-step windows printed forever) shows why: a load does not
+   cool smoothly, it **falls in rungs** - 3,999, 1,601, 1,394, 1,306, 841, 724, 523, 479, 444, 374, 349...
+   each rung flat for thousands of steps, each one a background compile finishing, each one more than
+   `WARM_BAND` below the one above. Six probes sit inside a 10% band on *any* rung, so the settle rule
+   stopped on whichever rung the compiler had reached. Best-of-N windows cannot save that: the whole
+   process is on the rung, so every window agrees with itself and they all disagree with the truth.
+4. **The fix is a rule about the floor and not about the spread**: the warm-up is over when the *cheapest*
+   probe has not fallen for `WARM_HOLD_STEPS` (12,000) and the last `WARM_QUIET` (6) agree within the
+   band. A rung cannot satisfy it, because leaving a rung is a fall and a fall restarts the clock. The
+   test is `warmEnough`, exported so it can be checked without a warm box, and its numbers are the real
+   trace above. Warms 24,000-51,000 steps a load (was 20,000-47,000) and a full ladder is still ~60 s.
+5. Every row in the file moved down, and `--parts` is now reproducible to about a byte: crowd **241 B** in
+   five processes running, `all three together` 349-367, the spark cap alone 16 = the floor exactly, the
+   shots alone +1. The failing test now measures **97-126 B** against its 192 B allowance, idle or busy.
+
+### The real bug the stricter ruler walked into
+With the dying crowd finally warmed to the bottom it read **29,789 B a step** and failed its 896 B gate -
+40x what that row has ever reported. `node --trace-opt` while stepping that scene for 90k steps named the
+function (recompiled between the two probes where the number jumped; `--trace-deopt` had already shown 24
+deopts of it): **`updateEffects`**. Its three shape drags lived in a module object keyed by shape *name*,
+refilled in place under a comment saying the loop under them therefore allocated nothing. The writes were
+three a step, harmless. The **reads** were `dragOf[p.shape]` - a keyed load out of a dictionary-mode
+object, which cannot hand back an unboxed double - so once TurboFan stopped proving it away it built a
+HeapNumber **twice a spark a step**: 900 sparks on the cap, 16 B each, 29 KB a step. Fixed with three
+named `const`s and two comparisons, which cannot box and is not slower. New test in
+`test/particles.test.mjs` pins each shape to its own `pow(drag, dt)` and refuses a fourth shape or two
+shapes sharing a drag, so the three-way pick cannot rot back.
+**For a player this was a real one**: the jump appeared at ~73,000 steps, which is 10m08s of arena time -
+a run that gets through the boss schedule and into the endless doors was throwing **3.5 MB a second** at
+the collector and scavenging about every 0.3 s.
+
+### Numbers, and the budgets that came down with them
+| row | was | now |
+|---|---|---|
+| the arena on its own | 64 B | **16 B** (budget 128 → **48**) |
+| the schedule at full crowd | 407 B | **354 B** |
+| endless at the body wall | 514 B | **449 B** |
+| the same crowd, dying | 735 B | **713-716 B** (budget 896 kept: 25% over) |
+| the same crowd, spread out | 499 B | **454 B** |
+| a body | 2-3 B | **2 B** (budget 5 kept) |
+
+Most of the old floor was the same lookup: `updateEffects` runs every step whatever is on the glass, so
+three boxed writes a step lived in the empty arena's own number. A mutation check on both budgets: the
+old `effects.js` against the new ruler reads 64 B on the floor (FAIL) and 29 KB on the dying crowd (FAIL),
+which is the way every budget in that file has always been paid for.
+
+### Verification
+`node --test` **2617 → 2619, all green** (new: `warmEnough`, and the shape drag; the `verdictOf` floor test
+now quotes `FLOOR_BYTES` instead of a hard-coded 100, which is what the budget change would have silently
+broken). `test/alloc-probe.test.mjs` alone: 20 tests, 0 fails, 90 s. The reference run - seed 1, aware,
+wisp, pulse, 600 s - is **byte for byte** what it was at 1.9.14, proved against a `git worktree` of HEAD
+and not against a remembered number: 73,339 / level 57 / 4,894 shards, and every trace hash equal.
+
+### Surprises and lessons
+1. **"Take the middle of several probes" was the wrong medicine, and it would have hidden the bug.** The
+   readings were not noisy; they were *wrong in a way every probe in the process shared*. Rule worth
+   keeping: before reaching for a robust statistic, check whether one process agrees with itself. Here one
+   process agreed to 4% and disagreed with its neighbours by 40% - that is a state, not a sample.
+2. **A plateau is not a settle, and "best of N" cannot fix it.** The estimator has to be about the *floor*
+   of the warm-up, because that is what the reading is: the best window of a load still on a rung is a
+   rung, taken tidily.
+3. **A per-entity cache keyed by a string is a trap in a language where a keyed read must be tagged.** The
+   instinct that wrote `dragOf` was right about allocation and wrong about direction: it eliminated the
+   *writes* (3 a step) and left 1,800 *reads* a step at the cap. Grep for `= {};` at module level in
+   `src/` and ask what reads it per step - the candidates left are `settings.choices` (`particleStride()`
+   is asked once per spark *spawned*, ~2 a step, and it scans an array rather than boxes a number, so it
+   is cheap but not free), `assists.switches/moved`, `keymap.bound`, `audio/music.heard`.
+4. **`--trace-opt` and `--trace-deopt` work on this node and name functions**, which is the missing instrument
+   between "this many bytes" and "this line". V8 writes them to stdout, so redirect before grepping, and
+   they interleave with the probe's own lines. 24 deopts of `updateEffects` ("Insufficient type feedback
+   for generic named access") was the signpost.
+5. **The floor row earns its keep.** It looked like ruler overhead (19 KB a window!) and now it is 4.8 KB,
+   and three quarters of the difference was game code nobody had looked at. A per-step lookup in an
+   obscure place shows up in the empty arena first, so keep that row gated - at 48 B it is now tight enough
+   to fail this whole class of thing on the floor alone.
+
+### Next
+1. **The last unexplained row in the table**: 880 extra sparks and 60 shots cost **~110 B a step** on top
+   of a crowd, which is 0.12 B per thing - suspiciously like one boxed number every eighth step. Not worth
+   a budget, but it is the one number in the file that is not attributed to anything. `--parts` plus
+   `--trace-opt` will say.
+2. **`test/alloc-probe.test.mjs` is no longer the suite's flakiest file** - it is now the most reproducible
+   one. If it goes red again without a change in `src/`, do not reach for a median first: print `warmSteps`
+   and the row across three processes and ask whether the load is on a rung.
+3. The body of `--kinds` rows shifted with the ruler (they are price lists, ungated); `tools/alloc-ablate.js`
+   quotes `BODY_BYTES` and still passes, but any ablation numbers quoted in NOTES from before today are one
+   rung high and should be re-read before being compared with a fresh one.
+4. Carried over, unchanged and still open: **a second loot habit** (walk to the pile the crowd is not
+   sitting on), **decide which hand the challenge sheet speaks for** (an hour of `--loot` flights), `--loot`
+   on `line-ab.js` and the other three ladders, re-flying the seven ordinary quotes when the game moves,
+   NO DASH's missing hand, the ablate catalogue's `--scene brood` pass, the shot-speed line, the
+   `tierBonus.telegraph` sentence in PLAN, whether the first two minutes are too harsh, `--live --weapon
+   swarm`, and the browser half of the performance pass, which only the owner can take.
+
+### Released
+**1.9.15.** The game traces byte for byte what it traced at 1.9.14, but a long fight is a materially
+different machine story, and the owner's menu should have the version that does not throw away 3.5 MB a
+second after the third boss.
