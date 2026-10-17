@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.14",
+    "date": "2026-10-17",
+    "released": "2026-10-17T17:16:53.546Z",
+    "summary": "BY HAND: the shard pull reaches two fifths as far, and the loot is yours only if you fly at it",
+    "added": 2080,
+    "removed": 135,
+    "logBytes": 54592030
+  },
+  {
     "version": "1.9.13",
     "date": "2026-10-17",
     "released": "2026-10-17T09:02:40.750Z",
