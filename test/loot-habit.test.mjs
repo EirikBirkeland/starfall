@@ -11,16 +11,21 @@
 // habit that could outvote a dodge would be measuring the game and the bot's own bad habits at the
 // same time, so one test below plants a shard at right angles to a threat and insists the ship
 // takes the threat.
+//
+// The last two tests are about the ladder itself (`tools/loot-habit.js`) rather than the habit: that
+// it refuses a bad dial before it plays anything, and that it flies all three rows and asks the
+// head-to-head question. They spawn the tool, like test/line-ab.test.mjs does.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { BALANCE } from '../src/game/balance.js';
 import { makeEnemy } from '../src/game/kinds.js';
 import { shardAt } from '../tools/headless/scripted.js';
 import { bootGame } from '../tools/headless/harness.js';
 import {
-  forage, LOOT, LOOT_HABITS, DEFAULT_LOOT_HABIT, lootHabitOf, setLootDial,
+  forage, forageWary, LOOT, LOOT_HABITS, DEFAULT_LOOT_HABIT, lootHabitOf, setLootDial,
 } from '../tools/headless/loot.js';
 import { playOneRun, botFrame, setLootHabit, FRAME_MS } from '../tools/headless/bot.js';
 
@@ -66,6 +71,21 @@ function plant(x, y, life, worth) {
   const shard = shardAt(x, y, worth);
   if (life !== undefined) shard.life = life;
   return shard;
+}
+
+/**
+ * Put `n` bodies on a pile - what a person means by "there are three of them on that one". They are
+ * inert (no speed, no drop, and nothing in these tests steps the world while it is deciding) and they
+ * sit within `LOOT.crowd` of the shard, which is the only distance the habit can see.
+ */
+function sit(n, x, y) {
+  for (let i = 0; i < n; i++) {
+    const a = i * 2.39996;            // a golden spread, so they are not all in one line
+    const r = 30 + 12 * i;            // ...and none of them on top of the shard itself
+    world.enemies.push(makeEnemy(world, 'drifter', x + Math.cos(a) * r, y + Math.sin(a) * r, {
+      hp: 1e6, speed: 0, drop: 0, score: 0,
+    }));
+  }
 }
 
 /**
@@ -151,6 +171,79 @@ test('an elite pile is worth a longer walk than a small one', () => {
     'with the elite gone the plain shard next door was left behind');
 });
 
+test('a pile with bodies sitting on it is worth walking round', () => {
+  // The whole of the second habit, in one pair of identical piles.
+  park();
+  const out = 400;
+  const east = plant(ship.x + out, ship.y);
+  plant(ship.x - out, ship.y);
+  // With nobody on either pile the two are worth exactly the same and the habit takes the first it
+  // came to - the baseline, so that what changes below is the crowd and nothing else.
+  assert.ok(agreement(forageWary(game), { x: 1, y: 0 }) > 0.9,
+    'with both piles clear the habit did not go for the first one it came to');
+  // Three bodies sit on the east one. `greedy` does not look and still walks east; `wary` turns
+  // round and takes the identical pile behind it, which is the difference between a person
+  // choosing a pile and a ray-tracer walking into a crowd.
+  sit(3, east.x, east.y);
+  assert.ok(agreement(forage(game), { x: 1, y: 0 }) > 0.9,
+    'greedy changed its mind about a crowd it never looks at');
+  assert.ok(agreement(forageWary(game), { x: -1, y: 0 }) > 0.9,
+    'wary walked into a pile with three bodies on it while an identical one sat clear behind it');
+  // Take the bodies away and east wins again: the crowd was the only thing that moved.
+  world.enemies.length = 0;
+  assert.ok(agreement(forageWary(game), { x: 1, y: 0 }) > 0.9,
+    'the walk stayed off a pile it had no reason left to avoid');
+});
+
+test('a big pile buys its way past the crowd sitting on it', () => {
+  // A discount and not a veto, in the game's own numbers: an elite pile is worth 6 of the plain
+  // ones, so two bodies on it leave 6/3 and it still beats a plain shard a similar distance off;
+  // six bodies leave 6/7 and it does not. That is a person going round two bodies for an elite's
+  // handful and not going near one with six on it.
+  park();
+  const out = 400;
+  const elite = plant(ship.x + out, ship.y, undefined, BALANCE.shards.big.worth);
+  plant(ship.x - out, ship.y);
+  sit(2, elite.x, elite.y);
+  assert.ok(agreement(forageWary(game), { x: 1, y: 0 }) > 0.9,
+    'an elite pile with two bodies on it lost to a plain shard sitting clear');
+  sit(4, elite.x, elite.y);
+  assert.ok(agreement(forageWary(game), { x: -1, y: 0 }) > 0.9,
+    'six bodies on an elite pile were still worth a walk for its six shards');
+});
+
+test('with nothing counted as a crowd, wary is greedy and nothing else', () => {
+  // The attributability check the ladder leans on: `--crowd 0` has to collapse the second habit onto
+  // the first, or a difference between the two rows is a difference in the arithmetic as well.
+  park();
+  const east = plant(ship.x + 400, ship.y);
+  plant(ship.x - 400, ship.y);
+  sit(5, east.x, east.y);
+  assert.ok(agreement(forage(game), { x: 1, y: 0 }) > 0.9);
+  assert.ok(agreement(forageWary(game), { x: -1, y: 0 }) > 0.9,
+    'five bodies on a pile changed nothing even with the dial on');
+  const before = LOOT.crowd;
+  try {
+    setLootDial({ crowd: 0 });
+    assert.deepEqual(forageWary(game), forage(game),
+      'with nobody counted as a crowd the two habits still disagreed, so something else differs');
+  } finally {
+    setLootDial({ crowd: before });
+  }
+});
+
+test('the reach and the rot rule belong to every habit that walks', () => {
+  // Both habits share the candidate test, and a second habit that quietly kept its own would be a
+  // second ladder as well as a second habit.
+  park();
+  plant(ship.x + LOOT.reach + 150, ship.y);
+  assert.equal(forageWary(game), null, 'wary walked past the reach the habit ships with');
+  world.shards.clear();
+  const far = 600;
+  plant(ship.x + far, ship.y, far / ship.maxSpeed + LOOT.grace - 0.05);
+  assert.equal(forageWary(game), null, 'wary set off for a shard that will not be there');
+});
+
 test('the walk never overrules a dodge', () => {
   // The one rule that makes this habit safe to put on an instrument: it answers the idle question,
   // so it is only ever asked when the policy was going to drift anyway. A shard straight east and a
@@ -176,13 +269,17 @@ test('every policy goes shopping when it has nothing else to do', () => {
   // The habit hangs off the one answer all three policies give when nothing is wrong, so none of
   // them has to know about it and all three get it - including the human one, whose look is late
   // and a quarter spent on something else, which is exactly the hand the difficulty band is read on.
-  for (const policy of ['naive', 'aware', 'human']) {
-    park();
-    plant(ship.x + 500, ship.y);
-    const gone = fly(120, policy);
-    assert.ok(gone.east > 200,
-      'the ' + policy + ' hand got ' + Math.round(gone.east) + ' px east of the middle in two '
-      + 'seconds with loot that way and nothing to run from');
+  // Every habit that walks, for the same reason: they all come through the same door.
+  for (const habit of ['greedy', 'wary']) {
+    for (const policy of ['naive', 'aware', 'human']) {
+      park();
+      setLootHabit(habit);
+      plant(ship.x + 500, ship.y);
+      const gone = fly(120, policy);
+      assert.ok(gone.east > 200,
+        'the ' + policy + ' hand with the ' + habit + ' walk got ' + Math.round(gone.east)
+        + ' px east of the middle in two seconds with loot that way and nothing to run from');
+    }
   }
 });
 
@@ -209,20 +306,27 @@ test('how far the walk is for, pinned against how far the net already reaches', 
     'this walk crosses a whole arena for one shard');
   assert.ok(LOOT.grace > 0 && LOOT.grace < 2,
     'the slack on a shard rotting is a blink, not a second opinion');
+  // The crowd radius, same argument in miniature: too tight and the second habit is counting nobody
+  // out of a clump (which is `greedy` with a step wasted); wider than the walk itself and every pile
+  // in reach is crowded, which is `off` with a step wasted.
+  assert.ok(LOOT.crowd >= 60, 'a body sitting on a pile is not counted at this radius');
+  assert.ok(LOOT.crowd < LOOT.reach / 2, 'this counts the whole reach as one crowd');
 });
 
 test('the habits by name, and the one --loot means', () => {
   assert.equal(lootHabitOf(undefined), LOOT_HABITS[DEFAULT_LOOT_HABIT]);
   assert.equal(lootHabitOf(true), LOOT_HABITS[DEFAULT_LOOT_HABIT]);
   assert.equal(lootHabitOf('greedy'), forage);
+  assert.equal(lootHabitOf('wary'), forageWary);
   assert.equal(LOOT_HABITS.off(game), null, '`off` is supposed to answer "nothing"');
   assert.throws(() => lootHabitOf('scavenger'), /no loot habit is called scavenger/);
 });
 
 test("the habit's dials can be put over, and refuse a number that is not one", () => {
-  const before = { reach: LOOT.reach, grace: LOOT.grace };
+  const before = { reach: LOOT.reach, grace: LOOT.grace, crowd: LOOT.crowd };
   try {
     assert.equal(setLootDial({ reach: 300 }).reach, 300);
+    assert.equal(setLootDial({ crowd: 90 }).crowd, 90);
     assert.throws(() => setLootDial({ panic: 3 }), /no number called panic/);
     assert.throws(() => setLootDial({ grace: 'soon' }), /grace wants a finite number/);
   } finally {
@@ -230,6 +334,7 @@ test("the habit's dials can be put over, and refuse a number that is not one", (
   }
   assert.equal(LOOT.reach, before.reach);
   assert.equal(LOOT.grace, before.grace);
+  assert.equal(LOOT.crowd, before.crowd);
 });
 
 test('a bot told to go and get loot gets more of it, and one not told gets none', async () => {
@@ -251,4 +356,43 @@ test('a bot told to go and get loot gets more of it, and one not told gets none'
   await game.resetToTitle(61);
   const again = playOneRun(game, { maxSeconds: 120, loot: true });
   assert.equal(again.foraged, walked.foraged, 'the walk count carried over between runs');
+  // And the second habit is reachable the way the tool reaches it - by name - or the ladder's third
+  // row is a decoration nobody can fly. It has to bank loot too: it is a way of walking, not a
+  // different answer of "nothing".
+  await game.resetToTitle(61);
+  const wary = playOneRun(game, { maxSeconds: 120, loot: 'wary' });
+  assert.ok(wary.foraged > 0, 'a run flown `--loot-habit wary` never let the habit take the wheel');
+  assert.ok(wary.stats.collected > still.stats.collected,
+    'the wary walk banked ' + wary.stats.collected + ' shards, no more than the bot that waited for '
+    + 'the net\'s ' + still.stats.collected);
+  assert.notEqual(wary.foraged, again.foraged,
+    'the two habits walked exactly the same amount on the same seed, so one of them is not walking');
+});
+
+const ROOT_DIR = path.resolve(import.meta.dirname, '..');
+const LADDER = path.join(ROOT_DIR, 'tools', 'loot-habit.js');
+
+function ladder(args) {
+  return spawnSync(process.execPath, [LADDER, ...args], { cwd: ROOT_DIR, encoding: 'utf8' });
+}
+
+test('the ladder refuses a bad dial before it plays a single run', () => {
+  const crowd = ladder(['--crowd', '-5', '--seeds', '1', '--seconds', '5']);
+  assert.equal(crowd.status, 2);
+  assert.match(crowd.stderr, /--reach and --crowd want a number of pixels/);
+  const habit = ladder(['--habits', 'off,hoarder']);
+  assert.equal(habit.status, 2);
+  assert.match(habit.stderr, /--habits wants some of: off, greedy, wary/);
+});
+
+test('the ladder flies all three ways of walking and asks who won', () => {
+  // One seed and twenty seconds: the point is that the third row got flown and that the file knows
+  // a batch that small cannot rank it - a ladder that printed a verdict off one run would be the
+  // thing session 162's note calls a coin-toss gate, and --strict would pass it.
+  const run = ladder(['--seeds', '1', '--seconds', '20']);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^greedy \*/m, 'the shipped row is missing');
+  assert.match(run.stdout, /^wary\s/m, 'the second way of walking was not flown');
+  assert.match(run.stdout, /Head to head against `wary`/);
+  assert.match(run.stdout, /below the 8 this file will rank anything on/);
 });

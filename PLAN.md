@@ -2846,6 +2846,17 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       the seven rules stay comparable on one hand, and `tools/challenge-cost.js` now counts the loot habit
       as part of which hand a quote names, so a `--loot` flight reports that it checked nothing instead of
       calling the whole sheet stale.
+      **A second way of walking was flown after it, and it is a null.** `--loot-habit wary` discounts a
+      pile for every body sitting on it, which is what a person means by choosing a pile; the ladder now
+      ranks the ways of walking against each other instead of only against the bot that never moves. The
+      look demonstrably moves the walk - it points the feet somewhere else on **23%** of the frames both
+      habits answer, onto ground with **6.9** bodies on it against `greedy`'s **8.3**, and it banks a
+      little more loot and dies a little less often - but the middle score sits 3% under and the seeds call
+      it **16 of 32 each way** on 32 seeds, and no radius from 80 px to 500 px could be separated from the
+      simpler habit at all. So what the instrument had been blind to was *whether the bot goes at all*
+      (4-8x a run) and not *which pile it picks*, and the simplest habit that explains that stays shipped;
+      the ladder re-takes the reading whenever it is flown, and a rival that wins both the middles and the
+      seeds now fails it instead of being a note.
 - [x] The byte ruler was reading a **rung**, and the rung was hiding **29 KB a step**. Session 162 left a
       note that `test/alloc-probe.test.mjs` was the suite's flakiest file and that the medicine, if it went
       red again, was to take a middle of several probes. It went red again on a tree that had not touched a

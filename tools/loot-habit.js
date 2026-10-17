@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Whether the bot goes and gets its own loot, how far it will walk for it, and what that is worth.
-// A check and not a decoration: with `--strict` it exits non-zero when the habit `tools/headless/
-// loot.js` ships does not bank more shards than the same bot standing still, or costs it score.
+// Whether the bot goes and gets its own loot, how far it will walk for it, which pile it picks, and
+// what any of that is worth. A check and not a decoration: with `--strict` it exits non-zero when the
+// habit `tools/headless/loot.js` ships does not bank more shards than the same bot standing still,
+// costs it score, or is beaten by another way of walking flown in the same batch.
 //
 //   node tools/loot-habit.js                        the ladder, on the shipped defaults
 //   node tools/loot-habit.js --seeds 32             a wider batch (slower)
@@ -11,6 +12,8 @@
 //   node tools/loot-habit.js --habits off,greedy    which habits to fly
 //   node tools/loot-habit.js --reach 400            how far off a shard may be to be worth a walk
 //   node tools/loot-habit.js --grace 1              how much slack in judging whether it will rot
+//   node tools/loot-habit.js --crowd 200            how close a body has to be to count as sitting
+//                                               on the pile (`wary` only; 0 makes it `greedy`)
 //   node tools/loot-habit.js --no-dash              the bot never presses the dash
 //   node tools/loot-habit.js --strict               non-zero unless the shipped habit holds up
 //
@@ -32,6 +35,13 @@
 // (a habit that walks the ship into a crowd it could have stayed out of, and pays more hull than the
 // pile was worth).
 //
+// There is a second question under that one, and it is asked of the rows against each other rather
+// than against the floor: of the ways of walking that flew, is the shipped one the best? Two habits
+// can both beat a bot that never moves and still disagree about which pile to go to, and a shipped
+// habit that a flown rival plainly beats is a habit nobody chose. The head-to-head is counted seed
+// against seed like everything else here, and a rival has to win twice - the middles by a margin,
+// and the seeds - to make it a failure. A batch that merely leans is printed and not acted on.
+//
 // `shards/run` is the proof the habit did something at all: it is every shard the batch banked over
 // its runs, which is the number that says whether the walk found loot or the ship wandered.
 // `steered` is what share of the frames flown the habit had the wheel, which is how a habit that
@@ -40,12 +50,12 @@
 import { playBatches, POLICIES, PICKS } from './headless/bot.js';
 import { LOOT, LOOT_HABITS, DEFAULT_LOOT_HABIT, setLootDial } from './headless/loot.js';
 import { table, clock, int, dec, share } from './headless/tables.js';
-import { median, pairedRatio, pairWords, isBetter } from './headless/pairs.js';
+import { median, pairedRatio, pairWords, isBetter, isWorse } from './headless/pairs.js';
 
 const DEFAULTS = {
   seeds: 12,
   seconds: 300,
-  habits: 'off,greedy',
+  habits: 'off,greedy,wary',
   // The careless pair of eyes with the shipped get-out dash, which is the hand `tools/
   // challenge-cost.js` prices the rules on and so the hand a loot habit has to be worth something
   // to. `aware` with wise picks is the one that beats the schedule: it dies too rarely for a
@@ -55,6 +65,7 @@ const DEFAULTS = {
   dash: true,
   reach: null,
   grace: null,
+  crowd: null,
   strict: false,
 };
 
@@ -76,6 +87,7 @@ function readArgs(argv) {
     else if (arg === '--no-dash') opts.dash = false;
     else if (arg === '--reach') opts.reach = Number(next());
     else if (arg === '--grace') opts.grace = Number(next());
+    else if (arg === '--crowd') opts.crowd = Number(next());
     else if (arg === '--strict') opts.strict = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -98,9 +110,9 @@ function readArgs(argv) {
     console.error('--picks wants one of: ' + Object.keys(PICKS).join(', '));
     process.exit(2);
   }
-  for (const value of [opts.reach, opts.grace]) {
+  for (const value of [opts.reach, opts.grace, opts.crowd]) {
     if (value !== null && !(value >= 0)) {
-      console.error('--reach wants a number of pixels and --grace a number of seconds');
+      console.error('--reach and --crowd want a number of pixels and --grace a number of seconds');
       process.exit(2);
     }
   }
@@ -158,6 +170,7 @@ const opts = readArgs(process.argv.slice(2));
 const dial = {};
 if (opts.reach !== null) dial.reach = opts.reach;
 if (opts.grace !== null) dial.grace = opts.grace;
+if (opts.crowd !== null) dial.crowd = opts.crowd;
 if (Object.keys(dial).length > 0) setLootDial(dial);
 const rows = await measure(opts);
 
@@ -167,14 +180,18 @@ const title = 'the loot habits, on ' + opts.seeds + ' seeds of ' + clock(opts.se
   + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
   + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
   + (opts.reach === null ? '' : ', a shard within ' + opts.reach + ' px worth walking for')
-  + (opts.grace === null ? '' : ', ' + dec(opts.grace, 1) + 's of slack on a shard rotting');
+  + (opts.grace === null ? '' : ', ' + dec(opts.grace, 1) + 's of slack on a shard rotting')
+  + (opts.crowd === null ? '' : ', a body within ' + opts.crowd + ' px of a pile counts as on it');
 const note = 'Each row is the same seeds flown with one way of spending an idle second. `off` is the\n'
   + 'bot the net feeds - drift to the middle, let the loot come - and it is the floor a habit is\n'
   + 'measured against, not a habit a person has. `middle death` is the middle of the runs that died;\n'
   + 'a batch that never died has no middle and shows a dash. `vs off` is the middle score against\n'
   + 'that floor and `off won` the pair under it - of the seeds that could tell the two runs apart,\n'
   + 'how many the standing-still run scored higher on. `shards/run` is every shard the batch banked\n'
-  + 'divided by its runs, and `steered` what share of the frames flown the habit had the wheel.';
+  + 'divided by its runs, and `steered` what share of the frames flown the habit had the wheel.\n'
+  + '`greedy` walks for the best value in reach whatever is standing on it; `wary` discounts a pile\n'
+  + 'for every body sitting on it, which is the difference between a person choosing a pile and a\n'
+  + 'ray-tracer walking into a crowd.';
 console.log(table(title, note,
   ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
   ['habit', 'middle death', 'died', 'middle score', 'vs off', 'off won', 'shards/run', 'steered',
@@ -222,12 +239,14 @@ console.log('The same bot leaving the loot on the floor (`off`) middles at ' + a
   + 'walk is worth ' + (pair.medianRatio === null ? 'nothing to divide'
     : dec(pair.medianRatio, 2) + 'x a run per seed') + ' and the seeds say ' + pairWords(pair)
   + (isBetter(pair) ? ' - a difference they showed.' : ' - a lean, and nothing more.'));
-if (opts.reach !== null || opts.grace !== null) {
-  console.log('note: this flight swept ' + (opts.reach === null ? '' : '--reach ' + opts.reach + ' ')
-    + (opts.grace === null ? '' : '--grace ' + opts.grace)
-    + ', which are not the shipped numbers (' + LOOT.reach + ' px, ' + LOOT.grace
-    + 's). A verdict here is a verdict about the sweep: write the winner into tools/headless/loot.js'
-    + ' and re-fly it clean, or it is a number nobody can quote.');
+if (opts.reach !== null || opts.grace !== null || opts.crowd !== null) {
+  console.log('note: this flight swept '
+    + (opts.reach === null ? '' : '--reach ' + opts.reach + ' ')
+    + (opts.grace === null ? '' : '--grace ' + opts.grace + ' ')
+    + (opts.crowd === null ? '' : '--crowd ' + opts.crowd + ' ')
+    + ', which are not the shipped numbers (' + LOOT.reach + ' px, ' + LOOT.grace + 's'
+    + ', ' + LOOT.crowd + ' px). A verdict here is a verdict about the sweep: write the winner into'
+    + ' tools/headless/loot.js and re-fly it clean, or it is a number nobody can quote.');
 }
 
 let failures = 0;
@@ -258,4 +277,30 @@ if (opts.seeds < MIN_SEEDS) {
   console.log('PASS: the shipped habit banks more loot than the bot that stands still, and does not '
     + 'pay for it in the score column.');
 }
+
+// The second question, asked of the rows against each other rather than against the floor: of the
+// ways of walking that flew, is the shipped one the best? A rival has to win twice to make it a
+// failure - the middles by a margin, and the seeds - because one run of this game is worth three of
+// another on a lucky seed and a default moved on a lean is a ruler being sanded (see pairs.js).
+const rivals = rows.filter((row) => row.habit !== 'off' && row !== shipped);
+if (rivals.length > 0) {
+  const rival = rivals.reduce((best, row) => (worth(row) > worth(best) ? row : best));
+  const head = pairedRatio(shipped.bySeed, rival.bySeed);
+  console.log('');
+  console.log('Head to head against `' + rival.habit + '`, the best-scoring other way of walking: '
+    + asText(rival) + ', banked ' + dec(rival.shards / opts.seeds, 0) + ' shards a run, wheel on '
+    + share(rival.steered, rival.frames) + ' of the frames flown. Counted seed against seed the '
+    + 'shipped habit is worth ' + (head.medianRatio === null ? 'nothing to divide'
+      : dec(head.medianRatio, 2) + 'x') + ' of it, and the seeds say ' + pairWords(head) + ' - '
+    + (isBetter(head) ? 'the shipped habit showed it.'
+      : isWorse(head) ? '`' + rival.habit + '` showed it.' : 'a lean, and nothing more.'));
+  if (opts.seeds >= MIN_SEEDS && rival.habit !== DEFAULT_LOOT_HABIT
+    && worth(rival) > worth(shipped) * TIE_RATIO && isWorse(head)) {
+    failures++;
+    console.log('FAIL: `' + rival.habit + '` is the better way of walking - ' + asText(rival)
+      + ' against ' + asText(shipped) + ', and the seeds agreed. Ship the winner (it is one line in '
+      + 'tools/headless/loot.js) or write down here why it is not a habit worth having.');
+  }
+}
+
 if (opts.strict && failures > 0) process.exit(1);
