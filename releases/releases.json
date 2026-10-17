@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.13",
+    "date": "2026-10-17",
+    "released": "2026-10-17T09:02:40.750Z",
+    "summary": "ONE CARD: the rack deals one card when you level up, and the game picks which one",
+    "added": 727,
+    "removed": 84,
+    "logBytes": 53146274
+  },
+  {
     "version": "1.9.12",
     "date": "2026-10-17",
     "released": "2026-10-17T05:05:12.619Z",
