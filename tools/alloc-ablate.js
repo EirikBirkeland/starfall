@@ -58,7 +58,7 @@ import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { bytes } from './alloc-probe.js';
+import { bytes, BODY_BYTES } from './alloc-probe.js';
 import { table } from './headless/tables.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -129,6 +129,16 @@ export const ROWS = [
     edits: [{
       file: 'kinds.js',
       find: '  enemy.ix *= step.drag;\n  enemy.iy *= step.drag;',
+      repl: '  //abl',
+    }],
+  },
+  {
+    name: 'glide does not write x',
+    about: 'any',
+    why: 'is it one particular write - the position along the line it walked is the first of the four',
+    edits: [{
+      file: 'kinds.js',
+      find: '  enemy.x += (dx * walk + enemy.ix) * step.dt;',
       repl: '  //abl',
     }],
   },
@@ -460,6 +470,15 @@ export function main(argv) {
   }
 
   const head = ['row', 'bytes a step', 'a body', 'off the plain load', 'what that says'];
+  // A load that already costs what an empty arena costs has nothing in it to attribute, and rows off it
+  // would read as though they had proved something.
+  const nothingToFind = baseline.bytes - floor < BODY_BYTES * 4;
+  const note = nothingToFind
+    ? `the plain load is "${baseline.name}" at ${bytes(baseline.bytes)} a step, which is what an empty`
+      + ' arena costs on its own - there is nothing in this load to attribute, so read every row as noise'
+    : `the plain load is "${baseline.name}" at ${bytes(baseline.bytes)} a step, of which ${bytes(floor)} is`
+      + ' what the arena on its own costs; a row that reads nothing left is a line the crowd\'s compilation'
+      + ' was leaning on, which is not the same as the line being the spender - see the header';
   const body = readings.map((r) => [r.name,
     r.problem ? r.problem : bytes(r.bytes),
     r.problem || r.perBody === null ? '-' : bytes(r.perBody),
@@ -468,11 +487,7 @@ export function main(argv) {
     r.problem || r === baseline ? '-'
       : verdictOf(r, baseline, floor)]);
   console.log('');
-  console.log(table('WHICH LINE SPENDS THEM',
-    `the plain load is "${baseline.name}" at ${bytes(baseline.bytes)} a step, of which ${bytes(floor)} is`
-    + ' what the arena on its own costs; a row that reads nothing left is a line the crowd\'s compilation'
-    + ' was leaning on, which is not the same as the line being the spender - see the header',
-    ['l', 'r', 'r', 'r', 'l'], head, body));
+  console.log(table('WHICH LINE SPENDS THEM', note, ['l', 'r', 'r', 'r', 'l'], head, body));
   return 0;
 }
 

@@ -17051,7 +17051,7 @@ sends: a hundred bodies of one kind.
 ### The instrument, which is what shipped
 `tools/alloc-ablate.js`. A byte has no return address and the inspector's sampling profiler only sees
 what stayed alive, so the question goes sideways: **take one line out, warm the load again from scratch,
-read the same row.** Sixteen rows, each an exact piece of source text plus what to leave instead
+read the same row.** Nineteen rows, each an exact piece of source text plus what to leave instead
 (`--list` prints them with the question each asks); the edits are applied to **a copy of `src/` and
 `tools/` in the system's temporary folder**, reset before every row, deleted on the way out unless
 `--keep`, so the game is never edited even for a moment and a session cannot leave a half-removed line
