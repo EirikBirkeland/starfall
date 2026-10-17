@@ -17491,3 +17491,134 @@ CHANGELOG and the release.
    `tierBonus.telegraph` sentence in PLAN, which names a number that does not exist in this tree; whether the
    first two minutes are too harsh (needs a human); `--live --weapon swarm` and a per-level watch; and
    PLAN's browser half of the performance pass - still the only unchecked box, and still the owner's to take.
+
+## Session 158 - the tree arrived with an uncommitted ladder in it: what the bot's card taste is worth, ranked seed against seed instead of middle against middle
+
+### What was on the shelf
+`git status` came up with a whole piece of work in it and no note: `tools/pick-taste.js` (a ladder for the
+bot's own card appetite, session 157's next-item 1), its test file, the `TASTE` dial in
+`tools/headless/bot.js`, and paragraphs in `PLAN.md`, `balance.js` and `challenge-cost.js` quoting what
+the new ladder had come back with - the shipped appetite worth **0.91x** its own die on the `human` hands,
+1.41x on `naive`, 2.08x on `aware`. It was green (I ran it: 54 tests across the four relevant files) and
+it had never been re-flown. So I re-flown it, and the headline number did not survive: the same two builds
+on 12 seeds instead of 32 read **1.18x**, i.e. the sign of the answer changed with how many seeds were
+flown. Session 157's 0.91x was real, my 12-seed 1.18x was real, and neither was a measurement.
+
+### What landed
+**`tools/headless/pairs.js`** - the arithmetic every ladder here now shares: a `median` (lifted out of
+`challenge-cost.js`, which had one, and copied in `pick-taste.js`, which had a second), and a **paired
+comparison**. Two rows that flew the same seeds are asked seed by seed which run scored more; ties and
+seeds with nothing to divide are set aside; the split is judged by an exact two-sided **sign test**
+(`signTest(wins, losses)`, computed by recurrence so nothing overflows) and sized by the median of the
+per-seed ratios. `isBetter` / `isWorse` / `isUndecided` are the three answers a ladder is allowed to give,
+and `CONFIDENCE` is 0.05. The test deliberately ignores *by how much*: one run whose score doubled on a
+lucky seed must not outvote nine seeds that each preferred the other build by a tenth, which is exactly
+how the middles got fooled.
+
+**`tools/pick-taste.js`'s verdict is built on pairs now**, and so is the gate in
+`tools/challenge-cost.js` that decides whether ONE CARD can be priced at all (`dealTasteOf` returns a
+pair, `dealJudged` is `isBetter(taste)`, `TASTE_WORTH_PRICING` is gone). Both tools print the middles as
+well, because every number already in the game is quoted that way, and both say out loud when the seeds
+will not support the ratio. The table's columns changed with it: `best score` out (it is the column that
+fooled the ladder), `better on` in - `17/32`, the number of seeds that preferred the row over its die,
+which a reader can check by eye: anything near half is a coin. A taste that *loses* to its die is now a
+`problem` and not a note, which is a failure the old ladder could not express: `taste <= 1` was one shrug
+covering "worthless" and "actively wrong" alike.
+
+Everything else is prose rewritten around the new readings: the `TASTE` block in `bot.js`, the thin rule's
+paragraph in `BALANCE.challenges`, `dealTasteOf`'s header, `PLAN.md`'s ONE CARD item (session 158's
+paragraph, which quoted the 0.91x, now says what the pairs say), and this file. Also two small clean-ups
+found on the way: a sentence in `balance.js` that had been pasted twice (the `gatedOn` line, duplicated
+whole), and the naive hands' level in `pick-taste.js`'s defaults comment.
+
+### Numbers
+All from `tools/pick-taste.js` on 2026-10-17, 5m windows, 32 seeds (24 on `aware`), shipped dash habit.
+
+| hands | middles (ship / die) | per seed | seeds that preferred it | p | level, die -> ship |
+|---|---|---|---|---|---|
+| human | 4,843 / 5,333 (0.91x) | **0.95x** | 17 of 32 | 0.860 | 7 -> 8 |
+| naive | 7,842 / 5,346 (1.47x) | **1.41x** | 20 of 32 | 0.215 | 11 -> 14 |
+| aware | 29,627 / 14,276 (2.08x) | **1.95x** | 20 of 24 | 0.002 | 22 -> 39 |
+
+One of the three is a shown difference, and it is the one ONE CARD is priced on. The `flat` control (take
+the shallowest line, no opinion about which) is the most interesting column: 0.88x / 0.99x / 1.55x, so
+"spread the build out" is worth most of a taste on a long run and nothing on a short one, and the written
+*order* is what it adds on top - 1.41x against 0.99x on the naive hands (a pair the appetite was never
+tuned on, and neither number is shown) and 1.95x against 1.55x on the aware ones (which is). `reverse`
+(the order turned round) read 1.00x / 1.27x / 1.57x; `nodefer` (the ring bought level with the gun)
+0.86x / 1.25x / 1.55x; `area` (nova and ring early) 0.96x / 1.19x / 1.69x. **Nothing beat the shipped
+taste on any of the three hands**, which is the half of the finding that survived the rebuild.
+
+Cross-check that the pairs were lined up: `tools/challenge-cost.js --bot aware --challenges none,thin
+--seeds 24 --seconds 300` flies the same policy, seeds and window and came back with the same two batches
+to the unit (careless plain 14,276, deliberate 29,627), refused nothing, printed "counted seed against
+seed that is 20 of 24 seeds, p = 0.002", priced ONE CARD at **0.50x** there and passed. The same ladder
+at 8m and 24 seeds reproduces the shipped price byte for byte (**0.41x**, 22,060 against 53,846, careless
+0.65x). On the default human hand (32 seeds, 5m) the same tool now refuses: taste 0.91x by middles,
+17 of 32 by pairs, p = 0.86 - "a hand that cannot be shown to pick better than a die cannot say what
+losing the choice costs", and the rule's 0.84x is printed as the nothing it is.
+
+Data I collected for a later session and did not act on, all `challenge-cost.js`, 16 seeds, and all of it
+middles: at 5m the ladder reads ONE HULL 0.63x, SHORT GRACE 0.81x, SWIFT 0.61x, THICK 0.65x and the
+deliberate taste 1.07x - against the 0.48x / 0.77x / 0.56x / 0.93x quoted in `BALANCE.challenges`, which
+were measured on 8 seeds weeks ago. At 8m: ONE HULL 0.51x, SHORT GRACE 0.69x, SWIFT 0.50x, THICK 0.53x,
+ONE CARD 1.07x careless / 1.15x deliberate and a taste of 0.93x. The two crowd sweeps still cannot be
+ordered - SWIFT 1.3x/1.4x/1.5x reads 0.51x/0.50x/0.55x and THICK 1.3/1.5/1.75 reads 0.82x/0.53x/0.56x -
+which is the same noise this session fixed for the picker, sitting in the five ordinary rules.
+
+Suite 2560 -> **2584**: 8 in `test/pairs.test.mjs` (the recurrence checked against a slow exact
+binomial, symmetry, monotonicity, the loud-run case, the ties-and-zeroes case), the pick-taste verdict
+tests rebuilt around per-seed fixtures (a shown taste, a coin, a taste the die beats, a rival that wins
+on the seeds, a rival that wins by only 2% on all 24 seeds, a rival that beats the die when the shipped
+one cannot, and the three refusals), and one new challenge-cost test: a deliberate hand whose middle is
+twice its die's and whose seeds split six-and-six is **refused**, where the old gate believed it. The
+game itself is untouched - `node tools/simulate.js` is byte for byte the run it was (seed 1 aware
+wisp/pulse, 10m, 3,794 kills, 73,339).
+
+### Surprises and lessons
+1. **Green tests are not verification when the tool's output is a number.** Session 158's ladder booted,
+   flew, ranked and asserted everything it asserted, and its headline was quoted into three files before
+   anybody re-flown it. A ladder whose product is a reading has to be re-flown before it is quoted, and
+   the cheapest way to find out that a reading is noise is to fly it twice at different seed counts.
+2. **The seeds were lined up on purpose and the old code threw that away.** Every ladder here flies the
+   same seed list under both builds - that is what makes a spawn layout cancel out - and then compared the
+   two batches by their middles, which is the one comparison that ignores the pairing. The paired version
+   cost about 60 lines and a recurrence.
+3. **A middle of this game's runs is not a stable statistic.** Middle 3,835 with a best of 28,637 over 12
+   seeds: the batch's middle moves by tens of percent when a few seeds change which end of the tail they
+   land in, so any tolerance narrower than that (the picker ladder used a tenth) is ranking noise. If a
+   future ladder needs a size rather than a direction, the median of per-seed *ratios* is the honest one,
+   and it is in `pairedRatio` already.
+4. **Two tools agreeing to the unit is a real check.** `pick-taste`'s `die` row and `challenge-cost`'s
+   careless plain are the same hand (`picks: random`, since `DEFAULTS.picks` is random even though
+   `DEFAULT_PICKS` is wise), same seeds, same window - and printed the same middle, 14,276. That is how
+   I knew the pairs were being built from the right batches rather than by accident.
+5. **A refusal has to say what would change it.** The new gate's message prints the pair (`17 of 32 seeds,
+   p = 0.860`) next to the two middles and then names the hand that would price the rule. A reader who
+   disagrees can go and fly it; a bare "taste not shown" would have been a wall.
+6. The stale-number problem session 156 and 157 both warned about is now measurable, not hypothetical:
+   the five ordinary rules' quoted costs and today's readings differ by a quarter to a half (see the data
+   above). Nothing in the ladder notices, because a quote has no window or date attached to it in
+   `BALANCE.challenges`. That is the obvious next item and it wants the pairs too.
+
+### Next
+1. **Give every challenge number a window, a date and a pair.** `BALANCE.challenges` quotes 0.48x / 0.77x
+   / 0.56x / 0.93x with no window attached; today's ladder says something else at 5m and something else
+   again at 8m. The fix is small and checkable: a `measured { on, seeds, seconds, policy, picks, cost }`
+   beside each rule's lever, `challenge-cost.js` printing the quote beside its own reading and calling a
+   stale one - and the reading it prints should be the paired one, or the whole exercise is re-quoting
+   noise at a later date.
+2. **Re-sweep THICK's share and SWIFT's multiplier on the pairs.** Today's sweeps cannot order 1.3, 1.5
+   or 1.75 at either window; a paired sweep at 32 seeds might, and if it still cannot then "the share is a
+   dial, not a measurement" is the honest thing to write in the row.
+3. **Can `naive` price a deal rule?** It leans the right way (1.41x a run per seed, 20 of 32) on hands it
+   was never tuned on, and naive runs are the cheapest in the house (a batch of 32 took minutes). Fly 64-96
+   seeds: if it becomes a shown difference, the deck has two hands it can be priced on instead of one.
+4. Still open from earlier sessions: the ablate catalogue's `--scene brood` pass; the **shot-speed line**
+   (four seeds cannot tell 0.98 from 1.02 and it needs ~20 - though session 111's `test/shot-speed.test.mjs`
+   already explains why it reads 1.00x, so this may be a line to delete rather than to measure); the
+   `tierBonus.telegraph` sentence in PLAN, which names a number that does not exist in this tree; whether
+   the first two minutes are too harsh (needs a human); `--live --weapon swarm` and a per-level watch;
+   and PLAN's browser half of the performance pass - still the only unchecked box, and still the owner's
+   to take. Play the ONE CARD rule and say whether it reads as unfair; the ladder can price it and cannot
+   feel it.

@@ -193,7 +193,7 @@ const DEFERRED = { orbitals: 2 };
  * moment it is face up whatever else is on the table, and that is a promise about what the game
  * pays for a build rather than a number the bot could be talked out of.
  *
- * **What the taste is worth, and to whom** (tools/pick-taste.js, 5m windows, 2026-10-18, 32 seeds and 24
+ * **What the taste is worth, and to whom** (tools/pick-taste.js, 5m windows, 2026-10-17, 32 seeds and 24
  * on `aware`, every row ranked against the same bot rolling a die *on the same seeds*, which is the only
  * ranking these batches support - see `tools/headless/pairs.js`). On the `aware` hands it is shown:
  * **1.95x** a run per seed, and 20 of the 24 seeds preferred it (p = 0.002), at level 39 where the die

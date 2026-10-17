@@ -350,7 +350,7 @@ export const BALANCE = {
   // aware hand - `--bot aware --challenges none,thin`, 24 seeds x 8m, 2026-10-17 - the deliberate plain
   // beat its own careless plain by 1.57x, and losing the choice cost a run **0.41x** of its middle score
   // (22,060 against 53,846) while the careless hand, which never had a choice to lose, gave up 0.65x.
-  // That taste is now measured seed against seed as well (24 seeds x 5m, 2026-10-18: the picker was worth
+  // That taste is now measured seed against seed as well (24 seeds x 5m, 2026-10-17: the picker was worth
   // 1.95x a run per seed and 20 of the 24 seeds preferred it, p = 0.002 - the one hand of the three whose
   // taste is a finding rather than a coin flip), and the same window priced the rule at 0.50x there. On
   // the default human hand the same rule reads 0.93x at 5m and 1.10x at 8m, and the ladder refuses to

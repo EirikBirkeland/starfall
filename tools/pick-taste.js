@@ -37,7 +37,7 @@
 // is what it chooses for - which is exactly the thing that was assumed and never measured.
 //
 // What it came back with, and the reading bot.js and `tools/challenge-cost.js` now quote (5m windows,
-// 2026-10-18, 32 seeds and 24 on `aware`):
+// 2026-10-17, 32 seeds and 24 on `aware`):
 //
 //   hand    middles (ship / die)   per seed   seeds that preferred it   level, die -> ship
 //   human   4,843 / 5,333         0.95x      17 of 32, p = 0.860        7 -> 8

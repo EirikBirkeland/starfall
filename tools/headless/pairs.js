@@ -6,18 +6,18 @@
 // same every-card-draw - so a seed can be asked which build it was better under, and the answer does
 // not care how long-tailed the score distribution is. A middle does.
 //
-// How much that matters was measured on 2026-10-18 with the ladder this module was written for
+// How much that matters was measured on 2026-10-17 with the ladder this module was written for
 // (`tools/pick-taste.js`, NOTES session 158): the shipped card appetite read **0.91x** its own die on
 // 32 seeds of the `human` hands and **1.18x** it on 12 - the same two builds, the same window, the
 // same policy, and the sign of the answer changed with how many seeds were flown. A middle of a batch
 // whose best run is eight times its middle run (3,835 against 28,637 over 12 seeds) jiggles by tens of
 // percent, and a ladder that prices a rule at a tenth of that jiggle is sanding its own ruler.
 //
-// The paired reading cannot be fooled that way. On those same 12 seeds the appetite beat its die on
-// most of them but not all of them, and the pair test says what the middles could not: that the batch
-// cannot tell the two builds apart at all. That is a different answer from "worth 0.91x" and it is the
-// one the next ladder needed - a hand that *cannot be shown* to have a taste cannot price a rule about
-// taking a choice away, and neither can a hand whose taste is only two seeds in eleven.
+// The paired reading cannot be fooled that way. Ask those same 32 seeds which build each of them
+// preferred and 17 of them chose the appetite, p = 0.86: a coin. That is a different answer from "worth
+// 0.91x" and it is the one the next ladder needed - a hand that *cannot be shown* to have a taste cannot
+// price a rule about taking a choice away, and neither can a hand whose middles happen to lean either
+// way.
 //
 // What is here is deliberately one test and not a statistics kit: the **sign test**. Each seed says
 // which side it preferred, ties and unusable seeds are set aside, and the question is whether the split
