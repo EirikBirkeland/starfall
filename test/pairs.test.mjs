@@ -120,6 +120,45 @@ test('an appetite that wins every seed it can is shown to be worth something', (
   assert.match(pairWords(pair), /^21 of 24 seeds, p = /);
 });
 
+test('one seed can score five times as much under the harder rule, which is why no size comes from ratios', () => {
+  // Not a made-up shape. This is ONE CARD against plain, six seeds, the aware hand answering on purpose,
+  // measured 2026-10-17: 1.20x, 0.24x, 0.56x, 0.15x, 4.05x and 5.14x. A run of this game is a chaotic
+  // trajectory - change what the rack deals and the whole twenty minutes goes somewhere else - so the
+  // middle of those ratios is 1.20x, i.e. the harder rule looking *worth more*, while half the seeds
+  // preferred the plain build and the batch middles put the rule at 0.65x of a run. Session 158's note on
+  // this file suggested a per-seed ratio as an honest size; this is the flight that retired the idea, and
+  // the split is what survived it.
+  const plain = new Map([[1, 49835], [2, 62657], [3, 39405], [4, 36758], [5, 13836], [6, 11920]]);
+  const rule = new Map([[1, 60021], [2, 14908], [3, 22060], [4, 5440], [5, 55982], [6, 61265]]);
+  const pair = pairedRatio(rule, plain);
+  assert.deepEqual([pair.wins, pair.losses, pair.ties], [3, 3, 0]);
+  assert.ok(pair.medianRatio > 1,
+    'the middle of the per-seed ratios says the harder rule was worth more: ' + pair.medianRatio);
+  assert.ok(isUndecided(pair), 'and the honest answer to "by how much" is that these seeds cannot say');
+});
+
+test('a rule that only fires on some seeds is still shown by the count', () => {
+  // The SHORT GRACE shape measured on 24 seeds (NOTES session 159): thirteen of those runs were never hit
+  // twice, so they score the same whichever gap the rule leaves the ship, and the middle of every seed's
+  // ratio sits exactly on 1.00x - "this rule changes nothing" - while all eleven seeds the rule did bite
+  // say it took something. The count is the finding, and its p is a shown difference; the size of those
+  // ratios is not, which is why the challenge ladder quotes batch middles and lets a pair like this say
+  // only whether the cost is real.
+  const plain = new Map();
+  const rule = new Map();
+  for (let seed = 1; seed <= 24; seed++) {
+    plain.set(seed, 1000);
+    rule.set(seed, seed <= 11 ? 500 : 1000);
+  }
+  const pair = pairedRatio(rule, plain);
+  assert.equal(pair.ties, 13, 'the runs that were never hit twice');
+  assert.deepEqual([pair.compared, pair.wins, pair.losses], [11, 0, 11]);
+  assert.equal(pair.medianRatio, 1, 'the all-seed middle is exactly the untouched runs');
+  assert.ok(pair.p < CONFIDENCE, 'and eleven seeds all one way is a shown split: ' + pair.p);
+  assert.ok(isUndecided(pair), 'isWorse keeps its eye on the all-seed middle, which is the conservative '
+    + 'question: a rule only bites the runs it is asked about');
+});
+
 test('a pair says what it said, in words a ladder can print', () => {
   assert.equal(pairWords(pairedRatio(new Map([[1, 5]]), new Map([[1, 4]]))),
     '1 of 1 seeds, p = 1.000');

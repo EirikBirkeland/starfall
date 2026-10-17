@@ -50,7 +50,8 @@ const PERCENT = 100;
  * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
  * about the crowd's size and speed, and the one about the deck last. It is worth saying plainly that it
  * is *not* sorted by what each rule costs, because `tools/challenge-cost.js` has measured all of them and
- * the dearest (ONE HULL, at 0.48x a careless run's middle score as of 2026-10-17) is the first press. A
+ * the dearest (ONE HULL, at 0.61x a careless run's middle score as of 2026-10-17, with every one of the
+ * twenty-four seeds it was measured on agreeing) is the first press. A
  * hand that presses the key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
@@ -80,6 +81,22 @@ const CYCLE = ['', ...CHALLENGES.map((c) => c.id)];
 /** Is `id` one of the challenges on offer? The empty string is, and means none. */
 export function isChallenge(id) {
   return CYCLE.indexOf(id) >= 0;
+}
+
+/**
+ * What a rule's number was measured on, or null when it has never been measured.
+ *
+ * A challenge's cost is a ratio, and a ratio measured on a bot belongs to that bot: the same rule
+ * reads one way on a five-minute window and another way on an eight-minute one (NOTES session 158),
+ * so a bare number in the game is a number nobody can check. `tools/challenge-cost.js` is the only
+ * thing that can say whether the number the game quotes is still the number the game measures, and it
+ * can only do that when the measurement comes with its window, its hand and its pair attached - which
+ * is what a `measured` row on `BALANCE.challenges` carries, and what this reads.
+ */
+export function measuredOf(id) {
+  if (id === '' || !isChallenge(id)) return null;
+  const measured = challengeRow(id).measured;
+  return measured === undefined ? null : measured;
 }
 
 /**

@@ -2762,7 +2762,7 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       choice is worth what a run's length makes it, and a rule about choosing is priced on a hand long
       enough to hold one - and by a ladder that ranks the seeds and not the middles.
 
-- [ ] Every challenge number carries the **window, the hand and the pair** it was measured on, or the
+- [x] Every challenge number carries the **window, the hand and the pair** it was measured on, or the
       ladder stops quoting it. Each of the six rules costs a number that sits in `BALANCE.challenges` as
       a bare ratio - ONE HULL 0.48x, SHORT GRACE 0.77x, SWIFT 0.56x, THICK 0.93x - and none of them says
       how long the window was, how many seeds were flown, or which pair of hands flew them. That is
@@ -2779,3 +2779,14 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       fresh date on a middle is a dated noise. The paired reading (`tools/headless/pairs.js`) is what the
       ladder should print and what the row should hold, and the sweeps for THICK's share and SWIFT's
       multiplier want re-running on pairs before either number is quoted again.
+      Done on 2026-10-17, with one amendment written up in NOTES session 159: the row carries
+      `{ on, seeds, seconds, policy, picks, cost, plainWon, ruleWon }` and the pair it holds is a
+      **count**, not a paired size. Pairing the *size* was tried on 24 seeds and does not work - the same
+      six seeds under ONE CARD came back at 0.15x, 0.24x, 0.56x, 1.20x, 4.05x and 5.14x of what they
+      scored plain - so any size built out of per-seed ratios belongs to whichever seeds happened to be
+      extreme, and the size stays a middle over a middle while the count says whether it is a finding.
+      The sweeps were re-flown on 24 seeds with their counts: SWIFT's multiplier orders cleanly (1.2 at
+      0.66x and 17 of 24 seeds, 1.4 at 0.57x and 21 of 24, 1.6 at 0.41x and 22 of 24) so 1.4 stands
+      measured; THICK's share still does not (1.3 and 1.75 both read 0.76x, the weaker of them on a split
+      the seeds would not stand up) so 1.5 stands ordered and says so; and NO DASH carries no number at
+      all, because the only reading this ladder can take of it is a lean (0.70x, 17 of 24, p = 0.07).

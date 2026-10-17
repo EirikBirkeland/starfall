@@ -83,8 +83,17 @@ export function signTest(wins, losses) {
  *                the ones that could not tell),
  *   `p`          the sign test on that split - `p <= CONFIDENCE` is a difference the seeds showed,
  *                and anything above it is a batch that could not tell the two builds apart,
- *   `medianRatio` the middle of the per-seed `a / b`, which says how big the difference was on the
- *                typical seed, and is `null` when no seed could be divided.
+ *   `medianRatio` the middle of the per-seed `a / b`, and is `null` when no seed could be divided.
+ *
+ * What `medianRatio` is not: a trustworthy answer to "by how much". A run of this game is a chaotic
+ * trajectory, so one seed can score five times as much under the *harder* rule and the next four fifths as
+ * much - ONE CARD against plain over six seeds came back 1.20x, 0.24x, 0.56x, 0.15x, 4.05x and 5.14x, and
+ * the middle of that is 1.20x while half the seeds preferred the plain build and the batch middles put the
+ * rule at 0.65x (measured 2026-10-17). A mean is worse: the same flight's mean read 1.62x for a crowd rule
+ * whose middles read 0.76x, because one seed where plain scraped 140 points is a ratio of 6.4. So this
+ * field is a brake on the split rather than a measurement of size - which is all `isBetter` and `isWorse`
+ * want of it - and a rule's cost is quoted as a middle over a middle, with the count beside it saying
+ * whether the middle is a finding. `test/pairs.test.mjs` keeps a couple of those shapes honest.
  */
 export function pairedRatio(a, b) {
   const seeds = [];

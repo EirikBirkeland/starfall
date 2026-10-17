@@ -17629,3 +17629,108 @@ level 57, 3,794 kills); what changed was the instruments and the prose around th
 changelog said "nothing you can see" would be a release the owner had to read for no reason. The next one
 should have a rule or a feel change in it - the window-and-date item above is the measurement half of that,
 and playing ONE CARD is the half nobody here can do.
+
+## Session 159 - the challenge numbers went into the game with their windows and their counts attached, and the paired *size* turned out to be worth nothing
+
+### What was on the shelf
+Session 158's next item 1, and PLAN's open line: five ratios sitting in `BALANCE.challenges` (0.48x /
+0.77x / 0.56x / 0.93x / 0.41x) with no window, no date, no hand and no way for anything to notice when the
+game stopped matching them. Tree was clean at 32a69e9; the work was all in the instruments plus the numbers
+they had to carry.
+
+### What landed
+1. **`measuredOf(id)`** (`src/game/challenges.js`) reads a rule's `measured` row out of the balance sheet,
+   or says `null` when the rule has never been measured. The rows themselves are now in
+   `BALANCE.challenges`, one per rule the ladder can measure: `{ on, seeds, seconds, policy, picks, cost,
+   plainWon, ruleWon }`. NO DASH deliberately carries none.
+2. **The ladder checks its own quotes** (`quotesReport` in `tools/challenge-cost.js`). For each rule it
+   finds the table the quote names - same hand, same way of answering the level-up - and says which of
+   five things is true: **reproduced** (same window, reading inside `QUOTE_SLACK`), **stale** (same window,
+   reading outside it: the number in the game is not the number the game measures), **contradicted** (the
+   seeds show the rule worth *more*, which is a finding about the rule and is reported on any window),
+   **not this hand** (with the one command that would check it), or **this flight swept that number** (a
+   sweep of a quote is not a check of it). Only the first two bear on `--strict`. `--dump` prints every
+   seed's two scores.
+3. **The table lost `best score` and gained `plain won`.** The best run of a batch is the run that got
+   lucky and it is the column that fooled a ladder once; what a reader needs next to `vs plain` is how
+   many seeds the plain run won of the ones that could tell, because that is what says whether the middle
+   is a finding or a coin.
+4. **The numbers, as flown today** (24 seeds x 5m on the careless hand, ONE CARD on the aware hand
+   answering wise over 8m): ONE HULL **0.61x** with the plain run winning 23 of 23 seeds, SHORT GRACE
+   **0.91x** on 11 of 11 (the other thirteen seeds never got hit twice and so scored exactly what plain
+   scored), SWIFT CROWD **0.57x** on 21 of 24, THICK CROWD **0.60x** on 19 of 24, ONE CARD **0.41x** on
+   18 of 24. Re-flown at each row's own window every one of them reproduces; the sim is deterministic, so
+   what that proves today is that the plumbing reads the right batches, and what it will prove next month is
+   whether the game has moved.
+5. **The sweeps at 24 seeds.** SWIFT's multiplier orders and keeps order: 1.2 at 0.66x (17 of 24), 1.4 at
+   0.57x (21 of 24), 1.6 at 0.41x (22 of 24, and every one of those twenty-four runs died). So 1.4 stands
+   measured rather than picked. THICK's share still does not order: 1.3 read 0.76x with the seeds calling it
+   a coin (14 of 24) and 1.75 read the same 0.76x (18 of 24), round a 0.60x middle for the shipped 1.5 - so
+   1.5 stays *ordered*, and the row says that out loud instead of pretending the ladder chose it. SHORT
+   GRACE's ends came back as expected: a whole second reads 1.00x (4 of 7 seeds, i.e. nothing) and none at
+   all reads 0.67x with 22 of 22 seeds agreeing.
+6. **NO DASH carries no number.** 0.70x with the plain run winning 17 of 24 is p = 0.07, a lean and not a
+   finding, and the rule is not a knob anyway - it is a floor under the game. The ladder reports it and
+   refuses to judge it, which is what it did before and now says where the number would live.
+7. Prose corrections where today's flights contradicted yesterday's: `balance.js` no longer claims THICK
+   CROWD had drifted to 0.93x (that was eight seeds having a good day, and the same eight seeds had also
+   said 0.60x a fortnight earlier), and `challenges.js` quotes 0.61x as the dearest rule instead of 0.48x.
+8. Tests: eight new ones in `test/challenge-cost.test.mjs` - reproduced, stale-and-`--strict`, a different
+   window being told it checked nothing, a contradicted quote, a swept number not counting as a check, a
+   rule with no quote, a quote on a hand that was not flown (with its command), and a shape check that walks
+   the real balance sheet and refuses any `measured` row missing its date, window, hand, picks, cost or
+   pair, or whose pair does not lean the way its cost does. Two new ones in `test/pairs.test.mjs`: the
+   six-ratios flight above, which fails if anybody puts a size built from per-seed ratios back into a quote,
+   and the SHORT GRACE shape, where thirteen ties make the middle of every seed say 1.00x while eleven
+   seeds all one way say otherwise.
+
+### Surprises and lessons
+1. **A paired *size* is worth nothing in this game; a paired *count* is worth everything.** Session 158
+   wrote that if a ladder needed a size the median of per-seed ratios was the honest one. It is not. ONE
+   CARD against plain, the same six seeds: 1.20x, 0.24x, 0.56x, 0.15x, 4.05x and 5.14x. The middle of
+   those is 1.20x - the harder rule looking worth *more* - while three of the six seeds preferred the
+   plain build and the batch middles put the rule at 0.65x. A mean was worse still: 1.62x for a THICK
+   setting whose middles read 0.76x, because a seed where plain scraped 140 points is a ratio of 6.4.
+   Restricting to the seeds that were not ties was tried too and drifted the same way. So `cost` stays what
+   every historical quote was, a batch middle over a batch middle - which keeps the new numbers comparable
+   with the old ones - and the pair contributes only the count and its p. This amends PLAN's line that the
+   paired reading "is what the row should hold": the paired **count** holds, the paired size does not, and
+   there is now a test that fails if somebody puts a size built from ratios back into the row.
+2. **Two ways a quote goes wrong and only one of them is about the rule.** "Contradicted" means the seeds
+   say the opposite of the card, which is a finding; "stale" means the same experiment on the same yardstick
+   now reads elsewhere, which is bookkeeping. They need different words and the stale message names the file
+   and the field to rewrite.
+3. **A check is only a check on the yardstick it names.** A flight that swept a number cannot check that
+   number; a ladder that flew a different hand can only say so. Both print the exact command that would
+   have checked it, which is the difference between a gate and a wall.
+4. **Under ONE CARD there is nothing to pick**, so the thin batch comes out identical on both pick policies
+   and the same 22,060 appears twice in one run's output. That looked like a row-identity bug for twenty
+   minutes and is the rule working: `--picks wise` and `--picks random` differ only in what they take from
+   a rack, and the rack has one card.
+5. The careless hand's card taste measured again at 0.94x its own die (14 of 24, p = 0.54) while the aware
+   hand's is 1.58x (20 of 24, p = 0.002). Only one of these hands may price a rule about the deal, and the
+   ladder now refuses the other one out loud.
+
+### Next
+1. **Re-fly the quotes when the game moves, not on a calendar.** `node tools/challenge-cost.js --seeds 24
+   --seconds 300 --strict` is about twelve minutes and now answers "did that change break a card's promise"
+   for the four careless-hand rules; the ONE CARD row needs `--bot aware --challenges none,thin --seeds 24
+   --seconds 480`. Whoever changes waves, ships or the hit model should spend those twelve minutes in the
+   same session.
+2. **NO DASH will stay unquoted until a hand that lives on the dash exists.** The policies here press it
+   about ten times a quarter hour; a person threads rooms with it. Either a bolder policy gets written for
+   `tools/headless/human.js` or the rule stays reported-and-not-judged forever, which is defensible but
+   leaves a card unpriced.
+3. Carried over from session 158: can `naive` price a deal rule at 64-96 seeds; the ablate catalogue's
+   `--scene brood` pass; the shot-speed line (may want deleting rather than measuring); the
+   `tierBonus.telegraph` sentence in PLAN naming a number this tree does not have; whether the first two
+   minutes are too harsh; `--live --weapon swarm`; and the browser half of the performance pass, which
+   only the owner can take.
+4. **Still nobody has played ONE CARD.** The ladder can price it and cannot say whether one card at a
+   level-up reads as unfair or as a good squeeze.
+
+### Released
+Nothing. The game traces byte for byte what it traced at **1.9.13** (`tools/simulate.js`: seed 1, aware,
+wisp/pulse, 10m, 73,339, level 57, 3,794 kills) - the shipped levers did not move and what changed is the
+metadata beside them, the ladder that checks them and the prose around both. The next release should be a
+rule or a feel change, and the honest candidate is still playing ONE CARD.

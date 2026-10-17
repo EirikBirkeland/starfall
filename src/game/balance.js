@@ -303,22 +303,19 @@ export const BALANCE = {
   // run: 0.73x plain's middle score, and 11 hulls lost against plain's 3 - a hand that can clear the
   // extra crowd pays for it in hull and not in its life, which is the profile this rule wanted.
   //
-  // The sweep could not choose between the shares, and that is said here rather than hidden: at 1.3 it
-  // reads 0.64x (3m01s), at 1.5 0.60x (2m48s) and at 1.75 0.62x (2m38s) on sixteen seeds, all of them
-  // inside a twentieth of each other. A bigger crowd is more bodies to shoot, so the score column is
-  // not monotonic in the share the way it is for a swift crowd; the ladder can say this rule costs a
-  // quarter of a careless run and cannot say which of those three is sharper. So 1.5 was not picked off
-  // the ladder. It was picked because it lifts the schedule's wall to 150 bodies, which is under the
-  // 200 a real frame has been timed against (`endless.growth.bodiesCeil`, and the figure the browser
-  // half of the performance pass is meant to fly to) - a share of 1.75 would stand 175 of them in a
-  // scheduled run, which is a crowd nobody here has ever timed on a screen.
+  // The sweep could not choose between the shares, and that is said here rather than hidden. It was flown
+  // twice: once on sixteen seeds (1.3 read 0.64x, 1.5 0.60x, 1.75 0.62x) and again on twenty-four, where
+  // 1.3 read 0.76x with the seeds calling it a coin (14 of 24) and 1.75 read the same 0.76x with 18 of 24
+  // saying so, round a middle of 0.60x for the 1.5 that ships. A bigger crowd is more bodies to shoot, so
+  // the score column is not monotonic in the share the way a swift crowd's is, and the ladder can say this
+  // rule costs two fifths of a careless run without being able to say which of those three is sharper. So
+  // 1.5 was not picked off the ladder. It was picked because it lifts the schedule's wall to 150 bodies,
+  // which is under the 200 a real frame has been timed against (`endless.growth.bodiesCeil`, and the figure
+  // the browser half of the performance pass is meant to fly to) - a share of 1.75 would stand 175 of them
+  // in a scheduled run, which is a crowd nobody here has ever timed on a screen.
   //
-  // Re-read on 2026-10-17 with the same defaults the ladder ships with, this rule reads 0.93x plain's
-  // middle (2m48s, the same middle of deaths as above) rather than 0.60x, and the reason is the plain
-  // batch: the game as it now ships scores more for the same five minutes than the game that paragraph
-  // was written against did, so the share of it the crowd takes is smaller. Still a rule by the bar, but
-  // a twentieth of a margin rather than a quarter, and the share wants re-sweeping before that 0.60x is
-  // quoted again anywhere.
+  // An earlier copy of this paragraph quoted 0.93x for this rule and blamed the plain batch for moving. On
+  // twenty-four seeds the rule is back at 0.60x and the 0.93x was a batch of eight that had a good day.
   //
   // `grace` is how long a ship is safe after a hit, where plainly that is `player.hitInvulnerability`.
   // The number is a *floor* and not a preference, and what says so is 0: bodies are shoved off a ship
@@ -327,12 +324,12 @@ export const BALANCE = {
   // blade standing on the ship is a hull a frame - which `test/challenge-merciless.test.mjs` holds, the
   // one way to hold it, since no batch of runs can be asked to stand in a blade on purpose.
   //
-  // 0.5 s, from `tools/challenge-cost.js --grace` on the careless hand (8 seeds x 5m, 2026-10-17;
-  // plain's middle run died at 3m39s for 5,715): half a second of grace reads 0.77x that middle score
-  // and 28s off the middle of deaths. The sweep is why the number is where it is - a whole second reads
-  // 1.00x and 0.75 s reads 0.97x, both of them above what the ladder may believe of a rule, so the gap
-  // has to be cut by more than half before the rule is a rule - and 0, the dearest of them at 0.62x,
-  // costs the beat a person needs to answer the hit they just took.
+  // 0.5 s, from `tools/challenge-cost.js --grace` on the careless hand: half a second of grace takes a
+  // tenth of a run (0.91x, and every one of the eleven seeds that separated it from plain said so) and 28s
+  // off the middle of deaths. The sweep is why the number is where it is - a whole second reads 1.00x, an
+  // exact nothing, with the four seeds that could tell it calling it a lean and nothing more, so the gap
+  // has to be cut by more than half before the rule is a rule at all - and 0, the dearest of them at 0.67x
+  // with 22 of 22 seeds agreeing, costs the beat a person needs to answer the hit they just took.
   //
   // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
   // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
@@ -376,14 +373,91 @@ export const BALANCE = {
   // a 5m window instead of 8m it reads 0.50x. Soft in
   // size, firm in direction: every reading this ladder will judge has the rule costing between a fifth and
   // three fifths of a run, and the only readings that say it is free are the ones it refuses to judge.
+  // The six gauntlet rules, spelled out where the shop can read them and the ladder can fly them, plus
+  // what each one is worth and the evidence for that number.
+  //
+  // The costs below were *quoted*, not ordered - one flight each, and the ladder (tools/challenge-cost.js)
+  // is the one that ordered them, reading each rule's score against the same seeds flown plain. Those
+  // readings are the `measured` rows underneath, and they carry their window with them for a reason: the
+  // same rule reads one way over five minutes and another over eight, the eight-minute window is the only
+  // one that lets a run meet the fourth wave at all, and a batch of eight seeds can move a middle by a
+  // third of its own value. So a number here without its window is a number that goes quiet the day it
+  // stops being true, and the ladder re-files it: same window, same hand, and it says reproduced, stale,
+  // or contradicted.
+  //
+  // Each row carries a count as well as a cost, and the count is the part that was believed. `plainWon`
+  // and `ruleWon` are the seeds that could tell the two builds apart and which one each of them preferred;
+  // a rule whose seeds split is a rule whose cost is a guess, whatever the number beside it says. The cost
+  // itself is a middle over a middle - the middle run of the rule's batch against the middle run of
+  // plain's - and not a mean of per-seed ratios, which sounds more rigorous and is worse: a run of this
+  // game is a chaotic trajectory, and the same six seeds under ONE CARD came back at 0.15x, 0.24x, 0.56x,
+  // 1.20x, 4.05x and 5.14x of what they scored plain (measured 2026-10-17). Any size built from ratios
+  // like those belongs to whichever seeds happened to be extreme; the count does not.
+  //
+  // The five that have rows are the five the ladder could measure on the batches it flies. NO DASH does
+  // not: it is not a knob, it is a floor under the game - two hits, a third through a level and the run is
+  // over - and on the twenty-four-seed flight that filed these rows it read 0.70x with the plain run
+  // winning 17 of 24 seeds, which is a lean and not a finding (p = 0.07). The rule is not dimmed to match
+  // a number the ladder cannot stand behind; it is left alone because that number was never what it is for.
   challenges: {
-    brittle:   { hull: 1 },
-    grounded:  { dash: false },
-    merciless: { grace: 0.5 },
-    swift:     { speedMul: 1.4 },
-    thick:     { holdMul: 1.5 },
-    thin:      { offer: 1 },
-    gatedOn:   { grounded: ['tether', 'afterimage'] },
+    brittle: {
+      hull: 1,
+      // One hit kills, so the whole game turns into a game of not being touched, and the runs that used to
+      // last eight minutes are over in three. The plain run won every single seed the rule was asked on.
+      measured: {
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        cost: 0.61, plainWon: 23, ruleWon: 0,
+      },
+    },
+    // No dash, and two hits kill: the game becomes one long careful drive, which reads cheaper than the
+    // others because a bot that never dashes still flies the whole level - it just cannot survive being
+    // twice as dead as it already was. No quote, because this ladder cannot order it (see the note above).
+    grounded: { dash: false },
+    merciless: {
+      grace: 0.5,
+      // Half a second of invulnerability after a hit instead of one and a half: it takes one hit more out
+      // of every run and pays for it in stardust, and thirteen of the twenty-four seeds it was filed on
+      // never got hit twice at all, so those thirteen scored exactly what plain scored.
+      measured: {
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        cost: 0.91, plainWon: 11, ruleWon: 0,
+      },
+    },
+    swift: {
+      speedMul: 1.4,
+      // Everything twenty-four percent quicker, after the sweep that replaced the old quarter: the middle
+      // of three settings (1.2 read 0.66x with 17 of 24 seeds, 1.6 read 0.41x with 22 of 24) and the one
+      // that costs about what the card used to promise for the number it used to carry.
+      measured: {
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        cost: 0.57, plainWon: 21, ruleWon: 3,
+      },
+    },
+    thick: {
+      holdMul: 1.5,
+      // Scheduled bodies half again as many. Ordered, not measured - the sweep put 1.3 at 0.76x (14 of 24
+      // seeds, which is a coin) and 1.75 at the same 0.76x (18 of 24), so the two ends could not be put in
+      // order and the middle was chosen by taste: enough more bodies to read as a wall without the run
+      // being over before a hull can be bought, and about three quarters of the bodies a frame can be
+      // timed with.
+      measured: {
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        cost: 0.6, plainWon: 19, ruleWon: 5,
+      },
+    },
+    thin: {
+      offer: 1,
+      // One card instead of three, and the only rule on this sheet that has to be flown on a hand that
+      // answers the level-up on purpose: on the same twenty-four seeds answered at random the very same
+      // thin batch read 0.65x with the seeds calling it a lean and nothing more (13 of 24), because
+      // thinning a careless chooser's rack takes away mostly the cards it was not going to answer with
+      // anyway. Answered on purpose, eighteen of the same seeds say it costs what it costs.
+      measured: {
+        on: '2026-10-17', seeds: 24, seconds: 480, policy: 'aware', picks: 'wise',
+        cost: 0.41, plainWon: 18, ruleWon: 6,
+      },
+    },
+    gatedOn: { grounded: ['tether', 'afterimage'] },
   },
 
   // The awards (PLAN 3.7): what a run did that this save remembers, and the little stardust it pays

@@ -13,12 +13,19 @@
 // so. A deliberate hand whose middle is twice its die's and whose seeds split six-and-six is refused,
 // because a middle of a batch of this game's runs moves that much on its own.
 //
+// And the sixth, from session 159: every challenge number in the game is quoted *with* the window, the
+// hand and the pair that measured it, and the ladder is what notices when the game's number and the
+// number the game measures have parted company. A quote is checked on the paired statistic only, because
+// a fresh date on a middle would be a dated noise - and a ladder that cannot check a quote says so and
+// hands over the command that can, instead of silently agreeing with the number it was handed.
+//
 // The rows below are made up. They are the shapes the ladder can come back with.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verdictOf } from '../tools/challenge-cost.js';
-import { nameOf } from '../src/game/challenges.js';
+import { verdictOf, quotesReport } from '../tools/challenge-cost.js';
+import { CHALLENGES, measuredOf, nameOf } from '../src/game/challenges.js';
+import { POLICIES, PICKS } from '../tools/headless/bot.js';
 
 /** One row of what a batch reports, with the parts this file does not care about filled in. */
 function row(id, middleScore, middleDeath, hulls, died, scores) {
@@ -33,7 +40,6 @@ function row(id, middleScore, middleDeath, hulls, died, scores) {
       : scores).map((score, i) => [i + 1, score])),
     middleDeath: middleDeath === undefined ? null : middleDeath,
     hulls: hulls === undefined ? 0 : hulls,
-    bestScore: middleScore,
     level: 1,
     died: died === undefined ? 1 : died,
     won: 0,
@@ -291,4 +297,171 @@ test('a plain batch that scored nothing has no ratios to judge', () => {
   const nothing = verdictOf([row('none', 0, 5, 0), row('swift', 0, 5, 0)], row('none', 0, 5, 0));
   assert.deepEqual(nothing.problems, []);
   assert.deepEqual(nothing.skipped, []);
+});
+
+// ---------------------------------------------------------------------------
+// The quotes: the number written into `BALANCE.challenges`, held against a fresh flight.
+//
+// These tests bring their own quote table rather than reading the game's, because the game's numbers are
+// measurements and measurements move; what is being tested here is the checking, not the numbers. The
+// real quotes have their own shape test at the end of this file.
+// ---------------------------------------------------------------------------
+
+/** One rule's `measured` row, with everything a quote needs filled in with a consistent story. */
+function quote(over) {
+  return Object.assign({
+    on: '2026-10-11',
+    seeds: 12,
+    seconds: 300,
+    policy: 'human',
+    picks: 'random',
+    cost: 0.60,
+    plainWon: 10,
+    ruleWon: 1,
+  }, over);
+}
+/** A quote table that says one rule is quoted at this and nothing else is quoted at all. */
+function quotedOnly(id, m) {
+  return (asked) => (asked === id ? m : null);
+}
+
+/** The one line about one rule, out of the six the report always prints. */
+function lineAbout(report, id) {
+  const line = report.lines.find((l) => l.startsWith(nameOf(id) + ' '));
+  assert.ok(line !== undefined, 'no line about ' + nameOf(id));
+  return line;
+}
+
+/** The table a quote names, as `main()` hands them over: a hand, how it picked, and what it flew. */
+function tableFlown(policy, picks, plainRow, ruleRow) {
+  return { policy, picks, rows: [plainRow, ruleRow], plain: plainRow };
+}
+
+// The flight the quote below was made on: ten of the twelve seeds scored 0.60x, one tied, and one went the
+// other way at 1.20x. The batch middles are 60,000 against 100,000, i.e. 0.60x, and the plain run won 10 of
+// the 11 seeds that could tell - the size and the pair saying the same thing, which is what a quote has to
+// look like before it is allowed into the game.
+const QUOTE_PLAIN = row('none', 100000, 300, 12);
+const TEN_DOWN = row('brittle', 60000, 200, 12, 12,
+  [60000, 60000, 60000, 60000, 60000, 60000, 60000, 60000, 60000, 60000, 100000, 120000]);
+const QUOTE_TABLES = [tableFlown('human', 'random', QUOTE_PLAIN, TEN_DOWN)];
+
+test('a quote the flight reproduces is said out loud and costs nothing', () => {
+  const seen = quotesReport(QUOTE_TABLES, { seeds: 12, seconds: 300, swept: [] },
+    quotedOnly('brittle', quote()));
+  assert.deepEqual(seen.problems, []);
+  assert.equal(seen.lines.length, CHALLENGES.length, 'every rule gets an answer, quoted or not');
+  const line = lineAbout(seen, 'brittle');
+  assert.match(line, /^ONE HULL is quoted at 0\.60x/);
+  assert.match(line, /2026-10-11/, 'the date the quote was taken on');
+  assert.match(line, /It reads 0\.60x/, 'the batch middles, which is what the quote is made of');
+  assert.match(line, /a difference the seeds showed \(10 of 11 seeds, p = /);
+  assert.match(line, /reproduced/);
+  assert.match(lineAbout(seen, 'swift'), /carries no number/, 'and the rules with no quote say so');
+});
+
+test('a quote the same window no longer supports is stale, and --strict has it', () => {
+  // The same twelve seeds, the same hand, the same five minutes, and the rule now gives up a twentieth of
+  // what the game says it gives up. That is not noise about which seeds were flown - the window and the
+  // hand are the quote's own - so the number in the game is the thing that is wrong.
+  const moved = row('brittle', 85000, 300, 12, 12, new Array(12).fill(85000));
+  const stale = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, moved)],
+    { seeds: 12, seconds: 300, swept: [] }, quotedOnly('brittle', quote()));
+  assert.equal(stale.problems.length, 1);
+  assert.match(stale.problems[0], /^ONE HULL is quoted at 0\.60x/);
+  assert.match(stale.problems[0], /reads 0\.85x/);
+  assert.match(stale.problems[0], /BALANCE\.challenges\.brittle\.measured/);
+
+  // Inside the slack and it is the same measurement after all: the paired reading of a batch wanders a
+  // little when the seeds change, and a check that shouted at every wander would be ignored by Friday.
+  const near = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN,
+    row('brittle', 74000, 300, 12, 12, new Array(12).fill(74000)))],
+  { seeds: 12, seconds: 300, swept: [] }, quotedOnly('brittle', quote()));
+  assert.deepEqual(near.problems, [], '0.74x against a 0.60x quote is inside a quarter of it');
+});
+
+test('a ladder that flew a different window is told it did not check anything, not scolded', () => {
+  // The default batch is 8 seeds; the quotes are not made on 8 seeds. That is a ladder that cannot
+  // answer the question, and the honest thing to do is say so and hand over the command that can.
+  const short = quotesReport(QUOTE_TABLES, { seeds: 8, seconds: 300, swept: [] },
+    quotedOnly('brittle', quote()));
+  assert.deepEqual(short.problems, []);
+  const line = lineAbout(short, 'brittle');
+  assert.match(line, /8 seeds x 5m00s/);
+  assert.match(line, /cannot check it/);
+  assert.match(line, /--seeds 12 --seconds 300/, 'the command that would');
+});
+
+test('seeds that show the rule worth *more* contradict its quote whatever window they were flown on', () => {
+  // A different window is a different yardstick, so it cannot say a cost is too big - but a window that
+  // shows the rule being worth *more* than plain is not disagreeing with the quote's size, it is
+  // disagreeing with its direction, and a direction holds at any window.
+  const gift = row('brittle', 150000, 400, 12, 0, new Array(12).fill(150000));
+  const seen = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, gift)],
+    { seeds: 5, seconds: 60, swept: [] }, quotedOnly('brittle', quote()));
+  assert.equal(seen.problems.length, 1);
+  assert.match(seen.problems[0], /worth \*more\*/);
+  assert.match(seen.problems[0], /node tools\/challenge-cost\.js --challenges none,brittle --seeds 12/);
+});
+
+test('a rule this flight swept is not a check of its own quote', () => {
+  // `--hold 1.3` measures a share of the arena, not the shipped one, and the quote is of the shipped one.
+  const swept = quotesReport([tableFlown('human', 'random', QUOTE_PLAIN, row('swift', 1000, 100, 1, 1))],
+    { seeds: 12, seconds: 300, swept: ['swift'] },
+  quotedOnly('swift', quote({ cost: 0.56, plainWon: 11, ruleWon: 1 })));
+  assert.deepEqual(swept.problems, []);
+  assert.match(lineAbout(swept, 'swift'), /swept that very number/);
+  assert.match(lineAbout(swept, 'swift'), /--challenges none,swift --seeds 12 --seconds 300/);
+});
+
+test('a rule the game quotes no number for says that out loud', () => {
+  const seen = quotesReport(QUOTE_TABLES, { seeds: 12, seconds: 300, swept: [] }, () => null);
+  assert.deepEqual(seen.problems, []);
+  assert.equal(seen.lines.length, CHALLENGES.length);
+  for (const line of seen.lines) assert.match(line, /carries no number/);
+});
+
+test('a quote made on a hand this ladder never flew is left alone, with the command that flies it', () => {
+  // ONE CARD's quote is on a deliberate hand. The careless ladder cannot check it and must not pretend.
+  const seen = quotesReport(QUOTE_TABLES, { seeds: 12, seconds: 300, swept: [] },
+    quotedOnly('thin', quote({ policy: 'aware', picks: 'wise' })));
+  assert.deepEqual(seen.problems, []);
+  assert.match(lineAbout(seen, 'thin'), /never flew that hand/);
+  assert.match(lineAbout(seen, 'thin'), /--bot aware/);
+  assert.doesNotMatch(lineAbout(seen, 'thin'), /--picks/,
+    'the deliberate table is what the default adds anyway');
+
+  // ...and when the deliberate table *was* flown, that is the table the quote is checked against, not the
+  // careless one sitting next to it with the same seeds in it.
+  const wisePlain = row('none', 200000, 400, 3);
+  const thin = row('thin', 120000, 300, 5, 5, new Array(12).fill(120000));
+  const checked = quotesReport(
+    [tableFlown('aware', 'random', row('none', 100000, 300, 12), row('thin', 99000, 300, 1, 1)),
+      tableFlown('aware', 'wise', wisePlain, thin)],
+  { seeds: 12, seconds: 300, swept: [] },
+  quotedOnly('thin', quote({ policy: 'aware', picks: 'wise', cost: 0.60, plainWon: 12, ruleWon: 0 })));
+  assert.deepEqual(checked.problems, []);
+  assert.match(lineAbout(checked, 'thin'), /It reads 0\.60x/, 'read off the deliberate table');
+  assert.match(lineAbout(checked, 'thin'), /reproduced/);
+});
+
+test('every number the game quotes for a rule brings its window, its hand and its pair', () => {
+  // The shape promise on the real balance sheet: a bare ratio is not allowed back in. `cost` is the
+  // paired reading (NOTES session 158), so the pair has to be there to go with it, and the pair has to
+  // lean the way the number does - a quote whose own seeds are a coin is a middle in disguise.
+  for (const challenge of CHALLENGES) {
+    const m = measuredOf(challenge.id);
+    if (m === null) continue;
+    const at = challenge.name + ' (' + challenge.id + ')';
+    assert.match(m.on, /^\d{4}-\d{2}-\d{2}$/, at + ' has no date the quote can be dated to');
+    assert.ok(Number.isInteger(m.seeds) && m.seeds >= 1, at + ' names how many seeds it flew');
+    assert.ok(m.seconds >= 120, at + ' was measured on a window too short to see a rule');
+    assert.ok(POLICIES[m.policy] !== undefined, at + ' names a hand that exists');
+    assert.ok(PICKS[m.picks] !== undefined, at + ' names a way of answering the level-up');
+    assert.ok(m.cost > 0 && m.cost < 1, at + ' does not cost anything (cost ' + m.cost + ')');
+    assert.ok(Number.isInteger(m.plainWon) && m.plainWon >= 0, at + ' counts the seeds plain won');
+    assert.ok(Number.isInteger(m.ruleWon) && m.ruleWon >= 0, at + ' counts the seeds the rule won');
+    assert.ok(m.plainWon + m.ruleWon <= m.seeds, at + 's pair has more seeds than the batch flew');
+    assert.ok(m.plainWon > m.ruleWon, at + ' quotes a number its own seeds do not lean towards');
+  }
 });

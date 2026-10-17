@@ -15,7 +15,11 @@
 //   node tools/challenge-cost.js --cards 2                ONE CARD's rack, tried at another size
 //   node tools/challenge-cost.js --bot aware --challenges none,thin
 //                                               ONE CARD, on the one hand that can price a choice
+//   node tools/challenge-cost.js --dump                   print every seed behind the readings
 //   node tools/challenge-cost.js --strict                 non-zero unless the rules cost what they claim
+//   node tools/challenge-cost.js --seeds 24 --seconds 300
+//                                              re-fly the numbers written into the game, and say
+//                                              whether they still hold
 //
 // Why a yardstick at all: a challenge modifier is a rule about the whole run, and a rule about the
 // whole run cannot be A/B'd one card at a time (`tools/line-ab.js` prices a line against itself). So
@@ -56,6 +60,24 @@
 // only be priced by a hand that makes good ones, and saying which hand was flown beats passing what it
 // could not see.
 //
+// Every one of those numbers then goes into the game: it is written into `BALANCE.challenges` as the rule's
+// `measured` row, and a number that lives in the game without its window is a number that goes quiet when it
+// stops being true. `tools/challenge-cost.js` therefore also *checks the quote*: every row carries the
+// seeds, the window, the policy and the picks it was measured on and the pair it was counted on, and the
+// ladder prints its own reading beside it - reproduced, stale, or "this ladder flew a different hand, and
+// here is the command that would check it".
+//
+// Two traps there, both paid for by the flights that found them. The first is that a middle of a batch is
+// not self-evidencing: it moves by a third of its own value between two batches of eight seeds, and a fresh
+// date on a number the seeds do not back is a dated noise (NOTES session 158). So every quote carries its
+// pair - of the seeds that could tell the two runs apart, how many the plain run won - and a quote whose
+// pair is a coin is not a quote. The second is that the *size* cannot come out of the same pairing: a run
+// of this game is a chaotic trajectory, and the same six seeds under ONE CARD came back at 0.15x, 0.24x,
+// 0.56x, 1.20x, 4.05x and 5.14x of what they scored plain. Any middle or mean of ratios like those is a
+// story about whichever seeds happened to be extreme - a mean of them read 1.62x for a crowd rule whose
+// middles read 0.76x. The count is stable where the size is not, so the size stays what it always was, a
+// batch middle over a batch middle, with the pair beside it saying whether that middle is a finding.
+//
 // One column is deliberately missing: what a rule feels like. NO DASH measured against a bot that
 // presses the dash ten times a quarter-hour (NOTES session 114) may read as nearly free while a
 // person who lives on the dash feels it in every corner. The number here is the bot's and it is
@@ -66,9 +88,9 @@ import { pathToFileURL } from 'node:url';
 
 import { playBatches, POLICIES, PICKS } from './headless/bot.js';
 import { BALANCE } from '../src/game/balance.js';
-import { CHALLENGES, isChallenge, nameOf, saysOf } from '../src/game/challenges.js';
+import { CHALLENGES, isChallenge, measuredOf, nameOf, saysOf } from '../src/game/challenges.js';
 import { table, clock, int, dec } from './headless/tables.js';
-import { median, pairedRatio, isBetter, pairWords } from './headless/pairs.js';
+import { median, pairedRatio, isBetter, pairWords, signTest, CONFIDENCE } from './headless/pairs.js';
 
 const DEFAULTS = {
   seeds: 8,
@@ -87,6 +109,7 @@ const DEFAULTS = {
   grace: null,
   cards: null,
   strict: false,
+  dump: false,
 };
 
 /** The seven rows the ladder can print: `none` beside the six rules. */
@@ -136,6 +159,22 @@ const TOUCH_RULES = ['brittle', 'merciless'];
 const MIN_COST = 0.05;
 const COST_RATIO = 1 - MIN_COST;
 
+/**
+ * How far a re-flight may move a quoted cost and still be the same measurement.
+ *
+ * A relative slack, with a floor, because the quotes are ratios and a rule quoted at 0.9x has a lot
+ * less room to move than one quoted at 0.4x. The size is a working tolerance and not a statistic: it is
+ * how far a re-flight has to disagree before the ladder is willing to say the game's number has gone out
+ * of date, and it is deliberately wider than the wander a re-flight of the paired reading shows day to
+ * day (the *middles* wander by a good deal more, which is what session 158 found). A stale call is not a
+ * verdict about the rule; it is the ladder saying *go and re-measure this*, and the line it prints says
+ * which of the two numbers it is holding against the other.
+ */
+const QUOTE_SLACK = 0.25;
+
+/** The same slack, in absolute terms, for a quote sitting near 1.00x where a relative one is mean. */
+const QUOTE_SLACK_FLOOR = 0.05;
+
 function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS);
   for (let i = 0; i < argv.length; i++) {
@@ -152,6 +191,7 @@ function readArgs(argv) {
     else if (arg === '--grace') opts.grace = Number(next());
     else if (arg === '--cards') opts.cards = parseInt(next(), 10);
     else if (arg === '--strict') opts.strict = true;
+    else if (arg === '--dump') opts.dump = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
   if (!Number.isFinite(opts.seeds) || !Number.isFinite(opts.seconds) || opts.seeds < 1) {
@@ -271,7 +311,6 @@ async function measure(opts, specs) {
           died: deaths.length,
           won: finished.filter((s) => s.won).length,
           middleScore: median(finished.map((s) => s.stats.score)),
-          bestScore: Math.max(...finished.map((s) => s.stats.score)),
           fights: total((s) => s.stats.bossesDown),
           hulls: total((s) => s.tally.hullLost),
           level: median(finished.map((s) => s.stats.level)),
@@ -288,23 +327,35 @@ async function measure(opts, specs) {
 /**
  * One table of rows, printed the same way every time, so that the two tables a ladder can come back with
  * are read against each other column for column.
+ *
+ * Two columns are the same rule asked two ways. `vs plain` is the middle score over the middle score - the
+ * number a rule's `measured` row in the game holds, and the one every quote in NOTES was written with.
+ * `plain won` is the pair: of the seeds that could tell the two runs apart, how many the plain run scored
+ * higher on. The first says how much a rule costs and the second says whether that is a finding or a coin,
+ * which matters because a run of this game is a chaotic trajectory and a couple of seeds can move a middle
+ * (NOTES session 158). `best score` used to be on this table and is not any more: it is the single run that
+ * happened to be lucky, and it is the column that fooled a ladder once.
  */
 function printTable(rows, plain, opts, title, note) {
   const align = 'lrrrrrrrr';
-  const header = ['rule', 'middle death', 'died', 'middle score', 'best score', 'vs plain',
+  const header = ['rule', 'middle death', 'died', 'middle score', 'vs plain', 'plain won',
     'hulls', 'fights', 'won'];
-  const body = rows.map((row) => [
-    row.id === PLAIN ? 'plain' : nameOf(row.id),
-    row.middleDeath === null ? '-' : clock(row.middleDeath),
-    row.died + '/' + opts.seeds,
-    int(row.middleScore),
-    int(row.bestScore),
-    plain === undefined || plain.middleScore === 0 ? '-'
-      : dec(row.middleScore / plain.middleScore, 2) + 'x',
-    String(row.hulls),
-    String(row.fights),
-    String(row.won),
-  ]);
+  const body = rows.map((row) => {
+    const pair = plain === undefined || row === plain ? null : pairedRatio(row.bySeed, plain.bySeed);
+    return [
+      row.id === PLAIN ? 'plain' : nameOf(row.id),
+      row.middleDeath === null ? '-' : clock(row.middleDeath),
+      row.died + '/' + opts.seeds,
+      int(row.middleScore),
+      plain === undefined || plain.middleScore === 0 ? '-'
+        : dec(row.middleScore / plain.middleScore, 2) + 'x',
+      pair === null ? '-'
+        : (pair.compared === 0 ? '0/0' : pair.losses + '/' + pair.compared),
+      String(row.hulls),
+      String(row.fights),
+      String(row.won),
+    ];
+  });
   console.log(table(title, note, align, header, body));
 }
 
@@ -467,6 +518,177 @@ function judgeAgainst(row, plain, problems, notes, deaths) {
     + ' rule does have to pay, is judged.');
 }
 
+// ---------------------------------------------------------------------------
+// The seeds themselves, for when a reading has to be looked at rather than believed.
+//
+// Every summary on the table is one number, and the whole point of session 158 was that one number can be
+// a middle that a couple of lucky seeds decided. `--dump` prints what went into a row - each seed, its
+// score, the plain run's score for the same seed, and the ratio between them - which is how you tell a rule
+// that took half of every run from a rule that took everything from four runs and nothing from the other
+// twenty. It changes nothing about the flight: the same batches, printed wider.
+// ---------------------------------------------------------------------------
+
+function dumpTable(rows, plain) {
+  if (plain === undefined) return;
+  for (const row of rows) {
+    if (row === plain) continue;
+    const pair = pairedRatio(row.bySeed, plain.bySeed);
+    console.log('');
+    console.log(nameOf(row.id) + ' against plain, seed by seed:');
+    for (const entry of row.bySeed) {
+      const other = plain.bySeed.get(entry[0]);
+      console.log('  seed ' + entry[0] + ': ' + int(entry[1]) + ' against ' + int(other) + ', '
+        + (other > 0 ? dec(entry[1] / other, 2) + 'x' : '-')
+        + (entry[1] === other ? '  (the same score: this run never asked the rule anything)' : ''));
+    }
+    console.log('  the batch middles say ' + dec(row.middleScore / plain.middleScore, 2) + 'x; '
+      + pair.losses + ' of the ' + pair.compared + ' seeds that could tell were won by plain, '
+      + pair.wins + ' by the rule, ' + pair.ties + ' tied (p = '
+      + (pair.p < 0.001 ? '<0.001' : pair.p.toFixed(3)) + '); the middle of the per-seed ratios is '
+      + (pair.medianRatio === null ? 'nothing to divide' : dec(pair.medianRatio, 2) + 'x')
+      + ', which is how badly one wild seed can speak.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The quotes. What the game says each rule costs, held against what this flight says it costs.
+//
+// A challenge's number is written into `BALANCE.challenges` next to the lever it measures, and a number
+// the game carries without its window is a number that goes quiet when it stops being true: the same
+// rule reads one way over a five-minute window and another way over an eight-minute one, and the game
+// has changed underneath most of these quotes since they were taken. So the ladder is asked a second
+// question besides "is this rule a rule" - *is the number in the game still the number the game
+// measures* - and it answers it twice over: the middle of each batch, which is the size the quote holds,
+// and the pair of seeds, which is what says whether that size is a finding or a coin flip.
+// ---------------------------------------------------------------------------
+
+/**
+ * The pair a `measured` row asserts, in the shape `pairedRatio` hands back: the rule first.
+ *
+ * Only the split is stored, because only the split is a claim the row gets to make: the size in `cost` is a
+ * middle of two batches and not a paired number at all (see the header). The p is derived from the split
+ * rather than written down beside it, so a quote cannot disagree with its own arithmetic.
+ */
+function quotePair(m) {
+  return {
+    seeds: m.seeds,
+    compared: m.plainWon + m.ruleWon,
+    wins: m.ruleWon,
+    losses: m.plainWon,
+    p: signTest(m.ruleWon, m.plainWon),
+  };
+}
+
+/** Did these seeds show a difference, or only lean towards one? */
+function shownWords(pair) {
+  return pair.p <= CONFIDENCE
+    ? 'a difference the seeds showed (' + pairWords(pair) + ')'
+    : 'a lean and nothing more (' + pairWords(pair) + ')';
+}
+
+/** The window and the hand a quote was made on, in the words the ladder prints. */
+function quoteWindow(m) {
+  return m.seeds + ' seeds x ' + clock(m.seconds) + ', the ' + m.policy + ' hand answering the level-up '
+    + m.picks + ', as of ' + m.on;
+}
+
+/** The shortest command that re-flies one quote exactly. */
+function quoteCommand(m, id) {
+  const parts = ['tools/challenge-cost.js'];
+  if (m.policy !== DEFAULTS.policy) parts.push('--bot ' + m.policy);
+  // The deliberate table is what the default already adds on its own; any other way of answering the
+  // level-up has to be asked for by name.
+  if (m.picks !== DEFAULTS.picks && m.picks !== DELIBERATE_PICKS) parts.push('--picks ' + m.picks);
+  parts.push('--challenges ' + PLAIN + ',' + id);
+  parts.push('--seeds ' + m.seeds);
+  parts.push('--seconds ' + m.seconds);
+  return 'node ' + parts.join(' ');
+}
+
+/**
+ * Every rule the game quotes, held against this flight.
+ *
+ * `tables` is every table that was flown (`{ policy, picks, rows, plain }`), because a rule's quote names
+ * the hand it was measured on and the ladder has to find that table or say it never flew it - ONE CARD is
+ * quoted on a deliberate hand and nowhere else, and NO DASH is quoted nowhere at all. `flown` says what
+ * this ladder flew (`{ seeds, seconds, swept }`): a quote is only *checked* by a flight of the same
+ * window on the same hand, and a sweep of the very number being quoted tests the sweep and not the quote.
+ *
+ * A quote is **contradicted** whenever the same hand's seeds show the rule scoring *more* than plain -
+ * that is a finding about the rule and not about the window, so it is reported whatever the seeds and
+ * seconds were. Otherwise: reproduced, or stale (same window, reading outside `QUOTE_SLACK`), or not
+ * checked here, with the one command that would check it - and the reading is printed either way, because
+ * a number the operator can paste into the balance sheet is half the point of flying the batch.
+ *
+ * Returns `{ lines, problems }` in the same shape `verdictOf` settled on. `quoteOf` is where the quotes
+ * come from - the balance sheet by default, and a test's own table when the test wants to ask about a
+ * quote the game is not making yet.
+ */
+export function quotesReport(tables, flown, quoteOf) {
+  const quoted = quoteOf === undefined ? measuredOf : quoteOf;
+  const lines = [];
+  const problems = [];
+  for (const challenge of CHALLENGES) {
+    const id = challenge.id;
+    const m = quoted(id);
+    const name = nameOf(id);
+    if (m === null) {
+      lines.push(name + ' carries no number in the game, and that is the honest answer: this ladder has '
+        + 'never been an instrument that could measure it, so there is nothing here to check and nothing '
+        + 'here to believe either.');
+      continue;
+    }
+    const quote = quotePair(m);
+    const table = tables.find((t) => t.policy === m.policy && t.picks === m.picks);
+    const row = table === undefined ? undefined : table.rows.find((r) => r.id === id);
+    const plain = table === undefined ? undefined : table.plain;
+    if (row === undefined || plain === undefined || plain.middleScore === 0) {
+      lines.push(name + ' is quoted at ' + dec(m.cost, 2) + 'x (' + quoteWindow(m) + '), and this ladder '
+        + 'never flew that hand against its own plain run, so it has no reading of it. `'
+        + quoteCommand(m, id) + '` would check it.');
+      continue;
+    }
+    const pair = pairedRatio(row.bySeed, plain.bySeed);
+    const reading = row.middleScore / plain.middleScore;
+    const size = plain.middleScore === 0 ? 'nothing to divide' : dec(reading, 2) + 'x';
+    const backing = shownWords(pair);
+    const said = name + ' is quoted at ' + dec(m.cost, 2) + 'x of a plain run\'s middle score ('
+      + quoteWindow(m) + '; the plain run won ' + shownWords(quote) + ')';
+    if (flown.swept.indexOf(id) >= 0) {
+      lines.push(said + ', and this flight swept that very number, so it tested the sweep and not the '
+        + 'quote. It reads ' + size + ' (' + backing + ') with the number swept; `' + quoteCommand(m, id)
+        + '` checks the shipped one.');
+      continue;
+    }
+    if (isBetter(pair)) {
+      problems.push(name + ' is quoted at ' + dec(m.cost, 2) + 'x of a plain run\'s middle score ('
+        + quoteWindow(m) + '), and these seeds say the other thing entirely: the rule read '
+        + size + ' against plain and the seeds say ' + backing + ' - that is, the rule was shown to be '
+        + 'worth *more*. Either the number in the game is wrong or the game has changed under it. '
+        + 'Re-measure with `' + quoteCommand(m, id) + '`.');
+      continue;
+    }
+    if (flown.seeds !== m.seeds || flown.seconds !== m.seconds) {
+      lines.push(said + '. This ladder flew ' + flown.seeds + ' seeds x ' + clock(flown.seconds)
+        + ', which is a different yardstick and cannot check it; here it reads ' + size + ' ('
+        + backing + '). `' + quoteCommand(m, id) + '` flies the window the quote names.');
+      continue;
+    }
+    const slack = Math.max(QUOTE_SLACK * m.cost, QUOTE_SLACK_FLOOR);
+    if (Math.abs(reading - m.cost) > slack) {
+      problems.push(name + ' is quoted at ' + dec(m.cost, 2) + 'x of a plain run\'s middle score ('
+        + quoteWindow(m) + '), and this flight, on that same window and that same hand, reads '
+        + size + ' (' + backing + ') - outside the ' + dec(slack, 2) + ' a re-flight is allowed. The '
+        + 'number in the game is not the number the game measures any more: write this flight into '
+        + 'BALANCE.challenges.' + id + '.measured, or say why it should not be believed.');
+      continue;
+    }
+    lines.push(said + '. It reads ' + size + ' (' + backing + '), which is the same reading ('
+      + dec(slack, 2) + ' of slack allowed) - reproduced.');
+  }
+  return { lines, problems };
+}
+
 const isMain = process.argv[1]
   && import.meta.url === pathToFileURL(process.argv[1]).href;
 
@@ -497,6 +719,20 @@ if (isMain) {
     deal = { rows, plain };
   }
 
+  // Every table this flight produced, keyed the way a quote names a hand (policy + how it picked). A
+  // rule's `measured` row says who flew it, and this is what says whether they were flown here at all.
+  const tables = [{ policy: opts.policy, picks: opts.picks, rows, plain }];
+  if (needsDeal) {
+    tables.push({ policy: opts.policy, picks: DELIBERATE_PICKS, rows: deal.rows, plain: deal.plain });
+  }
+  // Which of the quoted numbers this flight wrote over. A sweep of a rule's own number is a measurement
+  // of the sweep, and saying so out loud is what keeps it from being read back as the shipped one.
+  const swept = [];
+  if (opts.speed !== null) swept.push('swift');
+  if (opts.hold !== null) swept.push('thick');
+  if (opts.grace !== null) swept.push('merciless');
+  if (opts.cards !== null) swept.push('thin');
+
   const sweep = (opts.speed === null ? '' : ', the swift crowd at ' + dec(opts.speed, 2) + 'x')
     + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x')
     + (opts.grace === null ? '' : ', a hit leaving ' + dec(opts.grace, 2) + 's')
@@ -504,15 +740,18 @@ if (isMain) {
 
   const note = 'Each row is the same seeds flown under one rule, `plain` being the game as it shipped.\n'
     + '`middle death` is the middle of the runs that died - a batch that never died has no middle and\n'
-    + 'shows a dash - and `vs plain` is the middle score against plain\'s, so below 1.00x is less for\n'
-    + 'the same window. `hulls` is every hull the batch lost, which is what says whether this ladder\n'
-    + 'could see a rule about losing one at all; `fights` is every boss it buried and `won` the runs\n'
-    + 'that came out of the schedule standing. This is the bot\'s cost and not a person\'s.';
+    + 'shows a dash. `vs plain` is the middle score against plain\'s, which is the number a rule\'s quote\n'
+    + 'in the game holds; `plain won` is the pair it was counted on - of the seeds that could tell the two\n'
+    + 'runs apart, how many plain scored higher on. A seed that tied says the rule was never asked about,\n'
+    + 'and is in neither half of that fraction. `hulls` is every hull the batch lost, which is what says\n'
+    + 'whether this ladder could see a rule about losing one at all; `fights` is every boss it buried and\n'
+    + '`won` the runs that came out of the schedule standing. This is the bot\'s cost and not a person\'s.';
 
   printTable(rows, plain, opts, 'the challenges, on ' + opts.seeds + ' seeds of ' + clock(opts.seconds)
     + ', ' + opts.policy + ' bot'
     + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
     + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash') + sweep, note);
+  if (opts.dump) dumpTable(rows, plain);
 
   // The deal rules again, on a hand that picks on purpose. Same seeds, same feet, same everything but
   // how the level-up is answered - because that is the only thing this kind of rule reaches.
@@ -520,6 +759,7 @@ if (isMain) {
     console.log('');
     printTable(deal.rows, deal.plain, opts, 'the same seeds and the same feet, answering the level-up '
       + DELIBERATE_PICKS + ' - which is the only table a rule about the deal can be read on', note);
+    if (opts.dump) dumpTable(deal.rows, deal.plain);
     // And what that hand's taste is worth, because it is the number the verdict below is allowed to
     // lean on: a deliberate hand that cannot be shown to beat its own careless one has no taste to price.
     if (deal.plain !== undefined && deal.carelessPlain !== undefined
@@ -550,17 +790,27 @@ if (isMain) {
     console.log('Not judged: ' + line);
   }
 
+  // The second question: not "is this rule hard enough to be a rule", which the verdict above answers,
+  // but "is the number the game carries for it still the number this ladder measures".
+  const quotes = quotesReport(tables, { seeds: opts.seeds, seconds: opts.seconds, swept });
   console.log('');
-  if (verdict.problems.length > 0) {
+  console.log('What the game quotes each rule for, and what this flight says about it:');
+  for (const line of quotes.lines) console.log('  - ' + line);
+
+  const problems = verdict.problems.concat(quotes.problems);
+  console.log('');
+  if (problems.length > 0) {
     console.log('VERDICT: FAIL');
-    for (const line of verdict.problems) console.log('  - ' + line);
+    for (const line of problems) console.log('  - ' + line);
     console.log('');
     console.log('Either the rule is not what its card says it is, or this bot is not the yardstick');
     console.log('for it and the number has to be read off a person instead. Both answers are worth');
-    console.log('having; neither is a pass.');
+    console.log('having; neither is a pass. A stale quote is the third kind of failure: the rule may be');
+    console.log('fine and only its number in the game has gone out of date.');
     if (opts.strict) process.exit(1);
   } else {
-    console.log('VERDICT: every rule this ladder could see is paid for in the score column.');
+    console.log('VERDICT: every rule this ladder could see is paid for in the score column, and every');
+    console.log('quote it could check still holds.');
     console.log('The `died` column is what a rule does to a run\'s length and the score column is what');
     console.log('it does to what a run is worth; a rule that moves only one of the two is half a rule.');
   }
