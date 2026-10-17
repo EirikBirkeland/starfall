@@ -2708,3 +2708,39 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       `test/challenges.test.mjs` (the gap read off a run that was really flying) plus its lever checks
       extended to all five rules, and 1 in `test/challenge-cost.test.mjs` - plus the two tests that walked
       the key's cycle by hand, which now read the table instead of counting presses.
+
+- [x] A sixth rule for the ladder, and it is about the **deck**: **ONE CARD** — the rack deals one card
+      where it ships three, and which one is the game's business and not yours. The five that ship cover
+      what a hull is worth, whether the ship can jump, what a hit leaves you, and how big and how quick
+      the crowd is; the axis nobody has taken is PLAN 3.5 itself, the run as a build made out of choices.
+      A rule on the rack is the cheapest thing that can be said about it — `cards.offer` is one number and
+      the deal already fills whatever places there are — but it is the one rule here with a measurement
+      problem in it, and the problem is the interesting half:
+      **the ladder's careless hand picks at random, so it never used the choice this rule takes away.**
+      Fly it on that hand and it reads whatever a random draw of one card is worth against a random draw
+      of three, which is close to nothing, and a ladder that called it free would be grading its own bot
+      and not the rule. So the ladder grows a second pass for the rules about a deal: the *same careless
+      feet* answering the level-up on purpose (`tools/headless/bot.js`, `--picks wise`), which is a hand
+      that still dies inside the window and still has an opinion about what it is dealt. A rule about a
+      choice is priced on the hand that makes one, and the row is said in both places so the first pass
+      does not silently pass what it could not see.
+      **The guarantee is the trap**, and it is why this is an item and not a one-line row:
+      `guaranteeSomethingNew` promises that while any line is untouched, at least one card on the table is
+      one. On a rack with one place, keeping that promise means every card dealt is a fresh line, so no line
+      could ever be stacked twice and the rule would be quietly two rules — a thin rack *and* a run that
+      cannot commit to anything. So the promise sits out when the rack has no room for a choice, and a test
+      takes a line to a second and third rank under the rule to hold that, because that test fails in
+      silence if the sit-out is ever removed.
+      To be measured before it ships, on the deliberate hand, at one card and at two (a sweep, in the
+      pattern the last two rules were swept in) and written into `BALANCE.challenges` with the date on it
+      if it holds, declined and measured if it does not.
+      **It holds, and it took a second finding to price it.** At one card the rule costs a run 0.41x of its
+      middle score on the hand that picks on purpose (aware policy, 24 seeds x 8m, 2026-10-17); at two
+      cards it reads 1.15x, a gift, so one is the only size in the running. The finding is *why* that hand
+      had to be the aware one: on the ladder's default `human` hand the deliberate plain scores **less**
+      than the careless plain (4,843 against 5,333 on 32 seeds), so that hand's taste for cards is worth
+      less than a die and a rule about a choice cannot be priced off it — the ladder now measures the taste
+      of its deliberate hand (`dealTasteOf`) and refuses a deal verdict when the taste is not there, which
+      is the same shape as the rule about a touch needing a batch that lost hulls. Whether `wiseCard` has
+      simply gone stale on the human hand since it was tuned (NOTES sessions 31-32, 38) is a question for a
+      later session; every challenge number in the game is measured on that hand.

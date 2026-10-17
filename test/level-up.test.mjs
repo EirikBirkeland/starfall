@@ -274,6 +274,36 @@ test('the choice is painted, and paints over a frame that is not running', () =>
   }
 });
 
+test('the ask line names exactly the keys that answer the cards', () => {
+  // The line above the cards is the only place the game says which keys work, and the number of cards
+  // is not always three: a rule thins the rack (game/challenges.js ONE CARD) and an almost-finished
+  // deck deals whatever is left of it. Either way a key named with no card behind it is a lie on the
+  // glass, so the line is counted off the table and not written down.
+  earnALevel();
+  assert.equal(askedKeys(), '1 2 3', 'three cards up, three keys named');
+
+  // A rack with one place on it - what the deck is down to at the end of a run, and what ONE CARD makes
+  // it at every level. The extra keys are then refused as well as unnamed.
+  world.offer.length = 1;
+  game.step(FRAME_MS);
+  assert.equal(askedKeys(), '1', 'one card up, one key named');
+  const before = Object.assign({}, world.upgrades);
+  game.key('Digit2', true);
+  game.key('Digit2', false);
+  assert.equal(world.state, game.STATE.LEVEL, 'and the second key is not an answer');
+  assert.deepEqual(world.upgrades, before, 'which bought nothing');
+  game.key('Digit1', true);
+  game.key('Digit1', false);
+  assert.equal(world.state, game.STATE.PLAY, 'while the first one still is');
+});
+
+/** The keys the line above the cards names, with the words either side of them taken off. */
+function askedKeys() {
+  const line = game.texts().find((t) => t.text.startsWith('CHOOSE ONE'));
+  assert.ok(line !== undefined, 'the cards say what they are asking for');
+  return line.text.split('\u00b7')[1].split('OR')[0].trim();
+}
+
 test('a dash pressed while the cards are up is spent, not stored', () => {
   earnALevel();
   ship.dashCd = 0;

@@ -12,6 +12,9 @@
 //   node tools/challenge-cost.js --speed 1.3              the swift crowd's multiplier, tried live
 //   node tools/challenge-cost.js --hold 1.75              the thick crowd's, tried live
 //   node tools/challenge-cost.js --grace 0.75             the gap a hit leaves, tried live
+//   node tools/challenge-cost.js --cards 2                ONE CARD's rack, tried at another size
+//   node tools/challenge-cost.js --bot aware --challenges none,thin
+//                                               ONE CARD, on the one hand that can price a choice
 //   node tools/challenge-cost.js --strict                 non-zero unless the rules cost what they claim
 //
 // Why a yardstick at all: a challenge modifier is a rule about the whole run, and a rule about the
@@ -33,7 +36,22 @@
 // The swift crowd's multiplier is passed to the game through the balance row, which the sim reads
 // every time it builds a body, so `--speed` sweeps it without touching a source file - the same
 // trick `tools/ghost-grid.js` plays with the afterimage's radius. `--hold` is the same door on the
-// thick crowd's share of the arena, and `--grace` the same door on the gap a hit leaves the ship.
+// thick crowd's share of the arena, `--grace` the same door on the gap a hit leaves the ship, and
+// `--cards` the same door on how many places the rule's rack has.
+//
+// A rule about the **deal** is priced on a second table, and that is the one real subtlety here. Two
+// facts about the default hand make it so. First, it answers the level-up at random, so a rule that takes
+// the *choice* away takes away something this hand never used - ONE CARD flown on it measures a random
+// draw of one card against a random draw of three, which is close to nothing. So the ladder flies the
+// plain run and that rule a second time with the same careless feet answering the level-up on purpose
+// (`--picks wise`), and judges it there. Second, and found the hard way: a deliberate hand is only a
+// yardstick if its picks are worth something, and on the default `human` policy they are not - its
+// careful plain run scored *less* than its careless one at both 5 and 8 minutes (NOTES session 157), so
+// taking a choice away from it is worth nothing and the rule read as a gift. On `--bot aware` the same
+// pair is worth 57% of a run, and the rule costs 0.41x there. So the ladder prints what its deliberate
+// hand's taste is worth, and refuses to judge a deal rule on a hand whose taste is worth less than a
+// die. A rule about a choice can only be priced by a hand that makes good ones, and saying which hand
+// was flown beats passing what it could not see.
 //
 // One column is deliberately missing: what a rule feels like. NO DASH measured against a bot that
 // presses the dash ten times a quarter-hour (NOTES session 114) may read as nearly free while a
@@ -55,7 +73,7 @@ const DEFAULTS = {
   // nothing about a touch; `naive` is harsher still and dies in the first minute of a plain run.
   policy: 'human',
   picks: 'random',
-  challenges: 'none,brittle,grounded,merciless,swift,thick',
+  challenges: 'none,brittle,grounded,merciless,swift,thick,thin',
   // The shipped get-out habit (tools/headless/bot.js `DASH`), because NO DASH is a rule about a dash
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
@@ -63,11 +81,38 @@ const DEFAULTS = {
   speed: null,
   hold: null,
   grace: null,
+  cards: null,
   strict: false,
 };
 
-/** The six rows the ladder can print: `none` beside the five rules. */
+/** The seven rows the ladder can print: `none` beside the six rules. */
 const PLAIN = 'none';
+
+/**
+ * Which rules are about what the *deal* gives the run, and so have to be priced on a hand that picks on
+ * purpose. The careless hand answers the level-up at random; a rule that removes a choice from it
+ * removes nothing it was using. See the header.
+ */
+const DEAL_RULES = ['thin'];
+
+/** How the second table answers the level-up: the same careless feet, choosing deliberately. */
+const DELIBERATE_PICKS = 'wise';
+
+/**
+ * What a rule's middle of deaths is allowed to decide, judged against its own plain row.
+ *
+ * `judge` is the ordinary case: a rule that lets the batch outlive the plain batch is buying its way
+ * into the ladder and the `died` column is where that shows.
+ *
+ * `report` is for a rule about the **deal**, whose whole cost is a choice the hand no longer gets. Its
+ * middle of deaths is only comparable when both batches died in numbers worth comparing, and the hand
+ * that can price a choice is the hand that hardly dies at all: on the aware hand that priced ONE CARD
+ * (24 seeds x 8m, NOTES session 157) the deliberate plain lost **1 run in 24** and the thin batch 5, so
+ * those two medians are one sample against five, and the honest column is the `died` one the table
+ * prints. A deal rule is still judged on the score column - that is the column the rule is paid in, and
+ * it paid at 0.41x there. Said out loud rather than exempted in silence.
+ */
+const DEATHS = { judge: 'judge', report: 'report' };
 
 /**
  * Which rules are about what a touch costs, and so need a batch that actually loses a hull before the
@@ -101,6 +146,7 @@ function readArgs(argv) {
     else if (arg === '--speed') opts.speed = Number(next());
     else if (arg === '--hold') opts.hold = Number(next());
     else if (arg === '--grace') opts.grace = Number(next());
+    else if (arg === '--cards') opts.cards = parseInt(next(), 10);
     else if (arg === '--strict') opts.strict = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -133,6 +179,10 @@ function readArgs(argv) {
   }
   if (opts.grace !== null && !(opts.grace >= 0)) {
     console.error('--grace wants a number of seconds; 0 takes the gap away altogether');
+    process.exit(2);
+  }
+  if (opts.cards !== null && !(opts.cards >= 1)) {
+    console.error('--cards wants how many places the rack has, such as 1');
     process.exit(2);
   }
   return opts;
@@ -173,20 +223,41 @@ function setGrace(seconds) {
   BALANCE.challenges.merciless.grace = seconds;
 }
 
-/** One row per rule, on the same seeds. */
-async function measure(opts) {
-  const names = opts.challenges.split(',');
+/**
+ * The same door on how many places the rule's rack has, which is read every time a level is paid.
+ * `--cards 2` is ONE CARD with a roomier rack, which is how the shipped number gets swept; the plain
+ * row keeps dealing what ships, so every ratio on the table is the rule against the game and not one
+ * sweep against another.
+ */
+function setCards(places) {
+  if (places === null) return;
+  BALANCE.challenges.thin.offer = places;
+}
+
+/** Which of the rows asked for are about the deal, and so have to be flown twice. */
+function dealNamesOf(names) {
+  return names.filter((name) => DEAL_RULES.indexOf(name) >= 0);
+}
+
+/**
+ * Fly every row on the same seeds, in one process and one booted game (the game is one per process -
+ * NOTES session 3 - so both tables of a ladder have to come out of one `playBatches` call).
+ *
+ * `specs` is what to fly: a rule name and how the level-up is answered. Every row is reported with the
+ * picks it was flown on, because the two tables of one run differ by nothing else.
+ */
+async function measure(opts, specs) {
   const rows = [];
-  const batches = names.map((name) => {
+  const batches = specs.map((spec) => {
     const finished = [];
     return {
       batch: {
         seeds: Array.from({ length: opts.seeds }, (unused, i) => i + 1),
         maxSeconds: opts.seconds,
         policy: opts.policy,
-        picks: opts.picks,
+        picks: spec.picks,
         // `none` is the game as it shipped, which the game calls no challenge at all.
-        challenge: name === PLAIN ? '' : name,
+        challenge: spec.id === PLAIN ? '' : spec.id,
         dash: opts.dash,
         onRun: (summary) => { finished.push(summary); },
       },
@@ -194,7 +265,8 @@ async function measure(opts) {
         const deaths = finished.filter((s) => s.died).map((s) => s.seconds);
         const total = (pick) => finished.reduce((sum, s) => sum + pick(s), 0);
         return {
-          id: name,
+          id: spec.id,
+          picks: spec.picks,
           middleDeath: median(deaths),
           died: deaths.length,
           won: finished.filter((s) => s.won).length,
@@ -214,84 +286,10 @@ async function measure(opts) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Four of the five rules are judged and
- * one is not, and the difference is what the ladder can see.
- *
- *   **ONE HULL, SHORT GRACE, SWIFT CROWD and THICK CROWD are judged**, the two rules about a touch
- *     provided the plain batch actually lost hulls - which is what says the ladder can see a rule about
- *     losing one at all. An aware bot that finishes a run with three hull in a body that costs one is
- *     not an instrument for those two rules, and saying so beats failing a rule the instrument cannot
- *     reach. The two crowd rules need no such proviso: a crowd is in front of every pair of eyes,
- *     careless or not.
- *
- *   **NO DASH is reported and never judged**, and the reason is in the columns rather than in a
- *     paragraph: taking the jump away from a hand that presses it ten times a quarter-hour is a small
- *     thing, and taking the two cards that need it out of a careless deck can be worth more than the
- *     jump was. Whether that rule is hard is a question about a person who *lives* on the dash, and
- *     no bot here is one.
- *
- * Returns the lines to print and the lines that are failures, so `--strict` has something to exit on
- * and a test has something to assert on without parsing prose (the same shape `tools/ghost-grid.js`
- * settled on).
+ * One table of rows, printed the same way every time, so that the two tables a ladder can come back with
+ * are read against each other column for column.
  */
-export function verdictOf(rows, plain) {
-  const problems = [];
-  const skipped = [];
-  const touchable = plain !== undefined && plain.hulls > 0;
-  for (const row of rows) {
-    if (row.id === PLAIN || plain === undefined || plain.middleScore === 0) continue;
-    const ratio = row.middleScore / plain.middleScore;
-    if (row.id === 'grounded') {
-      skipped.push(nameOf(row.id) + ' is reported and not judged: it read ' + dec(ratio, 2)
-        + 'x plain, which is the two cards the deck lost and the jump this hand barely spends, not a '
-        + 'verdict about a person who uses it.');
-      continue;
-    }
-    if (TOUCH_RULES.indexOf(row.id) >= 0 && !touchable) {
-      skipped.push(nameOf(row.id) + ' is not measurable on this ladder: the plain batch lost no '
-        + 'hulls at all, so a rule about what a touch costs cannot show up in it. Fly a worse hand '
-        + '(`--bot naive`) or a careless one (`--bot human --picks random`).');
-      continue;
-    }
-    if (ratio > COST_RATIO) {
-      problems.push(nameOf(row.id) + ' scored ' + dec(ratio, 2) + 'x plain, which is above the '
-        + dec(COST_RATIO, 2) + 'x a rule has to beat: a rule that says it is harder has to be paid '
-        + 'for in the score column, or it is a flavour setting.');
-    }
-    if (row.middleDeath !== null && plain.middleDeath !== null
-        && row.middleDeath > plain.middleDeath) {
-      problems.push(nameOf(row.id) + '\'s middle of deaths is ' + clock(row.middleDeath)
-        + ' against plain\'s ' + clock(plain.middleDeath) + ': it outlasts the plain batch.');
-    }
-  }
-  return { problems, skipped };
-}
-
-const isMain = process.argv[1]
-  && import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isMain) {
-  const opts = readArgs(process.argv.slice(2));
-  setSpeed(opts.speed);
-  setHold(opts.hold);
-  setGrace(opts.grace);
-  const rows = await measure(opts);
-  const plain = rows.find((r) => r.id === PLAIN);
-
-  const title = 'the challenges, on ' + opts.seeds + ' seeds of ' + clock(opts.seconds)
-    + ', ' + opts.policy + ' bot'
-    + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
-    + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
-    + (opts.speed === null ? '' : ', the swift crowd at ' + dec(opts.speed, 2) + 'x')
-    + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x')
-    + (opts.grace === null ? '' : ', a hit leaving ' + dec(opts.grace, 2) + 's');
-  const note = 'Each row is the same seeds flown under one rule, `plain` being the game as it shipped.\n'
-    + '`middle death` is the middle of the runs that died - a batch that never died has no middle and\n'
-    + 'shows a dash - and `vs plain` is the middle score against plain\'s, so below 1.00x is less for\n'
-    + 'the same window. `hulls` is every hull the batch lost, which is what says whether this ladder\n'
-    + 'could see a rule about losing one at all; `fights` is every boss it buried and `won` the runs\n'
-    + 'that came out of the schedule standing. This is the bot\'s cost and not a person\'s.';
-
+function printTable(rows, plain, opts, title, note) {
   const align = 'lrrrrrrrr';
   const header = ['rule', 'middle death', 'died', 'middle score', 'best score', 'vs plain',
     'hulls', 'fights', 'won'];
@@ -308,6 +306,221 @@ if (isMain) {
     String(row.won),
   ]);
   console.log(table(title, note, align, header, body));
+}
+
+/**
+ * The verdict. A rule that costs nothing is not a challenge. Five of the six rules are judged and one
+ * is only judged on a hand that can judge it, and the difference is what the ladder can see.
+ *
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD and THICK CROWD are judged**, the two rules about a touch
+ *     provided the plain batch actually lost hulls - which is what says the ladder can see a rule about
+ *     losing one at all. An aware bot that finishes a run with three hull in a body that costs one is
+ *     not an instrument for those two rules, and saying so beats failing a rule the instrument cannot
+ *     reach. The two crowd rules need no such proviso: a crowd is in front of every pair of eyes,
+ *     careless or not.
+ *
+ *   **NO DASH is reported and never judged**, and the reason is in the columns rather than in a
+ *     paragraph: taking the jump away from a hand that presses it ten times a quarter-hour is a small
+ *     thing, and taking the two cards that need it out of a careless deck can be worth more than the
+ *     jump was. Whether that rule is hard is a question about a person who *lives* on the dash, and
+ *     no bot here is one.
+ *
+ *   **ONE CARD is judged on the deliberate table, and only if that table can show it has taste.** A
+ *     hand that picks at random cannot miss a choice it never made, so the rule is stood aside on the
+ *     first table and priced where the same feet answer the level-up on purpose. And a deliberate hand
+ *     is only an instrument if its picks are worth something, which is measured rather than assumed -
+ *     see `dealTasteOf`. On the shipped careless hand the aware policy has to be the one flown
+ *     (`--bot aware`): NOTES session 157 has both readings.
+ *
+ * Returns the lines to print and the lines that are failures, so `--strict` has something to exit on
+ * and a test has something to assert on without parsing prose (the same shape `tools/ghost-grid.js`
+ * settled on).
+ */
+export function verdictOf(rows, plain, deal) {
+  const problems = [];
+  const skipped = [];
+  const touchable = plain !== undefined && plain.hulls > 0;
+  const deliberatePass = deal !== undefined && deal.rows !== rows;   // a second table was flown
+  const taste = dealTasteOf(deal);
+  const dealJudged = deliberatePass && taste !== null && taste > TASTE_WORTH_PRICING;
+  for (const row of rows) {
+    if (row.id === PLAIN || plain === undefined || plain.middleScore === 0) continue;
+    const ratio = row.middleScore / plain.middleScore;
+    if (row.id === 'grounded') {
+      skipped.push(nameOf(row.id) + ' is reported and not judged: it read ' + dec(ratio, 2)
+        + 'x plain, which is the two cards the deck lost and the jump this hand barely spends, not a '
+        + 'verdict about a person who uses it.');
+      continue;
+    }
+    if (DEAL_RULES.indexOf(row.id) >= 0) {
+      if (deal === undefined) {
+        skipped.push(nameOf(row.id) + ' is about the deal, and this ladder never flew a hand that '
+          + 'makes one, so there is no verdict here to give: fly the default, which adds the deliberate '
+          + 'pass, or ask for one with `--picks wise`.');
+        continue;
+      }
+      if (!deliberatePass) {
+        skipped.push(nameOf(row.id) + ' cannot be priced on a ladder that flew *only* the deliberate '
+          + 'hand: nothing says whether that hand\'s picks are worth anything, and that is the whole of '
+          + 'what the rule takes away. Fly `none,' + row.id + '` on a careless hand and it will check.');
+        continue;
+      }
+      if (!dealJudged) {
+        skipped.push(nameOf(row.id) + ' is not priced by this ladder: ' + tasteWords(taste, deal)
+          + '. It read ' + dec(ratio, 2) + 'x plain here, which is the same nothing. (`--bot aware` flies '
+          + 'the hand whose picks are worth pricing: NOTES session 157.)');
+        continue;
+      }
+      skipped.push(nameOf(row.id) + ' is priced on the deliberate table and not this one: it read '
+        + dec(ratio, 2) + 'x plain here, and a hand that answers the level-up at random cannot miss a '
+        + 'choice it never made.');
+      continue;
+    }
+    if (TOUCH_RULES.indexOf(row.id) >= 0 && !touchable) {
+      skipped.push(nameOf(row.id) + ' is not measurable on this ladder: the plain batch lost no '
+        + 'hulls at all, so a rule about what a touch costs cannot show up in it. Fly a worse hand '
+        + '(`--bot naive`) or a careless one (`--bot human --picks random`).');
+      continue;
+    }
+    judgeAgainst(row, plain, problems, skipped, DEATHS.judge);
+  }
+  // The deal rules, on the hand that picks on purpose - which is only an instrument when its taste has
+  // been measured (see dealTasteOf), and every refusal above said so out loud rather than passing it.
+  if (dealJudged && deal.plain !== undefined && deal.plain.middleScore > 0) {
+    for (const row of deal.rows) {
+      if (row.id === PLAIN) continue;
+      judgeAgainst(row, deal.plain, problems, skipped, DEATHS.report);
+    }
+  }
+  return { problems, skipped };
+}
+
+/**
+ * What the deliberate hand's card taste is worth: its plain run against the same policy's careless
+ * plain run, which differ in nothing except how the level-up was answered.
+ *
+ * This is the ladder asking whether it is holding a yardstick at all, and on the shipped hand the answer
+ * is no: on the `human` policy the careful plain scores *less* than the careless one (4,843 against
+ * 5,333 on 32 seeds of 5m, and 5,205 against 5,715 at 8m - NOTES session 157), so that hand has no
+ * taste to price the loss of. On the `aware` policy it is worth 57% of a run (53,846 against 34,179 on
+ * 24 seeds of 8m), which is why ONE CARD is priced there and nowhere else. The bot's appetite is tuned
+ * on the aware hand (tools/headless/bot.js, NOTES sessions 31 and 32) and this is what that costs.
+ *
+ * Answers `null` when there is no careless plain to compare with - a ladder flown wholly on the
+ * deliberate hand, which is a hand of unknown taste and prices nothing.
+ */
+function dealTasteOf(deal) {
+  if (deal === undefined) return null;
+  const deliberate = deal.plain;
+  const careless = deal.carelessPlain;
+  // No careless plain next to it means the whole ladder was flown on the deliberate hand, which is a
+  // hand of unknown taste and prices nothing.
+  if (deliberate === undefined || careless === undefined) return null;
+  if (careless.middleScore <= 0) return null;
+  return deliberate.middleScore / careless.middleScore;
+}
+
+/** Why the deliberate hand was not believed, in the words the refusal prints. */
+function tasteWords(taste, deal) {
+  if (taste === null || deal.plain === undefined || deal.carelessPlain === undefined) {
+    return 'nothing was flown against it to show that it picks better than a die';
+  }
+  return 'the hand answering the level-up on purpose scored ' + int(deal.plain.middleScore)
+    + ' against the careless hand\'s ' + int(deal.carelessPlain.middleScore)
+    + ', and a hand whose card taste is worth less than a die cannot say what losing the choice costs';
+}
+
+/** How much better the deliberate plain has to be to be believed. Anything less is a die with opinions. */
+const TASTE_WORTH_PRICING = 1;
+
+/**
+ * The two questions one row can be asked against its own plain row: did it pay in the score column,
+ * and did it outlive the plain batch. `deaths` says which of the two the second one is allowed to
+ * decide - see DEATHS.
+ */
+function judgeAgainst(row, plain, problems, notes, deaths) {
+  const ratio = row.middleScore / plain.middleScore;
+  if (ratio > COST_RATIO) {
+    problems.push(nameOf(row.id) + ' scored ' + dec(ratio, 2) + 'x plain, which is above the '
+      + dec(COST_RATIO, 2) + 'x a rule has to beat: a rule that says it is harder has to be paid '
+      + 'for in the score column, or it is a flavour setting.');
+  }
+  if (row.middleDeath === null || plain.middleDeath === null
+      || row.middleDeath <= plain.middleDeath) return;
+  if (deaths === DEATHS.judge) {
+    problems.push(nameOf(row.id) + '\'s middle of deaths is ' + clock(row.middleDeath)
+      + ' against plain\'s ' + clock(plain.middleDeath) + ': it outlasts the plain batch.');
+    return;
+  }
+  notes.push(nameOf(row.id) + ' outlived the deliberate plain - ' + clock(row.middleDeath)
+    + ' against ' + clock(plain.middleDeath) + ', on ' + row.died + ' deaths to plain\'s ' + plain.died
+    + ' - and that column is reported and not judged here (see DEATHS). The score column, which this'
+    + ' rule does have to pay, is judged.');
+}
+
+const isMain = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) {
+  const opts = readArgs(process.argv.slice(2));
+  setSpeed(opts.speed);
+  setHold(opts.hold);
+  setGrace(opts.grace);
+  setCards(opts.cards);
+  const names = opts.challenges.split(',');
+  // One flight, both tables: the deal rules are flown twice, once the way this ladder answers the
+  // level-up and once on purpose, and a second boot in one process is not a thing the game can do. If
+  // the ladder was already asked to pick on purpose, there is only one table to fly and it is the one.
+  const needsDeal = dealNamesOf(names).length > 0 && opts.picks !== DELIBERATE_PICKS;
+  const specs = names.map((name) => ({ id: name, picks: opts.picks }));
+  if (needsDeal) {
+    specs.push({ id: PLAIN, picks: DELIBERATE_PICKS });
+    for (const name of dealNamesOf(names)) specs.push({ id: name, picks: DELIBERATE_PICKS });
+  }
+  const flown = await measure(opts, specs);
+  const rows = flown.filter((r) => r.picks === opts.picks);
+  const plain = rows.find((r) => r.id === PLAIN);
+  let deal;
+  if (needsDeal) {
+    const dealRows = flown.filter((r) => r.picks === DELIBERATE_PICKS);
+    deal = { rows: dealRows, plain: dealRows.find((r) => r.id === PLAIN), carelessPlain: plain };
+  } else if (dealNamesOf(names).length > 0) {
+    deal = { rows, plain };
+  }
+
+  const sweep = (opts.speed === null ? '' : ', the swift crowd at ' + dec(opts.speed, 2) + 'x')
+    + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x')
+    + (opts.grace === null ? '' : ', a hit leaving ' + dec(opts.grace, 2) + 's')
+    + (opts.cards === null ? '' : ', the rack at ' + opts.cards + (opts.cards === 1 ? ' card' : ' cards'));
+
+  const note = 'Each row is the same seeds flown under one rule, `plain` being the game as it shipped.\n'
+    + '`middle death` is the middle of the runs that died - a batch that never died has no middle and\n'
+    + 'shows a dash - and `vs plain` is the middle score against plain\'s, so below 1.00x is less for\n'
+    + 'the same window. `hulls` is every hull the batch lost, which is what says whether this ladder\n'
+    + 'could see a rule about losing one at all; `fights` is every boss it buried and `won` the runs\n'
+    + 'that came out of the schedule standing. This is the bot\'s cost and not a person\'s.';
+
+  printTable(rows, plain, opts, 'the challenges, on ' + opts.seeds + ' seeds of ' + clock(opts.seconds)
+    + ', ' + opts.policy + ' bot'
+    + (opts.picks === undefined ? '' : ' answering the level-up ' + opts.picks)
+    + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash') + sweep, note);
+
+  // The deal rules again, on a hand that picks on purpose. Same seeds, same feet, same everything but
+  // how the level-up is answered - because that is the only thing this kind of rule reaches.
+  if (deal !== undefined && deal.rows !== rows) {
+    console.log('');
+    printTable(deal.rows, deal.plain, opts, 'the same seeds and the same feet, answering the level-up '
+      + DELIBERATE_PICKS + ' - which is the only table a rule about the deal can be read on', note);
+    // And what that hand's taste is worth, because it is the number the verdict below is allowed to
+    // lean on: a deliberate hand that does not beat its own careless one has no taste to price.
+    if (deal.plain !== undefined && deal.carelessPlain !== undefined
+        && deal.carelessPlain.middleScore > 0) {
+      console.log('That hand\'s card taste is worth '
+        + dec(deal.plain.middleScore / deal.carelessPlain.middleScore, 2)
+        + 'x the careless hand\'s on the same seeds: its plain run scored '
+        + int(deal.plain.middleScore) + ' against ' + int(deal.carelessPlain.middleScore) + '.');
+    }
+  }
 
   console.log('');
   console.log('What the card says each rule does, read out of the row the sim itself reads:');
@@ -316,7 +529,7 @@ if (isMain) {
     console.log('  ' + nameOf(row.id) + ' \u00b7 ' + saysOf(row.id));
   }
 
-  const verdict = verdictOf(rows, plain);
+  const verdict = verdictOf(rows, plain, deal);
   for (const line of verdict.skipped) {
     console.log('');
     console.log('Not judged: ' + line);

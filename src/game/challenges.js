@@ -1,15 +1,16 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Five ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
+// once it is flying. Six ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
 // moment after it; the crowd and its shots travel faster than they shipped; the arena holds more of the
-// crowd than it ships. Every one of them is a row in `BALANCE.challenges` and a question asked where the
-// number it changes is already read - the hull is written where the ship's hull is written, the dash is
-// refused where the dash is granted, the crowd's speed is multiplied where a body's speed is worked out,
-// and the gap after a hit is written where that gap is set. Nothing is cached into a ship and nothing is
-// kept in two places, which is what makes an ordinary run untouched by any of this: with no challenge
-// flying, every lever below answers its neutral number and a run traces byte for byte what it always
-// traced.
+// crowd than it ships; and the rack deals one card instead of three. Every one of them is a row in
+// `BALANCE.challenges` and a question asked where the number it changes is already read - the hull is
+// written where the ship's hull is written, the dash is refused where the dash is granted, the crowd's
+// speed is multiplied where a body's speed is worked out, the gap after a hit is written where that gap
+// is set, and the size of the rack is counted where the deal counts its places. Nothing is cached into a
+// ship and nothing is kept in two places, which is what makes an ordinary run untouched by any of this:
+// with no challenge flying, every lever below answers its neutral number and a run traces byte for byte
+// what it always traced.
 //
 // Three decisions are worth having written down:
 //
@@ -46,16 +47,16 @@ const PERCENT = 100;
  * The challenges, in the order the key cycles through them.
  *
  * The order is the shape of the rule and not a ladder of severity: the three rules about your own ship
- * come first - what your hull is, then whether you can jump, then what a hit leaves you - and the two
- * about the crowd's size and speed come last. It is worth saying plainly that it is *not* sorted by what
- * each rule costs, because `tools/challenge-cost.js` has measured all of them and the dearest (ONE HULL,
- * at 0.48x a careless run's middle score as of 2026-10-17) is the first press. A hand that presses the
- * key twice by accident lands on NO DASH, which the ladder cannot price at all.
+ * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
+ * about the crowd's size and speed, and the one about the deck last. It is worth saying plainly that it
+ * is *not* sorted by what each rule costs, because `tools/challenge-cost.js` has measured all of them and
+ * the dearest (ONE HULL, at 0.48x a careless run's middle score as of 2026-10-17) is the first press. A
+ * hand that presses the key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
- * call, because the two crowd rules' sentences are built out of their own numbers and a sentence
- * written by hand next to a number that can move is a sentence that goes stale.
+ * call, because three rules build their sentence out of their own number rather than writing it beside
+ * it, and a sentence written by hand next to a number that can move is a sentence that goes stale.
  */
 export const CHALLENGES = [
   { id: 'brittle', name: 'ONE HULL', says: 'one touch and the run is over' },
@@ -63,6 +64,7 @@ export const CHALLENGES = [
   { id: 'merciless', name: 'SHORT GRACE', says: 'a touch leaves barely a moment to get clear' },
   { id: 'swift', name: 'SWIFT CROWD', says: '' },
   { id: 'thick', name: 'THICK CROWD', says: '' },
+  { id: 'thin', name: 'ONE CARD', says: '' },
 ];
 
 /** The row a challenge id names, and a loud answer if there is not one. */
@@ -174,6 +176,24 @@ export function crowdHoldOf(world) {
 }
 
 /**
+ * How many cards the rack deals when a level is paid: three plainly, one under ONE CARD.
+ *
+ * Asked in game/upgrades.js wherever the deal counts its places, so the rule is a smaller table and not
+ * a second deal - the weights, the synergy that walks on to the table when it is earned, and the two asks
+ * are the same ones, and a run can still be handed a second rank of a line it has already opened (which
+ * is what the fresh-line promise has to stand down for; see `game/upgrades.js`).
+ *
+ * This is the one rule of the six that takes away a *choice* rather than a thing, and that is why it is
+ * the one the ladder cannot price on its careless hand: a hand that picks at random never used the choice
+ * this rule removes. `tools/challenge-cost.js` prices it on a hand that picks on purpose - and checks
+ * first that that hand's picks are worth something, which on the default policy they are not. The price
+ * it came out at, 0.41x of a deliberate run's middle score, is written above `BALANCE.challenges.thin`.
+ */
+export function offerCountOf(world) {
+  return isFlying(world, 'thin') ? challengeRow('thin').offer : BALANCE.cards.offer;
+}
+
+/**
  * How long a ship is safe after a hit, in seconds: a second and a half plain, and barely a moment
  * under SHORT GRACE.
  *
@@ -271,11 +291,10 @@ export function nameOf(id) {
   return '';
 }
 
-/** What the rule does, in the sentence the glass prints under its name. */
 /**
  * What the rule does, in the sentence the glass prints under its name.
  *
- * Two rules have a sentence built out of their own number rather than written beside it, so a number
+ * Three rules have a sentence built out of their own number rather than written beside it, so a number
  * cannot move and leave the words behind: 1.4 reads 40% faster and nothing else. A rule in the table
  * with an empty `says` and no builder in `SENTENCES` is a bug and not a silent blank - the glass would
  * print a name with nothing under it - and test/challenges.test.mjs asks every rule what it has to
@@ -284,6 +303,8 @@ export function nameOf(id) {
 const SENTENCES = {
   swift: (world) => 'the crowd travels ' + percentOf(crowdSpeedOf(world) - 1) + ' faster',
   thick: (world) => 'the arena holds ' + percentOf(crowdHoldOf(world) - 1) + ' more of the crowd',
+  thin: (world) => 'the rack deals ' + offerCountOf(world)
+    + (offerCountOf(world) === 1 ? ' card, and you take it' : ' cards, and you take one'),
 };
 
 /** How a share reads as a percentage: four tenths of a thing is "40%" of it. */

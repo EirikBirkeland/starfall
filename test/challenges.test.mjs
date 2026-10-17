@@ -29,8 +29,8 @@ import { shipRow, defaultShip } from '../src/game/ships.js';
 import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
   CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
-  dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, pauseWords,
-  saysOf, setChallenge, titleWords,
+  dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, offerCountOf,
+  pauseWords, saysOf, setChallenge, titleWords,
 } from '../src/game/challenges.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -137,12 +137,27 @@ test('the swift crowd says its own number, whatever it is', () => {
   assert.match(saysOf('swift'), new RegExp(Math.round((shipped - 1) * 100) + '% faster'));
 });
 
+test('the deck rule says its own number, whatever it is', () => {
+  // ONE CARD's sentence counts the rack, so moving the row cannot leave the card promising a card it no
+  // longer deals - the same reason the two crowd rules read their own numbers out loud.
+  const shipped = BALANCE.challenges.thin.offer;
+  try {
+    BALANCE.challenges.thin.offer = 1;
+    assert.equal(saysOf('thin'), 'the rack deals 1 card, and you take it');
+    BALANCE.challenges.thin.offer = 2;
+    assert.equal(saysOf('thin'), 'the rack deals 2 cards, and you take one');
+  } finally {
+    BALANCE.challenges.thin.offer = shipped;
+  }
+  assert.match(saysOf('thin'), new RegExp('the rack deals ' + shipped));
+});
+
 test('a rule with a number in it says that number and not a written one', () => {
-  // Two rules are written with an empty `says` on purpose: their sentence is arithmetic on their own
-  // row. A third that arrives that way and has no builder in challenges.js would say nothing at all,
+  // Three rules are written with an empty `says` on purpose: their sentence is arithmetic on their own
+  // row. A fourth that arrives that way and has no builder in challenges.js would say nothing at all,
   // which is what this check is for - the glass would print a name with no sentence under it.
   const built = CHALLENGES.filter((c) => c.says === '');
-  assert.ok(built.length >= 2, 'the crowd rules are the ones with a number to say');
+  assert.ok(built.length >= 3, 'the crowd rules and the deck rule are the ones with a number to say');
   for (const challenge of built) {
     assert.ok(saysOf(challenge.id).length > 0, challenge.id + ' has an empty sentence');
   }
@@ -176,6 +191,7 @@ test('no challenge flying means every lever answers its neutral number', () => {
   assert.equal(crowdSpeedOf(plain), 1);
   assert.equal(crowdHoldOf(plain), 1, 'and the arena holds what it ships');
   assert.equal(hitGraceOf(plain), BALANCE.player.hitInvulnerability, 'and a hit leaves its whole gap');
+  assert.equal(offerCountOf(plain), BALANCE.cards.offer, 'and the rack has the places it ships with');
   assert.equal(cardIsUsable(plain, 'tether'), true);
   assert.equal(cardIsUsable(plain, 'afterimage'), true);
   assert.equal(titleWords(plain), '');
@@ -226,6 +242,21 @@ test('each rule moves exactly its own lever and none of the others', () => {
   assert.equal(hullOverrideOf(thick), 0);
   assert.equal(dashIsAllowed(thick), true);
   assert.equal(hitGraceOf(thick), BALANCE.player.hitInvulnerability);
+
+  // ONE CARD reaches the deal and nothing else - no hull, no dash, no crowd, no gap.
+  const thin = worldUnder('thin');
+  assert.equal(offerCountOf(thin), BALANCE.challenges.thin.offer);
+  assert.ok(offerCountOf(thin) < offerCountOf(plain), 'a rack with the same places was no rule');
+  assert.ok(offerCountOf(thin) >= 1, 'and there is still a card to take');
+  assert.equal(crowdHoldOf(thin), 1);
+  assert.equal(crowdSpeedOf(thin), 1);
+  assert.equal(hullOverrideOf(thin), 0);
+  assert.equal(dashIsAllowed(thin), true);
+  assert.equal(hitGraceOf(thin), BALANCE.player.hitInvulnerability);
+  // ...and no other rule thins the rack.
+  for (const id of ['brittle', 'grounded', 'merciless', 'swift', 'thick']) {
+    assert.equal(offerCountOf(worldUnder(id)), BALANCE.cards.offer, id + ' left the rack alone');
+  }
 
   assert.equal(isFlying(brittle, 'brittle'), true);
   assert.equal(isFlying(brittle, 'swift'), false);
@@ -418,6 +449,8 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   assert.equal(game.stats().challenge, 'swift');
   press('KeyX');
   assert.equal(game.stats().challenge, 'thick');
+  press('KeyX');
+  assert.equal(game.stats().challenge, 'thin');
   press('KeyX');
   assert.equal(game.stats().challenge, '', 'the last press is back to no rule');
   assert.equal(game.screen.titleChallenge, '');

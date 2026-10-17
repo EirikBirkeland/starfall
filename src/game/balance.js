@@ -336,12 +336,39 @@ export const BALANCE = {
   //
   // `gatedOn` is which card lines a rule makes useless, and so keeps out of the deck: the tether and
   // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
+  // the afterimage both fire off a dash, so under NO DASH they are cards that can do nothing.
+  //
+  // `offer` is how many places the rack has when a level is paid, where plainly that is `cards.offer`, and
+  // it is the one rule of the six that takes away a *choice* rather than a thing. One - and one is the
+  // only size the ladder would have, because **two reads a gift**: 1.23x a careless run's middle score,
+  // 1.15x on the hand that picks on purpose (16 seeds x 5m, 2026-10-17). A rack of two still keeps the
+  // deal's promise that one card is a line the run has never taken and still leaves it something to
+  // choose between; a rack of one leaves it the card it is dealt.
+  //
+  // This number is priced on the aware hand and not on the careless one the other five are quoted on, for
+  // the reason in `dealTasteOf` (tools/challenge-cost.js): a choice is worth whatever the picker's taste
+  // is worth, and the ladder now measures that taste before it lets anything be priced off it. On the
+  // aware hand - `--bot aware --challenges none,thin`, 24 seeds x 8m, 2026-10-17 - the deliberate plain
+  // beat its own careless plain by 1.57x, and losing the choice cost a run **0.41x** of its middle score
+  // (22,060 against 53,846) while the careless hand, which never had a choice to lose, gave up 0.65x. On
+  // the default human hand the same rule reads 0.93x at 5m and 1.10x at 8m, and the ladder refuses to
+  // judge it there: that hand's taste for cards is worth less than a die (its careful plain scores 4,843
+  // against its careless plain's 5,333). Both readings are kept because the disagreement is the finding -
+  // what a picked card is worth depends on the picker, and a rule about picking can only be priced by a
+  // hand that is good at it.
+  //
+  // How much 0.41x is worth trusting: on the same aware hand at 8 seeds instead of 24 it reads 0.82x, with
+  // the deliberate taste 1.39x instead of 1.57x. The middle of eight aware runs sits among the survivors and
+  // the middle of twenty-four does not, so the size of the price is soft and its direction is not - every
+  // reading the ladder is willing to judge has this rule costing a run between a fifth and three fifths of
+  // its score, and every reading it refuses to judge has it costing nothing.
   challenges: {
     brittle:   { hull: 1 },
     grounded:  { dash: false },
     merciless: { grace: 0.5 },
     swift:     { speedMul: 1.4 },
     thick:     { holdMul: 1.5 },
+    thin:      { offer: 1 },
     gatedOn:   { grounded: ['tether', 'afterimage'] },
   },
 

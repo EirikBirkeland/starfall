@@ -1,5 +1,35 @@
 # Starfall — changelog
 
+## 1.9.13 — 2026-10-17
+A sixth rule for the challenge key, and the first one about the deck instead of the crowd.
+- **ONE CARD.** When you level up the rack deals *one* card instead of three, and which one is the game's
+  business and not yours. Everything else about a level stands as it was: it still stops the run, still
+  pays one level, reroll and banish still ask what they always asked - and you can still be handed a second
+  rank of a line you already opened. That last part had to be arranged on purpose: the deal promises that
+  while any line is untouched, one card on the table is one, and on a rack with a single place keeping that
+  promise would mean no line could ever be stacked twice. So the promise stands down when the table has no
+  room for a choice, and a plain run's rack is always wide enough for it to matter.
+- **What it costs, priced on the only hand that can price it**: **0.41x** a run's middle score, on a bot
+  that answers the level-up on purpose (aware hand, 24 seeds x 8 minutes). Flown on a bot that picks with a
+  die the same rule reads like nothing at all, because it never used the choice - and the ladder now says
+  so out loud rather than passing it: it measures what its deliberate hand's taste for cards is *worth*
+  before it believes any verdict about a choice, and refuses the verdict when the answer is "less than a
+  die". That is what this rule measured on the default hand (0.75x), which is why the shipped number comes
+  from the aware one.
+- **Why not two cards**, the milder version of the same idea: it reads 1.15x - a *gift*, not a rule. A rack
+  of two keeps the fresh-line promise and still leaves you something to choose between. A rack of one leaves
+  you the card you are dealt.
+- **The level-up line names only the keys that work.** It used to read `1 2 3 OR CLICK` whatever was on the
+  table, which was the one lie this screen could tell - and it could tell it plainly before any rule was
+  involved, whenever the deck was down to its last couple of lines.
+- **One rule key, six rules now.** Press it past THICK CROWD and the title says `ONE CARD · the rack deals
+  1 card, and you take it`; the rule keeps its own record on the ending's card and gets its own row on the
+  codex's rack, like the five before it.
+- Suite 2560, up 14: the rack's size under the rule and nobody else's, the one card being a real card that
+  the one key takes, a synergy taking the only place there is, the reroll turning it over and costing the
+  ask, forty levels under the rule proving a line can be stacked twice, and the fresh-line promise still
+  alive where it has room.
+
 ## 1.9.12 — 2026-10-17
 A fifth rule for the challenge key, and it is about the ship rather than the crowd.
 - **SHORT GRACE.** A hit now leaves you half a second of safety instead of a second and a half, which is

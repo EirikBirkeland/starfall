@@ -1,5 +1,5 @@
-// The upgrade lines a run is built out of, and the three cards dealt when it levels
-// up (PLAN 3.5).
+// The upgrade lines a run is built out of, and the cards dealt when it levels
+// up (PLAN 3.5; three of them, unless a rule thins the rack - game/challenges.js).
 //
 // A line is one number and nothing else: its numbers live in BALANCE.upgrades, next to
 // every other tuning number, and whatever reads it asks here for that number as it
@@ -35,7 +35,7 @@
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
-import { cardIsUsable } from './challenges.js';
+import { cardIsUsable, offerCountOf } from './challenges.js';
 
 const PERCENT = 100;
 
@@ -56,6 +56,13 @@ const WHOLE_UNIT = 'each';
  * share of what the line was worth before it.
  */
 const RATE_UNIT = 'rate';
+
+/**
+ * How many places a rack needs before the fresh-line promise is worth keeping (see
+ * `guaranteeSomethingNew`). Two, because a promise about "at least one of these" is a promise about a
+ * choice, and one card is not a choice.
+ */
+const ROOM_FOR_A_CHOICE = 2;
 
 /**
  * The fourth kind, and it belongs to the synergies only: a card that is *owned or not owned*
@@ -592,8 +599,8 @@ function linesWithRoom(world) {
     if (isSynergy(line.id)) continue;
     if (rankOf(world, line.id) >= maxRanksOf(line.id)) continue;
     if (isBanished(world, line.id)) continue;
-    // The gun's own price for what it is: a line it cannot spend is not in its deck, so the three
-    // cards face up are three cards that would do something. The promise below about "something
+    // The gun's own price for what it is: a line it cannot spend is not in its deck, so the cards
+    // face up are cards that would do something. The promise below about "something
     // new" honours the same list, or a dead line would be dealt by the back door.
     if (!spendableBy(world, line.id)) continue;
     // And the same argument about the rules the run is being flown under: the tether and the
@@ -681,6 +688,12 @@ function drawLine(world, off) {
  */
 function guaranteeSomethingNew(world, offer, off) {
   if (offer.length === 0) return;
+  // A rack with one place has no room for a choice, and keeping the promise there would spend it:
+  // under ONE CARD every card dealt would have to be a fresh line, so no line could ever be stacked
+  // twice and the rule would be two rules - a thin rack and a run that cannot commit to anything. The
+  // promise is about a table that offers something, so it stands down when the table cannot (rule and
+  // measurement: game/challenges.js `offerCountOf`; a plain run's rack is always wide enough).
+  if (offerCountOf(world) < ROOM_FOR_A_CHOICE) return;
   // A synergy face up on the table *is* the new thing: it is the newest card the deck has and the
   // one the run has been walking towards, so the promise is already kept and this must not spend
   // itself replacing something else with a second ordinary card.
@@ -713,7 +726,7 @@ function guaranteeSomethingNew(world, offer, off) {
  */
 function placeEarnedSynergies(world, table, off) {
   for (const id of readySynergies(world, off)) {
-    if (table.length >= BALANCE.cards.offer) break;
+    if (table.length >= offerCountOf(world)) break;
     table.push(id);
   }
 }
@@ -723,12 +736,12 @@ function placeEarnedSynergies(world, table, off) {
  *
  * `off` is what this deal may not deal. A first deal passes nothing; a reroll passes the
  * table it is replacing, which is what makes a reroll show you something new rather than
- * the same three cards again.
+ * the same cards again.
  */
 function fillOffer(world, table, off) {
   const skip = off === undefined ? [] : off;
   placeEarnedSynergies(world, table, skip);
-  while (table.length < BALANCE.cards.offer) {
+  while (table.length < offerCountOf(world)) {
     const id = drawLine(world, table.concat(skip));
     if (id === null) break;
     table.push(id);
@@ -781,7 +794,7 @@ export function refreshOffer(world) {
 }
 
 /**
- * Take card `index` of the three on the table, and either deal the next set or start
+ * Take card `index` of the ones on the table, and either deal the next set or start
  * the run again. Answers false for a card that is not there - a click between two
  * frames, a fourth key - so a caller never has to know which.
  */
@@ -797,7 +810,7 @@ export function takeOffer(world, index) {
 }
 
 /**
- * Deal the table again, and take the current three cards out of this deal.
+ * Deal the table again, and take the cards face up out of this deal.
  *
  * A reroll costs the ask and not the level: the level is still owed and still answered by
  * taking a card, and the reroll only buys a second look at what the run could take. It is

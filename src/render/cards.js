@@ -1,5 +1,5 @@
 // The upgrade choice, painted (game/upgrades.js deals the cards; this is the part you
-// read). Three panels, the icon each one sells, the two asks a run may make about its own
+// read). The panels the rack deals, the icon each one sells, the two asks a run may make about its own
 // deal - reroll and banish - and the geometry that turns a click into an answer.
 //
 // The layout is asked for by three places that must never disagree: the frame that draws
@@ -80,7 +80,7 @@ const HALO_GLOW = 96;      // the one glow sprite the panels shine with, stamped
 
 /**
  * A font string. Built per draw rather than per frame-by-frame constant, because the
- * cards are sized by the window and there are only ever three of them.
+ * cards are sized by the window and there are only ever a few of them.
  *
  * It rounds *down*, and that is the contract render/fit.js measures against: a card is fitted at a
  * size and then painted at whatever this says, so a font that came out bigger than the size it was
@@ -270,6 +270,20 @@ export function drawCards(ctx, pointer) {
   ctx.restore();
 }
 
+/**
+ * The keys that answer the deal, spelled out: one per card face up.
+ *
+ * Counted off the table and never written down, because the deal does not always have three places:
+ * a rule can thin the rack (game/challenges.js ONE CARD) and an almost-finished deck deals what is
+ * left of it. Either way a line that named a key with no card behind it would be the one lie on this
+ * screen, and the digits are the one part of it that has to keep up.
+ */
+export function pickKeyWords(count) {
+  const keys = [];
+  for (let i = 1; i <= count; i++) keys.push(String(i));
+  return keys.join(' ');
+}
+
 function drawHeading(ctx, W, layout, age) {
   const appear = easeOut(clamp(age / RISE, 0, 1));
   const top = layout.cards.length > 0 ? layout.cards[0].y : 0;
@@ -282,8 +296,8 @@ function drawHeading(ctx, W, layout, age) {
   // The keys are worth the same to a thumb run and the cards answer a tap the same way they answer a
   // click (main.js `onPickCard`), so the only thing that changes is the word - and a line that named a
   // mouse to a hand that owns no mouse would be the one line on this screen not to act on.
-  haloText(ctx, 'CHOOSE ONE   \u00b7   1 2 3 OR ' + (thumbUsed() ? 'TAP' : 'CLICK'),
-    W / 2, top - 24, PALETTE.uiDim, GLOW_KEY);
+  haloText(ctx, 'CHOOSE ONE   \u00b7   ' + pickKeyWords(world.offer.length) + ' OR '
+    + (thumbUsed() ? 'TAP' : 'CLICK'), W / 2, top - 24, PALETTE.uiDim, GLOW_KEY);
   ctx.globalAlpha = 1;
 }
 

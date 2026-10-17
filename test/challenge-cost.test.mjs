@@ -16,7 +16,7 @@ import { verdictOf } from '../tools/challenge-cost.js';
 import { nameOf } from '../src/game/challenges.js';
 
 /** One row of what a batch reports, with the parts this file does not care about filled in. */
-function row(id, middleScore, middleDeath, hulls) {
+function row(id, middleScore, middleDeath, hulls, died) {
   return {
     id,
     middleScore,
@@ -24,7 +24,7 @@ function row(id, middleScore, middleDeath, hulls) {
     hulls: hulls === undefined ? 0 : hulls,
     bestScore: middleScore,
     level: 1,
-    died: 1,
+    died: died === undefined ? 1 : died,
     won: 0,
     fights: 0,
   };
@@ -129,6 +129,118 @@ test('NO DASH is reported and never judged, because no bot here lives on the jum
   assert.equal(grounded.skipped.length, 1);
   assert.match(grounded.skipped[0], /^NO DASH is reported and not judged/);
   assert.match(grounded.skipped[0], /1\.40x plain/);
+});
+
+test('a rule about the deal is stood aside on the careless table and judged on the deliberate one', () => {
+  // ONE CARD takes away a *choice*. The careless hand answers the level-up with a die, so it never used
+  // the thing the rule removes, and a ratio read off that table is the difference between two random
+  // draws rather than a price. So the ladder flies the same seeds twice (main() does this in one boot)
+  // and the verdict reads the deal rule off the second table only - and the first table stands aside out
+  // loud rather than passing what it could not see.
+  const carelessThin = row('thin', 74000, 260, 12);
+  // The same seeds and the same feet, picking on purpose, and worth twice the careless hand: that is the
+  // taste the rule takes a price off of (see dealTasteOf, and the test below that refuses a hand without
+  // one).
+  const wisePlain = row('none', 200000, 300, 12);
+  const deal = (thinScore) => ({
+    rows: [wisePlain, row('thin', thinScore, 300, 12)],
+    plain: wisePlain,
+    carelessPlain: PLAIN,
+  });
+
+  // 1.02x the deliberate plain: a rule that claims to be harder and pays for it in nothing.
+  const soft = verdictOf([PLAIN, carelessThin], PLAIN, deal(204000));
+  assert.equal(problemsAbout(soft, 'thin').length, 1, 'judged, once, on the deliberate table');
+  assert.match(problemsAbout(soft, 'thin')[0], /1\.02x plain/);
+  assert.equal(soft.skipped.length, 1);
+  assert.match(soft.skipped[0], /ONE CARD is priced on the deliberate table and not this one/);
+  assert.match(soft.skipped[0], /0\.74x plain/, 'and the careless number is printed rather than hidden');
+
+  // 0.71x there, and the rule is paid for. The blindness of the first table is still worth a line.
+  const honest = verdictOf([PLAIN, carelessThin], PLAIN, deal(142000));
+  assert.deepEqual(honest.problems, []);
+  assert.equal(honest.skipped.length, 1);
+
+  // A deliberate plain that scored nothing has no ratios either - and no NaN verdict.
+  const blank = {
+    rows: [row('none', 0, 5, 0), row('thin', 0, 5, 0)],
+    plain: row('none', 0, 5, 0),
+    carelessPlain: PLAIN,
+  };
+  assert.deepEqual(verdictOf([PLAIN, carelessThin], PLAIN, blank).problems, []);
+});
+
+test('a deal rule is refused on a deliberate hand whose card taste is worth less than a die', () => {
+  // The gate that session 157 had to build. On the default `human` policy the plain batch flown by the
+  // bot's own card taste scores *less* than the same batch flown by a die, so "what was the choice worth"
+  // has no answer there and a deal rule reads as a gift: not because the rule is soft but because the
+  // hand cannot miss a pick it would not have made better. Refused out loud, with both numbers, and the
+  // soft-looking ratio is printed rather than passed.
+  const noTaste = {
+    rows: [row('none', 90000, 300, 12), row('thin', 60000, 300, 12)],
+    plain: row('none', 90000, 300, 12),
+    carelessPlain: PLAIN,
+  };
+  const refused = verdictOf([PLAIN, row('thin', 97000, 300, 12)], PLAIN, noTaste);
+  assert.deepEqual(problemsAbout(refused, 'thin'), [], 'nothing judged, so nothing failed');
+  assert.equal(refused.skipped.length, 1);
+  assert.match(refused.skipped[0], /card taste is worth less than a die/);
+  assert.match(refused.skipped[0], /scored 90,000 against the careless hand/, 'with both readings');
+  assert.match(refused.skipped[0], /--bot aware/, 'and the hand that does have taste');
+});
+
+test('a deal rule on a ladder that never flew a deliberate hand is not passed, it is refused', () => {
+  // The failure mode this is guarding against is a silent one: a deal rule scored against the careless
+  // plain would sit inside the bar on its own and be *passed* by a ladder that could not see it.
+  const soft = verdictOf([PLAIN, row('thin', 120000, 300, 12)], PLAIN);
+  assert.deepEqual(problemsAbout(soft, 'thin'), [], 'no verdict, so nothing to fail');
+  assert.equal(soft.skipped.length, 1, 'and the blindness is printed');
+  assert.match(soft.skipped[0], /ONE CARD is about the deal/);
+  assert.match(soft.skipped[0], /never flew a hand that makes one/);
+});
+
+test('a deal rule is refused on a ladder that flew *only* the deliberate hand', () => {
+  // `--picks wise` asked for up front: one table, and nothing beside it to say whether that hand's picks
+  // are worth anything - which is the exact thing this kind of rule charges for.
+  const rows = [PLAIN, row('thin', 120000, 300, 12)];
+  const refused = verdictOf(rows, PLAIN, { rows: rows, plain: PLAIN });
+  assert.deepEqual(problemsAbout(refused, 'thin'), []);
+  assert.equal(refused.skipped.length, 1);
+  assert.match(refused.skipped[0], /flew \*only\* the deliberate hand/);
+});
+
+test('a deal rule that outlives the deliberate plain is reported on that column, not failed on it', () => {
+  // The score column is what a deal rule has to pay, and it is judged. The length of the batch is not:
+  // the hand with the taste to price a choice is the hand that hardly dies, so its middle of deaths is a
+  // handful of samples - session 157 priced ONE CARD against a deliberate plain that lost one run in 24
+  // while the thin batch lost five. That column is printed with its numbers and weighed by nothing, and
+  // an ordinary rule is still held to it.
+  const blind = [PLAIN, row('thin', 74000, 260, 12, 8)];
+  const wisePlain = row('none', 200000, 300, 12, 1);
+  const deal = (thinScore) => ({
+    rows: [wisePlain, row('thin', thinScore, 340, 12, 5)],
+    plain: wisePlain,
+    carelessPlain: PLAIN,
+  });
+
+  const paid = verdictOf(blind, PLAIN, deal(142000));
+  assert.deepEqual(paid.problems, [], '0.71x plain is a paid rule, alive or not');
+  assert.equal(paid.skipped.length, 2, 'the blind table, and the column stood down');
+  assert.match(paid.skipped[1], /ONE CARD outlived the deliberate plain - 5m40s against 5m00s/);
+  assert.match(paid.skipped[1], /5 deaths to plain's 1/);
+  assert.match(paid.skipped[1], /reported and not judged/);
+
+  // ...and a soft one outliving the plain batch is still failed, on the column that is judged.
+  const soft = verdictOf(blind, PLAIN, deal(210000));
+  assert.equal(problemsAbout(soft, 'thin').length, 1);
+  assert.match(problemsAbout(soft, 'thin')[0], /1\.05x plain/);
+  assert.equal(soft.skipped.length, 2, 'and the long life is said as well as the softness');
+
+  // An ordinary rule is held to both columns, exemption-free: this is the check that keeps the bar where
+  // the other five rules still have to clear it.
+  const crowd = verdictOf([PLAIN, row('swift', 90000, 340, 12)], PLAIN);
+  assert.equal(problemsAbout(crowd, 'swift').length, 1);
+  assert.match(problemsAbout(crowd, 'swift')[0], /outlasts the plain batch/);
 });
 
 test('a plain batch that scored nothing has no ratios to judge', () => {
