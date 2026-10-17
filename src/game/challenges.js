@@ -1,16 +1,17 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Six ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
+// once it is flying. Seven ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
 // moment after it; the crowd and its shots travel faster than they shipped; the arena holds more of the
-// crowd than it ships; and the rack deals one card instead of three. Every one of them is a row in
-// `BALANCE.challenges` and a question asked where the number it changes is already read - the hull is
-// written where the ship's hull is written, the dash is refused where the dash is granted, the crowd's
-// speed is multiplied where a body's speed is worked out, the gap after a hit is written where that gap
-// is set, and the size of the rack is counted where the deal counts its places. Nothing is cached into a
-// ship and nothing is kept in two places, which is what makes an ordinary run untouched by any of this:
-// with no challenge flying, every lever below answers its neutral number and a run traces byte for byte
-// what it always traced.
+// crowd than it ships; the loot only comes to a ship that flies at it; and the rack deals one card
+// instead of three. Every one of them is a row in `BALANCE.challenges` and a question asked where the
+// number it changes is already read - the hull is written where the ship's hull is written, the dash is
+// refused where the dash is granted, the crowd's speed is multiplied where a body's speed is worked
+// out, the gap after a hit is written where that gap is set, the shard net is shortened where its reach
+// is measured, and the size of the rack is counted where the deal counts its places. Nothing is cached
+// into a ship and nothing is kept in two places, which is what makes an ordinary run untouched by any
+// of this: with no challenge flying, every lever below answers its neutral number and a run traces byte
+// for byte what it always traced.
 //
 // Three decisions are worth having written down:
 //
@@ -48,15 +49,16 @@ const PERCENT = 100;
  *
  * The order is the shape of the rule and not a ladder of severity: the three rules about your own ship
  * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
- * about the crowd's size and speed, and the one about the deck last. It is worth saying plainly that it
- * is *not* sorted by what each rule costs, because `tools/challenge-cost.js` has measured all of them and
+ * about the crowd's size and speed, then the one about the loot the crowd leaves, and the one about the
+ * deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
+ * `tools/challenge-cost.js` has measured all of them and
  * the dearest (ONE HULL, at 0.61x a careless run's middle score as of 2026-10-17, with every one of the
  * twenty-four seeds it was measured on agreeing) is the first press. A
  * hand that presses the key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
- * call, because three rules build their sentence out of their own number rather than writing it beside
+ * call, because four rules build their sentence out of their own number rather than writing it beside
  * it, and a sentence written by hand next to a number that can move is a sentence that goes stale.
  */
 export const CHALLENGES = [
@@ -65,6 +67,7 @@ export const CHALLENGES = [
   { id: 'merciless', name: 'SHORT GRACE', says: 'a touch leaves barely a moment to get clear' },
   { id: 'swift', name: 'SWIFT CROWD', says: '' },
   { id: 'thick', name: 'THICK CROWD', says: '' },
+  { id: 'byhand', name: 'BY HAND', says: '' },
   { id: 'thin', name: 'ONE CARD', says: '' },
 ];
 
@@ -193,6 +196,36 @@ export function crowdHoldOf(world) {
 }
 
 /**
+ * What the shard net's reach is multiplied by: 1 for every run that is not flying BY HAND.
+ *
+ * Applied in game/upgrades.js `attractorReachOf`, which is the one question "how far off does a shard
+ * let go of the floor and start coming in" - so the attractor line keeps buying a share of the reach it
+ * has left, and the rule shortens the whole of it. That is why this row holds a multiplier and not a
+ * radius: a written radius would make the line's five ranks worth nothing under the rule, and a card
+ * that can do nothing is not a small choice but no choice, which is the same reason `gatedOn` takes the
+ * two dash lines out of the deck under NO DASH instead of dealing them dead.
+ *
+ * What the rule does *not* touch is everything else about the loot. A shard still lies where the body
+ * fell, still waits the whole of `shards.life` for a ship to come, still pays what it pays, and the
+ * vacuum line's well still empties the floor when it opens - a run that paid for the well paid for it.
+ *
+ * **Which hand can price this one.** Not the best-behaved one in the house, which is the opposite of how
+ * it usually goes. Every policy here walks the arena and lets the net do the collecting - none of them
+ * has ever walked *back* to a pile it walked away from, because until this rule flew there was nothing to
+ * walk back for - so the rule starves them all, and it starves the strongest of them worst: flown on the
+ * aware hand over eight minutes it reads **0.12x** with nine of sixteen runs dying inside a window the
+ * plain hand wins 0 of 16 of (NOTES session 160). That is not a person playing a harder game, it is a
+ * bot with no answer at all to a net that stopped carrying. The row was therefore flown on the careless
+ * hand the other ship-rules are priced on, where it reads 0.55x with twenty-nine of thirty-two seeds
+ * agreeing, and what a person who *does* go and get the loot pays for it is a question for eyes on a
+ * screen - which is the same gap NO DASH leaves open, and it is written here rather than in a changelog
+ * because it is a limit on the instrument and not on the rule.
+ */
+export function shardReachMulOf(world) {
+  return isFlying(world, 'byhand') ? challengeRow('byhand').reachMul : 1;
+}
+
+/**
  * How many cards the rack deals when a level is paid: three plainly, one under ONE CARD.
  *
  * Asked in game/upgrades.js wherever the deal counts its places, so the rule is a smaller table and not
@@ -200,7 +233,7 @@ export function crowdHoldOf(world) {
  * are the same ones, and a run can still be handed a second rank of a line it has already opened (which
  * is what the fresh-line promise has to stand down for; see `game/upgrades.js`).
  *
- * This is the one rule of the six that takes away a *choice* rather than a thing, and that is why it is
+ * This is the one rule of the seven that takes away a *choice* rather than a thing, and that is why it is
  * the one the ladder cannot price on its careless hand: a hand that picks at random never used the choice
  * this rule removes. `tools/challenge-cost.js` prices it on a hand that picks on purpose - and checks
  * first that that hand's picks are worth something, which on the default policy they are not. The price
@@ -320,6 +353,7 @@ export function nameOf(id) {
 const SENTENCES = {
   swift: (world) => 'the crowd travels ' + percentOf(crowdSpeedOf(world) - 1) + ' faster',
   thick: (world) => 'the arena holds ' + percentOf(crowdHoldOf(world) - 1) + ' more of the crowd',
+  byhand: (world) => 'the shard pull reaches only ' + percentOf(shardReachMulOf(world)) + ' as far',
   thin: (world) => 'the rack deals ' + offerCountOf(world)
     + (offerCountOf(world) === 1 ? ' card, and you take it' : ' cards, and you take one'),
 };

@@ -30,7 +30,7 @@ import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
   CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
   dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, offerCountOf,
-  pauseWords, saysOf, setChallenge, titleWords,
+  pauseWords, saysOf, setChallenge, shardReachMulOf, titleWords,
 } from '../src/game/challenges.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -192,6 +192,7 @@ test('no challenge flying means every lever answers its neutral number', () => {
   assert.equal(crowdHoldOf(plain), 1, 'and the arena holds what it ships');
   assert.equal(hitGraceOf(plain), BALANCE.player.hitInvulnerability, 'and a hit leaves its whole gap');
   assert.equal(offerCountOf(plain), BALANCE.cards.offer, 'and the rack has the places it ships with');
+  assert.equal(shardReachMulOf(plain), 1, 'and the shard net reaches the whole of the way it ships');
   assert.equal(cardIsUsable(plain, 'tether'), true);
   assert.equal(cardIsUsable(plain, 'afterimage'), true);
   assert.equal(titleWords(plain), '');
@@ -449,6 +450,8 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   assert.equal(game.stats().challenge, 'swift');
   press('KeyX');
   assert.equal(game.stats().challenge, 'thick');
+  press('KeyX');
+  assert.equal(game.stats().challenge, 'byhand');
   press('KeyX');
   assert.equal(game.stats().challenge, 'thin');
   press('KeyX');

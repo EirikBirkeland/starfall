@@ -445,6 +445,35 @@ export const BALANCE = {
         cost: 0.6, plainWon: 19, ruleWon: 5,
       },
     },
+    byhand: {
+      // The shard net reaches two fifths of the way it ships with. This is the one rule on the sheet
+      // that takes away a *comfort* rather than a thing: loot still drops where the body fell and still
+      // sits there for the whole twelve seconds, but nothing carries it to a ship that is not flying at
+      // it. A multiplier and not a written radius, so the attractor line keeps buying ground under the
+      // rule (game/upgrades.js `attractorReachOf`) - a flat reach would leave that line with nothing to
+      // sell, and a card that can do nothing is no choice.
+      reachMul: 0.4,
+      // The middle run dies a minute and five seconds sooner and twenty-nine of the thirty-two seeds it
+      // was flown on scored less under it, the second-most-lopsided pair on this sheet after ONE HULL.
+      //
+      // The number was swept, and what the sweep found is that the price is not about the net. Same 32
+      // seeds, same window: no net at all reads 0.55x (28 of 32), a fifth of one reads 0.55x (27 of 32),
+      // two fifths reads 0.55x (29 of 32), three fifths reads 0.58x (28 of 32) and three quarters reads
+      // 0.60x (25 of 32) - and the control, the rule flying with the whole net it ships with, reads
+      // 1.00x with not one of the thirty-two seeds disagreeing. So a run pays for the net to stop being
+      // free, and pays almost the whole of it however much net is left; where the price goes is *how often
+      // a kill is out of reach of the ship that made it*, not how far the stub reaches.
+      //
+      // Two fifths is therefore the widest cut that still charges the full price, and it was taken over the
+      // two gentler ones for the reason SHORT GRACE was: a cut the eye does not read is not a small card,
+      // it is no card. It also leaves the ship a well at all - 58 px, so a near miss still pays - which a
+      // net of nothing would not have. On the ladder's best-behaved hand this rule reads worse than
+      // anything on this sheet, and game/challenges.js says why that hand cannot price a net.
+      measured: {
+        on: '2026-10-17', seeds: 32, seconds: 300, policy: 'human', picks: 'random',
+        cost: 0.55, plainWon: 29, ruleWon: 3,
+      },
+    },
     thin: {
       offer: 1,
       // One card instead of three, and the only rule on this sheet that has to be flown on a hand that

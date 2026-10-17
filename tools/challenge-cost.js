@@ -8,9 +8,10 @@
 //   node tools/challenge-cost.js --bot aware --picks wise  the careful build, which hardly dies
 //   node tools/challenge-cost.js --bot naive              the worst pair of hands there is
 //   node tools/challenge-cost.js --no-dash                the bot never presses the dash at all
-//   node tools/challenge-cost.js --challenges none,brittle  two of the six rows
+//   node tools/challenge-cost.js --challenges none,brittle  two of the seven rows
 //   node tools/challenge-cost.js --speed 1.3              the swift crowd's multiplier, tried live
 //   node tools/challenge-cost.js --hold 1.75              the thick crowd's, tried live
+//   node tools/challenge-cost.js --reach 0.25             the shard net's reach, tried live
 //   node tools/challenge-cost.js --grace 0.75             the gap a hit leaves, tried live
 //   node tools/challenge-cost.js --cards 2                ONE CARD's rack, tried at another size
 //   node tools/challenge-cost.js --bot aware --challenges none,thin
@@ -40,8 +41,9 @@
 // The swift crowd's multiplier is passed to the game through the balance row, which the sim reads
 // every time it builds a body, so `--speed` sweeps it without touching a source file - the same
 // trick `tools/ghost-grid.js` plays with the afterimage's radius. `--hold` is the same door on the
-// thick crowd's share of the arena, `--grace` the same door on the gap a hit leaves the ship, and
-// `--cards` the same door on how many places the rule's rack has.
+// thick crowd's share of the arena, `--grace` the same door on the gap a hit leaves the ship, `--reach`
+// the same door on how far the shard net reaches, and `--cards` the same door on how many places the
+// rule's rack has.
 //
 // A rule about the **deal** is priced on a second table, and that is the one real subtlety here. Two
 // facts about the default hand make it so. First, it answers the level-up at random, so a rule that takes
@@ -99,20 +101,21 @@ const DEFAULTS = {
   // nothing about a touch; `naive` is harsher still and dies in the first minute of a plain run.
   policy: 'human',
   picks: 'random',
-  challenges: 'none,brittle,grounded,merciless,swift,thick,thin',
+  challenges: 'none,brittle,grounded,merciless,swift,thick,byhand,thin',
   // The shipped get-out habit (tools/headless/bot.js `DASH`), because NO DASH is a rule about a dash
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
   dash: true,
   speed: null,
   hold: null,
+  reach: null,
   grace: null,
   cards: null,
   strict: false,
   dump: false,
 };
 
-/** The seven rows the ladder can print: `none` beside the six rules. */
+/** The eight rows the ladder can print: `none` beside the seven rules. */
 const PLAIN = 'none';
 
 /**
@@ -188,6 +191,7 @@ function readArgs(argv) {
     else if (arg === '--no-dash') opts.dash = false;
     else if (arg === '--speed') opts.speed = Number(next());
     else if (arg === '--hold') opts.hold = Number(next());
+    else if (arg === '--reach') opts.reach = Number(next());
     else if (arg === '--grace') opts.grace = Number(next());
     else if (arg === '--cards') opts.cards = parseInt(next(), 10);
     else if (arg === '--strict') opts.strict = true;
@@ -221,6 +225,10 @@ function readArgs(argv) {
     console.error('--hold wants a multiplier above 1, such as 1.5');
     process.exit(2);
   }
+  if (opts.reach !== null && !(opts.reach >= 0)) {
+    console.error('--reach wants a share of the shipped reach; 0 takes the net away altogether');
+    process.exit(2);
+  }
   if (opts.grace !== null && !(opts.grace >= 0)) {
     console.error('--grace wants a number of seconds; 0 takes the gap away altogether');
     process.exit(2);
@@ -249,6 +257,16 @@ function setSpeed(mul) {
 function setHold(mul) {
   if (mul === null) return;
   BALANCE.challenges.thick.holdMul = mul;
+}
+
+/**
+ * The same door on how far the shard net reaches, which is read every time a shard is pulled. A share
+ * and not a radius, because that is what the row holds: `--reach 1` is BY HAND flying with the net it
+ * ships with, which is the control that says the reading below is the rule and not the window.
+ */
+function setReach(share) {
+  if (share === null) return;
+  BALANCE.challenges.byhand.reachMul = share;
 }
 
 /**
@@ -360,15 +378,15 @@ function printTable(rows, plain, opts, title, note) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Five of the six rules are judged and one
+ * The verdict. A rule that costs nothing is not a challenge. Six of the seven rules are judged and one
  * is only judged on a hand that can judge it, and the difference is what the ladder can see.
  *
- *   **ONE HULL, SHORT GRACE, SWIFT CROWD and THICK CROWD are judged**, the two rules about a touch
- *     provided the plain batch actually lost hulls - which is what says the ladder can see a rule about
- *     losing one at all. An aware bot that finishes a run with three hull in a body that costs one is
- *     not an instrument for those two rules, and saying so beats failing a rule the instrument cannot
- *     reach. The two crowd rules need no such proviso: a crowd is in front of every pair of eyes,
- *     careless or not.
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD and BY HAND are judged**, the two rules about a
+ *     touch provided the plain batch actually lost hulls - which is what says the ladder can see a rule
+ *     about losing one at all. An aware bot that finishes a run with three hull in a body that costs
+ *     one is not an instrument for those two rules, and saying so beats failing a rule the instrument
+ *     cannot reach. The two crowd rules need no such proviso, nor does the loot: a crowd and a pile of
+ *     shards are in front of every pair of eyes, careless or not.
  *
  *   **NO DASH is reported and never judged**, and the reason is in the columns rather than in a
  *     paragraph: taking the jump away from a hand that presses it ten times a quarter-hour is a small
@@ -697,6 +715,7 @@ if (isMain) {
   const opts = readArgs(process.argv.slice(2));
   setSpeed(opts.speed);
   setHold(opts.hold);
+  setReach(opts.reach);
   setGrace(opts.grace);
   setCards(opts.cards);
   const names = opts.challenges.split(',');

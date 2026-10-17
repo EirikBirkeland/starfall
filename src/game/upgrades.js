@@ -35,7 +35,7 @@
 import { BALANCE } from './balance.js';
 import { STATE } from './state.js';
 import { logic } from '../core/rng.js';
-import { cardIsUsable, offerCountOf } from './challenges.js';
+import { cardIsUsable, offerCountOf, shardReachMulOf } from './challenges.js';
 
 const PERCENT = 100;
 
@@ -515,9 +515,14 @@ export function crackShotsOf(world) {
  * pulled harder for it. The alternative - keeping the gradient on the old radius and clamping what
  * fell past it - would hand the new outer ring a fixed weak tug and leave the near field exactly as
  * it was, which is a card that only ever makes loot *slower to land*.
+ *
+ * The challenge's share rides here rather than in game/pickups.js, because this is the one door the
+ * question is asked at: under BY HAND (game/challenges.js `shardReachMulOf`) the line still buys the
+ * same share of a shorter net, and a shard on the rim of the shrunken well is pulled as hard as one on
+ * the rim of the wide one.
  */
 export function attractorReachOf(world) {
-  return BALANCE.shards.magnetRadius * gainOf(world, ATTRACTOR_LINE);
+  return BALANCE.shards.magnetRadius * gainOf(world, ATTRACTOR_LINE) * shardReachMulOf(world);
 }
 
 /**

@@ -2790,3 +2790,44 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       measured; THICK's share still does not (1.3 and 1.75 both read 0.76x, the weaker of them on a split
       the seeds would not stand up) so 1.5 stands ordered and says so; and NO DASH carries no number at
       all, because the only reading this ladder can take of it is a lean (0.70x, 17 of 24, p = 0.07).
+
+- [x] A seventh rule for the ladder: **BY HAND** — the shard net reaches two fifths as far, and loot that
+      is not nearly under the ship stays where it fell. The six that ship take a thing away (a hull, the
+      jump, the gap after a hit, the crowd's patience, the rack's room) or add to the crowd; the axis
+      nobody had taken is the one thing every run does a hundred times a minute and never thinks about,
+      which is that the arena **brings the loot to you**. `shards.magnetRadius` is 145 px and the
+      attractor line doubles it, so a kill pays out whether or not anyone went for it, and the whole XP
+      curve is written in that generosity. Cut the net and the run has to decide, every time something
+      dies, whether the pile is worth the flight. That is the greed the game is built on, said as a rule
+      instead of left as furniture.
+      **The row holds a share and not a radius**, which is the one real design trap here. A written radius
+      would make the attractor line's five ranks worth the same nothing under the rule, and a card that
+      can do nothing is not a small choice but no choice - the same reason `gatedOn` takes the two dash
+      lines out of the deck under NO DASH rather than dealing them dead. A share leaves the line selling
+      what it always sold (a wider well, and the well keeps its *shape*: the pull gradient is measured
+      over the reach, so a shard at the rim of the short net is tugged as hard as one at the rim of the
+      wide one, and a test holds that number for number rather than trusting the prose). Shipped as
+      `BALANCE.challenges.byhand = { reachMul: 0.4 }` over one new lever, `shardReachMulOf`, applied in
+      `game/upgrades.js` `attractorReachOf` - the one door the question "how far off does a shard let go
+      of the floor" is asked at - so an ordinary run is written by the same line it always was and the
+      reference run is byte for byte the run it was.
+      **The sweep found the price is not about the net**, and that is the finding worth keeping. Same 32
+      seeds, same 5-minute window, careless hand: no net at all **0.55x** (28 of 32 seeds), a fifth
+      **0.55x** (27 of 32), two fifths **0.55x** (29 of 32), three fifths **0.58x** (28 of 32), three
+      quarters **0.60x** (25 of 32) - and the control, the rule flying with the whole net it ships with,
+      **1.00x** with not one seed disagreeing, which is the ladder proving the reading belongs to the rule
+      and not to the window. A run pays for the net to stop being free, and pays nearly all of it however
+      much net is left; two fifths is the widest cut that still charges the full price, and it was taken
+      over the gentler ones for the reason SHORT GRACE was - a cut the eye does not read is not a small
+      card, it is no card. The middle run dies at **3m03s against plain's 4m08s**.
+      **Which hand can price it turned out to be the interesting half.** Every policy in this house walks
+      the arena and lets the net do the collecting; none of them has ever walked *back* to a pile it
+      walked away from, because until this rule flew there was nothing to walk back for. So the rule
+      starves them all and it starves the best of them worst - on the `aware` hand over 8 minutes it
+      reads **0.12x** with 9 of 16 runs dying inside a window the plain hand wins none of - and that is a
+      bot with no answer to a net that stopped carrying, not a person playing a harder game. The row is
+      flown on the careless hand the ship rules are priced on, `game/challenges.js` says out loud which
+      hand cannot price it, and what a person who does go and get the loot pays for it is still a question
+      for eyes on a screen. What it exposed is bigger than the rule and is filed in NOTES: **the ladder
+      has no hand that goes looking for loot**, so every build every ladder here has ever priced was a
+      build the net dealt it.

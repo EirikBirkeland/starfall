@@ -17734,3 +17734,145 @@ Nothing. The game traces byte for byte what it traced at **1.9.13** (`tools/simu
 wisp/pulse, 10m, 73,339, level 57, 3,794 kills) - the shipped levers did not move and what changed is the
 metadata beside them, the ladder that checks them and the prose around both. The next release should be a
 rule or a feel change, and the honest candidate is still playing ONE CARD.
+
+## Session 160 - a seventh rule, BY HAND, cuts the shard net; and the ladder found it has no hand that goes looking for loot
+
+### What was on the shelf
+Session 159 closed with "the next release should be a rule or a feel change". Tree clean at `cfb49eb`,
+2594 tests green, the whole of PLAN.md ticked except the browser half of the performance pass (the
+owner's). So: a seventh challenge rule, in the shape sessions 156 and 157 set - candidates measured
+before anything is built, one lever, the number swept, the cost flown and written into the game with its
+window and its pair, and the ladder told which hand can and cannot price it.
+
+### What landed
+1. **BY HAND** (`BALANCE.challenges.byhand = { reachMul: 0.4 }`), the seventh rule, sitting in the cycle
+   between THICK CROWD and ONE CARD: the shard net - `shards.magnetRadius`, the thing that carries loot
+   off the floor and into the ship - reaches two fifths of the way it ships with. Nothing else about the
+   loot moves: a shard still drops where the body fell, still waits the whole of `shards.life`, still pays
+   what it pays, and a ship that flies on top of one still banks it at the same 25 px. What the rule takes
+   is the free half of every kill.
+2. **One new lever, `shardReachMulOf` (game/challenges.js), applied in game/upgrades.js
+   `attractorReachOf`** - the one door the question "how far off does a shard let go of the floor" is
+   already asked at, which is also where the attractor line's share is multiplied. That is the whole of
+   the design decision worth keeping: **the row holds a share and not a radius**. A written radius makes
+   the attractor line's five ranks worth nothing under the rule, and a card that can do nothing is not a
+   small choice but no choice - the same reason `gatedOn` takes the tether and the afterimage out of the
+   deck under NO DASH. Because the pull's gradient is measured over the reach and not over the table, the
+   well keeps its *shape* as it shrinks, and a test pins that number for number (a shard at 95% of the
+   short net is tugged at the same rate as one at 95% of the wide one).
+3. **The bake-off came first** (the session 156 pattern, and it killed three of the four candidates - see
+   below). The one that survived was flown to a quote on 32 seeds x 5m of the careless hand: **0.55x** of
+   plain's middle score with the plain run winning **29 of 32 seeds** (p < 0.001) and the middle run dying
+   at **3m03s against plain's 4m08s**. `measured` row written in beside it; `--strict` on that exact
+   flight says *reproduced*.
+4. **The sweeps, and the finding inside them** (same 32 seeds, same window, `--reach`, a new flag on
+   `tools/challenge-cost.js`): no net at all **0.55x** (28/32), a fifth **0.55x** (27/32), two fifths
+   **0.55x** (29/32), three fifths **0.58x** (28/32), three quarters **0.60x** (25/32), and the control -
+   the rule flying with the whole net it ships with - **1.00x on 0 of 32 seeds disagreeing**. The price is
+   flat from no net at all to two fifths, so a run pays for the net to *stop being free*, not for how wide
+   the stub is left. Two fifths is then the widest cut that still charges the full price, and it was taken
+   over 0.6 and 0.75 for the SHORT GRACE reason: a cut the eye does not read is no card.
+5. **Which hand can price it.** Not the good one. Every policy in `tools/headless` walks the arena and
+   lets the net collect for it - not one of them has ever walked *back* to a pile it walked away from,
+   because until this rule flew there was nothing to walk back for - so the rule starves all three and it
+   starves the strongest worst: on `aware` over 8m the rule reads **0.12x** with **9 of 16 runs dying**
+   inside a window the same hand wins plainly 0 of 16. `game/challenges.js` now says that out loud beside
+   the lever instead of leaving the 0.55x unqualified, and PLAN carries it too.
+6. Tests 2594 -> **2602**: eight in the new `test/challenge-byhand.test.mjs` (no rule means the shipped
+   reach, and no *other* rule speaks about the loot either; the cut at every rank of the line; the line
+   still buying ground and still being dealt; a shard between the two nets lying still under the rule and
+   coming in plainly; a shard inside the short net still coming; the rim tug being the same tug both ways;
+   a shard laid on the ship still being collected; the sentence reading its own number), plus one line in
+   `test/challenges.test.mjs` for the lever's neutral answer and one press added to the cycle walk.
+7. `tools/challenge-cost.js` grew `--reach`, the row went into its default ladder, and the verdict's prose
+   now counts seven rules judged and one reported.
+
+### Numbers
+The sweep, all of it `tools/challenge-cost.js --challenges none,byhand --seeds 32 --seconds 300`, one
+process per row, plain flown identically in every one (identical to the unit: middle death 4m08s, middle
+score 5,333, 18/32 died - across six flights, which is the sim being deterministic and a good reminder
+that a *batch* here is reproducible even when a *quote* is not).
+
+| reach | px | middle death | middle score | vs plain | plain won |
+|---|---|---|---|---|---|
+| plain | 145 | 4m08s | 5,333 | 1.00x | - |
+| 0 | 0 | 4m08s | 2,951 | 0.55x | 28/32 |
+| 0.2 | 29 | 4m04s | 2,959 | 0.55x | 27/32 |
+| **0.4** | **58** | **3m03s** | **2,939** | **0.55x** | **29/32** |
+| 0.6 | 87 | 3m16s | 3,083 | 0.58x | 28/32 |
+| 0.75 | 109 | 3m38s | 3,189 | 0.60x | 25/32 |
+| 1 (control) | 145 | 4m08s | 5,333 | 1.00x | 0/0 |
+
+The bake-off that picked the candidate, same seeds and window, flown as a balance patch on a global
+process each (`.scratch/bakeoff.mjs`, throwaway), middles against the same plain (5,333):
+
+| candidate | what it is | vs plain | plain won | verdict |
+|---|---|---|---|---|
+| magnet 0 / 35 / 60 | the net cut | 0.55x / 0.56x / 0.58x | 28, 28, 27 of 32 | the one the seeds stood behind |
+| shards.life 4 | the pile rots in a third of the time | 0.81x | 21 of 32, p = 0.11 | a lean, and the ladder will not quote a coin |
+| shards.life 6 | ditto, gentler | 0.88x | 18 of 29, p = 0.27 | ditto |
+| arena 2200 / 1600 | a smaller arena | 0.85x / 0.99x | 16/32, p = 1.0 / 17/32, p = 0.86 | **the ladder cannot see this rule at all** |
+| elite heal 0 | nothing mends | 1.00x | none of 32 could be compared | dead instrument, see below |
+
+The game itself is untouched: `node tools/simulate.js --trace` is byte for byte what it traced at
+**1.9.13** (seed 1, aware, wisp/pulse, 10m, 73,339, level 57, 3,794 kills), proved against a
+`git worktree` of the previous HEAD rather than against a remembered number.
+
+### Surprises and lessons
+1. **Every hand in the house is magnet-fed, and nothing noticed because nothing had ever asked.** The
+   careless hand goes from level 7 to level 1 under the rule at no net at all, and to level 2 at the
+   shipped cut; the aware hand's 8-minute score falls to 0.12x. That is not the rule being cruel, it is the
+   instrument having never had to *want* a shard. Every
+   build every ladder here has ever priced was a build the net dealt it - which is worth saying about
+   `tools/line-ab.js` and `tools/power-ladder.js` too, not just about this rule. The fix is a habit and not
+   a patch (walk back to the nearest pile when nothing is within reach), and it would want the lines
+   re-priced afterwards the way session 114's dash habit did.
+2. **A candidate that changes nothing is a dead instrument, not an easy pass.** "Nothing mends" (elite
+   heals off) read 1.00x with *none of the 32 seeds* able to tell the runs apart: elites start at 8 minutes
+   (`elite.from`) and the careless hand's middle death is 4m08s, so that batch had almost no heal to
+   refuse. Same shape as the touch rules needing a batch that lost hulls, arrived at from the other side.
+3. **A smaller arena is not a harder game to a score middle.** 2200 and 1600 both die the runs out sooner
+   (3m00s and 1m48s middles, 23 and 22 of 32 dead against 18) while scoring *the same or more*, because a
+   quarter of the arena is a third more loot and XP per minute - levels went 7 to 10 to 12 - so the build
+   arrives early and the score column cannot tell a tighter room from a gift. Recorded here rather than
+   in PLAN because the rule was never built: `challenge-cost.js` would have refused it, and a rule whose
+   own yardstick runs the wrong way is not a rule (session 156's killed candidates, again).
+4. **A control at 1x is the cheapest proof in the house.** `--reach 1` is the rule flying with the number
+   it ships with, and it read 1.00x with 0 of 32 seeds comparable - byte-identical runs, so every reading
+   on that table belongs to the rule and not to the window. Every sweepable row should get this when it is
+   next re-flown; it costs one batch and answers the "did the tool change the game?" question outright.
+5. **The two ends of a rule's cost can be 0.55x and 0.12x and both be true.** The careless hand is the
+   right instrument for a rule about the net and the aware one is a *worse* instrument for it, which is the
+   mirror image of what the deal rule taught in session 157 (a rule about a choice needs the good hand).
+   Writing the bad reading down next to the good one is what stops somebody "re-measuring" this row on
+   `aware` in a month and calling the card broken.
+6. Two small things to keep: a bake-off can be flown with a *global* `BALANCE` patch, one process per
+   candidate against a plain flown in its own process - no source change, no new tool, twelve candidates
+   an afternoon (`tools/headless/bot.js playBatches` is sequential, so `challenge-cost.js`'s per-row
+   patches are the tidy way but not the only one). And the harness's own `picks: 'random'` has to be said
+   out loud in throwaway scripts: leaving it out silently means the wise picker, i.e. a different hand.
+
+### Next
+1. **Give the bot a loot habit.** It is now the biggest instrument gap in the house, and this session made
+   it visible: no policy walks back for a shard, so the net deals every build the ladders price. A habit
+   like `dashEscape`'s - go for the nearest pile when nothing is within a body-reach - needs a check-tool of
+   its own (something like `tools/dash-habit.js`), and then the lines and the challenge quotes all want
+   re-flying on the new hands. That is a session or three and it is worth more than another rule.
+2. **BY HAND wants eyes on a screen**, more than any rule so far: the ladder can say what a magnet-fed hand
+   pays for it and cannot say what a person who *means* to go and get the loot pays. Play it. If it reads as
+   a wall rather than a squeeze, the lever is one number and `--reach 0.6` / `0.75` are already flown (0.58x
+   and 0.60x), so softening it is a row edit and a re-quote, not a rebuild.
+3. **Sweep the middle of the plateau again if the game moves.** 0, 0.2 and 0.4 read the same today; if a
+   change lands the loot closer to the ship or the arena smaller, that plateau is where a rule like this
+   would quietly stop being one.
+4. Carried over, unchanged and still open: re-fly the five ordinary quotes when the game moves (twelve
+   minutes, `--strict`, and the ONE CARD row on `--bot aware --challenges none,thin --seeds 24 --seconds
+   480`); NO DASH has still no hand that lives on the dash; can `naive` price a deal rule at 64-96 seeds;
+   the ablate catalogue's `--scene brood` pass; the shot-speed line (may want deleting rather than
+   measuring); the `tierBonus.telegraph` sentence in PLAN naming a number this tree does not have; whether
+   the first two minutes are too harsh; `--live --weapon swarm`; and the browser half of the performance
+   pass, which only the owner can take.
+
+### Released
+**1.9.14** - BY HAND, the seventh challenge rule, on the key with the other six and on the codex's rule
+rack with a record of its own like theirs. The plain run traces byte for byte what it traced at 1.9.13.
