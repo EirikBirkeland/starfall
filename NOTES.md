@@ -16902,3 +16902,133 @@ PLAN, CHANGELOG and the release.
 3. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
    needs ~20), whether the **first two minutes** are too harsh for a new player (needs a human), and the
    `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree.
+
+## Session 153 - the ruler could not price a brood; now it can, in operations - and the byte ruler's kind table had been printing nine identical rows
+
+### What was on the shelf
+Session 152's next-item 1, verbatim: "`tools/perf-probe.js` still has no flock scene". It was more true
+after 152 than before it. A planted swarmling with no pack chases the ship (game/kinds.js
+`walksFlocking` falls back to that when `packOf(enemy)` is null), so every crowd scene in the ruler was
+pricing the swarm as if it were another drifter: no middle to steer by, no beat to keep, no ring and no
+line to draw. And three clumps bracing is precisely what a late frame is asked to draw - in the waves and
+in the hive's beat both.
+
+### The two scenes, and why they are a pair
+`brood` plants three clumps of fourteen swarmlings as real packs (game/flock.js `newPack`, in
+`world.flocks`, every body pointing at its pack) and `loose` plants the same bodies in the same clumps
+and then takes the packs back out again (`unpacked`). So "what does a flock cost" is a subtraction
+between two printed rows and not a sentence in a comment. Both numbers are the game's: three clumps is
+what session 151's census counted on the glass at a time, and fourteen is the middle of the pack the
+wave director may buy (`kinds.swarmling.pack.min` to `.into`). The clumps are planted part way through
+their own gathering beat and staggered from each other, because packs are born seconds apart and keep
+the clock they were born with - plant them in step and the scene is a volley the game never fields.
+
+Three more things came with them, because the scene is not honest without them:
+
+- **A scene may name the window it has to be watched for.** A pack's whole beat is 4.6 s and a brace is
+  0.7 s of it, so the ruler's default two-second window can paint an entire brood with no tell on it and
+  report the clump as cheap as a loose crowd. Both flock rows ask for `ceil(FLOCK_CYCLE)` = 5 s, the
+  header says which windows were measured when they disagree, and `--seconds` still outranks a scene
+  because the flag is the question.
+- **`--flocks N`, and `--scene a,b`.** `--flocks 0` asks the brood's question of any scene; a comma list
+  is what makes a row and its control readable in one run rather than two.
+- **`measureBeats`, and a fourth budget.** A scene's mean over a window cannot see a tell at all, so each
+  clump's clock is pinned half-way through `gathering`, `braced` and `diving` and one frame is painted
+  per beat; the gathering frame is the baseline (a gathering pack draws nothing) and the two deltas are
+  the art's shape counted: **the brace is +18.0 operations a clump (3 strokes, 15 stamps) and the dive
+  +16.0 (0 strokes, 16 stamps)**, against `TELL_OPS = 40`. The test asserts the shapes themselves -
+  three strokes and one light for the ring plus a nose light per body, a stamp per body on the line, no
+  gradient and no shadow on either - so a fourth shape or a blur on every clump has to be argued about.
+  Three clumps is what a late run holds, so a dear tell is paid three times on one frame.
+
+### What it measured
+| scene | bodies | packs | step ms | ops mean | ops worst |
+| --- | --- | --- | --- | --- | --- |
+| the crowd at the body wall | 200 | 0 | 0.111 | 2,951 | 3,012 |
+| the brood, in clumps | 42 | 3.0 | 0.016 | 1,301 | 1,347 |
+| the same brood, loose | 42 | 0 | 0.017 | 1,285 | 1,347 |
+
+A whole flock of them costs **+16 operations a frame** over the same bodies loose, and **nothing
+measurable in the step** - which is the right shape for an answer, because a pack is arithmetic on the
+crowd it describes and not a second crowd walking beside it. The two halves of the ruler reconcile:
+a clump braces 0.7 s of its 4.6 s cycle and dives for 0.5 s of it, three staggered clumps is about 0.45
+of a clump braced and 0.33 diving on any one frame, and 0.45 × 18 + 0.33 × 16 ≈ 14 against the 16
+measured. What the brood's frame is made of is the 900 sparks and the 42 bodies, not the tells: 1,251
+of its 1,301 operations are there with every clump gathering, and the crowd at the ceiling - 200 loose
+bodies, no packs, nothing braced - is still 2,951, which is the wall this frame has to live inside.
+
+### The bug this found in the other ruler
+`tools/alloc-probe.js --kinds` builds one row per kind and has stamped the kind onto the row's name
+since it was written - and spread the measuring child's own row *after* the stamp, so the stamp was
+overwritten and all nine rows printed as "the schedule at full crowd". Nobody could read that table, so
+nobody ran it, so it had no test, so it stayed. Fixed, and now:
+
+- the stamp is applied after the reading (`rowName`, and a test that reads what the tool printed, which
+  is the only place the bug was ever visible);
+- **a crowd of one kind is a price list and not a wall**: `--kind` and `--kinds` rows are measured and
+  never gated, and every one of them over `BODY_BYTES` is named under the table, so ungated is not the
+  same as silent;
+- a `noBytes` scene is out of a default byte run and out of the byte gate even when asked for by name.
+  The brood's 39 B a body is mostly what 900 sparks cost, not what a clump does; a clump is priced in
+  operations, which is the currency it actually moves.
+
+And the now-readable table says: drifter, weaver, spitter, tank, bomber and sniper throw away nothing a
+step; the **darter 7 B a body** (it files sounds), the **swarmling 32 B** and the **shielder 48 B**.
+PLAN section 2's "no allocation inside the per-frame loops" is not true of two of the nine kinds, and
+has not been for as long as the table has been unread. Not chased here - it is its own session.
+
+### Surprises and lessons
+1. **A hold that repairs a scene can become an engine.** `holdScene` puts missing clumps back, and
+   `updateFlocks` throws away a pack whose last body is gone - so a planting that ever attaches bodies
+   to no pack makes the hold add a fresh clump every step, forever. The mutation "a body is planted
+   without its pack" used to hang the test file for a quarter of an hour; the guard is that a clump is
+   part of the crowd, so the room for one is measured in the crowd, and the same mutation now fails
+   eleven tests in about a second. There is a test for both halves: a clump that is *really* gone comes
+   back, and one with no room is not conjured.
+2. **Timing assertions that pass alone and fail inside `node --test`.** The brood-vs-control step read
+   0.163 ms against 0.022 ms with the rest of the suite running alongside, and 0.016 against 0.017 on a
+   quiet box. Operations are counted and exact, so they can be strict; a tenth-of-a-millisecond step on
+   a 42-body scene cannot be. The step claim is now floored at `max(3 × control, 0.25 ms)` and says so
+   in the message, and the ratchet on a step stays where it always was, in `SIM_STEP_MS`.
+3. **A test helper can measure the mistake the scene exists to avoid.** The helper forced a one-second
+   window on every scene, which for the flock pair is exactly the coin-toss-on-whether-a-tell-is-on-the-
+   glass. The helpers now honour a scene's own window, which is why the flock tests are the slow ones.
+4. Cross-checking two rulers is how a wrong claim dies. The brood looked like a byte wall at 39 B a body
+   until its loose control showed 32 B of that belongs to the *kind* - and then the operations ruler
+   showed the flock itself is 16 ops a frame. Same bodies, two currencies, one answer each.
+5. `.scratch/alloc-sites.js` (the inspector's sampling heap profiler) reads 3.7 B a step on a load the
+   probe reads at 3.2 KB. Both are true: a sampling *heap* profile counts what stayed alive and the
+   probe counts what was thrown away. So the crowd leaks nothing and generates a scavenge's worth of
+   garbage every couple of seconds, which is a different problem and a real one.
+
+### Left in the tree
+`tools/perf-probe.js` (the brood and its control, `--flocks`, scene windows, `measureBeats`, `TELL_OPS`,
+the guarded hold, and a header that now says what each of its four budgets is allowed to mean),
+`tools/alloc-probe.js` (`rowName`, price lists, `overBudgetRows`, `noBytes`), `src/game/flock.js`
+(`BEATS` exported so a tool can name a beat instead of spelling 'brace' and hoping - no behaviour
+change: the reference trace is byte for byte the run it was), `test/perf-probe.test.mjs` (14 → 22),
+`test/alloc-probe.test.mjs` (14 → 17), suite 2515 → 2526. In `.scratch`: `mutate-beats.mjs` (ten
+mutations, all ten caught), `brood-ops.mjs`, `tell-cost.mjs`, `alloc-sites.js`, `bytes-per-step.js`.
+**No release**: nothing a player sees or feels changed, which is the same call session 150 made for a
+ruler-only session.
+
+### Next
+1. **The shielder and the swarmling allocate, and the other seven kinds do not**: 48 B and 32 B a body a
+   step on a crowd of one kind, where `BODY_BYTES` is 5 and a crowd of drifters is 0. Start by settling
+   whether a *mixed* crowd pays its share: the probe reads the gated schedule crowd at 0 B a body, which
+   cannot be right if a dozen shielders at 48 B are standing in it, and my crude independent script
+   (`.scratch/bytes-per-step.js`, no GC-watching, and it caught itself lying once) says 3.5 B a body for
+   the same load. So: re-check the mixed reading first, then name the line, then take it out. A scavenge
+   of this heap is 0.85-1.12 ms, and a roomful of shielders is what would make one every two seconds
+   instead of every twelve.
+2. Whether the per-kind rows should become a gate once those two kinds are honest - and whether
+   `BODY_BYTES` should then be asked of a crowd of the *worst* kind the director can field rather than of
+   the mixed one.
+3. Is the ring too loud, and is the hive's beat too quiet? Unchanged from session 152: the census can
+   count shapes per frame, only a person can say whether one ring per clump over thirty pairs' worth of
+   nose lights is the right amount of light on a late hive.
+4. Still open from earlier sessions: the **shot-speed line** (four seeds cannot tell 0.98 from 1.02;
+   needs ~20), whether the **first two minutes** are too harsh for a new player (needs a human), the
+   `tierBonus.telegraph` sentence in PLAN that names a number which does not exist in this tree, and
+   PLAN's browser half of the performance pass - which now also has a brood row (1,301 operations a
+   frame at 42 bodies) for whoever puts the F3 plate up to compare a real late flight against.

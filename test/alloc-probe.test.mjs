@@ -43,7 +43,8 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs,
+  bytes, verdictOf, secondsPerYoungGeneration, chosenLoads, partLoads, readArgs, rowName,
+  overBudgetRows,
   FLOOR_BYTES, STEP_BYTES, BODY_BYTES, TAB_YOUNG_BYTES, readingsAgree,
 } from '../tools/alloc-probe.js';
 import { SCENES } from '../tools/perf-probe.js';
@@ -149,6 +150,58 @@ test('--scene and --kind choose the loads they name', () => {
   const kinds = chosenLoads(readArgs(['--kinds']));
   assert.equal(kinds.length, Object.keys(BALANCE.kinds).length);
   for (const load of kinds) assert.ok(BALANCE.kinds[load.kind], 'a row per kind, named');
+});
+
+test('a row is named for the kind it was planted from, and a price list is not a wall', () => {
+  // Nine rows all called "the schedule at full crowd" is a table that cannot be read, and the stamp was
+  // being overwritten on its way out of the measuring child (see `rowName` and where the rows are
+  // built). The names have to disagree with each other, because the kinds' whole point is one body
+  // against another: they range from 0 B a step to some forty in this tree.
+  const kinds = chosenLoads(readArgs(['--kinds']));
+  const names = kinds.map(rowName);
+  assert.equal(new Set(names).size, kinds.length, 'every row says which kind it is');
+  for (const name of names) assert.match(name, /\(all [a-z]+\)$/, 'stamped, not guessed');
+  // And they are not gated: what the gate is for is the crowd the director fields, which is the
+  // schedule and the endless wall, both gated as themselves. A kind may spend an object on purpose.
+  assert.ok(kinds.every((l) => l.gated === false), 'a price list measures and does not judge');
+  const plain = chosenLoads(readArgs([]));
+  assert.equal(plain.filter((l) => l.gated).length, 4, 'the four walls the game can reach are gated');
+  assert.equal(plain.filter((l) => l.id === 'plan2')[0].gated, false,
+    "and PLAN's own impossible load is measured and never judged, as it always has been");
+  assert.deepEqual(plain.map(rowName), plain.map((l) => l.name),
+    'and a mixed crowd is not stamped with a kind it does not have');
+  // A `noBytes` scene is a difference between two rows and not a wall, so it is out of the default run
+  // and out of the gate even when it is asked for by name - but it is still measured and printed then.
+  assert.equal(chosenLoads(readArgs([])).some((l) => l.id === 'brood'), false,
+    'the brood is not in a plain run');
+  const named = chosenLoads(readArgs(['--scene', 'brood']));
+  assert.equal(named.length, 1);
+  assert.equal(named[0].gated, false, 'and asked for by name it is measured, not judged');
+  // A crowd of one kind is a price list too, whichever way it was asked for: the director mixes, and
+  // gating a swarm-only crowd would be a claim about a crowd the game never fields.
+  assert.equal(chosenLoads(readArgs(['--scene', 'schedule', '--kind', 'swarmling']))[0].gated, false);
+});
+
+test('a row the tool prints says which kind it was planted from', () => {
+  // The stamp existed all along and did nothing, because the measuring child sends back a row of its
+  // own and spreading it after the stamped name overwrote it - so this reads what came out of the tool,
+  // which is the only place the bug was ever visible. Nine rows called "the schedule at full crowd" is
+  // a table nobody can read, and the two ends of it differ by fifty times.
+  const one = rows(['--scene', 'schedule', '--kind', 'swarmling', ...QUICK]);
+  const row = one.rows.find((r) => r.id === 'schedule');
+  assert.ok(row !== undefined, one.rows.map((r) => r.id).join(', '));
+  assert.match(row.name, /\(all swarmling\)$/, row.name);
+});
+
+test('a row that is over the per-body budget is named even when nothing gates it', () => {
+  // Ungating a price list must not turn into hiding it: whatever is over `BODY_BYTES` gets said out loud
+  // under the table, in words instead of in a verdict.
+  const over = { name: 'the schedule at full crowd (all bomber)', gated: false, perBody: BODY_BYTES + 1 };
+  const inside = { name: 'a wall', gated: true, perBody: BODY_BYTES + 1 };
+  const floor = { name: 'the arena on its own', gated: false, perBody: null };
+  const cheap = { name: 'a cheap load', gated: false, perBody: 1 };
+  assert.deepEqual(overBudgetRows([over, inside, floor, cheap]).map((r) => r.name),
+    ['the schedule at full crowd (all bomber)']);
 });
 
 // --- what the loads actually weigh ------------------------------------------------

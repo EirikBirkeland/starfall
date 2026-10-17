@@ -54,6 +54,13 @@ const DIVING = 'dive';
  */
 const MIN_BODIES = Math.ceil(BALANCE.kinds.swarmling.pack.min / 2);
 
+/**
+ * The pack's three beats, by name, for anything that has to *say* one rather than ask which one a pack
+ * is in: the ruler that prices a clump's tells (tools/perf-probe.js) has to put a pack on a beat on
+ * purpose, and the alternative is a tool that spells 'brace' and hopes.
+ */
+export const BEATS = { gathering: '', braced: BRACED, diving: DIVING };
+
 /** Is this pack a clump - one thing made of many bodies, rather than a pair that happens to share
  * a clock. */
 export function isClump(pack) {

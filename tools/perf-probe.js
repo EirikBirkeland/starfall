@@ -2,9 +2,10 @@
 // What a frame costs, and against what: PLAN section 2's performance target, measured.
 //
 //   node tools/perf-probe.js                                   every scene, and the verdict
-//   node tools/perf-probe.js --scene endless                   one scene only
+//   node tools/perf-probe.js --scene endless                 one scene only (or --scene brood,loose)
 //   node tools/perf-probe.js --bodies 300 --shots 400         a scene of your own (measured, never gated)
 //   node tools/perf-probe.js --kind shielder                  a crowd of one kind, to price one body against another
+//   node tools/perf-probe.js --flocks 0                      the brood scene with its packs taken back out
 //   node tools/perf-probe.js --seconds 4 --reps 5              a longer window, more passes
 //   node tools/perf-probe.js --peak                           adds what a real run was seen holding
 //   node tools/perf-probe.js --quiet                          the verdict and nothing else
@@ -45,6 +46,11 @@
 //     that sentence should be a measurement and not this comment (and `test/perf-probe.test.mjs` is what
 //     keeps it one when the guns next change).
 //
+// A fourth load is not one of PLAN's numbers at all: the swarm is the one kind whose *relationship* is
+// the body (game/flock.js), and a clump of forty bodies costs a step and a frame differently from
+// forty loose ones. That is what the `brood` and `loose` pair of scenes is for - planted together, they
+// make "what does a pack cost" a subtraction between two printed rows instead of a guess.
+//
 // So the scenes below are the loads the game can be *told* to hold, and the literal section-2 scene
 // is measured too - gated against nothing, printed so that nobody has to re-measure it and so that
 // the distance between "what the game does" and "what the plan asked for" is a number and not an
@@ -52,12 +58,12 @@
 //
 // Budgets, and what each of them is allowed to mean:
 //
-// Three numbers, every one of them a choice, and the choice is written next to it. All three are
+// Four numbers, every one of them a choice, and the choice is written next to it. All of them are
 // ratchets, so called: they exist so that a change which makes the frame dearer has to be argued
 // about, and not because any one of them is a claim about what a browser can do.
 //
-//   SIM_STEP_MS    what one step of the arena may cost on a box like this one. The four gated scenes
-//                  measure 0.04 - 0.13 ms here and PLAN section 2's own load measures 1.0 ms, so
+//   SIM_STEP_MS    what one step of the arena may cost on a box like this one. The gated scenes
+//                  measure 0.02 - 0.11 ms here and PLAN section 2's own load measures 1.0 ms, so
 //                  1.5 ms is "the heaviest thing this file can be made to plant, plus half again": it
 //                  moves no shipped frame, and a change that made a step ten times dearer would trip
 //                  it. A mid-range laptop is slower than this box by some factor nobody has measured,
@@ -78,6 +84,13 @@
 //                  burst it happened to land in, so it cannot be the only gate - but it is kept, because
 //                  a change that makes every frame a little dearer need not move the worst frame at all.
 //
+//   TELL_OPS       what one clump of the brood may add to the frame its tell is drawn on. The scene
+//                  budgets cannot see a tell at all - a clump is braced for a seventh of its cycle, so
+//                  a ring that cost fifty operations would hide in a mean over a window - so the beat
+//                  is pinned and one frame painted per beat instead (see `measureBeats`). It is the
+//                  budget that has to exist for the swarm at all: three clumps is what a late run holds,
+//                  and every one of them is on the glass at the same moment.
+//
 // The gated scenes are the ones the game can reach. If one of them goes over, a change has made the
 // arena more expensive to run or to draw and it should be argued about; if `plan2` goes over, nothing
 // has happened, and that is why it is not gated.
@@ -89,6 +102,8 @@ import { BALANCE } from '../src/game/balance.js';
 import { STATE } from '../src/game/state.js';
 import { stepWorld } from '../src/game/world.js';
 import { makeEnemy } from '../src/game/kinds.js';
+import { newPack, BEATS } from '../src/game/flock.js';
+import { TAU } from '../src/core/math.js';
 import { frameCosts, resetCosts } from '../src/render/debug.js';
 import { bootGame } from './headless/harness.js';
 import { makeFrameCost } from './headless/frame-cost.js';
@@ -101,6 +116,15 @@ const STEP = BALANCE.sim.step;
 
 /** How many times the clock ticks on one 60 fps frame. The frame budget is spent in these. */
 export const STEPS_PER_FRAME = 2;
+
+/**
+ * The window a scene gets when nobody asked for one, and how many times it is timed.
+ *
+ * A scene may overrule both - the flock's overrules the window because its own beat is longer than it
+ * is, and a window shorter than the beat measures whatever half of the beat it happened to land in.
+ */
+export const DEFAULT_SECONDS = 2;
+export const DEFAULT_REPS = 3;
 
 // The two budgets. See "Budgets" above for what each one is allowed to mean.
 export const SIM_STEP_MS = 1.5;
@@ -121,8 +145,41 @@ export const PAINT_WORST_OPS = 4400;
 // panel reads tens a frame, not a fraction of one.
 export const PAGE_WRITES = 1;
 
+// What one clump's tell may add to the frame it is drawn on, in operations - see `measureBeats`. The
+// ring is three arcs and a light and the line is a stretched trail and a light, and both are paid for
+// twice over because the bodies they stand for light their noses on the same beat: measured at 18.0
+// operations a clump on the brace frame and 15.7 on the dive frame, on the commit that wrote this.
+// The budget is a round number above both, because what it is for is an art change that puts a
+// gradient, a blur or a fourth shape on every clump having to be argued about - and a late run holds
+// three clumps (NOTES session 151), so a dear shape is paid for three times on one frame.
+export const TELL_OPS = 40;
+
 // PLAN section 2's sentence, as numbers, so the file can be read against the sentence it is testing.
 export const PLAN_SECTION_2 = { bodies: 600, shots: 1500, sparks: 4000 };
+
+/**
+ * The brood the two flock scenes plant, and the window they need.
+ *
+ * Three clumps, because that is what a late run's arena actually holds: the census behind session 151
+ * counted three packs of 14-17 bodies on the glass at a time, and never more than two of them
+ * bracing or diving in any one frame. Fourteen to a clump is the middle of the pack the wave director
+ * is allowed to buy (`kinds.swarmling.pack.min` to `.into`) and is where that census found them, so
+ * both numbers are the game's and not this file's.
+ *
+ * The window is one whole turn of the flock's own clock - gathering, bunching, diving - rather than
+ * the default two seconds, and that is not a detail: the brace is 0.7 s of a 4.6 s beat, so a short
+ * window can easily be painted with no tell on it at all and report a brood as cheap as a loose crowd.
+ * A window that covers the cycle reports what the brood costs, which is the whole reason the scene
+ * exists.
+ */
+const SWARM = BALANCE.kinds.swarmling;
+export const FLOCK_CYCLE = SWARM.flock.gather + SWARM.flock.brace + SWARM.flock.dive.time;
+export const BROOD = {
+  clumps: 3,
+  each: Math.round((SWARM.pack.min + SWARM.pack.into) / 2),
+};
+BROOD.bodies = BROOD.clumps * BROOD.each;
+export const BROOD_WINDOW = Math.ceil(FLOCK_CYCLE);
 
 /**
  * The scenes. `onGlass` is the whole of the difference on the painter's side: the camera only draws
@@ -132,6 +189,12 @@ export const PLAN_SECTION_2 = { bodies: 600, shots: 1500, sparks: 4000 };
  * `shots` are planted slow and long-lived, because a scene has to still be the scene it was when the
  * ruler comes back for it; a real run's shots are quick and short and `--peak` is where those are
  * measured.
+ *
+ * A scene may also name `flocks` (how many clumps of the swarm stand in it) and `seconds` (how long a
+ * window it has to be watched for). The flock scenes need both: a pack's beat is 4.6 s, so a two-second
+ * window can paint a whole brood without a single tell on it. And `noBytes` says a scene is a
+ * difference between two rows rather than a wall the game puts up, which is the one kind of load
+ * `tools/alloc-probe.js` should not be asked to price a body for.
  */
 export const SCENES = [
   {
@@ -159,6 +222,25 @@ export const SCENES = [
     shots: () => 60, sparks: () => BALANCE.effects.particleCap,
   },
   {
+    id: 'brood', name: 'the brood, in clumps', gated: true, noBytes: true,
+    note: 'three clumps of the flock on the glass, over a whole flock cycle',
+    bodies: () => BROOD.bodies, onGlass: true, kind: 'swarmling',
+    flocks: () => BROOD.clumps, each: () => BROOD.each,
+    shots: () => 60, sparks: () => BALANCE.effects.particleCap,
+    seconds: BROOD_WINDOW,
+  },
+  {
+    // The control, and the reason the row above can be read as a price: the same bodies, in the same
+    // clumps, on the same glass, with the pack taken out of them (`unpacked`) - so what the two rows
+    // differ by is the flock and nothing else. `--flocks 0` asks the same question of any other scene.
+    id: 'loose', name: 'the same brood, loose', gated: false, noBytes: true,
+    note: 'the clumps above with no pack on them - what the flock row is subtracted from',
+    bodies: () => BROOD.bodies, onGlass: true, kind: 'swarmling',
+    flocks: () => BROOD.clumps, each: () => BROOD.each, unpacked: true,
+    shots: () => 60, sparks: () => BALANCE.effects.particleCap,
+    seconds: BROOD_WINDOW,
+  },
+  {
     id: 'plan2', name: "PLAN section 2's sentence", gated: false,
     note: '600 bodies, 1500 shots and 4000 sparks, all of it on the glass',
     bodies: () => PLAN_SECTION_2.bodies, onGlass: true,
@@ -167,12 +249,15 @@ export const SCENES = [
 ];
 
 export function readArgs(argv) {
-  const opts = { scene: null, seconds: 2, reps: 3, peak: false, quiet: false, bodies: null, shots: null, sparks: null, kind: null };
+  const opts = { scenes: [], seconds: null, reps: null, peak: false, quiet: false, bodies: null, shots: null, sparks: null, kind: null, flocks: null };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     const next = () => argv[++i];
-    if (key === '--scene') opts.scene = next();
+    // More than one scene, and a comma list, because a brood row is read against its control row and a
+    // reader asked to run the tool twice for the pair would not bother.
+    if (key === '--scene') opts.scenes.push(...next().split(','));
     else if (key === '--kind') opts.kind = next();
+    else if (key === '--flocks') opts.flocks = Number(next());
     else if (key === '--seconds') opts.seconds = Number(next());
     else if (key === '--reps') opts.reps = Number(next());
     else if (key === '--bodies') opts.bodies = Number(next());
@@ -182,11 +267,23 @@ export function readArgs(argv) {
     else if (key === '--quiet') opts.quiet = true;
     else throw new Error('I do not know the flag ' + key);
   }
-  if (!(opts.seconds > 0)) throw new Error('--seconds wants a number of seconds above zero');
-  if (!(opts.reps >= 1)) throw new Error('--reps wants at least one timed pass a scene');
-  if (opts.scene !== null && !SCENES.some((s) => s.id === opts.scene)) {
-    throw new Error('there is no scene called ' + opts.scene
-      + '; there is ' + SCENES.map((s) => s.id).join(', '));
+  if (opts.seconds !== null && !(opts.seconds > 0)) {
+    throw new Error('--seconds wants a number of seconds above zero');
+  }
+  if (opts.reps !== null && !(opts.reps >= 1)) {
+    throw new Error('--reps wants at least one timed pass a scene');
+  }
+  if (opts.flocks !== null && !(opts.flocks >= 0)) {
+    throw new Error('--flocks wants a number of clumps, and zero is a number of clumps');
+  }
+  if (opts.flocks !== null && !Number.isInteger(opts.flocks)) {
+    throw new Error('--flocks wants a whole number of clumps');
+  }
+  for (const want of opts.scenes) {
+    if (!SCENES.some((s) => s.id === want)) {
+      throw new Error('there is no scene called ' + want
+        + '; there is ' + SCENES.map((s) => s.id).join(', '));
+    }
   }
   if (opts.kind !== null && !BALANCE.kinds[opts.kind]) {
     throw new Error('there is no kind called ' + opts.kind
@@ -229,6 +326,64 @@ function plantBodies(game, count, onGlass, mortal, kind) {
     }
     // An immortal body is what makes a scene stay the scene; a mortal one is what makes it a fight.
     world.enemies.push(makeEnemy(world, names[i % names.length], x, y, mortal ? null : { hp: 1e9 }));
+  }
+}
+
+/**
+ * The brood: `clumps` packs of `each` swarmlings, every one of them a real pack (game/flock.js
+ * `newPack`) standing in `world.flocks` with its bodies pointing at it.
+ *
+ * That is the only way the flock's own work happens at all. A loose swarmling has no pack, so it has
+ * no middle to steer by, no beat to keep and no tell to be drawn for (game/kinds.js `walksFlocking`
+ * falls back to chasing the ship, and render/flock.js draws nothing for a pack of none): the crowd
+ * scenes above plant loose bodies and therefore price the swarm as if it were another drifter. Here
+ * the pass that rebuilds a middle, a spread and a pace out of the crowd runs, the three pulls are
+ * added, and the clump's ring and line are painted for the frames they are on.
+ *
+ * The packs are planted part way through their own gathering beat rather than all at the top of it,
+ * because that is how a brood arrives: packs are born seconds apart and keep the clock they were born
+ * with (session 150 measured a live brood committing every 4.57-4.61 s and never all at once). Plant
+ * them in step and the scene would be a volley the game never fields - three rings landing on the
+ * same frame, forever.
+ *
+ * The bodies are immortal, as in a standing crowd: the shape of a brood is what is being priced, and a
+ * pack whose bodies die stops being a pack (game/flock.js throws it away when the last one goes).
+ */
+function plantPacks(game, clumps, each, onGlass) {
+  const world = game.world;
+  const spec = BALANCE.kinds.swarmling.flock;
+  const clump = BALANCE.kinds.swarmling.pack.clump;
+  let seed = 424242;
+  const spin = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const ship = world.player;
+  for (let c = 0; c < clumps; c++) {
+    let x;
+    let y;
+    if (onGlass) {
+      // Round the ship rather than scattered over it, and far enough out that a clump is a shape and
+      // not a smudge on the hull: a dive reaches some 230 px, so a clump planted here is still
+      // gathering when the window starts.
+      const bearing = (c / clumps) * TAU + 0.7;
+      const off = 320 + spin() * 180;
+      x = ship.x + Math.cos(bearing) * off;
+      y = ship.y + Math.sin(bearing) * off * 0.7;    // the glass is wider than it is tall
+    } else {
+      x = spin() * world.arena.w;
+      y = spin() * world.arena.h;
+    }
+    const pack = newPack(spec, x, y);
+    pack.timer = spec.gather * (1 - (c + 1) / (clumps + 1));
+    world.flocks.push(pack);
+    for (let i = 0; i < each; i++) {
+      const a = (i / each) * TAU;
+      const r = clump * 0.5 * (0.35 + spin() * 0.65);
+      world.enemies.push(makeEnemy(world, 'swarmling', x + Math.cos(a) * r, y + Math.sin(a) * r, {
+        hp: 1e9, flock: pack,
+      }));
+    }
   }
 }
 
@@ -306,9 +461,24 @@ function onGlassSpan(world) {
  * must not have its own copy of "what a scene is" or the two rulers would drift apart.
  */
 export function plantScene(game, scene) {
-  plantBodies(game, scene.bodies, scene.onGlass, scene.mortal, scene.kind);
+  const clumps = scene.flocks || 0;
+  const each = scene.each || 0;
+  // The packed bodies are *part of* the crowd and not on top of it, which is what makes `--flocks 0`
+  // the same scene with its packs taken out rather than a different scene altogether.
+  plantBodies(game, Math.max(0, scene.bodies - clumps * each), scene.onGlass, scene.mortal, scene.kind);
+  if (clumps > 0) plantPacks(game, clumps, each, scene.onGlass);
+  // The geometric control: the same clumps, standing where they stand, with the relationship taken back
+  // out of them. Every difference between that row and the brood row is then a pack and nothing else -
+  // the beat, the three pulls, the ring - and not where the bodies happen to be standing.
+  if (scene.unpacked === true) unpackPacks(game.world);
   plantShots(game, scene.shots, scene.mortal, scene.onGlass);
   plantSparks(game, scene.sparks);
+}
+
+/** Every body flies alone, and there is no pack left to fly in. */
+function unpackPacks(world) {
+  world.flocks.length = 0;
+  for (const body of world.enemies) body.flock = null;
 }
 
 /**
@@ -340,6 +510,16 @@ export async function openScene(game, seed) {
  */
 export function holdScene(game, scene) {
   const world = game.world;
+  const clumps = scene.flocks || 0;
+  // A pack comes back before the loose bodies do, so that a topped-up crowd cannot push the clumps out
+  // of the row's own body count - and only while there is room for one, which is the guard that keeps
+  // this from becoming an engine: `updateFlocks` throws away a pack whose last body is gone, so a
+  // planting that ever attaches bodies to no pack would have this re-plant a whole clump every single
+  // step, forever. A clump is *part of* the crowd, so the room for one is measured in the crowd.
+  const missing = clumps > 0 && !scene.unpacked ? clumps - world.flocks.length : 0;
+  if (missing > 0 && world.enemies.length + missing * scene.each <= scene.bodies) {
+    plantPacks(game, missing, scene.each, scene.onGlass);
+  }
   if (world.enemies.length < scene.bodies) {
     plantBodies(game, scene.bodies - world.enemies.length, scene.onGlass, scene.mortal, scene.kind);
   }
@@ -376,13 +556,14 @@ export function measureStep(game, scene) {
   for (let i = 0; i < 30; i++) stepWorld(STEP, input);
 
   const reps = Math.max(1, Math.round(scene.reps));
-  const totals = { ms: 0, holdMs: 0, bodies: 0, shots: 0, sparks: 0 };
+  const totals = { ms: 0, holdMs: 0, bodies: 0, packs: 0, shots: 0, sparks: 0 };
   let bestMs = Infinity;
   for (let rep = 0; rep < reps; rep++) {
     const pass = timeAStep(game, scene, steps, input, hold);
     totals.ms += pass.ms;
     totals.holdMs += pass.holdMs;
     totals.bodies += pass.bodies;
+    totals.packs += pass.packs;
     totals.shots += pass.shots;
     totals.sparks += pass.sparks;
     if (pass.ms < bestMs) bestMs = pass.ms;
@@ -394,6 +575,7 @@ export function measureStep(game, scene) {
     frameMs: stepMs * STEPS_PER_FRAME,
     holdMs: totals.holdMs / every,
     bodies: totals.bodies / every,
+    packs: totals.packs / every,
     shots: totals.shots / every,
     sparks: totals.sparks / every,
   };
@@ -407,6 +589,7 @@ function timeAStep(game, scene, steps, input, hold) {
   const world = game.world;
   let holdMs = 0;
   let bodies = 0;
+  let packs = 0;
   let shots = 0;
   let sparks = 0;
   const start = process.hrtime.bigint();
@@ -416,6 +599,7 @@ function timeAStep(game, scene, steps, input, hold) {
     holdMs += Number(process.hrtime.bigint() - h0) / 1e6;
     stepWorld(STEP, input);
     bodies += world.enemies.length;
+    packs += world.flocks.length;
     shots += world.bullets.count;
     sparks += world.particles.count;
   }
@@ -423,6 +607,7 @@ function timeAStep(game, scene, steps, input, hold) {
     ms: Number(process.hrtime.bigint() - start) / 1e6 - holdMs,
     holdMs,
     bodies,
+    packs,
     shots,
     sparks,
   };
@@ -479,6 +664,82 @@ export function measurePaint(game, scene) {
   return per;
 }
 
+/**
+ * Put every pack in the arena on one beat, half way through it, and leave it there.
+ *
+ * A pinned beat is the only way to ask "what does a clump's tell cost" and get the same answer twice:
+ * a brood keeps the clock it was born with (session 150 measured a live one committing every 4.6 s and
+ * never all at once), so a scene watched at random paints a ring on some frames and not on others.
+ * Half way through is where each of the three beats is properly itself - the ring lit and closing, the
+ * line with ground still to give - and the half-way mark is a constant rather than a race.
+ */
+function pinBeats(world, beat) {
+  const spec = BALANCE.kinds.swarmling.flock;
+  const on = beat === 'braced' ? BEATS.braced : beat === 'diving' ? BEATS.diving : BEATS.gathering;
+  const time = beat === 'braced' ? spec.brace : beat === 'diving' ? spec.dive.time : spec.gather;
+  for (const pack of world.flocks) {
+    pack.stage = on;
+    pack.stageTime = time;
+    pack.timer = time * 0.5;
+  }
+}
+
+/**
+ * What a clump's two tells cost, on the beats that draw them.
+ *
+ * The scene table can only report a brood's *mean*, and a mean is a poor thing to price a tell with: a
+ * clump is braced for 0.7 s of a 4.6 s cycle, so the mean over a window is mostly the price of bodies
+ * loitering and the ring is a rounding error inside it. This asks the question an art change actually
+ * moves - what does one clump's ring cost the frame it is drawn on - by putting every pack on one beat
+ * on purpose and painting one frame, three times: gathering (a pack draws nothing), braced (the ring,
+ * its arc, the light at its head, and a nose light on every body it is made of) and diving (the trail
+ * and its head, and a blur on every body).
+ *
+ * Every answer is a difference, per clump: what the tells add over the same bodies standing there
+ * gathering. `TELL_OPS` is the budget on those two numbers, and it is a ratchet like the rest - a
+ * third tell per clump, or a blur under one, has to be worth the operations.
+ */
+export function measureBeats(game, scene) {
+  const world = game.world;
+  const clumps = world.flocks.length;
+  if (clumps === 0) return null;
+  const frameCost = makeFrameCost(game);
+  const hold = () => holdScene(game, scene);
+  const frames = {};
+  for (const beat of ['gathering', 'braced', 'diving']) {
+    hold();
+    pinBeats(world, beat);
+    frames[beat] = frameCost(() => game.step(FRAME_MS));
+  }
+  const ops = (f) => f.strokes + f.fills + f.images + f.texts;
+  // The raw counters as well as their sum, because "three strokes and a light" is a shape a reviewer
+  // can judge and "18 operations" is not.
+  const price = (beat) => ({
+    ops: (ops(frames[beat]) - ops(frames.gathering)) / clumps,
+    strokes: (frames[beat].strokes - frames.gathering.strokes) / clumps,
+    fills: (frames[beat].fills - frames.gathering.fills) / clumps,
+    stamps: (frames[beat].images - frames.gathering.images) / clumps,
+    gradients: (frames[beat].gradients - frames.gathering.gradients) / clumps,
+    shadows: (frames[beat].shadows - frames.gathering.shadows) / clumps,
+  });
+  return {
+    clumps,
+    bodies: world.enemies.length,
+    gathering: ops(frames.gathering),
+    braced: price('braced'),
+    diving: price('diving'),
+  };
+}
+
+/**
+ * Whether a beat reading is inside the tell budget. A scene with no brood in it has nothing to read and
+ * nothing to fail: `null` is a pass and not a missing number, because the brood scene is gated on
+ * having packs in it by its own test below.
+ */
+export function beatsInsideBudget(beats) {
+  return beats === null || (beats.braced.ops <= TELL_OPS && beats.diving.ops <= TELL_OPS);
+}
+
 /** A scene of the caller's own, for `--bodies` and friends: measured, and never gated. */
 export function customScene(opts) {
   return {
@@ -488,24 +749,34 @@ export function customScene(opts) {
     onGlass: true,
     mortal: false,
     kind: opts.kind === undefined ? null : opts.kind,
+    flocks: () => (opts.flocks === undefined || opts.flocks === null ? 0 : opts.flocks),
+    each: () => BROOD.each,
     shots: () => (opts.shots === null ? 60 : opts.shots),
     sparks: () => (opts.sparks === null ? BALANCE.effects.particleCap : opts.sparks),
-    seconds: opts.seconds,
-    reps: opts.reps,
   };
 }
 
 /** Resolve a scene's function-shaped numbers into the numbers a measurement needs. */
-export function settled(scene, seconds, reps, kind) {
+export function settled(scene, seconds, reps, kind, flocks) {
+  const own = scene.flocks === undefined ? 0 : scene.flocks();
   return {
     id: scene.id, name: scene.name, note: scene.note, gated: scene.gated,
+    unpacked: scene.unpacked === true,
     bodies: scene.bodies(), onGlass: scene.onGlass, mortal: !!scene.mortal,
     // --kind is a lever on any scene, not only on a custom one: "what does one kind of body cost"
     // has to be askable of the crowd the game actually fields.
     kind: kind === undefined || kind === null ? (scene.kind || null) : kind,
+    // --flocks is the same kind of lever, and it is what makes "what does a pack cost" a question any
+    // scene can be asked: `--flocks 0` takes the packs back out and leaves the same bodies loose.
+    flocks: flocks === undefined || flocks === null ? own : flocks,
+    each: scene.each === undefined ? 0 : scene.each(),
     shots: scene.shots(), sparks: scene.sparks(),
-    seconds: seconds === undefined ? scene.seconds : seconds,
-    reps: reps === undefined ? scene.reps : reps,
+    // A scene may name the window it has to be watched for - the flock's has to be, because its beat
+    // is longer than the default - and the flag still outranks it, because the flag is the question.
+    seconds: seconds === undefined || seconds === null
+      ? (scene.seconds === undefined ? DEFAULT_SECONDS : scene.seconds) : seconds,
+    reps: reps === undefined || reps === null
+      ? (scene.reps === undefined ? DEFAULT_REPS : scene.reps) : reps,
   };
 }
 
@@ -576,12 +847,12 @@ export function sceneLines(results) {
   return table(
     'THE SCENES',
     'a scene is planted and held; the step is timed on this box, the painter is counted in operations',
-    'lllrrrrrrrrrrl',
-    ['scene', 'bodies', 'shots', 'sparks', 'step ms', 'sim ms/frame', 'strokes', 'fills', 'stamps',
-      'ops mean', 'ops worst', 'page/frame', 'page worst', 'gate'],
+    'lllrrrrrrrrrrrl',
+    ['scene', 'bodies', 'packs', 'shots', 'sparks', 'step ms', 'sim ms/frame', 'strokes', 'fills',
+      'stamps', 'ops mean', 'ops worst', 'page/frame', 'page worst', 'gate'],
     results.map((r) => [
       r.name,
-      int(r.live.bodies), int(r.live.shots), int(r.live.sparks),
+      int(r.live.bodies), dec(r.live.packs, 1), int(r.live.shots), int(r.live.sparks),
       dec(r.step.stepMs, 3), dec(r.step.frameMs, 2),
       int(r.paint.strokes), int(r.paint.fills), int(r.paint.images),
       int(r.paint.total), int(r.paint.worst),
@@ -589,6 +860,23 @@ export function sceneLines(results) {
       r.gated ? (r.ok ? 'PASS' : 'FAIL') : '-',
     ])
   );
+}
+
+/**
+ * The window line under the banner. A scene may name a window of its own - the flock's has to, because
+ * its beat is longer than the default - so the header says which windows this run really measured
+ * instead of quoting the first row's at all of them.
+ */
+export function windowNote(chosen) {
+  const windows = [...new Set(chosen.map((s) => s.seconds))].sort((a, b) => a - b);
+  const reps = [...new Set(chosen.map((s) => s.reps))].sort((a, b) => a - b);
+  const frames = (s) => Math.max(6, Math.round(s * 60));
+  const time = windows.length === 1
+    ? dec(windows[0], 1) + 's of arena time and ' + frames(windows[0]) + ' painted frames a scene'
+    : windows.map((s) => dec(s, 1) + 's / ' + frames(s) + ' frames').join(', ')
+      + ' of arena time, a scene watched as long as its own beat asks';
+  return time + ', ' + (reps.length === 1 ? reps[0] : reps.join(' or '))
+    + ' timed pass(es) and the best of them';
 }
 
 /**
@@ -619,9 +907,9 @@ export function verdictOf(results) {
 async function main() {
   const opts = readArgs(process.argv.slice(2));
   const chosen = opts.bodies !== null || opts.shots !== null || opts.sparks !== null
-    ? [settled(customScene(opts), opts.seconds, opts.reps, opts.kind)]
-    : SCENES.filter((s) => opts.scene === null || s.id === opts.scene)
-      .map((s) => settled(s, opts.seconds, opts.reps, opts.kind));
+    ? [settled(customScene(opts), opts.seconds, opts.reps, opts.kind, opts.flocks)]
+    : SCENES.filter((s) => opts.scenes.length === 0 || opts.scenes.includes(s.id))
+      .map((s) => settled(s, opts.seconds, opts.reps, opts.kind, opts.flocks));
 
   const game = await bootGame({ root: ROOT, seed: 20261011 });
   const results = [];
@@ -638,13 +926,19 @@ async function main() {
     plantScene(game, scene);
     game.step(FRAME_MS);
     const paint = measurePaint(game, scene);
+    // The brood's own tells get a third reading, on a beat pinned on purpose: a frame with a ring on it
+    // is a tenth of the window, so nothing above can say what the ring itself costs.
+    const beats = scene.flocks > 0 ? measureBeats(game, scene) : null;
     results.push({
       // A table that does not say which body it planted is the mistake --kind exists to stop, so the
-      // kind goes into the row's own name.
-      name: scene.name + (scene.kind === null ? '' : ' (all ' + scene.kind + ')'),
-      id: scene.id, note: scene.note, gated: scene.gated,
-      step, paint, live: step,
-      ok: sceneIsInsideBudgets(paint, step),
+      // kind goes into the row's own name - and the same for --flocks, because a row measured with
+      // its packs taken out is not the row the game ships.
+      name: scene.name
+        + (scene.kind === null ? '' : ' (all ' + scene.kind + ')')
+        + (opts.flocks === null ? '' : ' (' + opts.flocks + ' clumps)'),
+      id: scene.id, note: scene.note, gated: scene.gated, seconds: scene.seconds,
+      step, paint, beats, live: step,
+      ok: sceneIsInsideBudgets(paint, step) && beatsInsideBudget(beats),
     });
   }
   const verdict = verdictOf(results);
@@ -655,18 +949,27 @@ async function main() {
       + ' cores, node ' + process.versions.node);
     console.log('  budget  a step <= ' + dec(SIM_STEP_MS, 2) + ' ms; a painted arena <= '
       + int(PAINT_OPS) + ' operations on the mean and ' + int(PAINT_WORST_OPS) + ' on its dearest frame'
-      + '; and the page <= ' + dec(PAGE_WRITES, 2) + ' writes a frame');
-    console.log('  window  ' + dec(chosen[0].seconds, 1) + 's of arena time and '
-      + Math.max(6, Math.round(chosen[0].seconds * 60)) + ' painted frames a scene, '
-      + chosen[0].reps + ' timed pass(es) and the best of them');
+      + '; the page <= ' + dec(PAGE_WRITES, 2) + ' writes a frame; and one clump\'s tell <= '
+      + int(TELL_OPS) + ' operations on the frame it is drawn on');
+    console.log('  window  ' + windowNote(chosen));
     console.log('');
     console.log(sceneLines(results));
     for (const r of results) {
       console.log('  ' + r.name + ': ' + r.note
+        + ' [' + dec(r.seconds, 1) + 's, ' + Math.max(6, Math.round(r.seconds * 60)) + ' frames]'
         + (r.step.holdMs > 0.0005
           ? ' (re-planting what the scene lost cost ' + dec(r.step.holdMs, 3)
             + ' ms a step, and is taken out of its number)'
           : ''));
+      if (r.beats !== null) {
+        console.log('    one clump on a pinned beat, over the same bodies gathering: +'
+          + dec(r.beats.braced.ops, 1) + ' operations while it braces (' + dec(r.beats.braced.strokes, 1)
+          + ' strokes, ' + dec(r.beats.braced.stamps, 1) + ' stamps) and +' + dec(r.beats.diving.ops, 1)
+          + ' while it dives (' + dec(r.beats.diving.strokes, 1) + ' strokes, '
+          + dec(r.beats.diving.stamps, 1) + ' stamps); a gathering pack draws nothing at all, so '
+          + int(r.beats.gathering) + ' operations a frame is what ' + int(r.beats.bodies)
+          + ' bodies cost with no tell on them, across ' + r.beats.clumps + ' clumps');
+      }
     }
     console.log('');
     console.log('The walls the shipped game puts up, against the sentence:');

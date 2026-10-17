@@ -1825,6 +1825,10 @@ When every item above is ticked, go back to the first unchecked item of mileston
       scheduled scene stops at and the 200 endless may reach. Read `step ms` and `draw ms` there too while
       the plate is up - `crowdHoldOf` is capped by `bodiesCeil` and by nothing else, so if a real machine
       says 150 is too many the honest answer is a smaller share and not a raised ceiling.
+      **One more from session 153, same flight**: the ruler now holds a brood - three clumps of fourteen
+      swarmlings with their packs on - and reads 1,301 canvas operations a frame and 0.016 ms a step at
+      those 42 bodies, so when the swarm is thick on the plate a real flight can be compared against a
+      flock and not only against a crowd.
 - [x] Hunt for memory growth over a 30-minute simulated run.
       `tools/memory-hunt.js` is the hunt, and it is a check - it exits non-zero when something is
       accumulating. It flies the endless door for the thirty minutes (a sample a minute, the heap read

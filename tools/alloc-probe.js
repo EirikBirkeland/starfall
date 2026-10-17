@@ -6,6 +6,8 @@
 //   node tools/alloc-probe.js --scene endless                  one load only
 //   node tools/alloc-probe.js --kind sniper                    a crowd of one kind
 //   node tools/alloc-probe.js --kinds                          one row per kind, to price one body
+//                                                              against another - a price list, so it
+//                                                              measures and never gates
 //   node tools/alloc-probe.js --parts                          one row per list, so a byte can be
 //                                                              traced to the crowd, the shots or the
 //                                                              sparks
@@ -248,18 +250,43 @@ export function partLoads() {
   ].map((part) => ({ ...part, onGlass: true, mortal: false, kind: null, gated: false, id: 'part' }));
 }
 
+/**
+ * The name a row is printed under: the load's own, with the kind stamped on when the load was planted
+ * from one kind of body. Exported because it is the whole meaning of a `--kinds` row and it was being
+ * silently overwritten (see where the rows are built in `main`).
+ */
+export function rowName(load) {
+  return load.kind === null || load.kind === undefined || load.kind === ''
+    ? load.name : load.name + ' (all ' + load.kind + ')';
+}
+
 /** The loads a plain run measures: PLAN's four walls, or one of them, or one kind of body. */
 export function chosenLoads(opts) {
   if (opts.parts) return partLoads();
+  // A load is a *price list* - measured, printed, and not gated - when it is not a crowd the game can
+  // be asked to field: one kind of body on its own (the director mixes, and a kind is allowed to spend
+  // an object on purpose: the darter files a sound a step or two), or a scene that exists to be
+  // subtracted from another one (`noBytes`, whose bytes are the spark cap's and not the clump's - a
+  // clump is priced in operations, in tools/perf-probe.js). Everything over the per-body budget is
+  // still named under the table, so ungated is not the same as silent. Three kinds are over it today:
+  // the darter on its sounds, the shielder and the swarmling on something nobody has chased down yet.
+  const priceList = (scene, kind) => {
+    const load = settled(scene, undefined, undefined, kind);
+    if ((kind !== null && kind !== undefined) || scene.noBytes === true) load.gated = false;
+    return load;
+  };
   if (opts.bodies !== null || opts.shots !== null || opts.sparks !== null) {
+    // A load of your own: `customScene` builds it ungated, because nobody knows what you were asking.
     return [settled(customScene(opts), undefined, undefined, opts.kind)];
   }
   if (opts.kinds) {
-    return Object.keys(BALANCE.kinds).map((kind) => (
-      settled(SCENES.find((s) => s.id === 'schedule'), undefined, undefined, kind)));
+    return Object.keys(BALANCE.kinds).map((kind) => priceList(
+      SCENES.find((s) => s.id === 'schedule'), kind));
   }
-  return SCENES.filter((s) => opts.scene === null || s.id === opts.scene)
-    .map((s) => settled(s, undefined, undefined, opts.kind));
+  if (opts.scene !== null) {
+    return SCENES.filter((s) => s.id === opts.scene).map((s) => priceList(s, opts.kind));
+  }
+  return SCENES.filter((s) => s.noBytes !== true).map((s) => priceList(s, opts.kind));
 }
 
 // --- the window ---------------------------------------------------------------
@@ -581,6 +608,16 @@ function sceneTable(results) {
   );
 }
 
+/**
+ * Rows that are over the per-body budget without being walls: the price-list rows (`--kinds`, a named
+ * scene, a load of your own) are measured and not gated, because the crowd the game actually fields is
+ * gated as itself. But "measured and silent" is how a forty-byte body stays hidden behind a PASS, so
+ * every one of them that is over is named here in words instead of in a verdict.
+ */
+export function overBudgetRows(results) {
+  return results.filter((r) => !r.gated && r.perBody !== null && r.perBody > BODY_BYTES);
+}
+
 /** How long a young generation this wide lasts, played at this rate. */
 export function secondsPerYoungGeneration(bytesPerStep, youngBytes) {
   if (!(bytesPerStep > 0)) return Infinity;
@@ -639,9 +676,14 @@ async function main() {
   const results = [];
   for (const load of loads) {
     const reading = spawnChild(load, opts);
+    // The stamp goes *after* the reading, and that order is a fix and not a style point: the measuring
+    // child sends back a row of its own with the plain scene name in it, and spreading it after the
+    // stamped name used to overwrite the stamp - so `--kinds` printed nine rows all called "the
+    // schedule at full crowd" and a reader could not tell a 3-byte body from a 48-byte one.
     results.push({
-      name: load.name + (load.kind === null || load.kind === undefined ? '' : ' (all ' + load.kind + ')'),
-      id: load.id, gated: !!load.gated, floor: !!load.floor, ...reading,
+      ...reading,
+      name: rowName(load),
+      id: load.id, gated: !!load.gated, floor: !!load.floor,
       perBody: null,
       ok: reading.bytesPerStep <= STEP_BYTES,
     });
@@ -715,6 +757,12 @@ async function main() {
     if (slope) {
       console.log('  what a body costs: ' + bytes(slope.perBody) + ' a step, measured as '
         + int(slope.bodies) + ' bodies against an arena with none');
+    }
+    const pricey = overBudgetRows(results);
+    if (pricey.length > 0) {
+      console.log('  over the ' + bytes(BODY_BYTES) + ' a body, measured and not gated - a price list is'
+        + ' not a wall the game fields, but it is not a secret either: '
+        + pricey.map((r) => r.name + ' at ' + bytes(r.perBody)).join(', '));
     }
     if (opts.parts) {
       const byName = new Map(results.map((r) => [r.name, r]));
