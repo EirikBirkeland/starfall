@@ -17125,7 +17125,7 @@ session 153's second next-item, answered no.
 
 ### Left in the tree
 `tools/alloc-ablate.js` (16 rows, `--list/--kind/--row/--bare/--scene/--steps/--windows/--json/--keep` and
-the one-off `--edit`), `test/alloc-ablate.test.mjs` (8 tests: every row's text still exists, every row
+the one-off `--edit`), `test/alloc-ablate.test.mjs` (9 tests: every row's text still exists, every row
 leaves the copy parseable, a vanished needle is a problem and not a silence, the rows are named and about
 a kind that exists, the flag parser, `verdictOf`'s readings, and one real measurement - a shielder crowd
 dears by more than a kilobyte with its walks in and comes back under a quarter of that with them out), and
