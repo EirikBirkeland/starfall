@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.12",
+    "date": "2026-10-17",
+    "released": "2026-10-17T05:05:12.619Z",
+    "summary": "SHORT GRACE: a hit leaves half a second to get clear, not a second and a half",
+    "added": 2184,
+    "removed": 175,
+    "logBytes": 52530397
+  },
+  {
     "version": "1.9.11",
     "date": "2026-10-16",
     "released": "2026-10-16T22:01:57.001Z",
