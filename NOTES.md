@@ -18361,3 +18361,141 @@ no run can have moved than a re-flown reference would be: the game was not touch
 ### Released
 Nothing. `src/` was not touched: what changed is the instrument, and the game traces byte for byte what
 it traced at **1.9.15**.
+
+## Session 165 - the bot learned to give up on a walk it had started, and the giving up is what cost
+
+### What was on the shelf
+Tree clean at `8515989`, suite green at 2626. Session 164's Next item 1 carried it in one sentence:
+**patience - "a player who starts a 600 px walk and gives up when the crowd closes is not the same
+player as one who commits. A give-up timer is a `LOOT_HABITS` entry and a row in the ladder, and unlike
+this one it has a plausible route to buying something, because it makes the walk short instead of
+long."** The ladder could already rank *how far* the bot walks and *which pile* it picks; it had never
+been asked how long it keeps at it once it is going.
+
+### What landed
+1. **`impatient`, the third loot habit** (`tools/headless/loot.js`): the same walk with a memory. It
+   picks a pile the way `greedy` does, and then **keeps walking at that pile** until the pile leaves the
+   floor, or the walk has run `LOOT.patience` seconds, or the pile stops being walkable-to. A walk that
+   ends because the pile went is not a give-up; one that ends on the clock is, and it costs the ship the
+   same length of time out of the shopping afterwards - one dial, not two, because a give-up with no
+   price would be followed by setting off for the same pile again.
+2. **A fourth dial, `LOOT.patience` = 4 s**, swept by `tools/loot-habit.js --patience N`, and a
+   `WALK` memory (`shard`/`until`/`notBefore`) cleared between runs beside the `FORAGE` counters.
+   `walkableDistance(game, shard, speed)` came out of the body of `shardToWalkFor` into its own
+   function so that the committed walk can ask the *same* reach-and-rot question about the one pile it
+   is already walking to - a second copy of that test would have been a second rule waiting to drift.
+3. **`FORAGE.gaveUp`, reported per run** by `playOneRun` and printed by the ladder as a new
+   `gave up/run` column. Nothing else in a row can tell "this bot never gives up" from "this bot's
+   walks never last long enough to give up on", and that distinction turned out to be the whole finding.
+4. **The ladder now names which side won a seed split.** `pairs.js` prints the bigger half of a split
+   and lets the reader infer the side from the ratio printed beside it - and on this game the two
+   disagree constantly, so I had spent half an hour reading a `22 of 32` the wrong way round before
+   noticing. `sideWords()` now prints `25 of 40 for impatient` or `6 of 12 each way`, in both places a
+   split is printed, and a test insists a split never comes out unnamed again.
+5. **Tests: 2626 to 2631, all green.** A committed walk stays on its pile while `greedy` visibly changes
+   its mind (and it stays on a pile `greedy` would abandon *and* it does not chase a pile that has been
+   collected out of the pool - a stale-shard mutation died on that second half after it survived the
+   first); a walk that outstays its patience is abandoned and shuts the shopping for as long again,
+   then opens; both ends of the patience dial are controls (0 s never begins a trip, so `gaveUp` stays
+   0; a patience past any trip never ends one); a flown 120 s run with `patience 0` is trace-for-trace
+   the run of the bot with no habit at all; and two ladder CLI tests - a bad `--patience` refused before
+   a run is played, and a one-seed flight that flies all four rows, prints the column, and names the
+   side of its split.
+
+### Numbers
+Careless hand, `--seconds 300`. `greedy` on the 12-seed batches: middle death 3m41s, died 4/12, middle
+score **29,888**, **1,670** shards a run, the wheel on 45% of the frames. `off`: 3m39s, 9/12, **3,835**,
+**281** shards.
+
+| patience | middle score | shards/run | steered | gave up/run | `greedy` worth, per seed | the seeds |
+|---|---|---|---|---|---|---|
+| 0 s | 3,835 | 281 | 0% | 0.0 | byte for byte `off` | - |
+| 1 s | 27,068 | 1,469 | 28% | **75.5** | 1.06x | 6 each way, p = 1.000 |
+| 2 s | 18,069 | 1,327 | 29% | 40.1 | 1.72x | 7 of 12 for greedy, p = 0.774 |
+| 4 s (shipped) | 17,558 | 1,093 | 26% | 19.3 | 1.38x | **9 of 12 for greedy**, p = 0.146 |
+| 8 s | 27,644 | 1,313 | 39% | 6.3 | 1.93x | 7 of 12 for greedy, p = 0.774 |
+| 16 s | 32,231 | 1,978 | 47% | 0.4 | 0.91x | **7 of 12 for impatient**, p = 0.774 |
+| 100000 s | 32,231 | 2,008 | 50% | 0.0 | 0.91x | **8 of 12 for impatient**, p = 0.388 |
+
+The same habit with the fuse off entirely (`--patience 100000`), on wider batches: 32 seeds **32,593**
+and 2,106 shards against `greedy`'s 29,888 and 1,784 (22 of 32, p = 0.050); 40 seeds **32,187** and
+1,963 against 30,592 and 1,908 (**25 of 40 for `impatient`**, p = 0.154); 64 seeds **32,187** and 2,005
+against 30,592 and 1,813, dying 20 of 64 to `greedy`'s 23 and taking **38 of the 64 seeds** (p = 0.169).
+Note that `greedy`'s middle was the *same* 30,592 at 40 and at 64 seeds - session 164's "one run's score
+standing in two middles", again.
+
+So there are two findings and they pull apart. **The give-up costs**, and expensively: every patience
+where the rule actually fires came in under `greedy` on both readings, and the arithmetic of why is
+plain - the give-up and the sulking after it are the same dial, so the sulking a row pays is its
+give-ups times its patience, which is 75 s, 80 s and 77 s of a 300 s run at 1 s, 2 s and 4 s. A quarter
+of every run spent not going anywhere, and the loot column is a fifth to a third short to match
+(1,093-1,469 shards a run against 1,670), with the wheel on 26-39% of frames instead of 45%.
+
+**The sticking is worth a lean.** With no fuse at all - `--patience 100000`, which is the same habit
+minus the rule it is named for - the row led `greedy` on all four batches it was flown on and on both
+readings on every one of them: +8% on 12 seeds with 8 of the 12 seeds, +9% on 32, +5% on 40 with 25 of
+40, +5% on 64 with **38 of 64**, and 5-18% more of the loot banked. The gate never tripped once, because
+the middles never passed 1.09x where it wants 1.1x and no named split got nearer to shown than p = 0.154
+where it wants 0.05. `greedy` is still what `--loot`
+means and the ladder says so without failing on it.
+
+`patience: 4` is shipped for two reasons and neither is that it won: it is under `shards.life` (12 s),
+so the rule the habit is named for is the one that ends a walk rather than the rotting rule getting
+there first - at 16 s the give-up fires half a time a run, at 4 s nineteen times - and it is a time a
+person would really give a pile across the middle of the arena. `test/loot-habit.test.mjs` pins the
+first of those.
+
+### Verification
+`node --test` **2626 to 2631, all green**. `node tools/loot-habit.js --strict` on the shipped defaults:
+PASS, exit 0, with `impatient` flown as the fourth row at 17,558 / 1,093 shards / 19.3 give-ups and the
+head-to-head still a lean and nothing more. `node --check` on all five files touched.
+`git diff --stat -- src/` at commit time is **empty** again: the game was not touched, so every run that
+existed before this session traces byte for byte what it traced at **1.9.15**, and every number above
+is comparable with the ones session 164 wrote down.
+Four mutations were run against the new rule and all four died: never giving up (the committed-walk test
+saw the ship still walking at a pile after its time was up); giving up without paying the sulk for it;
+re-choosing the pile every frame while leaving the give-up timer in - i.e. no commitment at all; and
+keeping a walk going after the pile it is aimed at had been collected out of the pool. The last of those
+needed the committed-walk test to be strengthened first: the ship reached the shard and banked it, which
+the old version of the test read as a success, so it now also flies a hundred frames *past* a pile that
+was taken and insists the habit is not still walking at it.
+
+### Surprises and lessons
+1. **I read a seed split the wrong way round for twenty minutes.** The ladder printed `22 of 32, p =
+   0.050` beside `the shipped habit is worth 0.95x of it` and I took the 22 as `greedy`'s, which made
+   the two statistics contradict and the row look like a loss. It was `impatient`'s, and the row was a
+   win on both readings. A split with no side on it is a number that can be read backwards, and it was
+   the third place in the file that did it, so now the file names the side wherever it prints a split.
+2. **The control at the dial's end is what made this readable.** That `patience 0` came back *byte for
+   byte* the `off` row - score, shards, and trace - is what lets the whole sweep be read as "everything
+   between `off` and a committed walk belongs to giving up", the same trick `--crowd 0` gave `wary`.
+   Session 164's lesson 2, paid back in the first session that used it.
+3. **A counter nobody prints would have hidden the finding.** `gave up/run` gates nothing and fails
+   nothing, and it is the only column that says whether the fuse is even lit: 16 s and 100000 s have
+   nearly the same row and quite different rules, and without it the two would be the same row read two
+   ways. Met session 162's "print what you refuse to gate on" from the same side for once.
+4. **Four batches agreeing in direction is not four confirmations.** The committed walk leaned +8%, +9%,
+   +5%, +5% as the batch went 12, 32, 40, 64 - and two of those four middles were the same single run
+   standing in twice. What is recorded is a lean that four sizes refused to show, not a win the gate
+   withheld.
+5. The patience sweep is **not monotonic** in the score column (18,069 at 2 s and 32,231 at 16 s with
+   everything in between wandering), which on this hand is noise, and is another reminder that a middle
+   on 12 seeds is worth a factor of two. The seed pairs behaved; the middles did not.
+
+### Next
+1. **`committed` as a habit of its own** - this walk with no fuse and no sulk - flown beside `off` at 64
+   seeds or wider, where a 5% edge either shows or dies. Four batches leaned its way and the gate
+   refused all four; it is the first rival since the walk itself to lead `greedy` on both statistics,
+   and if it ever crosses it is one line in `tools/headless/loot.js`. Do not ship it on this session's
+   numbers: the widest flight shrank it to a tie, and the ladder's own note about ±25% middles is why.
+2. If `committed` is flown, it wants `--loot` on the other four ladders too (carried over since session
+   161) before any quote crosses a ladder.
+3. Everything else carried over, unchanged: **decide which hand the challenge sheet speaks for**,
+   re-flying the seven ordinary quotes when the game moves, NO DASH's missing hand, the ablate
+   catalogue's `--scene brood` pass, the shot-speed line, the `tierBonus.telegraph` sentence in PLAN,
+   whether the first two minutes are too harsh, `--live --weapon swarm`, session 163's unattributed
+   ~110 B a step, and the browser half of the performance pass, which only the owner can take.
+
+### Released
+Nothing. `src/` was not touched: what changed is the instrument, and the game traces byte for byte what
+it traced at **1.9.15**.

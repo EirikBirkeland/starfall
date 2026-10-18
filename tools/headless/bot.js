@@ -846,6 +846,10 @@ export function playOneRun(game, options) {
     // asked for, and 0 when one was asked for and never found a shard worth walking to - which are
     // two different things a ladder has to be able to tell apart.
     foraged: FORAGE.steered,
+    // How many walks the habit gave up on (tools/headless/loot.js, `impatient`). Only the third
+    // habit can move this, and a row of them that never did is a patience so long nothing ever ran
+    // out - which is a committed walk, not a give-up, and has to be readable as that.
+    gaveUp: FORAGE.gaveUp,
     seconds: +(frames * FRAME_MS / 1000).toFixed(2),
     stats: game.stats(),
     screen: game.screen,

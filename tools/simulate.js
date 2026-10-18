@@ -16,7 +16,7 @@
 //   node tools/simulate.js --loot              let the bot go and get its own loot instead of
 //                                              letting the shard net bring it to it (tools/
 //                                              headless/loot.js; tools/loot-habit.js compares
-//                                              the habits: off, greedy, wary)
+//                                              the habits: off, greedy, wary, impatient)
 //   node tools/simulate.js --loot-habit off    the same habit switched back off by name
 //   node tools/simulate.js --weapon scatter    fly another primary (game/weapons.js: pulse,
 //                                              scatter, arc, lance, swarm)

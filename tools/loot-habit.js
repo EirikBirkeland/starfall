@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Whether the bot goes and gets its own loot, how far it will walk for it, which pile it picks, and
-// what any of that is worth. A check and not a decoration: with `--strict` it exits non-zero when the
-// habit `tools/headless/loot.js` ships does not bank more shards than the same bot standing still,
-// costs it score, or is beaten by another way of walking flown in the same batch.
+// Whether the bot goes and gets its own loot, how far it will walk for it, which pile it picks, how
+// long it will keep walking for, and what any of that is worth. A check and not a decoration: with
+// `--strict` it exits non-zero when the habit `tools/headless/loot.js` ships does not bank more
+// shards than the same bot standing still, costs it score, or is beaten by another way of walking
+// flown in the same batch.
 //
 //   node tools/loot-habit.js                        the ladder, on the shipped defaults
 //   node tools/loot-habit.js --seeds 32             a wider batch (slower)
@@ -14,6 +15,8 @@
 //   node tools/loot-habit.js --grace 1              how much slack in judging whether it will rot
 //   node tools/loot-habit.js --crowd 200            how close a body has to be to count as sitting
 //                                               on the pile (`wary` only; 0 makes it `greedy`)
+//   node tools/loot-habit.js --patience 3           how many seconds a walk may run before the ship
+//                                               gives up on it (`impatient` only; 0 makes it `off`)
 //   node tools/loot-habit.js --no-dash              the bot never presses the dash
 //   node tools/loot-habit.js --strict               non-zero unless the shipped habit holds up
 //
@@ -50,12 +53,12 @@
 import { playBatches, POLICIES, PICKS } from './headless/bot.js';
 import { LOOT, LOOT_HABITS, DEFAULT_LOOT_HABIT, setLootDial } from './headless/loot.js';
 import { table, clock, int, dec, share } from './headless/tables.js';
-import { median, pairedRatio, pairWords, isBetter, isWorse } from './headless/pairs.js';
+import { median, pairedRatio, isBetter, isWorse } from './headless/pairs.js';
 
 const DEFAULTS = {
   seeds: 12,
   seconds: 300,
-  habits: 'off,greedy,wary',
+  habits: 'off,greedy,wary,impatient',
   // The careless pair of eyes with the shipped get-out dash, which is the hand `tools/
   // challenge-cost.js` prices the rules on and so the hand a loot habit has to be worth something
   // to. `aware` with wise picks is the one that beats the schedule: it dies too rarely for a
@@ -66,6 +69,7 @@ const DEFAULTS = {
   reach: null,
   grace: null,
   crowd: null,
+  patience: null,
   strict: false,
 };
 
@@ -73,6 +77,32 @@ const DEFAULTS = {
 const MIN_SEEDS = 8;
 /** How much worse the shipped habit may read than standing still before it is a failure. */
 const TIE_RATIO = 1.1;
+
+/** The one-sidedness of a split, as a p worth printing. */
+function pWords(p) {
+  return p < 0.001 ? '<0.001' : p.toFixed(3);
+}
+
+/**
+ * The seeds' split with its side named: `22 of 32 for greedy, p = 0.050`.
+ *
+ * `pairs.js` prints the bigger half of the split and leaves the side to be inferred from the ratio
+ * beside it, which is a riddle when the two disagree - and with a game this long-tailed they disagree
+ * more often than not: a middle can lean one way on one run's score while most seeds lean the other.
+ * Between two habits rather than a habit and a floor there is no column to infer the side from, so
+ * this file names it.
+ */
+function sideWords(pair, left, right) {
+  if (pair.compared === 0) {
+    return 'none of the ' + pair.seeds + ' seeds it shared could be compared';
+  }
+  if (pair.wins === pair.losses) {
+    return pair.wins + ' of ' + pair.compared + ' each way, p = ' + pWords(pair.p);
+  }
+  const winner = pair.wins > pair.losses ? left : right;
+  return Math.max(pair.wins, pair.losses) + ' of ' + pair.compared + ' for ' + winner
+    + ', p = ' + pWords(pair.p);
+}
 
 function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS);
@@ -88,6 +118,7 @@ function readArgs(argv) {
     else if (arg === '--reach') opts.reach = Number(next());
     else if (arg === '--grace') opts.grace = Number(next());
     else if (arg === '--crowd') opts.crowd = Number(next());
+    else if (arg === '--patience') opts.patience = Number(next());
     else if (arg === '--strict') opts.strict = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -110,9 +141,10 @@ function readArgs(argv) {
     console.error('--picks wants one of: ' + Object.keys(PICKS).join(', '));
     process.exit(2);
   }
-  for (const value of [opts.reach, opts.grace, opts.crowd]) {
+  for (const value of [opts.reach, opts.grace, opts.crowd, opts.patience]) {
     if (value !== null && !(value >= 0)) {
-      console.error('--reach and --crowd want a number of pixels and --grace a number of seconds');
+      console.error('--reach and --crowd want a number of pixels, --grace and --patience a number '
+        + 'of seconds');
       process.exit(2);
     }
   }
@@ -151,6 +183,7 @@ async function measure(opts) {
           // that banks no more than `off` never went anywhere.
           shards: total((s) => s.stats.collected),
           steered: total((s) => s.foraged),
+          gaveUp: total((s) => s.gaveUp),
           frames: frames,
           level: median(finished.map((s) => s.stats.level)),
           hulls: total((s) => s.tally.hullLost),
@@ -171,6 +204,7 @@ const dial = {};
 if (opts.reach !== null) dial.reach = opts.reach;
 if (opts.grace !== null) dial.grace = opts.grace;
 if (opts.crowd !== null) dial.crowd = opts.crowd;
+if (opts.patience !== null) dial.patience = opts.patience;
 if (Object.keys(dial).length > 0) setLootDial(dial);
 const rows = await measure(opts);
 
@@ -181,21 +215,24 @@ const title = 'the loot habits, on ' + opts.seeds + ' seeds of ' + clock(opts.se
   + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
   + (opts.reach === null ? '' : ', a shard within ' + opts.reach + ' px worth walking for')
   + (opts.grace === null ? '' : ', ' + dec(opts.grace, 1) + 's of slack on a shard rotting')
-  + (opts.crowd === null ? '' : ', a body within ' + opts.crowd + ' px of a pile counts as on it');
+  + (opts.crowd === null ? '' : ', a body within ' + opts.crowd + ' px of a pile counts as on it')
+  + (opts.patience === null ? '' : ', a walk over ' + dec(opts.patience, 1) + ' s is given up on');
 const note = 'Each row is the same seeds flown with one way of spending an idle second. `off` is the\n'
   + 'bot the net feeds - drift to the middle, let the loot come - and it is the floor a habit is\n'
   + 'measured against, not a habit a person has. `middle death` is the middle of the runs that died;\n'
   + 'a batch that never died has no middle and shows a dash. `vs off` is the middle score against\n'
   + 'that floor and `off won` the pair under it - of the seeds that could tell the two runs apart,\n'
   + 'how many the standing-still run scored higher on. `shards/run` is every shard the batch banked\n'
-  + 'divided by its runs, and `steered` what share of the frames flown the habit had the wheel.\n'
-  + '`greedy` walks for the best value in reach whatever is standing on it; `wary` discounts a pile\n'
-  + 'for every body sitting on it, which is the difference between a person choosing a pile and a\n'
-  + 'ray-tracer walking into a crowd.';
+  + 'divided by its runs, `steered` what share of the frames flown the habit had the wheel, and\n'
+  + '`gave up/run` how many walks a row abandoned on purpose. `greedy` walks for the best value in\n'
+  + 'reach whatever is standing on it and re-decides every frame; `wary` discounts a pile for every\n'
+  + 'body sitting on it, which is the difference between a person choosing a pile and a ray-tracer\n'
+  + 'walking into a crowd; `impatient` picks one pile and sticks with it, but gives up on a trip that\n'
+  + 'drags and stays out of the shopping for as long again.';
 console.log(table(title, note,
-  ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
+  ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
   ['habit', 'middle death', 'died', 'middle score', 'vs off', 'off won', 'shards/run', 'steered',
-    'level'],
+    'gave up/run', 'level'],
   rows.map((row) => {
     const pair = plain === undefined || row === plain ? null : pairedRatio(row.bySeed, plain.bySeed);
     return [
@@ -208,6 +245,7 @@ console.log(table(title, note,
       pair === null ? '-' : (pair.compared === 0 ? '0/0' : pair.losses + '/' + pair.compared),
       dec(row.shards / opts.seeds, 0),
       share(row.steered, row.frames),
+      dec(row.gaveUp / opts.seeds, 1),
       String(row.level),
     ];
   })));
@@ -232,21 +270,25 @@ const asText = (row) => (row.middleDeath === null
 const pair = pairedRatio(shipped.bySeed, plain.bySeed);
 
 console.log('The shipped habit is `' + DEFAULT_LOOT_HABIT + '` (marked *) at ' + asText(shipped)
-  + ', banked ' + dec(shipped.shards / opts.seeds, 0) + ' shards a run and had the wheel on '
-  + share(shipped.steered, shipped.frames) + ' of the frames flown.');
+  + ', banked ' + dec(shipped.shards / opts.seeds, 0) + ' shards a run, had the wheel on '
+  + share(shipped.steered, shipped.frames) + ' of the frames flown and gave up '
+  + dec(shipped.gaveUp / opts.seeds, 1) + ' walks a run.');
 console.log('The same bot leaving the loot on the floor (`off`) middles at ' + asText(plain)
   + ' and banked ' + dec(plain.shards / opts.seeds, 0) + ' a run. Counted seed against seed, the '
   + 'walk is worth ' + (pair.medianRatio === null ? 'nothing to divide'
-    : dec(pair.medianRatio, 2) + 'x a run per seed') + ' and the seeds say ' + pairWords(pair)
+    : dec(pair.medianRatio, 2) + 'x a run per seed') + ' and the seeds say ' + sideWords(pair,
+      'the walk', 'standing still')
   + (isBetter(pair) ? ' - a difference they showed.' : ' - a lean, and nothing more.'));
-if (opts.reach !== null || opts.grace !== null || opts.crowd !== null) {
+if (opts.reach !== null || opts.grace !== null || opts.crowd !== null || opts.patience !== null) {
   console.log('note: this flight swept '
     + (opts.reach === null ? '' : '--reach ' + opts.reach + ' ')
     + (opts.grace === null ? '' : '--grace ' + opts.grace + ' ')
     + (opts.crowd === null ? '' : '--crowd ' + opts.crowd + ' ')
+    + (opts.patience === null ? '' : '--patience ' + opts.patience + ' ')
     + ', which are not the shipped numbers (' + LOOT.reach + ' px, ' + LOOT.grace + 's'
-    + ', ' + LOOT.crowd + ' px). A verdict here is a verdict about the sweep: write the winner into'
-    + ' tools/headless/loot.js and re-fly it clean, or it is a number nobody can quote.');
+    + ', ' + LOOT.crowd + ' px, ' + LOOT.patience + 's). A verdict here is a verdict about the '
+    + 'sweep: write the winner into tools/headless/loot.js and re-fly it clean, or it is a number '
+    + 'nobody can quote.');
 }
 
 let failures = 0;
@@ -289,9 +331,11 @@ if (rivals.length > 0) {
   console.log('');
   console.log('Head to head against `' + rival.habit + '`, the best-scoring other way of walking: '
     + asText(rival) + ', banked ' + dec(rival.shards / opts.seeds, 0) + ' shards a run, wheel on '
-    + share(rival.steered, rival.frames) + ' of the frames flown. Counted seed against seed the '
+    + share(rival.steered, rival.frames) + ' of the frames flown, '
+    + dec(rival.gaveUp / opts.seeds, 1) + ' walks given up. Counted seed against seed the '
     + 'shipped habit is worth ' + (head.medianRatio === null ? 'nothing to divide'
-      : dec(head.medianRatio, 2) + 'x') + ' of it, and the seeds say ' + pairWords(head) + ' - '
+      : dec(head.medianRatio, 2) + 'x') + ' of it, and the seeds say '
+    + sideWords(head, DEFAULT_LOOT_HABIT, rival.habit) + ' - '
     + (isBetter(head) ? 'the shipped habit showed it.'
       : isWorse(head) ? '`' + rival.habit + '` showed it.' : 'a lean, and nothing more.'));
   if (opts.seeds >= MIN_SEEDS && rival.habit !== DEFAULT_LOOT_HABIT

@@ -83,11 +83,61 @@
  * column - 250 px banked **1,859** shards a run against `greedy`'s **1,784** on those 32 seeds, and
  * died **9 of 32** against its **11** - so that is the number shipped, on the only column that can
  * see it, with the score column in a tie.
+ *
+ * `patience` belongs to the third habit, `impatient`, and it is a length of time and not a distance:
+ * how long a walk may run before the ship gives up on it.
+ *
+ * What the sweep found (2026-10-17, careless hand, `--seconds 300`; `gave up` is walks abandoned per
+ * run, and the last two columns are `greedy` against that row, seed against seed, with the side the
+ * seeds went to named). `greedy` middled **29,888** on the 12-seed batches (1,670 shards a run, the
+ * wheel on 45% of the frames flown), and `off` - the bot that never goes anywhere - **3,835**:
+ *
+ *   * **0 s** - byte for byte the `off` row: 3,835, 281 shards, the wheel on nothing, and no walk ever
+ *     abandoned. A trip with no time in it is never begun.
+ *   * **1 s** - 27,068, 1,469 shards, 28% steered, **75.5** given up; `greedy` worth 1.06x per seed,
+ *     the seeds even at 6 each way (p = 1.000).
+ *   * **2 s** - 18,069, 1,327 shards, 40.1 given up; `greedy` 1.72x, the seeds 7 of 12 for it (p = 0.774).
+ *   * **4 s** - 17,558, 1,093 shards, 19.3 given up; `greedy` 1.38x, **9 of 12 for `greedy`** (p = 0.146).
+ *   * **8 s** - 27,644, 1,313 shards, 6.3 given up; `greedy` 1.93x, the seeds 7 of 12 for it (p = 0.774).
+ *   * **16 s** - 32,231, 1,978 shards, **0.4** given up; `greedy` worth only 0.91x of it, and **7 of 12
+ *     for `impatient`** (p = 0.774).
+ *   * **100000 s**, past any trip - the same habit with no fuse, which is a plain committed walk - read
+ *     32,231 and 2,008 shards, **8 of 12 for `impatient`** (p = 0.388).
+ *
+ * Two findings, and they pull opposite ways.
+ *
+ * **The give-up is not free**, and the reason is arithmetic rather than mysterious: the give-up and the
+ * sulking after it are the same dial, so what a row pays in sulking is its give-ups times its patience -
+ * 75 s at 1 s, 80 s at 2 s, 77 s at 4 s, about a quarter of a 300-second run spent not going anywhere,
+ * whichever of those three the dial was turned to. A sixth of a run at 8 s; by 16 s the bill has gone
+ * along with the rule that levied it. Every patience short enough for the rule to fire read under
+ * `greedy` on both readings, and the loot column says the same thing as the score column for once: 1,093
+ * to 1,469 shards a run wherever the rule fires against `greedy`'s 1,670, with the wheel on 26-39% of
+ * the frames instead of 45%. The least surprising sentence this ladder has ever printed.
+ *
+ * **The sticking behind it is worth a lean.** Take the fuse off entirely and the same habit led `greedy`
+ * on all four batches it was flown on and on both readings on every one of them: **+8%** on 12 seeds with
+ * 8 of the 12 seeds; **+9%** on 32 (32,593 against 29,888, 22 of 32, p = 0.050 - a flight from before
+ * this file named the side); **+5%** on 40 (32,187 against 30,592, **25 of 40 for `impatient`**, p =
+ * 0.154); and **+5%** on 64, where it banked 2,005 shards a run to `greedy`'s 1,813, died 20 of 64 to
+ * its 23, and took **38 of the 64 seeds** (p = 0.169). The gate never tripped once: the middles never
+ * passed 1.09x where it wants 1.1x, and no split that named its side got nearer to shown than p = 0.154.
+ * So `greedy` is still what `--loot` means and the ladder says so without failing on it - but four batch
+ * sizes pointing the same way on both statistics is not `wary`'s nothing, and what it asks for is a
+ * `committed` habit of its own, this walk with no fuse and no sulk, flown wide enough beside `off` that
+ * a 5% edge either shows or dies.
+ *
+ * 4 s is shipped for two reasons and neither is that it won. It is under `shards.life` (12 s), so the
+ * rule the habit is named for is the one that fires rather than the rotting rule getting there first -
+ * 16 s gives up half a walk a run, 4 s gives up nineteen - and `test/loot-habit.test.mjs` pins that.
+ * And it is a time a person would really give a pile across the middle of the arena, which is what the
+ * row is meant to be a picture of. `greedy` stays what `--loot` means.
  */
 export const LOOT = {
   reach: 700,
   grace: 0.4,
   crowd: 250,
+  patience: 4,
 };
 
 /** Put the habit's numbers over, the way `setDashDial` does the dash's (tools/loot-habit.js). */
@@ -104,41 +154,70 @@ export function setLootDial(dial) {
  * What the habit did on the run it is running. `steered` is how many times it answered the idle
  * question with a place to go, which is the difference between a habit that fired and a habit that
  * found nothing out there; `tools/loot-habit.js` reads it and `playOneRun` reports it per run.
+ *
+ * `gaveUp` is how many walks the third habit abandoned, and it is the only number that says the give-up
+ * rule ever fired at all: a batch of `impatient` that never gave up a walk is the same batch as a
+ * patience so long no trip ever ran out, and nothing else in the row can tell them apart.
  */
-export const FORAGE = { steered: 0 };
+export const FORAGE = { steered: 0, gaveUp: 0 };
 
-/** Start the count over for a new run. */
+/**
+ * What `impatient` remembers about the walk it is on: the pile it set off for, the run-clock reading
+ * at which it has had enough of the trip, and the reading before which it will not start another one.
+ * Cleared between runs with the counters above, because a walk is a thing that happens inside a run.
+ */
+const WALK = { shard: null, until: 0, notBefore: 0 };
+
+/** Start the count over for a new run, and forget any walk left over from the last one. */
 export function resetForage() {
   FORAGE.steered = 0;
+  FORAGE.gaveUp = 0;
+  WALK.shard = null;
+  WALK.until = 0;
+  WALK.notBefore = 0;
+}
+
+/**
+ * Whether this shard is worth walking to at all, answered as its distance in px or -1 for "no".
+ *
+ * Two things disqualify a shard. Beyond `reach` it is not worth leaving the middle for, whatever it is
+ * worth - that is the whole of the reach dial, and the whole of what the ladder sweeps. And a shard
+ * that will have rotted before the ship arrives is not on the floor any more, however close it looks:
+ * `life` is the game's clock on it and `distance / maxSpeed` is the fastest the ship could cover the
+ * ground, so a shard failing that test is one the ship would walk the length of the arena for and
+ * arrive at nothing.
+ *
+ * It is a function and not the body of the loop in `shardToWalkFor` because the third habit has to
+ * ask the same question about the one pile it is already walking to: a committed walk is only worth
+ * keeping while the pile it is aimed at is still worth walking to, and a second copy of the test would
+ * be a second rule waiting to drift.
+ */
+function walkableDistance(game, shard, speed) {
+  const ship = game.player;
+  const dx = shard.x - ship.x;
+  const dy = shard.y - ship.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 1 || d > LOOT.reach) return -1;
+  if (shard.life < d / speed + LOOT.grace) return -1;
+  return d;
 }
 
 /**
  * The shard worth walking to, or null when nothing out there is worth a walk.
  *
  * `valueOf(shard, distance)` is what the trip is worth, and it is the caller's, because that is the
- * one thing the habits disagree about (see `greedy` and `wary` below). Everything else here is the
- * same for both of them: which shards are even candidates, and the walk itself.
- *
- * Two things disqualify a shard before its value is counted. Beyond `reach` it is not worth leaving
- * the middle for, whatever it is worth - that is the whole of the dial, and the whole of what the
- * ladder sweeps. And a shard that will have rotted before the ship arrives is not on the floor any
- * more, however close it looks: `life` is the game's clock on it and `distance / maxSpeed` is the
- * fastest the ship could cover the ground, so a shard failing that test is one the ship would walk
- * the length of the arena for and arrive at nothing.
+ * one thing the habits disagree about (see `greedy`, `wary` and `impatient` below). Everything else is
+ * shared: which shards are candidates at all, and the walk itself.
  */
 function shardToWalkFor(game, valueOf) {
-  const ship = game.player;
-  const speed = ship.maxSpeed;
+  const speed = game.player.maxSpeed;
   const shards = game.world.shards;
   let best = null;
   let bestValue = 0;
   for (let i = 0; i < shards.count; i++) {
     const shard = shards.items[i];
-    const dx = shard.x - ship.x;
-    const dy = shard.y - ship.y;
-    const d = Math.sqrt(dx * dx + dy * dy);
-    if (d < 1 || d > LOOT.reach) continue;
-    if (shard.life < d / speed + LOOT.grace) continue;
+    const d = walkableDistance(game, shard, speed);
+    if (d < 0) continue;
     const value = valueOf(shard, d);
     if (value > bestValue) {
       bestValue = value;
@@ -232,11 +311,94 @@ export function forageWary(game) {
   return shard === null ? null : walkTo(game, shard);
 }
 
+/**
+ * Is this shard still one of the ones on the floor? A collected shard goes back to the pool and may be
+ * handed out again as a pile somewhere else entirely, so a remembered shard is not proof of anything;
+ * the live list is. The list is walked because that is what a pool offers - it is ~30 shards on
+ * average and 77 at the peak of a five-minute run, and it is asked once a frame on a frame the policy
+ * had nothing else to do, which is the same cost as one `bodiesOn` look.
+ */
+function stillOnTheFloor(shards, shard) {
+  for (let i = 0; i < shards.count; i++) {
+    if (shards.items[i] === shard) return true;
+  }
+  return false;
+}
+
+/**
+ * The third habit: set off for a pile, and give up if the trip drags.
+ *
+ * `greedy` and `wary` answer the idle question fresh every frame, which means a ship that set off for a
+ * pile 600 px away can be talked out of it by anything - a slightly better pile appearing behind it,
+ * its own dodge stealing a third of the frames - and can be talked back in again a second later. A
+ * person does not do that. They pick a pile, walk at it, and if they are still walking at it four
+ * seconds later they give up and go back to what they were doing, and they are not going to try for a
+ * pile again until they have stopped feeling silly about it.
+ *
+ * So this is the same walk with a memory, and the memory buys two things: **the walk is committed**
+ * (the pile picked at the start of the trip keeps the ship's attention until the trip ends, so two
+ * equal piles stop pulling it backwards and forwards) and **the walk is finite** (a trip over
+ * `patience` seconds is abandoned, and a failed trip costs the same length of time out of the shopping
+ * afterwards - one dial, not two, and the reason it costs something is that without a price a give-up
+ * is worthless, the ship would give up and immediately set off for the same pile again).
+ *
+ * A walk that ends because the pile went - banked, rotted, or walked out of reach - is not a give-up
+ * and is not counted as one. That is why `gaveUp` can be read as nerve rather than as arithmetic.
+ *
+ * Two things make whatever this habit measures attributable, in the same shape `--crowd 0` gives
+ * `wary`: at `patience` 0 no trip ever gets under way and the row is `off`, and at a patience longer
+ * than any trip the row is a committed walk with no give-up in it. Everything a middle in between says
+ * belongs to giving up.
+ *
+ * **And the give-up is worth nothing while the sticking behind it is worth a lean**, which is why
+ * `greedy` is still what `--loot` means. The sweep is written out under `LOOT.patience`: every patience
+ * short enough for the rule to fire often finished behind `greedy` on both readings, and the row it
+ * trails most soundly is the shipped one - 19 walks abandoned a run buys a third less banked loot. The
+ * half of the habit that does read like something is the commitment: with the fuse off entirely it led
+ * `greedy` on all four batches it was flown on, and on the widest of them banked 2,005 shards a run to
+ * `greedy`'s 1,813 while taking **38 of the 64 seeds** - and the gate refused it every time as a lean.
+ * The habit stays flown in the ladder because a habit nobody can rank is a habit nobody can defend, and
+ * because "the way you walk is free" is a finding that has to be re-taken whenever the game moves.
+ */
+export function forageImpatient(game) {
+  const now = game.world.elapsed;
+  if (WALK.shard !== null) {
+    const gone = !stillOnTheFloor(game.world.shards, WALK.shard);
+    if (gone || walkableDistance(game, WALK.shard, game.player.maxSpeed) < 0) {
+      WALK.shard = null;                    // the pile left; this is not the give-up below
+    } else if (now >= WALK.until) {
+      return giveUp(now);
+    }
+  }
+  if (WALK.shard === null) {
+    if (now < WALK.notBefore) return null;  // still sulking about the last one
+    const shard = shardToWalkFor(game, payPerPx);
+    if (shard === null) return null;
+    const until = now + LOOT.patience;
+    // A trip with no time left in it is not begun, so a patience of nothing is the bot that never
+    // went shopping (`off`) and not a bot that gives up every frame: nothing was ever abandoned.
+    if (until <= now) return null;
+    WALK.shard = shard;
+    WALK.until = until;
+  }
+  return walkTo(game, WALK.shard);
+}
+
+/** Abandon the walk, and stay out of the shopping for as long as the walk just took. */
+function giveUp(now) {
+  WALK.shard = null;
+  WALK.until = 0;
+  WALK.notBefore = now + LOOT.patience;
+  FORAGE.gaveUp++;
+  return null;
+}
+
 /** The habits by name, and the one `--loot` means. `off` is the bot that never went shopping. */
 export const LOOT_HABITS = {
   off: () => null,
   greedy: forage,
   wary: forageWary,
+  impatient: forageImpatient,
 };
 export const DEFAULT_LOOT_HABIT = 'greedy';
 
