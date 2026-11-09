@@ -1,5 +1,32 @@
 # Starfall — changelog
 
+## 1.9.16 — 2026-10-19
+Opened the game in a real browser (`playwright-core` + Chromium) for the first time since the stub DOM was
+built, and fixed the three layout bugs that were hiding behind the stub's lack of a layout engine.
+- **The title screen no longer paints `STARFALL` over the control list on windows under 950 px tall.**
+  `#logoBox`'s only child is the screen-reader heading (`position: absolute`), so its content floor in the
+  flex column was 0 px while the fourteen rows of `.controls` and four lines of `.standing` below it kept
+  their full height (~950 px). On any `1280x800`, `1366x768` or `1280x720` window Flexbox took the entire
+  overflow out of `#logoBox` first, collapsing it to `height: 0` so `measureLogo` dropped back to `home()`
+  and drew the neon `STARFALL` tubes across the top four rows of `.controls`. `.logo` now carries
+  `flex-shrink: 0` and the title column's gaps and key caps are sized for fourteen rows instead of ten.
+- **The Hangar's three racks (`SHIPS`, `PERKS`, `AWARDS`) now stand side by side on a desktop window at
+  full scale.** Unlike `.codex .rack` and `.pause .rack`, `.ship-list` and `.perk-list` had no width cap,
+  and a `flex-wrap: wrap` row whose second and third lines carry `flex: 1 0 100%` reports a `max-content`
+  width of all four spans on one line (~1,200 px) - so the three racks stacked into a 1,323 px column and
+  `fitHangar` shrank the whole shop to `scale(0.605)`. Capping `.ship-list` and `.perk-list` at `31ch` puts
+  all three racks on one row at `1280x720` and up, with no scaling needed.
+- **Portrait phones (`max-width: 640px`) fit both the title and the Hangar on the glass.** A portrait phone
+  is over 760 px tall, so `@media (max-height: 760px)` never fired while the narrow width wrapped the
+  control list under `#thumbRail` and clamped `#hangarBody` to 342 px wide before `fitPanel` scaled it to
+  0.6 (cutting `HANGAR`, `WISP`, `BULWARK` and the `CLOSE` chip off the top and bottom of the screen).
+  `@media (max-width: 640px)` reserves the rail's height on `#startScreen` and lays `.hangar-body` out at
+  580 px with a two-column award list so the whole shop fits inside a 390x844 screen.
+- **And the loot ladder (`tools/loot-habit.js`) grew its fourth habit, `committed`**, and flew it out to
+  128 seeds: the +5% lean from 64 seeds died (at 128 seeds `greedy` leads the middle 31,517 vs 30,607,
+  shards tie 1,879 vs 1,880, deaths tie 45 of 128 each, paired ratio 0.98x, p = 0.331). `greedy` stays what
+  `--loot` means.
+
 ## 1.9.15 — 2026-10-17
 The byte ruler got stricter and found a real one straight away: after about ten minutes of fighting the
 game was throwing away forty times the garbage it had always been measured at.

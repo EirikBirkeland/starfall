@@ -20,6 +20,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { bootGame } from '../tools/headless/harness.js';
@@ -190,4 +191,17 @@ test('an element that is not there does not move the mark', () => {
   assert.equal(after.x, before.x);
   assert.equal(after.y, before.y);
   assert.equal(after.cap, before.cap);
+});
+
+test('the box in the page refuses to be shrunk out of the column', () => {
+  // `#logoBox`'s only child is `.sr`, which is out of flow (`position: absolute`), so its content
+  // height in a flex column is 0 while every text block under it keeps its own height as its floor.
+  // Without `flex-shrink: 0` any window a pixel shorter than the whole column takes that pixel - and
+  // the next hundred - out of `#logoBox` first, until `rect.height === 0` and `measureLogo` above
+  // drops the word onto `home()`, straight across the control list.
+  const page = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const rule = /\.logo \{[\s\S]*?\}/.exec(page);
+  assert.ok(rule !== null, 'index.html styles .logo');
+  assert.match(rule[0], /flex-shrink:\s*0/,
+    '.logo lost flex-shrink: 0, so a short window will collapse #logoBox to 0 px');
 });

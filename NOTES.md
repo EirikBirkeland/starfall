@@ -18499,3 +18499,107 @@ was taken and insists the habit is not still walking at it.
 ### Released
 Nothing. `src/` was not touched: what changed is the instrument, and the game traces byte for byte what
 it traced at **1.9.15**.
+
+## Session 166 - `committed` flown out to 128 seeds (the 5% lean dies), and seeing the game in a real browser for the first time
+
+### What was on the shelf
+Two things were waiting in `git status`:
+1. An unfinished-but-passing `committed` loot habit (`tools/headless/loot.js`, `tools/loot-habit.js`,
+   `tools/simulate.js`, `test/loot-habit.test.mjs`) from an earlier interrupted session - `walkWithMemory`
+   factored out so `impatient` (`patience = LOOT.patience`) and `committed` (`patience = Infinity`) share
+   one implementation and differ by one number, plus two tests proving `committed` never gives up or
+   sulks and traces byte for byte `impatient` at `patience = 100000`.
+2. **`playwright-core` and Chromium**, added to the sandbox by the owner (`AGENTS.md`, `package.json`,
+   `.gitignore`), with `/work/game/` served at `http://localhost:8090/game/`.
+
+### Part 1: `committed` flown to 96 and 128 seeds
+Session 165 asked for `committed` to be flown past 64 seeds, where the +5% lean would either show or die.
+Flown on the careless hand (`human`, random picks, get-out dash, `--seconds 300`) out to 128 seeds:
+
+| seeds | `off` middle / shards / died | `greedy` middle / shards / died | `committed` middle / shards / died | `greedy` vs `committed` per seed | the seeds |
+|---|---|---|---|---|---|
+| 64 | 4,482 / 173 / 42 | 30,592 / 1,813 / 23 | 32,187 / 2,005 / 20 | 0.96x | 38 of 64 for `committed`, p = 0.169 |
+| 96 | 4,713 / 193 / 61 | 30,705 / 1,836 / 35 | 30,664 / 1,863 / 34 | 0.98x | 53 of 96 for `committed`, p = 0.358 |
+| 128 | 4,680 / 211 / 79 | **31,517** / **1,879** / **45** | **30,607** / **1,880** / **45** | **0.98x** | 70 of 128 for `committed`, p = 0.331 |
+
+**The 5% edge died.** By 96 seeds the middle score turned back to `greedy`, and at 128 seeds `greedy`
+leads the middle by 3% (31,517 vs 30,607), the loot column is a dead tie to a shard (**1,879 vs 1,880** a
+run), the deaths are a dead tie to a run (**45 of 128 each**), and the paired ratio sits at 0.98x (p =
+0.331). That is the third null in a row: whether you re-pick the pile every frame (`greedy`), discount
+for the crowd sitting on it (`wary`), or stick with the pile you set off for (`committed`), all three
+bank ~1,880 shards and score within 3% of each other while any of them is worth ~4.5-6.5x leaving the
+loot on the floor (`off`, 109 of 128 seeds for `greedy`, p < 0.001). Recorded on `forageCommitted` in
+`tools/headless/loot.js` and committed (`4a1462b`).
+
+### Part 2: what opening the game in Chromium found immediately
+For 165 sessions the stub DOM had no layout engine; every box measurement in `test/` was handed in via
+`layout: { logoBox: ..., hangarBody: ... }`. Opening `http://localhost:8090/game/` in real Chromium and
+reading the screenshots turned up **three layout bugs on the two screens every player sees first**:
+
+1. **The title screen (`#startScreen`) crushed `#logoBox` to `height: 0` on every window under ~950 px
+   tall (`1280x800`, `1366x768`, `1280x720`, `1440x900`, `390x844`), painting `STARFALL` straight across
+   the top four rows of `.controls`.**
+   *Why:* `.logo`'s only child is `.sr` (`position: absolute`), so its `min-height: auto` content floor
+   in a flex column is `0 px` while `.subtitle`, `.controls`, `.standing` and `.hint` all have text and keep
+   their full height as their floor. Meanwhile `.controls` had grown from 5 rows to **14 rows** (590 px
+   tall at the old `gap: 12px` and `.key { padding: 7px 12px }`), and `.standing` from 2 lines to 3-4,
+   taking the whole column to 952 px (978 px with a challenge active). Even inside `@media (max-height:
+   760px)` it was 779 px tall. So Flexbox took the entire overflow out of `.logo` first, shrinking
+   `#logoBox` to `height: 0`; `measureLogo` rejected `!(rect.height > 0)` and left `box = null`; and
+   `render/logo.js` fell back to `home()` (`y: 6%..22%`), drawing the neon `STARFALL` tubes directly over
+   `W A S D`, `MOUSE`, `HOLD LMB` and `SPACE / RMB` while `NEON ARENA SURVIVAL` sat at `y = 12` above the
+   logo.
+   *Fix:* `.logo` now carries `flex-shrink: 0` (held by a new test in `test/logo.test.mjs`) and
+   `height: clamp(52px, 11vh, 116px)`, and the gaps and key padding on `#startScreen` are sized for the
+   14-row list it actually holds today (`749 px` at `1280x800` with a challenge active, `663 px` at
+   `1280x720`, `731 px` at `1366x768`, `903 px` at `1920x1080`).
+
+2. **The Hangar (`#hangarScreen`) stacked `SHIPS`, `PERKS` and `AWARDS` into one 1,323 px vertical column
+   even on a wide desktop window, shrinking the whole shop to `scale(0.605)`.**
+   *Why:* `.codex .rack` (`max-width: 34ch`) and `.pause .rack` (`max-width: 36ch`) capped their columns
+   so `.racks` could stand them side by side; `.ship-list` and `.perk-list` had no cap. Because `.ship`
+   and `.perk` are `display: flex; flex-wrap: wrap` whose `.numbers` and `.price` lines carry `flex: 1 0
+   100%`, CSS Flexbox intrinsic sizing computes the `max-content` width of each row as all four spans
+   laid end to end on one line (`1,232 px` for `SHIPS`, `1,166 px` for `PERKS`) - and inherited
+   `text-align: center` from `.screen` centred the second and third lines across that 1,232 px box.
+   *Fix:* `.ship-list` and `.perk-list` are capped at `max-width: 31ch` (held by a new test in
+   `test/hangar-fit.test.mjs`), `.ship` and `.perk` are `text-align: left`, and their label span takes
+   `flex: 1` so it wraps beside the key cap instead of dropping under it. All three racks (`SHIPS` 298 px,
+   `PERKS` 298 px, `AWARDS` 503 px) now stand side by side on one row at `1280x720`, `1366x768`,
+   `1280x800` and `1920x1080`, at **full `scale(1)` (`transform: ""`)**.
+
+3. **On a portrait phone (`390x844` with touch), `#startScreen` spilled under `#thumbRail` and
+   `#hangarScreen` clipped `HANGAR`, `WISP`, `BULWARK` and the `CLOSE` chip off the top and bottom of the
+   screen.**
+   *Why:* a portrait phone is `844 px` tall, so `@media (max-height: 760px)` never fired while its `390
+   px` width wrapped half the control rows onto two lines and `#thumbRail` claimed the bottom ~110 px of
+   the glass; and in the Hangar, `#hangarBody` was clamped to `342 px` wide before `fitPanel` scaled it
+   by `0.6`, turning 30 awards into 65 lines (`1,980 px` tall, `1,188 px` at the `0.6` floor) inside a
+   `205 px`-wide strip down the middle of the phone.
+   *Fix:* `@media (max-width: 640px)` reserves the bottom `116 px` of `#startScreen` for the rail,
+   tightens the 14 control rows to fit above it (`logoTop: 142.5`, `hintBottom: 597.5`, `railTop: 732`),
+   and gives `.hangar-body` a `580 px` layout width with a two-column `.award-list` so `fitPanel` scales
+   the shop into `390x844` with `HANGAR` at `y = 16` and `CLOSE` at `y = 828`.
+
+### Verification
+- Verified in real Chromium via Playwright across five viewports (`1280x720`, `1366x768`, `1280x800`,
+  `1920x1080`, and `390x844` mobile touch), both by bounding-box assertions and by reading the rendered
+  PNG screenshots. Zero console errors, zero page errors.
+- `node --test`: **2631 -> 2635, all green** (including `contrast-check`, `death-cause`, `logo`,
+  `hangar-fit`, and all `thumb-*` suites).
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354` score, level 57,
+  3,898 kills, 4,998 shards).
+
+### Next
+1. **The browser half of the performance pass (`PLAN.md` line 1816)**, the last unchecked `[ ]` item in
+   `PLAN.md`! Now that Chromium is in the sandbox, we can open the game in Chromium, put up the F3 plate,
+   fly the endless door to `bodies 200 / 200`, the scheduled THICK CROWD wall at `150 / 150`, and the
+   42-body brood, and record what `step ms` and `draw ms` read on Chromium (noting that WebGL/canvas in
+   this container runs on SwiftShader software rendering, while `step ms` is real Chromium V8).
+2. Everything else carried over: `--loot` on the other four ladders, deciding which hand the challenge
+   sheet speaks for, NO DASH's missing hand, the ablate catalogue's `--scene brood` pass, the shot-speed
+   line, `tierBonus.telegraph` in PLAN, whether the first two minutes are too harsh, `--live --weapon
+   swarm`, and session 163's unattributed ~110 B a step.
+
+### Released
+Released **v1.9.16** with the real-browser title and Hangar layout fixes.

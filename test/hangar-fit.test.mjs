@@ -13,6 +13,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { bootGame, everyShipBought } from '../tools/headless/harness.js';
@@ -163,4 +164,18 @@ test('the pause is fitted the same way, because it is a third panel and not a di
   press('Escape');
   assert.equal(game.screen.pauseHidden, true, 'the run is on its own again');
   assert.equal(pause(), '', 'and a panel keeps no transform of its own while it is away');
+});
+
+test('the shop racks are capped in width like the codex and pause racks, so they can stand side by side', () => {
+  // `.ship` and `.perk` are `flex-wrap: wrap` rows whose `.numbers` and `.price` lines carry
+  // `flex: 1 0 100%`. In CSS Flexbox intrinsic sizing, a wrapping row's `max-content` width is the
+  // sum of all four spans on one line (~1,200 px), so without a `max-width` cap on `.ship-list` and
+  // `.perk-list` the three racks in `.racks` never fit side by side on a desktop window and stack
+  // into a 1,300 px column instead.
+  const page = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const shipList = /\.ship-list \{[^}]*\}/.exec(page);
+  const perkList = /\.perk-list \{[^}]*\}/.exec(page);
+  assert.ok(shipList !== null && perkList !== null, 'index.html styles both shop lists');
+  assert.match(shipList[0], /max-width:\s*\d+ch/, '.ship-list lost its width cap');
+  assert.match(perkList[0], /max-width:\s*\d+ch/, '.perk-list lost its width cap');
 });
