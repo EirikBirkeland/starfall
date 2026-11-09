@@ -87,3 +87,19 @@ The owner's desktop has an RTX 5090 running Gemma 4 31B, and you may use it as a
 - Good for self-contained jobs that fit in one message: draft one function or one test from a short spec, review a diff, summarise a long log.
 - It sees only what you paste. Whatever it returns is a draft: read it, run the checks, and fix it before you commit.
 - If it does not answer, carry on without it. It is the owner's work machine and is not always free.
+
+## Seeing it in a browser
+
+`playwright-core` is installed in this folder (a dev dependency, never shipped). With it you can run the real thing in headless Chromium: load the page, read its console errors, press keys, click, and take screenshots, which you can then open and look at.
+
+```js
+import { chromium } from "playwright-core";
+
+const browser = await chromium.launch({
+  executablePath: "/usr/bin/chromium",
+  args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+});
+const page = await browser.newPage();
+```
+
+This sandbox has no GPU: WebGL is drawn in software, so it works but slowly. The sandbox's web server serves `/work` on port 8090, so this folder is at `http://localhost:8090/<folder>/`.

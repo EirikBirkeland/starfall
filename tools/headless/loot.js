@@ -85,7 +85,8 @@
  * see it, with the score column in a tie.
  *
  * `patience` belongs to the third habit, `impatient`, and it is a length of time and not a distance:
- * how long a walk may run before the ship gives up on it.
+ * how long a walk may run before the ship gives up on it. The fourth habit, `committed`, is the same
+ * walk with this dial taken off the clock, so it reads it never.
  *
  * What the sweep found (2026-10-17, careless hand, `--seconds 300`; `gave up` is walks abandoned per
  * run, and the last two columns are `greedy` against that row, seed against seed, with the side the
@@ -155,9 +156,10 @@ export function setLootDial(dial) {
  * question with a place to go, which is the difference between a habit that fired and a habit that
  * found nothing out there; `tools/loot-habit.js` reads it and `playOneRun` reports it per run.
  *
- * `gaveUp` is how many walks the third habit abandoned, and it is the only number that says the give-up
+ * `gaveUp` is how many walks `impatient` abandoned, and it is the only number that says the give-up
  * rule ever fired at all: a batch of `impatient` that never gave up a walk is the same batch as a
- * patience so long no trip ever ran out, and nothing else in the row can tell them apart.
+ * patience so long no trip ever ran out, and nothing else in the row can tell them apart. `committed`
+ * shares the walk and has no give-up in it, so its row is read on `steered` alone.
  */
 export const FORAGE = { steered: 0, gaveUp: 0 };
 
@@ -187,10 +189,10 @@ export function resetForage() {
  * ground, so a shard failing that test is one the ship would walk the length of the arena for and
  * arrive at nothing.
  *
- * It is a function and not the body of the loop in `shardToWalkFor` because the third habit has to
- * ask the same question about the one pile it is already walking to: a committed walk is only worth
- * keeping while the pile it is aimed at is still worth walking to, and a second copy of the test would
- * be a second rule waiting to drift.
+ * It is a function and not the body of the loop in `shardToWalkFor` because the habits with a memory
+ * have to ask the same question about the one pile they are already walking to: a committed walk is
+ * only worth keeping while the pile it is aimed at is still worth walking to, and a second copy of
+ * the test would be a second rule waiting to drift.
  */
 function walkableDistance(game, shard, speed) {
   const ship = game.player;
@@ -206,8 +208,9 @@ function walkableDistance(game, shard, speed) {
  * The shard worth walking to, or null when nothing out there is worth a walk.
  *
  * `valueOf(shard, distance)` is what the trip is worth, and it is the caller's, because that is the
- * one thing the habits disagree about (see `greedy`, `wary` and `impatient` below). Everything else is
- * shared: which shards are candidates at all, and the walk itself.
+ * one thing the first three habits disagree about (see `greedy`, `wary` and `impatient` below). The
+ * fourth agrees with `greedy` about the pile and disagrees about everything else. Everything the
+ * habits agree on is shared: which shards are candidates at all, and the walk itself.
  */
 function shardToWalkFor(game, valueOf) {
   const speed = game.player.maxSpeed;
@@ -326,6 +329,44 @@ function stillOnTheFloor(shards, shard) {
 }
 
 /**
+ * The walk with a memory, which is the half that `impatient` and `committed` have in common.
+ *
+ * `patience` is how long a trip may run before the ship has had enough of it, and `Infinity` is a
+ * walk that never runs out. That is the *only* thing the two habits disagree about, which is why they
+ * share this function rather than each carrying a copy of it: a rival that differs from its
+ * neighbour by one rule is a comparison, and one that differs by an implementation is a second
+ * ladder waiting to drift.
+ *
+ * The memory buys two things, and they are separable only because this function takes them apart:
+ * **the walk is committed** - the pile picked at the start of the trip keeps the ship's attention
+ * until the trip ends, so two equal piles stop pulling it backwards and forwards - and, with a
+ * patience that can be spent, **the walk is finite**, at a price (see `giveUp`).
+ */
+function walkWithMemory(game, patience) {
+  const now = game.world.elapsed;
+  if (WALK.shard !== null) {
+    const gone = !stillOnTheFloor(game.world.shards, WALK.shard);
+    if (gone || walkableDistance(game, WALK.shard, game.player.maxSpeed) < 0) {
+      WALK.shard = null;                    // the pile left; this is not the give-up below
+    } else if (now >= WALK.until) {
+      return giveUp(now);
+    }
+  }
+  if (WALK.shard === null) {
+    if (now < WALK.notBefore) return null;  // still sulking about the last one
+    const shard = shardToWalkFor(game, payPerPx);
+    if (shard === null) return null;
+    const until = now + patience;
+    // A trip with no time left in it is not begun, so a patience of nothing is the bot that never
+    // went shopping (`off`) and not a bot that gives up every frame: nothing was ever abandoned.
+    if (until <= now) return null;
+    WALK.shard = shard;
+    WALK.until = until;
+  }
+  return walkTo(game, WALK.shard);
+}
+
+/**
  * The third habit: set off for a pile, and give up if the trip drags.
  *
  * `greedy` and `wary` answer the idle question fresh every frame, which means a ship that set off for a
@@ -347,8 +388,9 @@ function stillOnTheFloor(shards, shard) {
  *
  * Two things make whatever this habit measures attributable, in the same shape `--crowd 0` gives
  * `wary`: at `patience` 0 no trip ever gets under way and the row is `off`, and at a patience longer
- * than any trip the row is a committed walk with no give-up in it. Everything a middle in between says
- * belongs to giving up.
+ * than any trip the row is a committed walk with no give-up in it - which is `committed`, and a
+ * flown run of the two at that dial is trace for trace one run (`test/loot-habit.test.mjs`).
+ * Everything a middle in between says belongs to giving up.
  *
  * **And the give-up is worth nothing while the sticking behind it is worth a lean**, which is why
  * `greedy` is still what `--loot` means. The sweep is written out under `LOOT.patience`: every patience
@@ -361,27 +403,33 @@ function stillOnTheFloor(shards, shard) {
  * because "the way you walk is free" is a finding that has to be re-taken whenever the game moves.
  */
 export function forageImpatient(game) {
-  const now = game.world.elapsed;
-  if (WALK.shard !== null) {
-    const gone = !stillOnTheFloor(game.world.shards, WALK.shard);
-    if (gone || walkableDistance(game, WALK.shard, game.player.maxSpeed) < 0) {
-      WALK.shard = null;                    // the pile left; this is not the give-up below
-    } else if (now >= WALK.until) {
-      return giveUp(now);
-    }
-  }
-  if (WALK.shard === null) {
-    if (now < WALK.notBefore) return null;  // still sulking about the last one
-    const shard = shardToWalkFor(game, payPerPx);
-    if (shard === null) return null;
-    const until = now + LOOT.patience;
-    // A trip with no time left in it is not begun, so a patience of nothing is the bot that never
-    // went shopping (`off`) and not a bot that gives up every frame: nothing was ever abandoned.
-    if (until <= now) return null;
-    WALK.shard = shard;
-    WALK.until = until;
-  }
-  return walkTo(game, WALK.shard);
+  return walkWithMemory(game, LOOT.patience);
+}
+
+/**
+ * The fourth habit: the same committed walk with no fuse in it. Set off for a pile, and stay on it
+ * until the pile leaves the floor - banked, rotted, or walked out of `reach` - and then go shopping
+ * again at once, with no sulking about a trip that never happened.
+ *
+ * This is `impatient` with `patience` taken off the clock altogether, which is what makes it worth a
+ * row of its own instead of a sweep value: the patience sweep came back with every patience short
+ * enough for the give-up to fire landing under `greedy`, and the one row that led it was the one
+ * where the rule named in the habit's own title never fired once (see `LOOT.patience`). So the
+ * question the third habit was built to ask turned out not to be about giving up at all, and the
+ * commitment needs a name of its own to be flown against `greedy` without a give-up in the way.
+ *
+ * Nothing here is shipped on the strength of that lean, and the wider flight killed it. Session 165
+ * flew the same walk as `--patience 100000` up to 64 seeds and it led `greedy` on both readings on all
+ * four batches (+8%, +9%, +5%, +5%, taking 38 of 64 seeds, p = 0.169); flown as `committed` to **96**
+ * and **128** seeds the middles turned back (`greedy` 30,705 vs 30,664 at 96 and **31,517 vs 30,607**
+ * at 128), the loot column tied to a shard (**1,879 vs 1,880** a run at 128), the deaths tied to a run
+ * (**45 of 128 each**), and the paired ratio settled at **0.98x** (70 of 128 for `committed`, p =
+ * 0.331). It is the third null: whether you re-pick every frame, walk round the crowd, or stick with
+ * the pile you set off for, all three bank ~1,880 shards and score within 3% of each other while any
+ * of them is worth ~4.5-6.5x leaving the loot on the floor. `greedy` stays what `--loot` means.
+ */
+export function forageCommitted(game) {
+  return walkWithMemory(game, Infinity);
 }
 
 /** Abandon the walk, and stay out of the shopping for as long as the walk just took. */
@@ -399,6 +447,7 @@ export const LOOT_HABITS = {
   greedy: forage,
   wary: forageWary,
   impatient: forageImpatient,
+  committed: forageCommitted,
 };
 export const DEFAULT_LOOT_HABIT = 'greedy';
 

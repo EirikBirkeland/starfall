@@ -3,8 +3,9 @@
 // This is a test about the *instrument* and not about the game - what the shard net pulls, and what
 // a collected shard pays, live in test/shards.test.mjs and test/attractor.test.mjs. What lives here
 // is the claim that a bot given `--loot` goes and gets the loot (tools/loot-habit.js is the ladder
-// that says what that is worth), and the claims about how far it will go, which shard it picks, and
-// how long it will keep walking for, which are the habit's own three rules.
+// that says what that is worth), and the claims about how far it will go, which shard it picks, how
+// long it will keep walking for, and what happens when a trip runs out - the habit's own rules,
+// none of them the game's.
 //
 // The rule the whole file is arranged around is the one that makes a loot habit safe to put on a
 // measuring instrument at all: **the walk replaces the drift to the middle and nothing else**. A
@@ -25,8 +26,8 @@ import { makeEnemy } from '../src/game/kinds.js';
 import { shardAt } from '../tools/headless/scripted.js';
 import { bootGame } from '../tools/headless/harness.js';
 import {
-  forage, forageWary, forageImpatient, FORAGE, LOOT, LOOT_HABITS, DEFAULT_LOOT_HABIT,
-  lootHabitOf, setLootDial,
+  forage, forageWary, forageImpatient, forageCommitted, FORAGE, LOOT, LOOT_HABITS,
+  DEFAULT_LOOT_HABIT, lootHabitOf, setLootDial,
 } from '../tools/headless/loot.js';
 import { playOneRun, botFrame, setLootHabit, FRAME_MS } from '../tools/headless/bot.js';
 
@@ -234,50 +235,56 @@ test('with nothing counted as a crowd, wary is greedy and nothing else', () => {
 });
 
 test('the reach and the rot rule belong to every habit that walks', () => {
-  // Both habits share the candidate test, and a second habit that quietly kept its own would be a
-  // second ladder as well as a second habit.
+  // Every habit that walks shares the candidate test, and a habit that quietly kept its own would be
+  // a second ladder as well as a second habit.
   park();
   plant(ship.x + LOOT.reach + 150, ship.y);
   assert.equal(forageWary(game), null, 'wary walked past the reach the habit ships with');
   assert.equal(forageImpatient(game), null, 'impatient walked past the reach the habit ships with');
+  assert.equal(forageCommitted(game), null, 'committed walked past the reach the habit ships with');
   world.shards.clear();
   const far = 600;
   plant(ship.x + far, ship.y, far / ship.maxSpeed + LOOT.grace - 0.05);
   assert.equal(forageWary(game), null, 'wary set off for a shard that will not be there');
   assert.equal(forageImpatient(game), null, 'impatient set off for a shard that will not be there');
+  assert.equal(forageCommitted(game), null, 'committed set off for a shard that will not be there');
 });
 
 test('a committed walk stays on its pile while greedy changes its mind', () => {
-  // The commitment half of the third habit, and the only thing that separates it from `greedy`
-  // apart from the give-up: a pile picked on the way out keeps the ship's attention instead of
-  // losing it to whatever looked better a moment later.
-  park();
-  setLootHabit('impatient');
-  const out = 400;
-  plant(ship.x + out, ship.y);
-  const west = plant(ship.x - out, ship.y);
-  assert.ok(agreement(forageImpatient(game), { x: 1, y: 0 }) > 0.9,
-    'the walk did not set off for the first pile it came to');
-  // An elite's handful lands on the western pile. `greedy` re-decides and turns round; the
-  // committed walk is still looking east, which is what a person mid-trip does with a better offer.
-  west.worth = BALANCE.shards.big.worth;
-  assert.ok(agreement(forage(game), { x: -1, y: 0 }) > 0.9,
-    'greedy did not notice the better pile appear behind it');
-  assert.ok(agreement(forageImpatient(game), { x: 1, y: 0 }) > 0.9,
-    'the committed walk turned round for a pile it had not set off for');
-  // And when its own pile goes - banked, rotted, or recycled into a pile somewhere else, which the
-  // habit cannot tell apart - the commitment ends with it. A remembered shard is not proof of a live
-  // one: the pool hands the same object out again for a different pile, and a collected shard goes
-  // back to the drawer still lying about where it was, so the live list is the only witness.
-  world.shards.clear();
-  assert.equal(forageImpatient(game), null,
-    'the ship kept walking at the place a pile was collected from');
-  assert.equal(FORAGE.gaveUp, 0,
-    'a walk that ended because its pile went was counted as a give-up; the pile left, nobody quit');
-  // And the better pile on the other side is picked up like any other, once there is one to pick up.
-  plant(west.x, west.y, undefined, BALANCE.shards.big.worth);
-  assert.ok(agreement(forageImpatient(game), { x: -1, y: 0 }) > 0.9,
-    'with its own pile gone the walk ignored the best one left on the floor');
+  // The commitment, which both habits with a memory are made of: a pile picked on the way out keeps
+  // the ship's attention instead of losing it to whatever looked better a moment later. It is flown
+  // twice because it is one function and two habits - a test that only asked the impatient one would
+  // let the fourth habit be a re-pick every frame and still be green.
+  const memory = [['impatient', forageImpatient], ['committed', forageCommitted]];
+  for (const [name, habit] of memory) {
+    park();
+    setLootHabit(name);
+    const out = 400;
+    plant(ship.x + out, ship.y);
+    const west = plant(ship.x - out, ship.y);
+    assert.ok(agreement(habit(game), { x: 1, y: 0 }) > 0.9,
+      name + ' did not set off for the first pile it came to');
+    // An elite's handful lands on the western pile. `greedy` re-decides and turns round; the
+    // committed walk is still looking east, which is what a person mid-trip does with a better offer.
+    west.worth = BALANCE.shards.big.worth;
+    assert.ok(agreement(forage(game), { x: -1, y: 0 }) > 0.9,
+      'greedy did not notice the better pile appear behind it');
+    assert.ok(agreement(habit(game), { x: 1, y: 0 }) > 0.9,
+      name + ' turned round for a pile it had not set off for');
+    // And when its own pile goes - banked, rotted, or recycled into a pile somewhere else, which the
+    // habit cannot tell apart - the commitment ends with it. A remembered shard is not proof of a live
+    // one: the pool hands the same object out again for a different pile, and a collected shard goes
+    // back to the drawer still lying about where it was, so the live list is the only witness.
+    world.shards.clear();
+    assert.equal(habit(game), null,
+      name + ' kept walking at the place a pile was collected from');
+    assert.equal(FORAGE.gaveUp, 0,
+      'a walk that ended because its pile went was counted as a give-up; the pile left, nobody quit');
+    // And the better pile on the other side is picked up like any other, once there is one to pick up.
+    plant(west.x, west.y, undefined, BALANCE.shards.big.worth);
+    assert.ok(agreement(habit(game), { x: -1, y: 0 }) > 0.9,
+      name + ', with its own pile gone, ignored the best one left on the floor');
+  }
 });
 
 test('a walk that outstays its patience is given up on, and the shopping is shut for as long again', () => {
@@ -361,7 +368,54 @@ test('the two ends of the patience dial are controls, not decorations', () => {
     assert.equal(FORAGE.gaveUp, 0, 'a patience longer than any trip still found a walk to give up');
     assert.ok(patient.east >= 460,
       'a walk that is never abandoned did not get to the pile either (' + Math.round(patient.east) + ' px)');
+    // ...and that row is a habit of its own now (`committed`), which the flown test below proves is
+    // the same run rather than a lookalike one.
   } finally {
+    setLootDial({ patience: before });
+  }
+});
+
+test('a committed walk keeps its pile for as long as the pile lasts, and sulks about nothing', () => {
+  // The half of `impatient` that read like something, on its own and with no fuse: the same memory of
+  // the trip it is on, and nothing that ends the trip but the pile leaving the floor. Two things have
+  // to be true of it that are not true of the habit it came from, and both of them are this test.
+  park();
+  const before = LOOT.patience;
+  const clock = world.elapsed;
+  const out = 500;
+  try {
+    setLootDial({ patience: 0.5 });         // short enough that impatient quits twice a second
+
+    // The neighbour first, so that what the committed row does not do has a witness in the same test.
+    setLootHabit('impatient');
+    plant(ship.x + out, ship.y, 60);       // life enough that rotting is not what ends either walk
+    assert.ok(agreement(forageImpatient(game), { x: 1, y: 0 }) > 0.9,
+      'impatient did not set off, so there is no give-up to compare against');
+    world.elapsed += 3;                    // six of its patiences
+    assert.equal(forageImpatient(game), null, 'impatient did not give up, so nothing is being shown');
+    assert.equal(FORAGE.gaveUp, 1, 'the fuse did not blow on the habit that has one');
+    world.shards.clear();
+
+    // The same pile, three seconds later, and no rule that could run out.
+    plant(ship.x + out, ship.y, 60);
+    setLootHabit('committed');
+    assert.ok(agreement(forageCommitted(game), { x: 1, y: 0 }) > 0.9, 'the walk did not set off');
+    world.elapsed += 3;
+    assert.ok(agreement(forageCommitted(game), { x: 1, y: 0 }) > 0.9,
+      'a walk with no fuse in it gave up on a trip anyway');
+    assert.equal(FORAGE.gaveUp, 0, 'a habit with no give-up in it counted a give-up');
+
+    // A pile leaving the floor ends the walk and costs nothing: the next frame is free to take the
+    // best thing left on the floor, where the third habit would still be sulking about a trip it
+    // had decided against. That is the sulk being the give-up's price and not the walk's.
+    world.shards.clear();
+    assert.equal(forageCommitted(game), null,
+      'the ship kept walking at the place a pile was collected from');
+    plant(ship.x - out, ship.y, 60, BALANCE.shards.big.worth);
+    assert.ok(agreement(forageCommitted(game), { x: -1, y: 0 }) > 0.9,
+      'a committed walk sulked about a pile that left instead of taking the one that appeared');
+  } finally {
+    world.elapsed = clock;                  // the run clock belongs to the game, not to this test
     setLootDial({ patience: before });
   }
 });
@@ -392,7 +446,7 @@ test('every policy goes shopping when it has nothing else to do', () => {
   // them has to know about it and all three get it - including the human one, whose look is late
   // and a quarter spent on something else, which is exactly the hand the difficulty band is read on.
   // Every habit that walks, for the same reason: they all come through the same door.
-  for (const habit of ['greedy', 'wary', 'impatient']) {
+  for (const habit of ['greedy', 'wary', 'impatient', 'committed']) {
     for (const policy of ['naive', 'aware', 'human']) {
       park();
       setLootHabit(habit);
@@ -448,6 +502,7 @@ test('the habits by name, and the one --loot means', () => {
   assert.equal(lootHabitOf('greedy'), forage);
   assert.equal(lootHabitOf('wary'), forageWary);
   assert.equal(lootHabitOf('impatient'), forageImpatient);
+  assert.equal(lootHabitOf('committed'), forageCommitted);
   assert.equal(LOOT_HABITS.off(game), null, '`off` is supposed to answer "nothing"');
   assert.throws(() => lootHabitOf('scavenger'), /no loot habit is called scavenger/);
 });
@@ -511,10 +566,48 @@ test('a bot told to go and get loot gets more of it, and one not told gets none'
     'the impatient walk steered exactly as much as the greedy one on the same seed');
   assert.notEqual(impatient.foraged, wary.foraged,
     'the impatient walk steered exactly as much as the wary one on the same seed');
+  // And the fourth, the committed walk with no fuse, which has to be reachable the same way and has
+  // to have the give-up counter left alone by it - it is a way of walking, not a way of quitting.
+  await game.resetToTitle(61);
+  const committed = playOneRun(game, { maxSeconds: 120, loot: 'committed' });
+  assert.ok(committed.foraged > 0, 'a run flown `committed` never let the walk take the wheel');
+  assert.ok(committed.stats.collected > still.stats.collected,
+    'the committed walk banked ' + committed.stats.collected + ' shards, no more than the bot that '
+    + 'waited for the net\'s ' + still.stats.collected);
+  assert.notEqual(committed.foraged, again.foraged,
+    'the committed walk steered exactly as much as the greedy one on the same seed');
+  assert.notEqual(committed.foraged, impatient.foraged,
+    'the committed walk steered exactly as much as the impatient one, so the fuse is doing nothing');
   // The give-up counter is the third habit's own, and nobody else's: two runs of `impatient` can
   // differ in how many walks they abandoned, but a habit with no give-up in it must never move it.
   assert.equal(again.gaveUp, 0, 'greedy gave up a walk, and it has no rule that could');
   assert.equal(wary.gaveUp, 0, 'wary gave up a walk, and it has no rule that could');
+  assert.equal(committed.gaveUp, 0, 'committed gave up a walk, and it has no rule that could');
+});
+
+test('a committed walk is what the impatient one is with its fuse off', async () => {
+  // The two habits share one function and differ by one number, and that had better be the whole of
+  // it: the same seed flown by `impatient` with a patience no trip can outlast has to come back byte
+  // for byte the run of `committed` - score, shards, and every trace hash along the way. Without
+  // this the fourth row of the ladder could be a fourth implementation quietly disagreeing with the
+  // third, and "the give-up is what costs" would be a claim about two ladders instead of one rule.
+  const before = LOOT.patience;
+  try {
+    setLootDial({ patience: 100000 });
+    await game.resetToTitle(61);
+    const patient = playOneRun(game, { maxSeconds: 120, loot: 'impatient' });
+    await game.resetToTitle(61);
+    const committed = playOneRun(game, { maxSeconds: 120, loot: 'committed' });
+    assert.ok(committed.foraged > 0, 'the walk never fired, so the two runs agree about nothing');
+    assert.deepEqual(committed.trace, patient.trace,
+      'the fourth habit changed the run somewhere the third one did not, so they are not one walk');
+    assert.equal(committed.stats.score, patient.stats.score);
+    assert.equal(committed.stats.collected, patient.stats.collected);
+    assert.equal(committed.foraged, patient.foraged);
+    assert.equal(committed.gaveUp, 0, 'a walk with no fuse in it found one to give up on');
+  } finally {
+    setLootDial({ patience: before });
+  }
 });
 
 test('a patience of nothing flies exactly like the bot that never went shopping', async () => {
@@ -555,7 +648,7 @@ test('the ladder refuses a bad dial before it plays a single run', () => {
   assert.match(patience.stderr, /--grace and --patience a number of seconds/);
   const habit = ladder(['--habits', 'off,hoarder']);
   assert.equal(habit.status, 2);
-  assert.match(habit.stderr, /--habits wants some of: off, greedy, wary, impatient/);
+  assert.match(habit.stderr, /--habits wants some of: off, greedy, wary, impatient, committed/);
 });
 
 test('the ladder flies every way of walking and asks who won', () => {
@@ -567,11 +660,12 @@ test('the ladder flies every way of walking and asks who won', () => {
   assert.match(run.stdout, /^greedy \*/m, 'the shipped row is missing');
   assert.match(run.stdout, /^wary\s/m, 'the second way of walking was not flown');
   assert.match(run.stdout, /^impatient\s/m, 'the third way of walking was not flown');
+  assert.match(run.stdout, /^committed\s/m, 'the fourth way of walking was not flown');
   assert.match(run.stdout, /gave up\/run/, 'the column that says whether a give-up ever fired is gone');
-  assert.match(run.stdout, /Head to head against `(wary|impatient)`/);
+  assert.match(run.stdout, /Head to head against `(wary|impatient|committed)`/);
   // The split has to arrive with its side named. `pairs.js` prints the bigger half of a split, which
   // is a riddle beside a ratio that leans the other way - and on this game the two disagree constantly.
-  assert.match(run.stdout, /the seeds say [^\n]*(for (greedy|wary|impatient)|each way)/,
+  assert.match(run.stdout, /the seeds say [^\n]*(for (greedy|wary|impatient|committed)|each way)/,
     'the ladder printed a seed split without saying which side won it');
   assert.match(run.stdout, /below the 8 this file will rank anything on/);
 });

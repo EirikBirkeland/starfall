@@ -3,3 +3,4 @@ loop.log
 
 # throwaway measurements a session writes and never ships
 .scratch/
+node_modules/

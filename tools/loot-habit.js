@@ -16,7 +16,8 @@
 //   node tools/loot-habit.js --crowd 200            how close a body has to be to count as sitting
 //                                               on the pile (`wary` only; 0 makes it `greedy`)
 //   node tools/loot-habit.js --patience 3           how many seconds a walk may run before the ship
-//                                               gives up on it (`impatient` only; 0 makes it `off`)
+//                                               gives up on it (`impatient` only; 0 makes it `off`,
+//                                               and a number past any trip makes it `committed`)
 //   node tools/loot-habit.js --no-dash              the bot never presses the dash
 //   node tools/loot-habit.js --strict               non-zero unless the shipped habit holds up
 //
@@ -58,7 +59,7 @@ import { median, pairedRatio, isBetter, isWorse } from './headless/pairs.js';
 const DEFAULTS = {
   seeds: 12,
   seconds: 300,
-  habits: 'off,greedy,wary,impatient',
+  habits: 'off,greedy,wary,impatient,committed',
   // The careless pair of eyes with the shipped get-out dash, which is the hand `tools/
   // challenge-cost.js` prices the rules on and so the hand a loot habit has to be worth something
   // to. `aware` with wise picks is the one that beats the schedule: it dies too rarely for a
@@ -228,7 +229,8 @@ const note = 'Each row is the same seeds flown with one way of spending an idle 
   + 'reach whatever is standing on it and re-decides every frame; `wary` discounts a pile for every\n'
   + 'body sitting on it, which is the difference between a person choosing a pile and a ray-tracer\n'
   + 'walking into a crowd; `impatient` picks one pile and sticks with it, but gives up on a trip that\n'
-  + 'drags and stays out of the shopping for as long again.';
+  + 'drags and stays out of the shopping for as long again; `committed` is that same sticking with no\n'
+  + 'fuse in it at all - it stays on its pile until the pile leaves the floor, and never sulks.';
 console.log(table(title, note,
   ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r'],
   ['habit', 'middle death', 'died', 'middle score', 'vs off', 'off won', 'shards/run', 'steered',
