@@ -18590,16 +18590,30 @@ reading the screenshots turned up **three layout bugs on the two screens every p
 - `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354` score, level 57,
   3,898 kills, 4,998 shards).
 
+### Part 3: the two console 404s were the tab's icon
+With the layout fixed, the only thing left in the console was two `404`s per visit. CDP's
+`Network.responseReceived` named them: `http://localhost:8090/favicon.ico`, asked for by the browser
+at document level because the page ships no icon. Fixed with an inline `data:image/svg+xml` icon in
+`index.html`'s head - no image file, no download, the same ship dart `render/shapes.js` `shipPath`
+draws (r 8, spike 1.7, pointing up) in the ship's cyan on the HUD's `#09152e` plate. Chromium now
+reports **zero** console problems across a title and a run. It rides along in the next release rather
+than one of its own: a tab icon is not a reason for a version.
+
 ### Next
 1. **The browser half of the performance pass (`PLAN.md` line 1816)**, the last unchecked `[ ]` item in
-   `PLAN.md`! Now that Chromium is in the sandbox, we can open the game in Chromium, put up the F3 plate,
-   fly the endless door to `bodies 200 / 200`, the scheduled THICK CROWD wall at `150 / 150`, and the
-   42-body brood, and record what `step ms` and `draw ms` read on Chromium (noting that WebGL/canvas in
-   this container runs on SwiftShader software rendering, while `step ms` is real Chromium V8).
+   `PLAN.md` - and now the first session that can take at least half of it. Open the game in Chromium,
+   press `F3`, fly the endless door to `bodies 200 / 200`, a scheduled run under THICK CROWD to
+   `150 / 150`, and a brood to 42 bodies, and write down `step ms` and `draw ms`. **The caveat has to go
+   in the notes with the numbers:** this box has no GPU and Chromium rasterises through SwiftShader, so
+   `draw ms` here is software Skia and not the owner's laptop - while `step ms` is real V8 and is
+   therefore the half of that plate this sandbox can honestly read. Do not move `endless.growth.bodiesCeil`
+   on a SwiftShader number.
 2. Everything else carried over: `--loot` on the other four ladders, deciding which hand the challenge
    sheet speaks for, NO DASH's missing hand, the ablate catalogue's `--scene brood` pass, the shot-speed
    line, `tierBonus.telegraph` in PLAN, whether the first two minutes are too harsh, `--live --weapon
    swarm`, and session 163's unattributed ~110 B a step.
 
 ### Released
-Released **v1.9.16** with the real-browser title and Hangar layout fixes.
+**v1.9.16** (`releases/v1.9.16/`, tagged, listed in `releases.json`, notes page written): the title
+mark stops collapsing onto the control list, the hangar racks stand side by side at full scale, and both
+screens fit a portrait phone.
