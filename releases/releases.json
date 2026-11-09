@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.16",
+    "date": "2026-11-09",
+    "released": "2026-11-09T01:14:40.096Z",
+    "summary": "the title mark stops collapsing onto the control list, the hangar racks stand side by side, and both fit a phone",
+    "added": 946,
+    "removed": 74,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.15",
     "date": "2026-10-17",
     "released": "2026-10-17T19:56:52.816Z",
