@@ -30,7 +30,7 @@ import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
   CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
   dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, offerCountOf,
-  pauseWords, saysOf, setChallenge, shardReachMulOf, titleWords,
+  pauseWords, saysOf, setChallenge, shardReachMulOf, titleWords, waveGapOf,
 } from '../src/game/challenges.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -120,6 +120,23 @@ test('every challenge is a row, a name, and a sentence', () => {
   // The rules that take a card line away are the ones the gate knows about, and no others.
   assert.deepEqual(Object.keys(BALANCE.challenges.gatedOn), ['grounded'],
     'only NO DASH takes a card line away');
+});
+
+test('PRESSURE shortens the wave gap and says its own number', () => {
+  const plain = worldUnder('');
+  const pressure = worldUnder('pressure');
+  assert.equal(waveGapOf(plain), 1, "a plain run keeps the director's beat");
+  assert.equal(waveGapOf(pressure), BALANCE.challenges.pressure.gapMul);
+  assert.ok(waveGapOf(pressure) < 1, 'the rule makes the gap shorter');
+  const shipped = BALANCE.challenges.pressure.gapMul;
+  try {
+    BALANCE.challenges.pressure.gapMul = 0.5;
+    assert.equal(saysOf('pressure'), 'the crowd refills 100% faster');
+    BALANCE.challenges.pressure.gapMul = 0.25;
+    assert.equal(saysOf('pressure'), 'the crowd refills 300% faster');
+  } finally {
+    BALANCE.challenges.pressure.gapMul = shipped;
+  }
 });
 
 test('the swift crowd says its own number, whatever it is', () => {
@@ -450,6 +467,8 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   assert.equal(game.stats().challenge, 'swift');
   press('KeyX');
   assert.equal(game.stats().challenge, 'thick');
+  press('KeyX');
+  assert.equal(game.stats().challenge, 'pressure');
   press('KeyX');
   assert.equal(game.stats().challenge, 'byhand');
   press('KeyX');

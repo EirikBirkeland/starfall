@@ -34,7 +34,7 @@
 // it stands - and none at all before then: see game/elite.js.
 
 import { BALANCE } from './balance.js';
-import { crowdHoldOf } from './challenges.js';
+import { crowdHoldOf, waveGapOf } from './challenges.js';
 import { KINDS, kindOf, makeEnemy } from './kinds.js';
 import { rollElite } from './elite.js';
 import { newPack } from './flock.js';
@@ -595,6 +595,6 @@ export function updateWaves(world, dt) {
   }
 
   const wave = sendWave(world, Math.min(room, spec.waveMaxPoints));
-  world.spawnTimer = logic.range(spec.gap[0], spec.gap[1]);
+  world.spawnTimer = logic.range(spec.gap[0], spec.gap[1]) * waveGapOf(world);
   return wave;
 }

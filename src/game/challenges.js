@@ -1,7 +1,7 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Seven ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
+// once it is flying. Eight ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
 // moment after it; the crowd and its shots travel faster than they shipped; the arena holds more of the
 // crowd than it ships; the loot only comes to a ship that flies at it; and the rack deals one card
 // instead of three. Every one of them is a row in `BALANCE.challenges` and a question asked where the
@@ -49,17 +49,17 @@ const PERCENT = 100;
  *
  * The order is the shape of the rule and not a ladder of severity: the three rules about your own ship
  * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
- * about the crowd's size and speed, then the one about the loot the crowd leaves, and the one about the
- * deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
+ * about the crowd's size and speed, then the one about how soon it refills, then the one about the loot
+ * the crowd leaves, and the one about the deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
  * `tools/challenge-cost.js` has measured all of them and the dearest of them on the hand this sheet is
  * flown on is BY HAND - 0.55x a careless run's middle score as of 2026-10-17, and dearer yet on a hand
- * that goes and gets its own loot - which is the sixth press, while the first is ONE HULL, at 0.61x with
+ * that goes and gets its own loot - which is the seventh press, while the first is ONE HULL, at 0.61x with
  * every one of the twenty-four seeds it was measured on agreeing. A
  * hand that presses the key twice by accident lands on NO DASH, which the ladder cannot price at all.
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
- * call, because four rules build their sentence out of their own number rather than writing it beside
+ * call, because five rules build their sentence out of their own number rather than writing it beside
  * it, and a sentence written by hand next to a number that can move is a sentence that goes stale.
  */
 export const CHALLENGES = [
@@ -68,6 +68,7 @@ export const CHALLENGES = [
   { id: 'merciless', name: 'SHORT GRACE', says: 'a touch leaves barely a moment to get clear' },
   { id: 'swift', name: 'SWIFT CROWD', says: '' },
   { id: 'thick', name: 'THICK CROWD', says: '' },
+  { id: 'pressure', name: 'PRESSURE', says: '' },
   { id: 'byhand', name: 'BY HAND', says: '' },
   { id: 'thin', name: 'ONE CARD', says: '' },
 ];
@@ -197,6 +198,19 @@ export function crowdHoldOf(world) {
 }
 
 /**
+ * What the wave director's gap between one wave and the next is multiplied by: 1 for every run that is
+ * not flying PRESSURE.
+ *
+ * Applied in game/waves.js `updateWaves`, where the gap is drawn after a wave has been bought. The
+ * director's curve and its walls are untouched: the arena still fills to the same body wall, it just
+ * looks again sooner, so a run spends less of its life in the quiet between waves. `retry` is not
+ * multiplied: a director that found no room is waiting for room, not for its next wave.
+ */
+export function waveGapOf(world) {
+  return isFlying(world, 'pressure') ? challengeRow('pressure').gapMul : 1;
+}
+
+/**
  * What the shard net's reach is multiplied by: 1 for every run that is not flying BY HAND.
  *
  * Applied in game/upgrades.js `attractorReachOf`, which is the one question "how far off does a shard
@@ -251,7 +265,7 @@ export function shardReachMulOf(world) {
  * are the same ones, and a run can still be handed a second rank of a line it has already opened (which
  * is what the fresh-line promise has to stand down for; see `game/upgrades.js`).
  *
- * This is the one rule of the seven that takes away a *choice* rather than a thing, and that is why it is
+ * This is the one rule of the eight that takes away a *choice* rather than a thing, and that is why it is
  * the one the ladder cannot price on its careless hand: a hand that picks at random never used the choice
  * this rule removes. `tools/challenge-cost.js` prices it on a hand that picks on purpose - and checks
  * first that that hand's picks are worth something, which on the default policy they are not. The price
@@ -371,6 +385,7 @@ export function nameOf(id) {
 const SENTENCES = {
   swift: (world) => 'the crowd travels ' + percentOf(crowdSpeedOf(world) - 1) + ' faster',
   thick: (world) => 'the arena holds ' + percentOf(crowdHoldOf(world) - 1) + ' more of the crowd',
+  pressure: (world) => 'the crowd refills ' + percentOf(1 / waveGapOf(world) - 1) + ' faster',
   byhand: (world) => 'the shard pull reaches only ' + percentOf(shardReachMulOf(world)) + ' as far',
   thin: (world) => 'the rack deals ' + offerCountOf(world)
     + (offerCountOf(world) === 1 ? ' card, and you take it' : ' cards, and you take one'),

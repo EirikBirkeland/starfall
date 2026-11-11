@@ -394,7 +394,7 @@ export const BALANCE = {
   // 1.20x, 4.05x and 5.14x of what they scored plain (measured 2026-10-17). Any size built from ratios
   // like those belongs to whichever seeds happened to be extreme; the count does not.
   //
-  // The five that have rows are the five the ladder could measure on the batches it flies. NO DASH does
+  // The seven that have rows are the rules the ladder could measure on the batches it flies. NO DASH does
   // not: it is not a knob, it is a floor under the game - two hits, a third through a level and the run is
   // over - and on the twenty-four-seed flight that filed these rows it read 0.70x with the plain run
   // winning 17 of 24 seeds, which is a lean and not a finding (p = 0.07). The rule is not dimmed to match
@@ -461,6 +461,20 @@ export const BALANCE = {
       measured: {
         on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.6, plainWon: 19, ruleWon: 5,
+      },
+    },
+    pressure: {
+      // The wave director's beat: the gap between one wave and the next is multiplied by this. 0.45
+      // is 122% more waves over the same window and the same body wall - the arena does not hold
+      // more, it just stops being quiet as soon. The 8-seed first flight read 0.67x plain's middle;
+      // the 24-seed quote below reads 0.86x with plain winning 13 of the 24 pairs, so the score pair
+      // is a lean rather than a finding while the deaths (18 against 14) and hulls (87 against 68)
+      // say what the rule is for. It is the gentler of the two numbers the sweep could order, on a
+      // rule that is about pressure and not about a shortened life.
+      gapMul: 0.45,
+      measured: {
+        on: '2026-11-11', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
+        cost: 0.86, plainWon: 13, ruleWon: 11,
       },
     },
     byhand: {

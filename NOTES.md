@@ -19656,3 +19656,52 @@ Nothing. A measurement that says "do not touch the balance" is not a version.
    only reading that can move `endless.growth.bodiesCeil`.
 3. A new feature or screen is the only other autonomous work left. The audit and the decisions are done;
    everything else on the list wants a person or the owner's hardware.
+
+## Session 187 - an eighth rule: PRESSURE, and the director's beat
+
+### What was on the shelf
+The autonomous list was empty: the audit is complete, every carried decision is written, and the two
+remaining items need a person or the owner's GPU. PLAN's After-1.0 paragraph invites new challenge
+modifiers, so this session wrote one down and built it: **PRESSURE**, a rule about how soon the crowd
+refills rather than how much of it there is.
+
+### What landed
+1. **`waveGapOf(world)`** in `game/challenges.js`: 1 plainly, `BALANCE.challenges.pressure.gapMul` under
+  the rule. Applied at the one place the director draws its beat (`game/waves.js updateWaves`), so no
+  curve, wall or body is cached elsewhere. `retry` is not multiplied: a director with no room is waiting
+  for room, not for its next wave.
+- **The row**: `gapMul: 0.45` - `1 / 0.45 - 1 = 122%` more waves over the same window and the same body
+  wall. `saysOf` builds the sentence from the number (`the crowd refills 122% faster`), so a retune
+  cannot leave the card behind.
+- **The eighth row on the sheet**: `PRESSURE`, after THICK CROWD and before BY HAND, so the cycle, the
+  title line, the pause rack, the codex's rules rack and the per-rule best all take it for free.
+3. **`--gap` on `tools/challenge-cost.js`**, the same sweep door `--speed`/`--hold` have, so the number
+  can be re-asked live. The default ladder now includes the rule, and `--strict` re-flew its quote.
+4. **The quote**, 24 seeds x 5m on the careless magnet hand: **0.86x** plain's middle, plain winning
+  13 of the 24 pairs (p = 0.839), deaths **18 against 14**, hulls **87 against 68**. The score pair is a
+   lean and the row says so; what the rule does is in the deaths and hulls, which is what a rule about
+   pressure is for. The 8-seed sweep first read 0.67x at 0.45, 0.75x at 0.3, 0.93x at 0.5 and 0.99x at
+  0.6 - noise around a real increase in pressure, so 0.45 was kept as the gentler of the orderable
+   numbers and the 24-seed pair is the one written down.
+5. Tests: `waveGapOf` neutral/clipped, the sentence built from the gap at 0.5 and 0.25, the cycle order
+  with PRESSURE between THICK and BY HAND, and the quote shape. Suite 2667 -> 2669.
+
+### Verification
+- `node tools/challenge-cost.js --challenges none,pressure --seeds 24 --seconds 300 --strict`: the
+  measured row reproduced (0.86x, 13 of 24, p = 0.839), exit 0.
+- `node --test`: **2669/2669 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards) - no challenge flying means every lever answers 1, and the reference run is the
+  proof that the new row costs a plain run nothing.
+
+### Released
+**1.9.27.** PRESSURE: the crowd refills 122% faster, and the wave director's beat is the rule.
+
+### Next
+1. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32,
+   measured in session 186; the verdict is still a person's.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. PRESSURE's score pair is a lean; a 48-seed flight would say whether it is a finding, and the rule
+   could be tuned to 0.3 if a harder pressure is wanted. It is optional content, so this is a taste
+   decision and not a bug.

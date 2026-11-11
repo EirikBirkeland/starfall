@@ -2068,6 +2068,13 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [x] An eighth challenge rule: **PRESSURE**. The wave director's gap between one wave and the next is
+      multiplied by `gapMul` at the one place it is drawn (`game/waves.js`), so the arena fills to the
+      same wall and just stops being quiet as soon. 0.45 ships: 122% more waves, 0.86x plain's middle
+      score on 24 seeds (plain won 13 of the 24 pairs - a lean, not a finding) with the cost showing in
+      the deaths (18 against 14) and the hulls (87 against 68). `tools/challenge-cost.js --gap` sweeps
+      it; the quote row carries the 24-seed flight. Session 187, NOTES.
+
 - [x] Challenge modifiers: a harder set of rules for the next run, chosen between runs. Three of them,
       one at a time — **one hull** (the ship stands on a single hull, whatever the body and whatever the
       hangar's plating bought), **no dash** (the jump is gone, and the two lines gated on it are not

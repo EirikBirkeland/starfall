@@ -8,9 +8,10 @@
 //   node tools/challenge-cost.js --bot aware --picks wise  the careful build, which hardly dies
 //   node tools/challenge-cost.js --bot naive              the worst pair of hands there is
 //   node tools/challenge-cost.js --no-dash                the bot never presses the dash at all
-//   node tools/challenge-cost.js --challenges none,brittle  two of the seven rows
+//   node tools/challenge-cost.js --challenges none,brittle  two of the eight rows
 //   node tools/challenge-cost.js --speed 1.3              the swift crowd's multiplier, tried live
 //   node tools/challenge-cost.js --hold 1.75              the thick crowd's, tried live
+//   node tools/challenge-cost.js --gap 0.4                the pressure rule's wave gap, tried live
 //   node tools/challenge-cost.js --reach 0.25             the shard net's reach, tried live
 //   node tools/challenge-cost.js --grace 0.75             the gap a hit leaves, tried live
 //   node tools/challenge-cost.js --cards 2                ONE CARD's rack, tried at another size
@@ -106,7 +107,7 @@ const DEFAULTS = {
   // nothing about a touch; `naive` is harsher still and dies in the first minute of a plain run.
   policy: 'human',
   picks: 'random',
-  challenges: 'none,brittle,grounded,merciless,swift,thick,byhand,thin',
+  challenges: 'none,brittle,grounded,merciless,swift,thick,pressure,byhand,thin',
   // The shipped get-out habit (tools/headless/bot.js `DASH`), because NO DASH is a rule about a dash
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
@@ -119,6 +120,7 @@ const DEFAULTS = {
   loot: false,
   speed: null,
   hold: null,
+  gap: null,
   reach: null,
   grace: null,
   cards: null,
@@ -126,7 +128,7 @@ const DEFAULTS = {
   dump: false,
 };
 
-/** The eight rows the ladder can print: `none` beside the seven rules. */
+/** The nine rows the ladder can print: `none` beside the eight rules. */
 const PLAIN = 'none';
 
 /**
@@ -203,6 +205,7 @@ function readArgs(argv) {
     else if (arg === '--loot') opts.loot = true;
     else if (arg === '--speed') opts.speed = Number(next());
     else if (arg === '--hold') opts.hold = Number(next());
+    else if (arg === '--gap') opts.gap = Number(next());
     else if (arg === '--reach') opts.reach = Number(next());
     else if (arg === '--grace') opts.grace = Number(next());
     else if (arg === '--cards') opts.cards = parseInt(next(), 10);
@@ -231,6 +234,10 @@ function readArgs(argv) {
   }
   if (opts.speed !== null && !(opts.speed > 1)) {
     console.error('--speed wants a multiplier above 1, such as 1.3');
+    process.exit(2);
+  }
+  if (opts.gap !== null && !(opts.gap > 0)) {
+    console.error('--gap wants a positive multiplier for the wave gap');
     process.exit(2);
   }
   if (opts.hold !== null && !(opts.hold > 1)) {
@@ -269,6 +276,12 @@ function setSpeed(mul) {
 function setHold(mul) {
   if (mul === null) return;
   BALANCE.challenges.thick.holdMul = mul;
+}
+
+/** The same door on the pressure rule's wave gap, read by the director every time it draws one. */
+function setGap(share) {
+  if (share === null) return;
+  BALANCE.challenges.pressure.gapMul = share;
 }
 
 /**
@@ -393,10 +406,10 @@ function printTable(rows, plain, opts, title, note) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Six of the seven rules are judged and one
+ * The verdict. A rule that costs nothing is not a challenge. Seven of the eight rules are judged and one
  * is only judged on a hand that can judge it, and the difference is what the ladder can see.
  *
- *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD and BY HAND are judged**, the two rules about a
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD, PRESSURE and BY HAND are judged**, the two rules about a
  *     touch provided the plain batch actually lost hulls - which is what says the ladder can see a rule
  *     about losing one at all. An aware bot that finishes a run with three hull in a body that costs
  *     one is not an instrument for those two rules, and saying so beats failing a rule the instrument
@@ -763,6 +776,7 @@ if (isMain) {
   const opts = readArgs(process.argv.slice(2));
   setSpeed(opts.speed);
   setHold(opts.hold);
+  setGap(opts.gap);
   setReach(opts.reach);
   setGrace(opts.grace);
   setCards(opts.cards);
@@ -799,11 +813,13 @@ if (isMain) {
   const swept = [];
   if (opts.speed !== null) swept.push('swift');
   if (opts.hold !== null) swept.push('thick');
+  if (opts.gap !== null) swept.push('pressure');
   if (opts.grace !== null) swept.push('merciless');
   if (opts.cards !== null) swept.push('thin');
 
   const sweep = (opts.speed === null ? '' : ', the swift crowd at ' + dec(opts.speed, 2) + 'x')
     + (opts.hold === null ? '' : ', the thick crowd at ' + dec(opts.hold, 2) + 'x')
+    + (opts.gap === null ? '' : ', the wave gap at ' + dec(opts.gap, 2) + 'x')
     + (opts.grace === null ? '' : ', a hit leaving ' + dec(opts.grace, 2) + 's')
     + (opts.cards === null ? '' : ', the rack at ' + opts.cards + (opts.cards === 1 ? ' card' : ' cards'));
 
