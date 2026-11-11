@@ -28,6 +28,7 @@ import { makeEnemy } from '../src/game/kinds.js';
 import { levelUp } from '../src/game/progress.js';
 import { LESSONS, saysOf, tipsFromSave } from '../src/game/tutorial.js';
 import { tutorialLayout } from '../src/render/tutorial.js';
+import { thumb, dashButton } from '../src/input/touch.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const FRAME = 16.7;
@@ -152,6 +153,18 @@ test('every key a lesson names is a key the title screen already prints', () => 
   }
 });
 
+test('a thumb is told its own three lines, and a map index is not a hand', () => {
+  // A phone has no Space, no mouse and no left button. The plate says what those three hands do in
+  // the words the hand can act on - drag, tap, and a gun that finds its own body (game/assists.js).
+  assert.equal(saysOf(LESSONS[0], true), 'DRAG TO FLY');
+  assert.equal(saysOf(LESSONS[1], true), 'THE GUN AIMS AND FIRES ITSELF');
+  assert.equal(saysOf(LESSONS[2], true), 'TAP DASH');
+  // `words.test.mjs` maps `saysOf` over the lessons, so the second argument is an index there. The
+  // keyboard line is the default, and only a real thumb asks for the other one.
+  assert.equal(saysOf(LESSONS[0], 1), lineOf('fly'), 'an index is not a hand');
+  assert.equal(saysOf(LESSONS[2], 2), lineOf('dash'), 'and the third lesson is not a thumb by number');
+});
+
 test('each lesson, put on the glass, is painted inside its plate', async () => {
   // The three of them are the longest words the plate ever has to hold, so this is the fit test: what
   // was painted, at what size, in what box - read out of the frame the painter itself filled.
@@ -177,6 +190,25 @@ test('each lesson, put on the glass, is painted inside its plate', async () => {
 });
 
 // --- the plate in a visit -----------------------------------------------------
+
+test('a thumb\'s hint sits above its controls, not under the DASH button', async () => {
+  await visit();
+  launch();
+  const dash = dashButton(390, 844);
+  thumb.used = true;
+  try {
+    const plate = tutorialLayout(390, 844);
+    assert.notEqual(plate, null, 'the thumb is being taught too');
+    assert.ok(plate.y < 200, 'the plate is under the top HUD: ' + plate.y);
+    assert.ok(plate.y + plate.h < dash.y - dash.r,
+      'and the whole plate is above the DASH button: ' + (plate.y + plate.h) + ' against '
+        + (dash.y - dash.r));
+  } finally {
+    thumb.used = false;
+  }
+  const keyboard = tutorialLayout(390, 844);
+  assert.ok(keyboard.y > 600, 'a keyboard keeps the bottom strip it has always had');
+});
 
 test('a first run is told how to fly, and where the plate goes', async () => {
   await visit();

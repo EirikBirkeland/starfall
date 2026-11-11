@@ -19298,3 +19298,46 @@ fallback face does not have, and the phone showed a tofu box where the key shoul
    the only reading that can move `endless.growth.bodiesCeil`.
 3. Another `.scratch/browser-screens.mjs` pass can look at the in-run HUD on a phone, the thumb rail
    over the pause, and the volume readout - the overlays the static-screen pass has not opened yet.
+
+## Session 178 - the phone was told SPACE TO DASH, and the hint sat under the DASH button it was naming
+
+### What the run audit saw
+A real touch run at `390x844` (`Input.dispatchTouchEvent`, a held thumb on the left, real frames):
+- the tutorial plate said **`SPACE TO DASH`** to a hand with no keyboard, and the fly lesson was the
+  keyboard's `W A S D TO FLY`; the game already knew a thumb does not own either;
+- the plate's bottom strip is where the lesson has always lived, but on a thumb visit that strip is
+  the floating stick, the **DASH** button and the **PAUSE** plate - the plate was drawn *under* the
+  controls it was naming, with `TAP DASH` under the DASH button.
+
+### What landed
+1. **Each lesson has a thumb line**: `DRAG TO FLY`, `THE GUN AIMS AND FIRES ITSELF` (the two assists
+   ship on for a thumb, game/assists.js) and `TAP DASH`. `saysOf(lesson, onThumb)` asks for it only
+   when the second argument is exactly `true`; `words.test.mjs` maps `saysOf` over the lessons and a
+   map hands in an index, so an index must not read as a hand.
+2. **The plate is told which hand it is talking to**: `render/tutorial.js` passes `thumbUsed()` into
+   `promptWords`, and `main.js`'s `stats().tip` passes `thumb.used`, so the plate and the debug readout
+   cannot disagree about the sentence.
+3. **A thumb's plate sits at `y = 104`**, under the top HUD and above every control; a keyboard keeps
+   the bottom strip it has always had. The lessons happen in the first minutes of a save, before a boss
+   bar has a reason to be at the top of the glass.
+4. Tests: the three thumb lines (and the map-index trap), and the plate's place against
+   `dashButton(390, 844)` - the whole plate above the button, while a keyboard's plate stays low.
+   Suite 2652 -> 2655.
+
+### Verification
+- The real phone screenshot now reads `TAP DASH` in a plate at y 104-144, with the stick at the
+  bottom-left and DASH/PAUSE on the right untouched; the top HUD (`GUN PULSE`) is above it.
+- `node --test`: **2655/2655 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). The tutorial is a watcher; this changes words and paint, not the run.
+
+### Released
+**1.9.19.** A phone is taught with its own hands, and the hint no longer sits under the control it names.
+
+### Next
+1. **Whether the first two minutes are too harsh** - still the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. A thumb's late pause (the script's tap missed because the run had stopped for a card) and the thumb
+   rail over the title are still unphotographed; the static pause fits, and the phone controls are now
+   clear of the one plate that crosses them.

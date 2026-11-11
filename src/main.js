@@ -1745,7 +1745,7 @@ window.STARFALL = {
       // empty), and which of them this save has already been through (game/tutorial.js). A headless run
       // cannot see the plate, and "did the tutorial notice I can dash" is otherwise a question with no
       // way to ask it.
-      tip: promptWords(world),
+      tip: promptWords(world, thumb.used),
       tipsLearned: world.tips.slice(),
       level: world.player.level,
       hull: world.player.hull,

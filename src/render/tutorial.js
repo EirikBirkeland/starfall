@@ -18,6 +18,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { BALANCE } from '../game/balance.js';
 import { STATE } from '../game/state.js';
 import { promptWords } from '../game/tutorial.js';
+import { thumbUsed } from '../input/touch.js';
 import { world } from '../game/world.js';
 import { view } from './canvas.js';
 import { fitOneLine } from './fit.js';
@@ -30,6 +31,7 @@ const PLATE = {
   radius: 10,         // px of corner, the same roundness every plate on this game's glass has
   side: 18,           // px of plate to the left and right of the words
   bottom: 60,         // px of window below the plate: clear of the XP bar and of its caption
+  thumbTop: 104,      // px from the top on a thumb visit: below the score and the hull, above the controls
 };
 
 const FONT = '800 15px "Segoe UI", system-ui, sans-serif';
@@ -49,7 +51,7 @@ const TEXT_RAISE = 5;      // px from the plate's middle to the words' baseline
  */
 export function tutorialLayout(W, H) {
   if (world.state !== STATE.PLAY || world.paused) return null;
-  const says = promptWords(world);
+  const says = promptWords(world, thumbUsed());
   if (says === '') return null;
 
   const spec = BALANCE.tutorial;
@@ -60,7 +62,11 @@ export function tutorialLayout(W, H) {
   if (glow <= 0) return null;
 
   const x = (W - PLATE.wide) / 2;
-  const y = H - PLATE.bottom - PLATE.tall;
+  // A thumb's plate cannot live in the bottom strip: the floating stick and the DASH button own it,
+  // and a hint that says TAP DASH must not be under the button that says DASH. It sits under the
+  // top HUD instead, above every control. The lessons are the first minutes of a save, before any
+  // boss bar has a reason to be at the top of the glass.
+  const y = thumbUsed() ? PLATE.thumbTop : H - PLATE.bottom - PLATE.tall;
   return {
     text: says,
     x: x,

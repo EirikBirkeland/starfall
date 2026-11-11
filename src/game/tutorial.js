@@ -53,13 +53,27 @@ import { wordsOf } from '../core/keymap.js';
  * hears, which is the same rule that makes the pause say whatever key the pause is on today.
  */
 export const LESSONS = [
-  { id: 'fly', keys: ['up', 'left', 'down', 'right'], says: 'TO FLY' },
-  { id: 'fire', says: 'MOUSE TO AIM \u00b7 HOLD LEFT TO FIRE' },
-  { id: 'dash', keys: ['dash'], says: 'TO DASH' },
+  {
+    id: 'fly', keys: ['up', 'left', 'down', 'right'], says: 'TO FLY',
+    thumb: 'DRAG TO FLY',
+  },
+  {
+    id: 'fire', says: 'MOUSE TO AIM \u00b7 HOLD LEFT TO FIRE',
+    // A thumb has no cursor and no trigger: game/assists.js ships both switches on for that hand.
+    thumb: 'THE GUN AIMS AND FIRES ITSELF',
+  },
+  { id: 'dash', keys: ['dash'], says: 'TO DASH', thumb: 'TAP DASH' },
 ];
 
-/** The whole line for one lesson, keys spelled out. What the plate is painted with. */
-export function saysOf(lesson) {
+/**
+ * The whole line for one lesson, keys spelled out. What the plate is painted with.
+ *
+ * `onThumb` asks for the hand's own words (a finger drags, taps a button, and holds no trigger),
+ * and it is tested `=== true` rather than truthy on purpose: `words.test.mjs` maps `saysOf` over the
+ * lessons, and a map hands the index in as the second argument. The keyboard line is the default.
+ */
+export function saysOf(lesson, onThumb) {
+  if (onThumb === true && lesson.thumb !== undefined) return lesson.thumb;
   return lesson.keys === undefined ? lesson.says : wordsOf(lesson.keys) + ' ' + lesson.says;
 }
 
@@ -273,10 +287,10 @@ function learn(world, id) {
 }
 
 /** What the plate is there to say, in the words the lesson was written with; '' when it says nothing. */
-export function promptWords(world) {
+export function promptWords(world, onThumb) {
   const id = world.prompt.id;
   for (const lesson of LESSONS) {
-    if (lesson.id === id) return saysOf(lesson);
+    if (lesson.id === id) return saysOf(lesson, onThumb === true);
   }
   return '';
 }
