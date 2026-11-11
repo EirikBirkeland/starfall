@@ -19515,3 +19515,42 @@ list under the chips.
 3. Landscape in-run was not photographed: the title is fixed, the cards fit at 844x390, and the pause
    fits at the 0.6 floor, but the HUD and thumb controls in landscape are the next picture to take if
    anybody wants landscape to be more than a flying view.
+
+## Session 183 - a phone on its side gives the level cards the height they have
+
+### What the run audit saw
+A landscape run at `844x390` with a held thumb: the compact title launches, the HUD, the top hint
+(`TAP DASH` at 104-144), the pause plate, the DASH button and the stick all fit. The **level rack** did
+not say as much as it could: `cardLayout` capped a card at `0.7` of the window, so one row of 236-wide
+cards was only 179 px tall and the third description ended `every rank m…` - the usual fitter cutting a
+flavour line at the floor.
+
+### What landed
+A short, wide window (`H < 500 && W > 700`) lets a card use `0.86` of the window instead of `0.7`: the
+same 236-wide cards are **220 px** tall at 844x390, sit at y 131-351, and still clear the ask row at 358.
+The third description keeps three lines instead of being cut mid-sentence; the ask chips and the XP bar
+behind them are where they were. A test pins the height (`> 200`) and the clearance; `844x390` joins the
+small-window bounds list. Suite 2663 -> 2665.
+
+### What was left alone
+In landscape, a thumb put down near the bottom puts the stick ring over the XP bar and its caption - the
+ring is paint over the HUD and the bar can still be read around it. It is a cosmetic collision in a
+flying view, and moving the HUD or clamping a floating stick's origin would change the controls for every
+window; noted here rather than fixed. The landscape shops stay hidden (session 182): they need a
+portrait-height plate.
+
+### Verification
+- Real Chromium at `844x390`: cards 236x220 at y 131-351, ask row at 358; screenshot read back.
+- `node --test`: **2665/2665 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A paint layout only.
+
+### Released
+**1.9.24.** A phone on its side gets the taller level cards its glass has room for.
+
+### Next
+1. **Whether the first two minutes are too harsh** - the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The real-browser surface is now photographed at 1280x720, 1024x600, 768x1024, 390x844 and 844x390.
+   The next pass should be a new screen or a new feature, not another resolution.

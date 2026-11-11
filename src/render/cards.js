@@ -27,6 +27,7 @@ const SIDE_MARGIN = 20;     // at least this much window left at either side
 const MAX_CARD_W = 236;     // a card is not going to get any wider than this
 const CARD_RATIO = 1.36;    // height / width
 const MAX_HEIGHT = 0.7;     // of the window, so a short window gets short cards
+const SHORT_WIDE_HEIGHT = 0.86;  // ...but a phone on its side has the width for tall cards and no rows to spend it on
 const HEADROOM = 92;        // px of window above the cards, for the heading
 const RISE = 0.2;           // how long one card takes to slide in (PLAN: under 250 ms)
 const STAGGER = 0.08;       // and how much later the next one starts
@@ -121,9 +122,13 @@ export function cardLayout(count, W, H) {
   const w = Math.min(MAX_CARD_W, (W - SIDE_MARGIN * 2 - GAP * (columns - 1)) / columns);
   // The asks under the cards are part of the same screen, so they are asked for out of the
   // same window: a short window shrinks the cards instead of running the rows over them.
+  // A short, wide window (a phone on its side) has one row of cards and 390 px to spend: the usual
+  // 0.7 cap leaves 179 px of card and cuts the longer flavour lines. It can afford 0.86, which is
+  // still a card that clears the heading and the ask row.
+  const heightShare = H < 500 && W > 700 ? SHORT_WIDE_HEIGHT : MAX_HEIGHT;
   const h = Math.max(60, Math.min(w * CARD_RATIO,
     (H - HEADROOM - ASK_ROOM - GAP * (rows - 1)) / rows,
-    (H - HEADROOM - ASK_ROOM) * MAX_HEIGHT));
+    (H - HEADROOM - ASK_ROOM) * heightShare));
   const totalH = rows * h + GAP * (rows - 1);
   const y0 = (H - totalH) / 2 + HEADROOM * 0.5;
 

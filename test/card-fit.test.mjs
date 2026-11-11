@@ -33,7 +33,7 @@ const world = game.world;
 const ctx = game.context;
 const ELLIPSIS = '\u2026';
 const WIDE = [1280, 720];
-const SMALLS = [[560, 400], [420, 320], [390, 844]];
+const SMALLS = [[560, 400], [420, 320], [390, 844], [844, 390]];
 
 /** A font string for the tests that measure by hand. */
 const fontFor = (size) => '600 ' + size + 'px "Segoe UI", system-ui, sans-serif';
@@ -202,6 +202,16 @@ test('a small window shrinks the type instead of overflowing the card', () => {
       assert.deepEqual(checked(table, W, H), [], W + 'x' + H + ' ' + table.join(', '));
     }
   }
+});
+
+test('a short, wide window gives the rack the height it has', () => {
+  world.offer.length = 0;
+  for (const id of ['damage', 'split', 'nova']) world.offer.push(id);
+  const layout = cardLayout(3, 844, 390);
+  assert.ok(layout.cards[0].h > 200, 'not the 179 px the 0.7 cap would leave: ' + layout.cards[0].h);
+  const row = askLayout(844, 390);
+  assert.ok(layout.cards[0].y + layout.cards[0].h < row.reroll.y,
+    'and the taller cards still clear the asks');
 });
 
 test('a narrow, tall window lays the rack two across and one under', () => {
