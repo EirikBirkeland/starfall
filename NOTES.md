@@ -20297,3 +20297,28 @@ walked out of.
    event; the rule is now written down in `updatePulses` and `walksPulsing`.
 2. Play a late PULSAR crowd for feel; the two-body case is now correct but unplayed by a person.
 3. First-two-minutes verdict, owner's GPU plate read.
+
+## Session 203 - PULSAR's mark shows its clock
+
+The dashed circle said *where* the blast would land; it did not say *when*. `drawBlastZones` now draws a
+solid arc inside the circle, from twelve o'clock clockwise, filling over the 0.9 s wind-up. It uses the
+same `progress` the dashes already follow, no new simulation field, and no new colour: the thing that
+fills is the same orange as the boundary. A `ready` mark that is waiting one step shows a full circle,
+which is true - the blast is due.
+
+Real Chromium at 1280x720, 30 frames after the mark: the arc is about half full, the boundary dashed
+round it, the pink star standing off to the right with its own shot in the air. The interface reads
+"the floor is going off" rather than "there is a circle on the floor".
+
+### Verification
+- `node --test`: **2,701/2,701 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged **73,953 / level 56 / 3,870 kills /
+  4,840 shards / hull 3** - this is paint.
+- Real Chromium screenshot `.scratch/pulsar-mark-progress.png`.
+
+### Released
+**1.9.40.** PULSAR's mark has a filling arc for its wind-up.
+
+### Next
+1. Play a PULSAR crowd: the arc is the tell to judge; 0.9 s should read as a beat, not a blink.
+2. First-two-minutes verdict and the owner's real-GPU plate read remain the human readings.

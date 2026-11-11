@@ -735,6 +735,17 @@ export function drawBlastZones(ctx, list, alpha) {
       ctx.beginPath();
       ctx.arc(markX, markY, radius, 0, TAU);
       ctx.stroke();
+
+      // The dashed circle is the place; this is the clock. A solid arc inside it fills as the
+      // 0.9 s wind-up runs, so a player can read when the floor will go off as well as where.
+      ctx.setLineDash([]);
+      ctx.strokeStyle = PALETTE.blastFlash;
+      ctx.lineWidth = ZONE_SOFT;
+      ctx.globalAlpha = was * light;
+      ctx.beginPath();
+      ctx.arc(markX, markY, radius - ZONE_SOFT * 1.6, -Math.PI / 2,
+        -Math.PI / 2 + TAU * clamp(progress, 0, 1));
+      ctx.stroke();
       ctx.restore();
       continue;
     }

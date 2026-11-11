@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.40 — 2026-11-11
+PULSAR's mark now shows its clock.
+- A solid orange arc fills clockwise inside the dashed circle over the 0.9-second wind-up, so the
+  floor tells you *when* it will go off as well as *where*. A waiting `ready` mark shows a full
+  circle because the blast is due.
+- Paint only: the reference run and every simulation number are unchanged.
+
 ## 1.9.39 — 2026-11-11
 Two PULSARs no longer overwrite each other's marks.
 - A second pulse that is waiting its turn now **holds its marked place** instead of walking and
