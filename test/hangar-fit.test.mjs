@@ -47,6 +47,16 @@ function press(code) {
 
 function scale() { return game.screen.hangarScale; }
 
+test('a short phone hides the awards rack, so HANGAR and CLOSE stay on the glass', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  assert.match(html, /class="rack awards-rack"/, 'the awards rack has a name to hide');
+  assert.match(html, /@media \(max-height: 700px\) and \(max-width: 640px\) \{/,
+    'the short-phone rule exists');
+  assert.match(html, /\.hangar \.awards-rack \{ display: none; \}/, 'the awards are out of the shop');
+  assert.match(html, /\.hangar-body \{ width: min\(94vw, 360px\); \}/,
+    'and the shop is laid out at phone width');
+});
+
 test('the arithmetic: fit, floor, and nothing to measure', () => {
   assert.equal(scaleToFit({ w: 100, h: 100 }, { w: 100, h: 100 }), 1, 'it fits, so nothing is done');
   assert.equal(scaleToFit({ w: 400, h: 500 }, { w: 400, h: 400 }), 0.8, 'the tight axis is the one');

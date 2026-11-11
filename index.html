@@ -526,6 +526,13 @@
     .award .says { white-space: normal; }
     .hangar .chip { margin-top: 14px; }
   }
+  /* A short phone (360x640 and down): the shop's nine rows plus thirty awards cannot fit, and the
+     awards are the rack nobody is spending from - they are in the codex. Hiding them lets the shop
+     lay its two racks in one column at phone width and still show HANGAR, the purse and CLOSE. */
+  @media (max-height: 700px) and (max-width: 640px) {
+    .hangar-body { width: min(94vw, 360px); }
+    .hangar .awards-rack { display: none; }
+  }
   @keyframes pulse { 0%,100% { opacity: .30; } 50% { opacity: 1; } }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
@@ -786,7 +793,7 @@
         ways it was earned on one panel, so nobody has to die for it to find out what they are saving
         up for. The count is painted with the rows (ui/screens.js `showAwards`), which is also the
         number the title says. -->
-   <div class="rack">
+   <div class="rack awards-rack">
     <p class="rack-title" id="awardTitle">AWARDS</p>
     <div class="award-list" id="awardRow"></div>
    </div>

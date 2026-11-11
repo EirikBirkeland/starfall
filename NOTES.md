@@ -19705,3 +19705,38 @@ refills rather than how much of it there is.
 3. PRESSURE's score pair is a lean; a 48-seed flight would say whether it is a finding, and the rule
    could be tuned to 0.3 if a harder pressure is wanted. It is optional content, so this is a taste
    decision and not a bug.
+
+## Session 188 - the small phone's shop was taller than the glass
+
+### What the audit saw
+A settled `360x640` phone (the common small Android) is fine on the title - the mark, fourteen rows, the
+standing lines, the PRESSURE line and the rail all fit - but the **hangar** was not: at the 0.6 fit floor
+the body ran y -42..682, so the `HANGAR` title and the `CLOSE` chip were off the glass, and the thirty
+awards made the shop taller than the shop's own purpose. The awards are a readout, and the codex holds
+them; the hangar is the screen stardust is spent from.
+
+### What landed
+**A short-phone shop.** `@media (max-height: 700px) and (max-width: 640px)` lays `.hangar-body` at
+`min(94vw, 360px)` and hides `.awards-rack` (the wrapper now carries that class). The two shop racks
+stack in one column at phone width; the shop fits at scale 0.671 with `HANGAR`, `STARDUST`, all five
+ships, all four perks, the two hints and `CLOSE` on the glass. The awards are unchanged in the codex,
+and 390x844 still shows them in the hangar because it has the height. A test pins the class, the media
+rule, the hidden rack and the width. Suite 2669 -> 2671.
+
+### Verification
+- Real Chromium at 360x640: hangar body 66-294 x 0-640, scale 0.671, no child outside; screenshot read
+  back. The title at the same size was settled (session 181's mid-arrival trap again) and fits.
+- `node --test`: **2671/2671 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A phone CSS rule only.
+
+### Released
+**1.9.28.** A 360x640 phone can open the hangar: the shop fits and the awards stay in the codex.
+
+### Next
+1. **PRESSURE's score pair is a lean** (0.86x, 13 of 24); a 48-seed flight would say whether it is a
+   finding, and 0.3 is the harder tune if wanted. Optional content, not a bug.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
