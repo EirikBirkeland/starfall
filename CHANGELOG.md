@@ -1,5 +1,13 @@
 # Starfall — changelog
 
+## 1.9.21 — 2026-11-11
+On a phone, the pause is a plate now instead of a window.
+- **The held run no longer reads through the pause.** The phone pause's translucent radial background
+  let the HUD score, best, clock and `GUN PULSE` show through its title and its `SCORE · clock` line,
+  and let the XP bar and the hull rail through the GIVE UP chip and the build rack. A phone now gets a
+  solid plate, which is what a run that has been stopped is: the desktop keeps the dimmed window it had,
+  where the card is centred and the arena around it is still part of the picture.
+
 ## 1.9.20 — 2026-11-11
 A phone that tapped to launch is taught its own hands from the first frame, and the award plates stop
 landing on the lesson or the HUD.
