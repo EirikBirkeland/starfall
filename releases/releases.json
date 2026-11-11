@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.31",
+    "date": "2026-11-11",
+    "released": "2026-11-11T11:27:51.928Z",
+    "summary": "a new enemy: the MENDER, a support body that patches one wounded friend at a time",
+    "added": 172,
+    "removed": 5,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.30",
     "date": "2026-11-11",
     "released": "2026-11-11T10:48:05.366Z",
