@@ -8,6 +8,8 @@
 //   node tools/weapon-ladder.js --bot human --picks random   the careless person, not the careful
 //                                                          player every other number here is
 //                                                          measured with
+//   node tools/weapon-ladder.js --loot                   a hand that goes and gets its own loot,
+//                                                          printed in the table it was measured for
 //   node tools/weapon-ladder.js --knots-only             the two bot-free tables, in seconds
 //   node tools/weapon-ladder.js --quiet                  the verdict and nothing else
 //   node tools/weapon-ladder.js --out /tmp/l.jsonl       keep the runs; --in pools them again
@@ -16,8 +18,8 @@
 // `--shards K` splits the seeds over K child processes because one game per process is the
 // harness's rule and 5 guns x 16 seeds x 15 minutes is about eight minutes of this box otherwise.
 //
-// When rows are pooled from files with `--in`, the `--bot`, `--picks` and `--seconds` flags are
-// labels on rows that were already played and nothing checks them: pass them as they were when the
+// When rows are pooled from files with `--in`, the `--bot`, `--picks`, `--loot` and `--seconds` flags
+// are labels on rows that were already played and nothing checks them: pass them as they were when the
 // runs were played, or the header will describe somebody else's batch. The seeds are not guessed at
 // - they are counted out of the rows.
 //
@@ -89,6 +91,7 @@ import { makeEnemy } from '../src/game/kinds.js';
 import { scriptedRun, stepTheWorld } from './headless/scripted.js';
 import { KNOTS, pin, revive } from './power-ladder.js';
 import { playBatches, POLICIES, PICKS } from './headless/bot.js';
+import { lootHandWords } from './headless/loot.js';
 import { median } from './simulate.js';
 import { parseSeeds, readRows, writeRows, playSharded as playOverShards }
   from './headless/shards.js';
@@ -103,7 +106,7 @@ const IMMORTAL = 1e9;
 const DEFAULTS = {
   seed: 1, runs: 12, seconds: 900, policy: 'aware', picks: 'wise', guns: null,
   shards: 1, outfile: '', infiles: [], playOnly: false, knotsOnly: false,
-  knotSeconds: 6, knotSeeds: 4, quiet: false,
+  knotSeconds: 6, knotSeeds: 4, quiet: false, loot: false,
 };
 
 /** The primaries on offer, in the order the game offers them. */
@@ -138,6 +141,7 @@ export function readArgs(argv) {
     else if (flag === '--seconds') opts.seconds = Number(value());
     else if (flag === '--bot') opts.policy = value();
     else if (flag === '--picks') opts.picks = value();
+    else if (flag === '--loot') opts.loot = true;
     else if (flag === '--guns') opts.guns = value();
     else if (flag === '--shards') opts.shards = Number(value());
     else if (flag === '--knot-seconds') opts.knotSeconds = Number(value());
@@ -371,6 +375,7 @@ async function play(guns, seeds, opts) {
     maxSeconds: opts.seconds,
     policy: opts.policy,
     picks: opts.picks,
+    loot: opts.loot,
     weapon: gun,
     // A batch of long runs is minutes of silence without this, and a silent terminal cannot be
     // told apart from a stuck one.
@@ -392,6 +397,7 @@ async function playSharded(guns, seeds, opts) {
   const pass = ['--seconds', String(opts.seconds), '--bot', opts.policy, '--picks', opts.picks,
     '--guns', guns.join(','), '--knot-seconds', String(opts.knotSeconds),
     '--knot-seeds', String(opts.knotSeeds)];
+  if (opts.loot) pass.push('--loot');
   return playOverShards({
     name: 'weapon-ladder', tool: import.meta.url, seeds: seeds, shards: opts.shards, pass: pass,
   });
@@ -495,6 +501,7 @@ export function ladderTable(standings, opts) {
   return table(
     'the run: ' + standings.map((one) => one.runs).join('/') + ' runs a gun, '
     + opts.policy + ' bot' + (opts.picks === 'wise' ? '' : ' answering the level-up with a die')
+    + ', ' + lootHandWords(opts.loot)
     + ', a ' + clock(opts.seconds) + ' window, the same seeds for every gun',
     'The middle run of each batch. vs best is the only column PLAN\u2019s 25% is read on. bodies/s is\n'
     + 'what that run removed a second, which is what it was paid in - a shard per body, a level per\n'

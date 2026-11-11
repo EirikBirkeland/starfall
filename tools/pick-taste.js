@@ -9,6 +9,7 @@
 //   node tools/pick-taste.js --policies human         one pair of hands
 //   node tools/pick-taste.js --builds die,ship,nodefer   three rows instead of six
 //   node tools/pick-taste.js --no-dash                the bot never presses the dash at all
+//   node tools/pick-taste.js --loot                   a hand that goes and gets its own loot
 //   node tools/pick-taste.js --strict                 non-zero unless the shipped taste wins where it flies
 //
 // Why this exists at all: `tools/challenge-cost.js` prices ONE CARD - the rule that takes the level-up
@@ -64,6 +65,7 @@
 import { pathToFileURL } from 'node:url';
 
 import { playBatches, POLICIES, TASTE } from './headless/bot.js';
+import { lootHandWords } from './headless/loot.js';
 import { table, clock, int, dec } from './headless/tables.js';
 import { median, pairedRatio, isBetter, isWorse, isUndecided, pairWords } from './headless/pairs.js';
 
@@ -79,6 +81,9 @@ const DEFAULTS = {
   // The shipped get-out habit, same as the challenge ladder, so that a run here is the same run the
   // challenge numbers are quoted from.
   dash: true,
+  // Whether the hand goes and gets its own loot. Off by default: the taste and the hand are two
+  // different questions, and a row that changed both at once would answer neither.
+  loot: false,
   strict: false,
 };
 
@@ -143,7 +148,7 @@ export const BUILDS = {
   reverse: { taste: { appetite: SHIPPED.appetite.slice().reverse(), deferred: {} } },
 };
 
-function readArgs(argv) {
+export function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS);
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -153,6 +158,7 @@ function readArgs(argv) {
     else if (arg === '--policies') opts.policies = next();
     else if (arg === '--builds') opts.builds = next();
     else if (arg === '--no-dash') opts.dash = false;
+    else if (arg === '--loot') opts.loot = true;
     else if (arg === '--strict') opts.strict = true;
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -206,6 +212,7 @@ async function measure(opts) {
           picks: build.picks,
           taste: build.taste,
           dash: opts.dash,
+          loot: opts.loot,
           onRun: (summary) => { finished.push(summary); },
         },
         policy: policy,
@@ -348,7 +355,8 @@ function report(rows, policy, opts) {
   };
 
   const title = 'the bot\'s card taste on the ' + policy + ' hands, ' + opts.seeds + ' seeds of '
-    + clock(opts.seconds) + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash');
+    + clock(opts.seconds) + (opts.dash ? ', pressing the get-out dash' : ', never pressing the dash')
+    + ', ' + lootHandWords(opts.loot);
   const note = 'Every row is the same seeds and the same pair of hands answering the level-up one\n'
     + 'written-down way; `die` is the same bot rolling for the card instead, and it is the floor a\n'
     + 'taste has to beat rather than another taste. `vs die` and `better on` are counted seed against\n'

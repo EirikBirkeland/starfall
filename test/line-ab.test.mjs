@@ -35,6 +35,15 @@ test('a line the game does not have is still refused, with or without a gun', ()
   assert.match(run.stderr, /--line wants one of/);
 });
 
+test('a loot hand is named in the table it prints', () => {
+  // The flag and the heading, not the numbers: a table that says it was flown on a foraging hand
+  // while the bot let the net feed it would be the same lie the `--weapon` flag exists to avoid.
+  const run = lineAb(['--line', 'pierce', '--loot', '--seeds', '1', '--seconds', '5']);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /goes and gets its own loot/);
+  assert.doesNotMatch(run.stdout, /lets the shard net bring the loot/);
+});
+
 test('a measured gun is named in the table it prints', () => {
   // One seed and a five-second window: the point is the header's claim and not the numbers, and a
   // table that says "flying the LANCE" for runs played on the pulse would mislead in exactly the

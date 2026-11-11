@@ -51,6 +51,8 @@ test("the band is PLAN's 25% and nothing else", () => {
 test('the command line is read before anything is played', () => {
   const plain = readArgs([]);
   assert.equal(plain.policy, 'aware');
+  assert.equal(plain.loot, false, 'the magnet-fed hand is what every older number was taken on');
+  assert.equal(readArgs(['--loot']).loot, true);
   assert.deepEqual(plain.guns, ALL_GUNS);
   assert.throws(() => readArgs(['--nope']), /unknown flag/);
   assert.throws(() => readArgs(['--bot', 'blind']), /--bot wants one of/);

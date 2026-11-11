@@ -27,7 +27,7 @@ import { shardAt } from '../tools/headless/scripted.js';
 import { bootGame } from '../tools/headless/harness.js';
 import {
   forage, forageWary, forageImpatient, forageCommitted, FORAGE, LOOT, LOOT_HABITS,
-  DEFAULT_LOOT_HABIT, lootHabitOf, setLootDial,
+  DEFAULT_LOOT_HABIT, lootHabitOf, setLootDial, lootHandWords,
 } from '../tools/headless/loot.js';
 import { playOneRun, botFrame, setLootHabit, FRAME_MS } from '../tools/headless/bot.js';
 
@@ -505,6 +505,12 @@ test('the habits by name, and the one --loot means', () => {
   assert.equal(lootHabitOf('committed'), forageCommitted);
   assert.equal(LOOT_HABITS.off(game), null, '`off` is supposed to answer "nothing"');
   assert.throws(() => lootHabitOf('scavenger'), /no loot habit is called scavenger/);
+});
+
+test('a table can say which hand walked, in the same words everywhere', () => {
+  assert.match(lootHandWords(true), /goes and gets its own loot/);
+  assert.match(lootHandWords(false), /lets the shard net bring the loot/);
+  assert.notEqual(lootHandWords(true), lootHandWords(false));
 });
 
 test("the habit's dials can be put over, and refuse a number that is not one", () => {

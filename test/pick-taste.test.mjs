@@ -20,8 +20,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PICKS, TASTE, setTasteDial } from '../tools/headless/bot.js';
 import { newRanks } from '../src/game/upgrades.js';
-import { verdictOf, BUILDS } from '../tools/pick-taste.js';
+import { verdictOf, BUILDS, readArgs } from '../tools/pick-taste.js';
 import { median } from '../tools/headless/pairs.js';
+
+test('the ladder is flown magnet-fed unless --loot asks for the other hand', () => {
+  assert.equal(readArgs([]).loot, false);
+  assert.equal(readArgs(['--loot']).loot, true);
+  assert.equal(readArgs(['--no-dash']).loot, false);
+});
 
 /** The shipped taste, so a test that bends it can put it back. */
 const SHIPPED = { appetite: TASTE.appetite.slice(), deferred: Object.assign({}, TASTE.deferred) };

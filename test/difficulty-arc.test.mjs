@@ -22,12 +22,17 @@ import { writeRows } from '../tools/headless/shards.js';
 import { clock } from '../tools/headless/tables.js';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  ARC, endingOf, arcOf, arcTable, creditTable, deathsTable, hullsTable, verdictOf,
+  ARC, endingOf, arcOf, arcTable, creditTable, deathsTable, hullsTable, verdictOf, readArgs,
 } from '../tools/difficulty-arc.js';
 import { scheduleWindow } from '../tools/headless/window.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'difficulty-arc.js');
+
+test('the arc is flown magnet-fed unless --loot asks for the other hand', () => {
+  assert.equal(readArgs([]).loot, false);
+  assert.equal(readArgs(['--loot']).loot, true);
+});
 
 /** Run the tool and keep the exit status instead of throwing on a failing arc. */
 function runTool(args) {

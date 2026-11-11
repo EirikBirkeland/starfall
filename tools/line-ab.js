@@ -5,6 +5,8 @@
 //   node tools/line-ab.js --line nova --seeds 10           more seeds for the argument that matters
 //   node tools/line-ab.js --line mines --stats mines,minesBlown    extra columns off the world
 //   node tools/line-ab.js --line afterimage --dash         let the bot dash (see below)
+//   node tools/line-ab.js --line burn --loot               let the bot go and get its own loot, and
+//                                                        say so in the table
 //   node tools/line-ab.js --line burn --conditions deck,free       two of the three
 //   node tools/line-ab.js --line mines --set weight=0.6    measure a different number for one of
 //                                                        the line's own fields (repeatable)
@@ -69,6 +71,7 @@ import { WEAPONS } from '../src/game/weapons.js';
 import { bootGame } from './headless/harness.js';
 import { parseNumberPatch, applyPatches } from './headless/patch.js';
 import { playOneRun, POLICIES, DEFAULT_POLICY, DEFAULT_DASH_HABIT } from './headless/bot.js';
+import { lootHandWords } from './headless/loot.js';
 import { median } from './simulate.js';
 import { clock, int, dec, table } from './headless/tables.js';
 
@@ -83,6 +86,7 @@ const DEFAULTS = {
   holds: [],
   policy: undefined,
   dash: undefined,
+  loot: false,
   weapon: undefined,
 };
 
@@ -102,6 +106,7 @@ function readArgs(argv) {
     else if (arg === '--with') opts.holds.push(next());
     else if (arg === '--dash') opts.dash = true;
     else if (arg === '--dash-habit') opts.dash = next();
+    else if (arg === '--loot') opts.loot = true;
     else if (arg === '--weapon') opts.weapon = next();
     else { console.error('unknown option: ' + arg); process.exit(2); }
   }
@@ -210,6 +215,9 @@ async function measure(game, condition, id, opts) {
       // Before the step, wherever the bot's own hands are (playOneRun): a dash leans the frame it
       // is granted in and not the one after it.
       dash: opts.dash,
+      // Whether the hand goes and gets its own loot. Off by default because every number in here
+      // was taken on a hand the shard net fed; the table says which hand it was.
+      loot: opts.loot,
       onFrame: () => {
         // Handed after every step, which is how a rank that was never bought is felt by the very
         // next one - the same door a card taken between two frames goes through (game/upgrades.js).
@@ -283,6 +291,7 @@ console.log(table(
     + (opts.dash === undefined
       ? ' that never dashes'
       : ' with the ' + (opts.dash === true ? DEFAULT_DASH_HABIT : opts.dash) + ' dash habit pressed')
+    + ', ' + lootHandWords(opts.loot)
     + (opts.holds.length > 0 ? ', on a run that always had ' + opts.holds.join(', ') : '')
     + (changed.length > 0 ? ', with ' + changed.join(', ') : ''),
   'the middle run of each batch, against the first condition listed. `damage` is everything the\n'

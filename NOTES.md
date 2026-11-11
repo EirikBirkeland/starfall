@@ -18934,3 +18934,57 @@ different day and a different tree, so the two are not a controlled comparison):
 
 ### Released
 Nothing. The game traces byte for byte what it traced at 1.9.16; the tool learned a flag.
+
+## Session 172 - the build ladders learned to name the hand that walked, and `--loot` reached all four
+
+### What was on the shelf
+Session 161's carried item: `--loot` on `line-ab.js` and the other build ladders. The habit existed and
+`tools/simulate.js` and `tools/challenge-cost.js` could ask for it, but the tools that price a build were
+still magnet-fed and did not say so - so every quote they print is one hand's number wearing no label,
+which is exactly the mistake session 161 wrote down as the reason the habit is opt-in at all.
+
+### What landed
+1. **`lootHandWords(goesForLoot)`** in `tools/headless/loot.js`: the one phrase every ladder now uses,
+   `a hand that goes and gets its own loot` / `a hand that lets the shard net bring the loot to it`.
+   `challenge-cost.js` keeps its longer wording, because a quote also has to *refuse* a flight on the
+   other hand; this is the short phrase for a table heading.
+2. **`--loot` on `line-ab.js`, `weapon-ladder.js`, `pick-taste.js` and `difficulty-arc.js`**: default
+   off, passed to `playOneRun`/`playRuns`/`playBatches`, and added to the shard flag list for the two
+   tools that shard (`weapon-ladder`, `difficulty-arc`) so a child plays the same hand as its parent.
+3. **Every table says which hand it was flown on**, not only when `--loot` is asked for. A table without
+   the phrase is the old, unlabelled number, and the phrase costs one clause in a heading.
+4. **`weapon-ladder`'s `--in` caveat grew `--loot`**: pooled rows carry no record of the hand, so the flag
+   is a label on rows already played and has to be passed as it was. Saying so is the best a pooled file
+   can do until a session adds the hand to the row.
+5. **`power-ladder.js` is deliberately left alone.** It has no bot: it plants a knot of immortal bodies
+   and aims by the clock (`scriptedRun`), so there are no feet to send anywhere and no shard to walk to.
+   That is the honest answer to "the other four ladders" - three bot ladders and a scripted one that
+   cannot have a hand.
+6. Tests: `lootHandWords`'s two strings; `--loot` parsed and defaulted on the four tools; the line-ab
+   table names the foraging hand end to end (1 seed, 5 s). Suite 2640 -> 2644.
+
+### The headings, as printed
+- `the pierce line, ... with the escape dash habit pressed, a hand that goes and gets its own loot, ...`
+- `the run: 1/1 runs a gun, aware bot, a hand that goes and gets its own loot, a 0m02s window, the same seeds for every gun`
+- `the bot's card taste on the human hands, 8 seeds of 0m02s, pressing the get-out dash, a hand that goes and gets its own loot`
+- `the difficulty arc: 2 runs, seeds 1-2, the human bot answering the level-up with a die, a hand that goes and gets its own loot, a 0m05s window`
+
+Both sharded paths were also flown once (`--loot --shards 2`) and the children accepted the flag and the
+parent printed the same phrase.
+
+### Verification
+- `node --check` on every touched tool and test.
+- Targeted: line-ab 4/4, weapon-ladder/pick-taste/difficulty-arc/loot-habit 85/85 green.
+- `node --test`: **2644/2644 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). No `src/` file was touched.
+
+### Next
+1. The carried list, now without the build ladders' `--loot`: **decide which hand the challenge sheet
+   speaks for** (an hour of `--loot` flights), NO DASH's missing hand, whether the first two minutes are
+   too harsh (needs a human), and session 163's unattributed ~110 B a step.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. A named hand is not a version, and no number the game ships with has moved.

@@ -451,6 +451,20 @@ export const LOOT_HABITS = {
 };
 export const DEFAULT_LOOT_HABIT = 'greedy';
 
+/**
+ * How a table says which hand it was flown on.
+ *
+ * Every ladder that prices a build now has both hands, and a table that does not name the one it
+ * used is a number that cannot be compared with the next session's - the whole lesson of the habit
+ * (NOTES session 161). `tools/challenge-cost.js` has its own longer version, because a quote also
+ * has to refuse a flight on the other hand; this is the short phrase for a table's heading.
+ */
+export function lootHandWords(goesForLoot) {
+  return goesForLoot
+    ? 'a hand that goes and gets its own loot'
+    : 'a hand that lets the shard net bring the loot to it';
+}
+
 /** The habit for a name; `undefined` means the shipped one, and `true` the same. */
 export function lootHabitOf(name) {
   if (name === undefined || name === true) return LOOT_HABITS[DEFAULT_LOOT_HABIT];

@@ -11,6 +11,7 @@
 //   node tools/difficulty-arc.js --bot aware         the player that never misses a thing
 //   node tools/difficulty-arc.js --bot naive         the player that does not dodge at all
 //   node tools/difficulty-arc.js --picks wise        the careful build, to compare against
+//   node tools/difficulty-arc.js --loot              a hand that goes and gets its own loot
 //   node tools/difficulty-arc.js --set waves.gap.0=0.5   move one number of BALANCE for the batch,
 //   node tools/difficulty-arc.js --set waves.waveMaxPoints=45 --set waves.gap.1=0.8   (repeatable)
 //   node tools/difficulty-arc.js --quiet             the two verdicts and nothing else
@@ -78,6 +79,7 @@
 
 import { pathToFileURL } from 'node:url';
 import { playRuns, POLICIES, PICKS } from './headless/bot.js';
+import { lootHandWords } from './headless/loot.js';
 import { parseNumberPatch, applyPatches, patchWords } from './headless/patch.js';
 import { parseSeeds, readRows, writeRows, playSharded as playOverShards }
   from './headless/shards.js';
@@ -101,9 +103,10 @@ export const ARC = {
 
 const DEFAULTS = {
   seed: 1, runs: 48, seconds: null, policy: 'human', picks: 'random', quiet: false, shards: 1,
+  loot: false,
 };
 
-function readArgs(argv) {
+export function readArgs(argv) {
   const opts = Object.assign({}, DEFAULTS, {
     sets: [], seeds: null, infiles: [], outfile: '', playOnly: false,
   });
@@ -123,12 +126,13 @@ function readArgs(argv) {
     else if (arg === '--seconds') opts.seconds = parseFloat(next());
     else if (arg === '--bot') opts.policy = next();
     else if (arg === '--picks') opts.picks = next();
+    else if (arg === '--loot') opts.loot = true;
     else if (arg === '--set') opts.sets.push(next());
     else if (arg === '--quiet') opts.quiet = true;
     else {
       console.error('usage: difficulty-arc.js [--seed N] [--runs N] [--seeds 1-24] [--seconds N]'
-        + ' [--bot NAME] [--picks NAME] [--set path=number] [--shards K] [--out FILE] [--in FILE]'
-        + ' [--quiet]');
+        + ' [--bot NAME] [--picks NAME] [--loot] [--set path=number] [--shards K] [--out FILE]'
+        + ' [--in FILE] [--quiet]');
       process.exit(2);
     }
   }
@@ -403,6 +407,7 @@ function report(summaries, opts, seeds, patches) {
       + (opts.infiles.length > 0 ? 'pooled from files'
         : 'seeds ' + seeds[0] + '-' + seeds[seeds.length - 1]) + ', the ' + opts.policy + ' bot'
       + (opts.picks === 'random' ? ' answering the level-up with a die' : ' picking ' + opts.picks)
+      + ', ' + lootHandWords(opts.loot)
       + ', a ' + clock(opts.seconds) + ' window' + patchWords(patches));
     console.log('');
     console.log(arcTable(arc));
@@ -438,6 +443,7 @@ if (isMain) {
     summaries = readRows(opts.infiles);
   } else if (opts.shards > 1) {
     const pass = ['--seconds', String(opts.seconds), '--bot', opts.policy, '--picks', opts.picks];
+    if (opts.loot) pass.push('--loot');
     for (const assignment of opts.sets) pass.push('--set', assignment);
     summaries = await playOverShards({
       name: 'difficulty-arc', tool: import.meta.url, seeds: seeds, shards: opts.shards, pass: pass,
@@ -448,6 +454,7 @@ if (isMain) {
       maxSeconds: opts.seconds,
       policy: opts.policy,
       picks: opts.picks,
+      loot: opts.loot,
       // Nothing per run: this report is a batch's, and the histogram is where a single seed shows up.
     });
   }
