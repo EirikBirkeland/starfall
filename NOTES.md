@@ -18676,9 +18676,10 @@ loads (`ENDLESS +9m`, `THICK CROWD`) and show the pool rows behind each number.
 ### What this says, and what it does not
 - **On the main thread, the load is cheap.** Drawing 200 bodies and a whole HUD costs 3-4.2 ms of canvas
   issue on average and 7-13.5 ms at the worst frame; the simulation at the same crowd costs 0.54-0.84 ms
-  on average and 1.7-3.9 ms at the worst. Two of those numbers have to share a 16.7 ms frame, and they do,
-  even with a software rasteriser competing for the same CPU. That is the same shape session 155 found
-  from the step side, and it says the tail is the collector and not the scene.
+  on average and 1.7-3.9 ms at the worst. Their means share a 16.7 ms frame with room to spare even with a
+  software rasteriser competing for the same CPU; the worst draw is 7-13.5 ms and the worst step 1.7-3.9
+  ms, and that tail is a frame with the collector on it, not the load. That is the same shape session 155
+  found from the step side, and it says the tail is the collector and not the scene.
 - **`draw ms` at 200 bodies is not bigger than at 150.** The endless crowd is spread round the arena and
   the camera culls what is off the glass; the THICK CROWD wall was planted round the ship, so nearly all
   of its 150 bodies are drawn. Body count alone does not price a frame - bodies *on the glass* do - which

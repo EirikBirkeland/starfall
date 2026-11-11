@@ -1830,7 +1830,8 @@ When every item above is ticked, go back to the first unchecked item of mileston
       read 0.84 / 3.90 and 4.20 / 13.50); at THICK CROWD's **`150 / 150`** step **0.49 / 0.90** and draw
       **4.28 / 8.80** (a later read 0.34 / 3.00 and 2.61 / 11.70); at the brood's **42 bodies** step
       **0.28 / 2.40** and draw **2.75 / 10.10** (a later read 0.17 / 0.90 and 2.59 / 9.00). So these loads
-      cost **2.6-4.3 ms of draw issue on average and 7-14 ms at their worst**, and none of that is a frame.
+      cost **2.6-4.3 ms of draw issue on average and 7-14 ms at their worst**: the means share a 16.7 ms
+      frame with room to spare, and the worst draw is most of a frame on its own - a tail, not the load.
       **But every one of those numbers was painted by SwiftShader**, and the wall column says so: the same
       frames took **70-306 ms apiece in software**, which is not a laptop and not a GPU. **The ceiling stays
       at 200 and this item stays open**: the remaining reading is the owner's own machine - by hand with
