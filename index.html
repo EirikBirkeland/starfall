@@ -502,6 +502,10 @@
      of the glass; and in the shop, a column clamped to the phone's width before `fitPanel` scales it
      by 0.6 ends up half as wide as the screen and still too tall for it. */
   @media (max-width: 640px) {
+    /* The pause is a plate on a phone, not a window: the run's HUD and XP bar were reading through
+       the translucent screen and landing on the pause title, the score and the GIVE UP chip. The run
+       is held; there is nothing behind the plate worth seeing. */
+    .pause { background: #02040c; }
     #startScreen { padding: 12px 16px 116px; }
     .logo { height: 52px; }
     .subtitle { margin-top: 6px; }

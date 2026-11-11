@@ -19387,3 +19387,45 @@ on the lesson or the HUD.
    only reading that can move `endless.growth.bodiesCeil`.
 3. The thumb's late pause is still unphotographed: the boss script stops for a card before it can tap the
    pause plate. Answer the card, pause, and read the give-up chip.
+
+## Session 180 - the phone pause was a window, not a plate, and the run read through it
+
+### What the audit saw
+The last unphotographed surface: a thumb's late pause at `390x844` - full build, level 60, the rule and
+the day, the GIVE UP chip. The panel fitted (`scale 0.808`, body y 0-844, chip at 781-817, the second
+tap says `TAP AGAIN TO GIVE UP`), but the screen behind it is a radial gradient with a 0.55 centre:
+
+- the run's **HUD score, best, clock and `GUN PULSE`** were legible through the pause title and the
+  `SCORE 123,456 · 15m32s` line;
+- the **XP bar** showed through the GIVE UP chip and the keys line at the bottom;
+- the left HUD icon rail showed through the build rack.
+
+Nothing overlapped in the DOM - the body, the racks and the chip are all inside the window - which is why
+the stub measurements and the earlier late-pause pass did not see it. It was the *background* letting the
+run through.
+
+### What landed
+**A phone pause is an opaque plate.** `@media (max-width: 640px) { .pause { background: #02040c; } }` -
+the run is held and there is nothing behind the plate worth seeing. The desktop pause keeps its window,
+where the body is a centred card and the arena around it is still part of the picture. A test in
+`test/pause.test.mjs` reads the rule out of `index.html` and refuses a phone pause without it.
+Suite 2657 -> 2659.
+
+### Verification
+- Real phone screenshots before and after: the title, score, both racks, the GIVE UP chip and the second
+  tap's `TAP AGAIN TO GIVE UP` now sit on a clean dark plate; no HUD, XP bar or hull pip shows through.
+- `node --test`: **2659/2659 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A CSS background is not a run.
+
+### Released
+**1.9.21.** The phone pause is a plate now: the held run no longer reads through its title, its score or
+its GIVE UP chip.
+
+### Next
+1. **Whether the first two minutes are too harsh** - still the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The title's thumb rail has been seen in the static pass and fits; the only overlay left unphotographed
+   is the volume readout over a phone run (measured at 680-770, above the XP bar, but not read as a
+   picture).

@@ -13,6 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { bootGame } from '../tools/headless/harness.js';
 import { BALANCE } from '../src/game/balance.js';
@@ -21,6 +22,15 @@ import { dustForRun } from '../src/game/stardust.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const FRAME = 16.7;
+
+test('a phone pause is an opaque plate, so the run cannot read through it', () => {
+  // The real-browser audit at 390x844 found the HUD score and the XP bar showing through the pause's
+  // radial gradient and landing on its title, score and GIVE UP chip. A phone holds a held run under
+  // a plate; this is the rule that makes it one, and it lives in the phone media block.
+  const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  assert.match(html, /@media \(max-width: 640px\) \{[\s\S]*?\.pause \{ background: #02040c; \}/,
+    'the phone pause paints an opaque plate');
+});
 
 const game = await bootGame({ root: ROOT, seed: 1207, width: 1280, height: 720, storage: {} });
 const world = game.world;
