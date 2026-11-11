@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.24 — 2026-11-11
+A phone on its side gives its level cards the height they have.
+- **The landscape level rack was short.** Three 236 px cards in a 390 px window were capped at 0.7 of
+  the height, 179 px, and the longer flavour lines were cut with an ellipsis. A short, wide window now
+  lets a card use 0.86, so the same cards are 220 px, sit at y 131-351, and still clear the ask row at
+  358. The third description keeps its sentence.
+
 ## 1.9.23 — 2026-11-11
 A phone on its side opens on a title instead of a blank screen.
 - **The landscape title is the flying title.** At 844x390 the fourteen-row control list, the standing
