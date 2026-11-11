@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.24",
+    "date": "2026-11-11",
+    "released": "2026-11-11T08:27:59.288Z",
+    "summary": "a phone on its side gets the taller level cards its glass has room for",
+    "added": 17,
+    "removed": 2,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.23",
     "date": "2026-11-11",
     "released": "2026-11-11T08:14:20.095Z",
