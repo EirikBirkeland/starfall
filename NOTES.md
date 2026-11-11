@@ -19978,3 +19978,43 @@ boxed number, and the empty arena is where it shows.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 195 - pricing KINDLING: it turns a weak burn/leech pair into a normal strong build
+
+### The flight
+Eight seeds, 300 s, aware bot with wise cards, holding `burn` and `leech` at rank 3 every frame, once with
+`kindling` on and once off:
+
+| | middle score | middle kills | hulls lost | died |
+|---|---|---|---|---|
+| kindling on | **34,652** | **1,991** | **1** | 0/8 |
+| kindling off | 6,382 | 450 | 42 | 0/8 |
+
+The card is worth about **5.4x** the weak pair's score and four times its kills, because a burning kill
+feeds the leech twice and the burn line makes nearly every kill burning. That is a large payoff for a
+card that costs six parent ranks and one level, and it is the shape a synergy should have: the pair
+without it is a build that spends six ranks on fire and digestion and does not pay; with it, the build
+is normal-strong (the reference aware run is 74,748 over ten minutes; this is 34,652 over five). The
+reference build does not take burn 3 + leech 3, so none of the reference numbers move.
+
+### What was not done
+No tuning. A 5.4x build is a decision about a player's evening, not a number a bot can settle: the pair
+is optional, the card is earned and never dealt by luck, and the next session that wants to change
+`feeds` (2) needs a person playing the burn/leech build and a real fight, not another batch.
+
+### Verification
+- `node --test`: **2,681/2,681 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged reference (`74,748 / level 57 / 3,997
+  kills / 5,068 shards`).
+- `node tools/alloc-probe.js --scene schedule`: floor **16 B**, schedule **333 B**, PASS.
+
+### Released
+Nothing after 1.9.33; the synergy and the fixed-shape rank object are in that release.
+
+### Next
+1. Play the KINDLING build on a real screen: 5.4x is either a payoff worth chasing or a build that
+   trivialises the arena, and only a person can say which.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
