@@ -19420,7 +19420,8 @@ Suite 2657 -> 2659.
 
 ### Released
 **1.9.21.** The phone pause is a plate now: the held run no longer reads through its title, its score or
-its GIVE UP chip.
+its GIVE UP chip. (The changelog commit carries the label "1.9.20" from a slip when this session first
+asked the release script for the wrong version; the entry it adds, and the release, are 1.9.21.)
 
 ### Next
 1. **Whether the first two minutes are too harsh** - still the one carried item that needs a person.
