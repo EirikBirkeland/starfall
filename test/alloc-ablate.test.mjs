@@ -34,7 +34,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { BALANCE } from '../src/game/balance.js';
 import {
-  ROWS, applyEdits, chosenRows, makeCopy, readArgs, verdictOf,
+  ROWS, applyEdits, chosenRows, makeCopy, readArgs, verdictOf, FLOCK_STEPS,
 } from '../tools/alloc-ablate.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -130,6 +130,42 @@ test('the flags it takes, and the one it refuses', () => {
   assert.throws(() => readArgs(['--edit', 'kinds.js']), /--edit needs --find/);
   const mine = readArgs(['--edit', 'kinds.js', '--find', 'a\\nb', '--repl', 'c']);
   assert.equal(mine.custom[0].find, 'a\nb', 'a \\n in --find is a newline, not a backslash');
+});
+
+test('the brood pass covers one whole turn of the flock beat, and asks the flock rows', () => {
+  const flock = BALANCE.kinds.swarmling.flock;
+  const cycle = flock.gather + flock.brace + flock.dive.time;
+  const steps = Math.ceil(cycle / BALANCE.sim.step);
+  assert.equal(FLOCK_STEPS, steps, 'the window is read off BALANCE, not written down twice');
+  assert.ok(steps * BALANCE.sim.step >= cycle,
+    `${steps} steps are ${steps * BALANCE.sim.step} s, which is less than the ${cycle} s beat`);
+
+  const brood = readArgs(['--scene', 'brood']);
+  assert.equal(brood.flock, true);
+  assert.equal(brood.steps, steps);
+  assert.equal(brood.kind, 'swarmling');
+  assert.ok(chosenRows(brood.kind, '').some((row) => row.name === 'the flock does not update'),
+    'a brood pass should ask the rows that are about the flock');
+
+  const loose = readArgs(['--scene', 'loose']);
+  assert.equal(loose.flock, true);
+  assert.equal(loose.steps, steps);
+  assert.equal(loose.kind, 'swarmling');
+});
+
+test('an explicit window or kind still wins over the brood pass', () => {
+  const short = readArgs(['--scene', 'brood', '--steps', '200']);
+  assert.equal(short.steps, 200);
+  assert.equal(short.flock, true);
+
+  const mixed = readArgs(['--scene', 'brood', '--kind', 'mixed']);
+  assert.equal(mixed.kind, 'mixed');
+  assert.equal(mixed.steps, FLOCK_STEPS);
+
+  const schedule = readArgs([]);
+  assert.equal(schedule.steps, 400);
+  assert.equal(schedule.kind, 'mixed');
+  assert.equal(schedule.flock, false);
 });
 
 /** One run of the tool, in its own process, on a short window so the suite is not waiting on a ladder. */

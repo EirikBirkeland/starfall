@@ -18717,3 +18717,73 @@ loads (`ENDLESS +9m`, `THICK CROWD`) and show the pool rows behind each number.
 
 ### Released
 Nothing this session. A tool and a reading are not a version; v1.9.16 is still the one to play.
+
+## Session 168 - the ablate catalogue grew the brood pass: a window one whole flock beat long, and the rows that are about the flock
+
+### What was on the shelf
+Session 167's next list, carried from session 158: "the ablate catalogue's `--scene brood` pass". The note was
+specific: the clumps' beat is 4.6 s and the catalogue's default window is 400 steps (3.3 s), so a row read
+at the default is a coin toss on whether the brace - the one part of the beat a sound is filed for and a
+tell is drawn over - was in it at all. `tools/alloc-probe.js` already knew the brood scene and
+`tools/perf-probe.js` already knew the window; what the ablate tool lacked was a way to ask the question
+at that load without the hand remembering to set `--steps` correctly.
+
+### What landed
+1. **`FLOCK_STEPS` in `tools/alloc-ablate.js`**, read off `BALANCE.kinds.swarmling.flock` (gather + brace
+   + dive.time) and `BALANCE.sim.step`, so the window is 552 steps and not a typed-in number. A test
+   recomputes it from `BALANCE` and fails if the two ever disagree.
+2. **`--scene brood` and `--scene loose` are a pass.** With neither `--steps` nor `--kind` given, they
+   default the window to `FLOCK_STEPS` and the rows to the swarmling crowd, which brings the three flock
+   rows (`turn toward its pulls`, `update`, `no middle to read`) into a run that used to select only the
+   `any` rows. An explicit `--steps` or `--kind` still wins, because the flag is the question; when the
+   explicit window is shorter than the beat the tool says so in one line and names 552 as the window that
+   covers it.
+3. **The header says why**, so the pass is not another unexplained flag: gather, brace, dive; the brace
+   is the only cue; 4.6 s at 1/120 s a step; 552 steps against 400.
+4. Two tests in `test/alloc-ablate.test.mjs`: the brood pass's window and rows (and the same for `loose`),
+   and the explicit-flag cases (`--steps 200` wins, `--kind mixed` wins, the ordinary schedule default
+   stays 400/mixed). Suite 2636 -> 2638.
+
+### The first brood reading
+`node tools/alloc-ablate.js --scene brood --row flock --json` (four rows, five windows, 552 steps each):
+
+| row | bytes a step |
+|---|---|
+| nothing taken out | **1,802** |
+| the flock does not turn toward its pulls | **30** |
+| the flock does not update | **1,361** |
+| the flock has no middle to read | **1,802** |
+
+That is the same shape the shielder's walk showed in session 154, and it is why the header calls this a
+magnifier: taking the turn out takes the whole load's bytes with it, taking the pack rebuild out leaves a
+quarter, and taking `spreadOf` out changes nothing. The line is load-bearing in the shape V8 compiled, not
+the line the bytes are spent on; the pass is for reading that shape at a load the game actually fields,
+not for naming a line. The human output at `--steps 200` prints the warning and reads the same rows at
+1.6 KB / 25 B / 1.3 KB / 1.6 KB, which is the coin toss the pass exists to remove.
+
+### A small lesson
+I nearly "fixed" `--list` for printing each row twice. It does not: I had read the file in two `sed`
+ranges that met at line 420, and the shared line appeared in both halves. A file read in adjacent slices is
+not a file read; the next look was `grep -A` on the one function. No change was made.
+
+### Verification
+- `node --check` on `tools/alloc-ablate.js` and `test/alloc-ablate.test.mjs`.
+- `node --test test/alloc-ablate.test.mjs`: **11/11 green**, including the real shielder measurement and
+the two new pass tests.
+- `node --test`: **2638/2638 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). No `src/` file was touched.
+
+### Next
+1. The carried-over list, minus the brood pass: `--loot` on the other four ladders, deciding which hand the
+   challenge sheet speaks for, NO DASH's missing hand, the shot-speed line (now the oldest item on the
+   list, and session 111's test may mean it is a line to delete rather than measure),
+   `tierBonus.telegraph` in PLAN (a sentence that names a number this tree has never had - either design
+   the ladder or delete the sentence), whether the first two minutes are too harsh (needs a human),
+   `--live --weapon swarm`, and session 163's unattributed ~110 B a step.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. The game traces byte for byte what it traced at 1.9.16; what changed is one tool's window and
+the rows it asks for.

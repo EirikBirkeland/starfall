@@ -6,6 +6,10 @@
 //   node tools/alloc-ablate.js --kind swarmling --row glide  the rows whose name matches
 //   node tools/alloc-ablate.js --kind mixed                  the crowd the director actually fields
 //   node tools/alloc-ablate.js --kind shielder --bare        the crowd alone: no shots, no sparks
+//   node tools/alloc-ablate.js --scene brood                the brood's own pass: the flock's rows,
+//                                                           over one whole turn of its 4.6 s beat
+//   node tools/alloc-ablate.js --scene loose                the same bodies with the packs taken
+//                                                           out, as the brood's control
 //   node tools/alloc-ablate.js --edit kinds.js --find "..." --repl "..." --name "my guess"
 //
 // `tools/alloc-probe.js` says how much a step throws away and cannot say where: a byte has no return
@@ -53,6 +57,14 @@
 //
 // The rows are sorted here by what they ask about, not by what they found, so that the next session can
 // run the whole list at a new load and read the shape of it in one go.
+//
+// **The brood pass has a window of its own.** A flock commits on a beat - gather, brace, dive - and the
+// brace is the only part of it that files a sound and the only part a tell is drawn for. The default
+// window is 400 steps (3.3 s) and the beat is 4.6 s, so a row read there is a coin toss on whether the
+// brace was in it at all. `--scene brood` and `--scene loose` therefore default to one whole turn of the
+// flock's own clock (`FLOCK_STEPS`, read off `BALANCE` and not written down here) and to the swarmling
+// rows, which are the ones about the flock. An explicit `--steps` still wins, because the flag is the
+// question; the tool says when that window is too short to be sure of the brace.
 
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -69,6 +81,23 @@ const PROBE = path.join(TOOLS, 'alloc-probe.js');
 
 /** A row whose reading is this close to the empty arena threw away the whole of the load's bytes. */
 const NOTHING_LEFT_SLACK = 1.25;
+
+/**
+ * The brood's beat, in seconds: one gathering, one brace, one dive. This is the clock a flock keeps,
+ * and the brace is the one part of it a sound is filed for and a tell is drawn over.
+ */
+const FLOCK_CYCLE = BALANCE.kinds.swarmling.flock.gather
+  + BALANCE.kinds.swarmling.flock.brace
+  + BALANCE.kinds.swarmling.flock.dive.time;
+
+/**
+ * The shortest window that cannot miss the brace: one whole turn of the flock's own clock, in the
+ * simulation's steps. 4.6 s at 1/120 s a step is 552, against the 400 the other loads use.
+ */
+export const FLOCK_STEPS = Math.ceil(FLOCK_CYCLE / BALANCE.sim.step);
+
+/** The two scenes the brood pass is about: the clumps, and the same clumps without their packs. */
+const FLOCK_SCENES = new Set(['brood', 'loose']);
 
 /**
  * The catalogue. Each row names a question and the edits that ask it; an edit names a file under
@@ -329,13 +358,15 @@ export function readArgs(argv) {
     steps: 400, windows: 5, scene: 'schedule',
     edit: null, find: '', repl: '', name: 'the edit you asked for',
   };
+  let stepsGiven = false;
+  let kindGiven = false;
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     const next = () => { i += 1; return argv[i]; };
-    if (key === '--kind') opts.kind = next();
+    if (key === '--kind') { opts.kind = next(); kindGiven = true; }
     else if (key === '--row') opts.row = next();
     else if (key === '--scene') opts.scene = next();
-    else if (key === '--steps') opts.steps = Number(next());
+    else if (key === '--steps') { opts.steps = Number(next()); stepsGiven = true; }
     else if (key === '--windows') opts.windows = Number(next());
     else if (key === '--bare') opts.bare = true;
     else if (key === '--keep') opts.keep = true;
@@ -351,6 +382,11 @@ export function readArgs(argv) {
     if (opts.find === '') throw new Error('--edit needs --find as well, and --repl for what to leave instead');
     opts.custom = [{ file: opts.edit, find: opts.find, repl: opts.repl }];
   }
+  // The brood pass: the flock keeps its own clock, so the window is at least one whole turn of it and
+  // the rows are the ones about the flock. Both only when the hand did not ask for something else.
+  opts.flock = FLOCK_SCENES.has(opts.scene);
+  if (opts.flock && !stepsGiven) opts.steps = FLOCK_STEPS;
+  if (opts.flock && !kindGiven) opts.kind = 'swarmling';
   return opts;
 }
 
@@ -450,6 +486,12 @@ export function main(argv) {
     console.log(`A crowd of ${opts.kind === 'mixed' ? 'every kind' : `all ${opts.kind}`}, the scene`
       + ` "${opts.scene}"${opts.bare ? ' with no shots and no sparks' : ''}, measured ${opts.steps}`
       + ` steps' worth in ${opts.windows} windows, one row per edit, in a copy at ${into}`);
+    if (opts.flock) {
+      console.log(opts.steps >= FLOCK_STEPS
+        ? `  the flock's beat is ${FLOCK_CYCLE.toFixed(1)} s, so this window covers a whole turn of it`
+        : `  ! the flock's beat is ${FLOCK_CYCLE.toFixed(1)} s and this window is only ${opts.steps}`
+          + ` steps, so the brace may not be in it - ${FLOCK_STEPS} steps cover the whole beat`);
+    }
   }
 
   const readings = [];
