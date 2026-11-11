@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.35",
+    "date": "2026-11-11",
+    "released": "2026-11-11T14:02:00.412Z",
+    "summary": "KINDLING says A BURNING KILL FEEDS 2 and fits a phone card",
+    "added": 13,
+    "removed": 2,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.34",
     "date": "2026-11-11",
     "released": "2026-11-11T13:23:40.964Z",
