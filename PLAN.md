@@ -2076,6 +2076,13 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       schedule's wall reads **333 B** (was 349). The rank object is held to `LINES` by a test. Reference
       run unchanged at 74,748 / 3,997 kills. Session 194, NOTES.
 
+- [x] A ninth challenge rule: **DROUGHT**. Each shard buys `xpMul` 0.6 of its experience; the score
+      it pays is untouched. Applied at the one place a collected shard pays XP (`game/pickups.js`), so
+      the build arrives slower and the run feels it before the score does. 24 seeds x 5m: **0.66x**
+      plain's middle, plain winning **19 of 24** pairs (p = 0.007), deaths 15 against 14, hulls 67
+      against 68. `tools/challenge-cost.js` judges it; the quote reproduces under `--strict`. Session
+      196, NOTES.
+
 - [x] A new support body: **MENDER**. A violet cross that stands off at 170-270 px and, every 2.6 s,
       patches the most wounded *other* body inside 120 px by 2 hull, never itself. It arrives at 8:20
       with weight 1 and cost 8, so it is a rare late-run problem rather than weather. `walksMending` in

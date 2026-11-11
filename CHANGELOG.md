@@ -1,5 +1,13 @@
 # Starfall — changelog
 
+## 1.9.34 — 2026-11-11
+A ninth challenge rule: **DROUGHT**.
+- **Shards buy 40% less experience.** The score a shard pays on pickup is untouched; the build simply
+  arrives slower, so the run feels the rule through fewer levels before it feels it in the score.
+- **What it costs:** 24 seeds of the careless magnet hand at 5 minutes read **0.66x** plain's middle,
+  with plain winning **19 of the 24** pairs (p = 0.007), deaths 15 against 14 and hulls 67 against 68.
+  The quote re-flies under `--strict`.
+
 ## 1.9.33 — 2026-11-11
 A second synergy, and a performance trap the twentieth line exposed.
 - **KINDLING — burn 3 + leech 3.** A body that dies alight counts **twice** toward the leech. The card
