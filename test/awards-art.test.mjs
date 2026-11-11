@@ -68,7 +68,7 @@ test('a plate is one rounded plate, three pieces of type, and nothing built mid-
   assert.equal(plate.w, PLATE_W);
   assert.equal(plate.x, (VIEW_W - PLATE_W) / 2, 'centred: this is news about the run');
   assert.ok(plate.glow > 0.99, 'it has finished arriving');
-  assert.ok(Math.abs(plate.y - 84) < 0.001, 'and it has landed where it belongs');
+  assert.ok(Math.abs(plate.y - 104) < 0.001, 'and it has landed where it belongs');
 
   // The one strip of window it uses is the one strip nothing else uses: below the boss bar.
   const bar = bossBarLayout(VIEW_W);

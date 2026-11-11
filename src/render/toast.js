@@ -21,12 +21,13 @@ import { fitOneLine } from './fit.js';
 import { haloText } from './hud.js';
 import { roundRect } from './shapes.js';
 import { view } from './canvas.js';
+import { tutorialLayout } from './tutorial.js';
 
 const PLATE = {
   wide: 320,          // px: every plate the same width, so a stack of them reads as one stack
   tall: 52,           // px of one plate
   gap: 8,             // px between two plates in a stack
-  top: 84,            // px from the top of the glass: under the boss bar, clear of the score
+  top: 104,           // px from the top: under the boss bar and clear of the HUD's four lines
   radius: 10,         // px of corner on the plate
   side: 15,           // px of plate to the left of the words
   bar: 3,             // px of the gold edge that says "this one paid you"
@@ -89,6 +90,12 @@ export function clearToasts() {
  */
 export function toastLayout() {
   const x = (view.W - PLATE.wide) / 2;
+  // A thumb's tutorial plate lives at the top (render/tutorial.js): the bottom is the stick's and
+  // the buttons'. An award must not land on the sentence teaching the hand, so a stack starts under
+  // that plate when there is one. A keyboard's hint is at the bottom and changes nothing here.
+  const hint = tutorialLayout(view.W, view.H);
+  const top = hint !== null && hint.y < PLATE.top + PLATE.tall
+    ? hint.y + hint.h + PLATE.gap + PLATE.drop : PLATE.top;
   const out = [];
   for (let i = 0; i < plates.length; i++) {
     const plate = plates[i];
@@ -96,23 +103,23 @@ export function toastLayout() {
     const arrived = age < PLATE.arrive ? age / PLATE.arrive : 1;
     const left = PLATE.hold + PLATE.fade - age;
     const away = left < PLATE.fade ? left / PLATE.fade : 1;
-    const top = PLATE.top + i * (PLATE.tall + PLATE.gap) - PLATE.drop * (1 - arrived);
+    const y = top + i * (PLATE.tall + PLATE.gap) - PLATE.drop * (1 - arrived);
     out.push({
       name: plate.name,
       says: plate.says,
       dust: plate.dust,
       x: x,
-      y: top,
+      y: y,
       w: PLATE.wide,
       h: PLATE.tall,
       glow: Math.min(arrived, away),
       // Where the three pieces of the plate go, said separately because that is where a test
       // looks: the plate moves and its words move with it, and a number nobody can read back is a
       // decoration. `dustX` is the *right* edge of the money, which is drawn right-aligned.
-      nameY: top + NAME_Y,
-      dustY: top + NAME_Y,
+      nameY: y + NAME_Y,
+      dustY: y + NAME_Y,
       dustX: x + PLATE.wide - PLATE.side,
-      whyY: top + WHY_Y,
+      whyY: y + WHY_Y,
       textX: x + PLATE.side + PLATE.bar,
       textW: PLATE.wide - (PLATE.side + PLATE.bar) * 2,
     });

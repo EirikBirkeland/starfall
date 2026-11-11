@@ -29,6 +29,7 @@ import { levelUp } from '../src/game/progress.js';
 import { LESSONS, saysOf, tipsFromSave } from '../src/game/tutorial.js';
 import { tutorialLayout } from '../src/render/tutorial.js';
 import { thumb, dashButton } from '../src/input/touch.js';
+import { pushAwardToast, clearToasts, toastLayout } from '../src/render/toast.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const FRAME = 16.7;
@@ -208,6 +209,22 @@ test('a thumb\'s hint sits above its controls, not under the DASH button', async
   }
   const keyboard = tutorialLayout(390, 844);
   assert.ok(keyboard.y > 600, 'a keyboard keeps the bottom strip it has always had');
+});
+
+test('an award plate lands under a thumb hint, not on the sentence teaching the hand', async () => {
+  await visit();
+  launch();
+  thumb.used = true;
+  try {
+    pushAwardToast({ name: 'FIVE MINUTES', says: 'survive five minutes', dust: 30 });
+    const hint = tutorialLayout(1280, 720);
+    const plate = toastLayout()[0];
+    assert.ok(plate.y >= hint.y + hint.h,
+      'the award starts under the hint: ' + plate.y + ' against ' + (hint.y + hint.h));
+  } finally {
+    clearToasts();
+    thumb.used = false;
+  }
 });
 
 test('a first run is told how to fly, and where the plate goes', async () => {

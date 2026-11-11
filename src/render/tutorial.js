@@ -18,7 +18,7 @@ import { PALETTE, withAlpha } from '../core/palette.js';
 import { BALANCE } from '../game/balance.js';
 import { STATE } from '../game/state.js';
 import { promptWords } from '../game/tutorial.js';
-import { thumbUsed } from '../input/touch.js';
+import { thumbUsed, hasFinger } from '../input/touch.js';
 import { world } from '../game/world.js';
 import { view } from './canvas.js';
 import { fitOneLine } from './fit.js';
@@ -51,7 +51,7 @@ const TEXT_RAISE = 5;      // px from the plate's middle to the words' baseline
  */
 export function tutorialLayout(W, H) {
   if (world.state !== STATE.PLAY || world.paused) return null;
-  const says = promptWords(world, thumbUsed());
+  const says = promptWords(world, thumbUsed() || hasFinger());
   if (says === '') return null;
 
   const spec = BALANCE.tutorial;
@@ -66,7 +66,7 @@ export function tutorialLayout(W, H) {
   // and a hint that says TAP DASH must not be under the button that says DASH. It sits under the
   // top HUD instead, above every control. The lessons are the first minutes of a save, before any
   // boss bar has a reason to be at the top of the glass.
-  const y = thumbUsed() ? PLATE.thumbTop : H - PLATE.bottom - PLATE.tall;
+  const y = thumbUsed() || hasFinger() ? PLATE.thumbTop : H - PLATE.bottom - PLATE.tall;
   return {
     text: says,
     x: x,

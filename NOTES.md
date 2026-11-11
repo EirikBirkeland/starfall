@@ -19341,3 +19341,49 @@ A real touch run at `390x844` (`Input.dispatchTouchEvent`, a held thumb on the l
 3. A thumb's late pause (the script's tap missed because the run had stopped for a card) and the thumb
    rail over the title are still unphotographed; the static pause fits, and the phone controls are now
    clear of the one plate that crosses them.
+
+## Session 179 - a phone that tapped to launch was still being taught the keyboard, and an award landed on the lesson
+
+### What the boss audit saw
+A real phone run taken to the first fight (`elapsed 305`, the Warden's warning and bar), with screenshots
+at `390x844`:
+- The tutorial plate said **`W A S D TO FLY`** even though the run had been launched by a tap. Session
+  178 asked `thumbUsed()`, which is only true once a thumb has been claimed by a control; a phone that
+  taps the title has a finger but has not touched the stick yet. The page already has the right fact:
+  `hasFinger()`, the one the title's chips and launch hints use.
+- The five-minute award plate landed **on top of the hint**. When the thumb's hint moved to the top in
+  session 178, it took the strip the award plates had been using; the award's own fall is 14 px, so even
+  a plate that started below the hint could cross its lower edge for the first fifth of a second.
+- Without a hint, the award plate at `top: 84` covered the HUD's fourth line (`GUN PULSE`) - the plate
+  was written as "clear of the score" when the HUD has four lines, not one.
+
+### What landed
+1. **The tutorial asks the page's hand, not only the stick's**: `thumbUsed() || hasFinger()` in
+   `render/tutorial.js`, and `thumb.used || hasFinger()` in `main.js`'s `stats().tip`. A tapped launch now
+   says `DRAG TO FLY` / `TAP DASH` from its first frame, and the debug readout agrees.
+2. **Awards stack under a top hint**: `toastLayout` asks `tutorialLayout`; when the hint is at the top it
+   starts the stack at `hint.y + hint.h + gap + drop`, the drop included so even the arriving plate cannot
+   cross the hint. A keyboard hint is at the bottom and leaves the stack where it was. A new test raises a
+   five-minute plate over a thumb hint and refuses any overlap.
+3. **The award strip moved to `top: 104`**, under the boss bar and below the HUD's score/best/time/gun
+   lines. The one test that pinned 84 now pins 104, with the reason.
+4. Tests: the finger/thumb line, the award-under-hint check, and the moved strip. Suite 2655 -> 2657.
+
+### Verification
+- Real phone screenshots: `DRAG TO FLY` in the top plate, `FIVE MINUTES` at 152-204 under it, the Warden's
+  warning at 260, and `GUN PULSE` visible above both. The fight's boss bar and hull pips clear the top
+  plate.
+- `node --test`: **2657/2657 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). No simulation code was touched.
+
+### Released
+**1.9.20.** A tapped phone is taught with its own hands from the first frame, and an award does not land
+on the lesson or the HUD.
+
+### Next
+1. **Whether the first two minutes are too harsh** - still the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The thumb's late pause is still unphotographed: the boss script stops for a card before it can tap the
+   pause plate. Answer the card, pause, and read the give-up chip.
