@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.25 — 2026-11-11
+The interface paints over the thumb's controls, so a landscape stick cannot hide the XP bar.
+- **A meter is a reading; a stick is a control.** On a landscape phone a floating stick put down near
+  the bottom reached across the XP bar and its `LEVEL · XP` caption, because the touch layer was painted
+  after the HUD. The HUD now paints last: score, hull, boss bar and XP bar stay whole, while the ring is
+  still visible around the bar. Nothing about the controls or their hit areas moved.
+
 ## 1.9.24 — 2026-11-11
 A phone on its side gives its level cards the height they have.
 - **The landscape level rack was short.** Three 236 px cards in a 390 px window were capped at 0.7 of
