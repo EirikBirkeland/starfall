@@ -1,5 +1,16 @@
 # Starfall — changelog
 
+## 1.9.27 — 2026-11-11
+A new challenge rule: **PRESSURE**.
+- **The crowd refills 122% faster.** The wave director's gap between one wave and the next is
+  multiplied by 0.45 under the rule, so the arena still fills to the same body wall but stops being
+  quiet as soon. It is the eighth rule on the sheet, after THICK CROWD and before BY HAND; the cycle,
+  title line, pause rack, codex rules rack and per-rule best all know it.
+- **What it costs**, on 24 seeds of the careless magnet hand at 5 minutes: **0.86x** plain's middle
+  score (plain won 13 of the 24 pairs - a lean, not a finding), with deaths **18 against 14** and hulls
+  **87 against 68**. The rule is about pressure, and the deaths and hulls are where it shows.
+- `tools/challenge-cost.js --gap` sweeps the number, and the 24-seed quote re-flies with `--strict`.
+
 ## 1.9.26 — 2026-11-11
 A phone on its side says where the shops went.
 - **The compact landscape title explains its three chips.** The HANGAR, CODEX and SETTINGS chips are
