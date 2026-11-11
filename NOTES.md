@@ -20224,7 +20224,7 @@ The reference run with the new card takes it: **`73,953 / level 56 / 3,870 kills
 of cold and three of the gun.
 
 ### Verification
-- `node --test`: **2,697/2,697 green** (three FROSTBITE tests, the parents in `synergies`, the card in
+- `node --test`: **2,698/2,698 green** (three FROSTBITE tests, the parents in `synergies`, the card in
   `card-fit`).
 - `node tools/simulate.js --seed 20261006 --trace`: the reference above.
 - `node tools/alloc-probe.js --scene schedule`: PASS, floor 16 B; the new rank is a fixed literal key,
