@@ -161,6 +161,7 @@ export const BODY_FORMS = {
   shielder: 'bulwark',
   swarmling: 'ship',
   sniper: 'lens',
+  mender: 'cross',
 };
 
 /** One crowd body, as the balance sheet and the renderer draw it. */
@@ -222,6 +223,7 @@ export const SIGHTS = [
   body('tank'),
   body('bomber'),
   body('shielder'),
+  body('mender'),
   body('swarmling'),
   body('sniper'),
 

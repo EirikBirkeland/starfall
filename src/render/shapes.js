@@ -162,6 +162,30 @@ export function shipShape(name) {
 // slow pace). Two rules hold every one of them, and test/crowd-art.test.mjs is the ruler:
 // a silhouette must cover most of the hurtbox it is hurt by, and it must not stand far past
 // it, or shots land on nothing and bodies pass through each other.
+/**
+ * The mender: a cross, the one crowd silhouette that is not a body of rotational symmetry about its
+ * nose - it is a body that *helps*, and the cross is the sign for that. It is still drawn pointing
+ * +x, so its long arm is the way it faces; the short arms are width, and the rounded arm ends keep it
+ * from reading as two sticks laid over each other. The corner where four arms meet is deliberately
+ * filled: a thing that stands between a wound and the ship should not have a hole in it.
+ */
+function cross(ctx, radius) {
+  const arm = radius * 0.62;
+  const points = [
+    [arm, radius], [-arm, radius], [-arm, arm], [-radius, arm],
+    [-radius, -arm], [-arm, -arm], [-arm, -radius], [arm, -radius],
+    [arm, -arm], [radius, -arm], [radius, arm], [arm, arm],
+  ];
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const x = points[i][0];
+    const y = points[i][1];
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
 export const CROWD_SHAPES = {
   // The drifter: three faces and no ideas. It is the plainest body in the game because it is the
   // plainest enemy - it walks at you - and it is what every tank comes apart into.
@@ -283,6 +307,11 @@ export const CROWD_SHAPES = {
   // disc with two thorns in it, and what makes this body an eye is that it comes to a point at both
   // ends.
   sniper: lens(1.5, 1.6),
+
+  // The mender: the cross above. It is the crowd's only body that is not symmetric about its nose
+  // in the way a body is - the long arm is the way it faces, the short ones are its width - which is
+  // what makes it read as a sign rather than as another thing to shoot.
+  mender: cross,
 };
 
 /** One kind's silhouette, and a loud answer for a kind nothing draws. */

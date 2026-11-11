@@ -317,7 +317,7 @@ test('the arrival clock is PLAN 3.3\'s, except for the two rows that say why the
   for (const kind of Object.keys(BALANCE.kinds)) clock[kind] = BALANCE.kinds[kind].from;
   assert.deepEqual(clock, {
     drifter: 0, darter: 60, tank: 10, spitter: 180, weaver: 0, bomber: 360,
-    shielder: 450, swarmling: 540, sniper: 630,
+    shielder: 450, mender: 500, swarmling: 540, sniper: 630,
   });
 });
 

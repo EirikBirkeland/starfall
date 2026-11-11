@@ -138,7 +138,7 @@ test('no two bodies are one shape with nothing to tell them apart', () => {
 test('which bodies share a silhouette is a written-down list, not a drift', () => {
   // The same habit as the palette's promise list: a new kind given an old silhouette, or an old one
   // resized or re-coloured into a match, has to be argued with in words here instead of joining
-  // quietly. Eleven of the crowd's thirty-six pairs are one shape - it was eight before two bodies
+  // quietly. Thirteen of the crowd's forty-five pairs are one shape - it was eight before two bodies
   // were filled out - and every one of them is paid for.
   //
   // Filling a body out to its own hurtbox makes it rounder, and a crowd of nine bodies drawn on nine
@@ -161,11 +161,13 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
     'shielder / sniper - colour',
     'weaver / spitter - both',
     'spitter / shielder - colour',
+    'bomber / mender - colour',
     'weaver / darter - colour',
     'drifter / sniper - colour',
     'drifter / darter - both',
     'weaver / sniper - both',
     'drifter / shielder - colour',
+    'tank / mender - colour',
   ]);
   for (const pair of sharedSilhouettes()) {
     assert.ok(pair.gap <= ONE_SHAPE_PX, pair.a + ' / ' + pair.b + ' is not one shape at all');

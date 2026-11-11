@@ -2068,6 +2068,14 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [x] A new support body: **MENDER**. A violet cross that stands off at 170-270 px and, every 2.6 s,
+      patches the most wounded *other* body inside 120 px by 2 hull, never itself. It arrives at 8:20
+      with weight 1 and cost 8, so it is a rare late-run problem rather than weather. `walksMending` in
+      `game/kinds.js`; the cross is `CROWD_SHAPES.mender`; the mint ring is the pulse. Two tests in
+      `test/mender.test.mjs` (one target by share of hull, never itself, no pulse without a wound).
+      The reference run with it is `74,748 / level 57 / 3,997 kills / 5,068 shards` (was 73,354 /
+      3,898 / 4,998 before the body); the 4-run batch survives its cap. Session 191, NOTES.
+
 - [x] An eighth challenge rule: **PRESSURE**. The wave director's gap between one wave and the next is
       multiplied by `gapMul` at the one place it is drawn (`game/waves.js`), so the arena fills to the
       same wall and just stops being quiet as soon. 0.3 ships: 233% more waves, 48 seeds reading 0.96x

@@ -1434,6 +1434,24 @@ export const BALANCE = {
     // a tank already splits (see `split` above), and two kinds meaning "comes apart into
     // more of me" would be one idea too many. What this one does instead is fly with its
     // friends (game/flock.js).
+    mender: {
+      radius: 20, speed: 58, hull: 7, score: 44, drop: 4,
+      from: 500, cost: 8, weight: 1,
+      // A support body: it keeps its distance and every `every` seconds patches one *other* wounded
+      // body inside `radius` by `heal`, picking the one with the lowest share of its own hull. It
+      // never heals itself, so killing it is the answer rather than shooting through it. The ring
+      // is the tell - mint, the shards' own colour, because this is the one body that deals in life.
+      color: PALETTE.violet, fill: PALETTE.violetFill, glow: 19,
+      mend: {
+        stand: { near: 170, far: 270 },
+        drift: { speed: 40, rate: 1.0 },
+        every: 2.6, radius: 120, heal: 2,
+        ring: { radius: 4, speed: 400, life: 0.3 },
+        sound: { freq: 520, dur: 0.18, wave: 'sine', vol: 0.025, slide: 90 },
+      },
+      death: { particles: 18, speed: 260, debris: 5, debrisSpeed: 180 },
+      sound: { freq: 220, dur: 0.16 },
+    },
     swarmling: {
       radius: 7, speed: 190, hull: 1, score: 10, drop: 1,
       from: 540, cost: 1, weight: 1,

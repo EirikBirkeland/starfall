@@ -339,8 +339,8 @@ test('the three lists are counted, and a pair that changes hands is named with w
   reportDraft({ label: 'flat again, on purpose', drifter: { shape: flatDrifter(), covers: 0.42 } },
     shipped(), out);
   const text = out.join('\n');
-  assert.match(text, /8 pairs share an outline \(ships with 11\)/);
-  assert.match(text, /3 stand under a step of colour \(ships with 3\)/);
+  assert.match(text, /10 pairs share an outline \(ships with 13\)/);
+  assert.match(text, /4 stand under a step of colour \(ships with 4\)/);
   assert.match(text,
     /- drifter \/ spitter is not one shape with it any more - 5\.3 px of outline, carried by colour/);
 });
@@ -355,7 +355,7 @@ test('a colour moves the colour list, which is the one a shape cannot touch', ()
     sniper: { colour: '#d81e5b', fill: 'rgba(216,30,91,0.20)' },
   }, shipped(), out);
   const text = out.join('\n');
-  assert.match(text, /5 stand under a step of colour \(ships with 3\)/);
+  assert.match(text, /6 stand under a step of colour \(ships with 4\)/);
   assert.match(text, /\+ darter \/ sniper is under a step of colour now - 0\.\d+ of a step/);
   assert.match(text, /\+ swarmling \/ sniper is under a step of colour now/);
 });

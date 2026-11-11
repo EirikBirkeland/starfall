@@ -19815,3 +19815,52 @@ score is a challenge.
    only reading that can move `endless.growth.bodiesCeil`.
 3. The new rule is content a person should play: PRESSURE at 0.3 is 233% more waves and a middle death
    34/48 against plain's 31/48; whether that is exciting or just busy is a feel call, not a bot's.
+
+## Session 191 - a support body: the MENDER, a cross that patches one wounded friend
+
+### Why this body
+The roster covers every way a body can *hurt* the ship - walk, weave, charge, spit, explode, split,
+shield, swarm, beam - and none of the ways a crowd can *help itself*. The plan's After-1.0 paragraph
+asks for new enemies; a support body is the gap that asks for a new decision (kill the one doing it)
+without a new damage system or a sixth boss.
+
+### What it is
+- **`MENDER`**: radius 20, speed 58, hull 7, score 44, drop 4, from 8:20, cost 8, weight 1.
+- `walksMending` (`game/kinds.js`) holds the same 170-270 px stand-off band a spitter or shielder holds,
+  and every `mend.every` 2.6 s scans the crowd for wounded bodies inside `mend.radius` 120. It takes
+  the one with the **lowest share of its own hull** - a one-hull body at half health before a tank at
+  nine of ten - and heals it by 2, capped at `maxhp`. It never heals itself. The pulse is instant; the
+  mint ring (`ring`, `PALETTE.shard`) is the tell, and the beep is its own.
+- **The cross**: the crowd's only silhouette that is not symmetric about its nose the way a body is -
+  the long arm is the way it faces, the short ones are width. It is a support sign, not another thing
+  to shoot; `COVERS.mender` is 0.96 (it covers 98% of its 20 px hurtbox and reaches 1.18r). The body
+  wears the drifter's violet, so `drifter / mender` is written into the palette debt at 1.33x size and
+  a cross outline; `bomber / mender` and `tank / mender` are carried by colour. All of that is in
+  `test/palette-read.test.mjs` and `test/crowd-art.test.mjs`.
+- `CROWD` in the codex gains its row: `MENDER · patches one wounded body near it, and never itself`.
+  `test/waves.test.mjs` gains its 8:20 arrival; the host count and codex `MET` count follow.
+
+### The reading, and what it does to a run
+The reference run is now **10m00s / 74,748 / level 57 / 3,997 kills / 5,068 shards** (was 73,354 /
+3,898 / 4,998 before the body). A 4-run batch all survive the 10m cap, middle score 67,703. The rise
+is menders plus the bodies they keep alive being killed, not a softer crowd; a support body that is
+ignored is a body that pays the player for ignoring it, which is the decision the card asks for. The
+mender is rare (weight 1) and late (8:20), so the opening is untouched, and the reference trace proves
+a plain run still plays.
+
+### Verification
+- `node --test`: **2,674 -> 2,676**, all green (the new `test/mender.test.mjs` two tests; the shape,
+  palette, wave-clock, codex, try-body and shared-silhouette lists updated).
+- `node tools/simulate.js --runs 4 --seconds 600`: four of four survive the cap; batch median 67,703.
+- `node tools/simulate.js --seed 20261006 --trace`: the new reference above, printed in full.
+
+### Released
+**1.9.31.** A new enemy: the MENDER, a violet cross that patches one wounded body at a time.
+
+### Next
+1. Play the mender on a real screen: its cross at 20 px and the mint pulse over a crowd are the only
+   parts a headless pass cannot judge. The browser audit can plant one and screenshot it.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.

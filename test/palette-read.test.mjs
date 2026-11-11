@@ -284,6 +284,7 @@ test('the crowd shares colours, and says which pairs do', () => {
   assert.deepEqual(crowdedColours().map((row) => row.name), [
     'bomber / swarmling',
     'darter / swarmling',
+    'drifter / mender',
     'spitter / bomber',
   ]);
 });

@@ -83,6 +83,10 @@ export const KINDS = {
     // which game/shields.js finds out for itself on the next step.
     onDeath: collapseField,
   },
+  mender: {
+    stats: BALANCE.kinds.mender,
+    walk: walksMending,
+  },
   swarmling: {
     stats: BALANCE.kinds.swarmling,
     walk: walksFlocking,
@@ -545,6 +549,45 @@ function walksGuarding(enemy, step) {
   const spec = statsOf(enemy).guard;
   const toShip = holdTheBand(enemy, step, spec.stand, spec.drift);
   enemy.rot = Math.atan2(toShip.ny, toShip.nx);
+}
+
+/**
+ * The mender: a stand-off support body. It holds the same kind of band a spitter or a shielder holds,
+ * and on its own beat it patches the most wounded *other* body inside `mend.radius` by `mend.heal`.
+ * It picks by the share of hull left rather than the absolute number, so a one-hull body at half
+ * health is helped before a tank at nine of ten; it never picks itself, which is what makes it a
+ * problem to shoot rather than a second health bar. The pulse is instant and the ring is the tell:
+ * the heal goes on the step, the mint ring on the glass, and the beat is its own clock.
+ */
+function walksMending(enemy, step) {
+  const spec = statsOf(enemy).mend;
+  const toShip = holdTheBand(enemy, step, spec.stand, spec.drift);
+  enemy.rot = Math.atan2(toShip.ny, toShip.nx);
+  enemy.timer -= step.dt;
+  if (enemy.timer > 0) return;
+  enemy.timer = spec.every;
+
+  const crowd = step.world.enemies;
+  let target = null;
+  let worst = 1;
+  const reach = spec.radius * spec.radius;
+  for (let i = 0; i < crowd.length; i++) {
+    const other = crowd[i];
+    if (other === enemy || other.hp <= 0 || other.hp >= other.maxhp) continue;
+    const dx = other.x - enemy.x;
+    const dy = other.y - enemy.y;
+    if (dx * dx + dy * dy > reach) continue;
+    const share = other.hp / other.maxhp;
+    if (share < worst) {
+      worst = share;
+      target = other;
+    }
+  }
+  if (target === null) return;
+
+  target.hp = Math.min(target.maxhp, target.hp + spec.heal);
+  ring(step.world, enemy.x, enemy.y, PALETTE.shard, spec.ring.radius, spec.ring.speed, spec.ring.life);
+  cueBeep(spec.sound.freq, spec.sound.dur, spec.sound.wave, spec.sound.vol, spec.sound.slide);
 }
 
 /**
