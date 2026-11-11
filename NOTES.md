@@ -19617,3 +19617,42 @@ Suite 2665 -> 2667 (the assertions join the existing landscape-title test).
 3. The landscape surface now reads end to end: compact title with the note, a flying run with the HUD
    over the thumb's paint, and the taller level cards. The next session should be a new feature or a new
    screen, not another paint audit.
+
+## Session 186 - the first two minutes were measured, and the bot says they are not a wall
+
+### What was run
+`node tools/difficulty-arc.js --runs 60 --seconds 120 --bot human --picks random` - the careless human
+model, a die for the card, sixty seeds, a two-minute window. The first smaller flight was 24 seeds; the
+sixty-seed one is the reading:
+
+- **17 of 60 runs died before 2m00s** (3 in the first minute, 14 in the second), the middle death at
+  **1m32s**; **43 were still flying** at the window's end.
+- Every ending was body contact: drifter 8, weaver 6, darter 3. The hull column is weaver 52 (48%),
+  drifter 35 (32%), darter 12, tank 10 - the weaver is the chipper, which is the same shape the late
+  arc has.
+- The tool's `band: FAIL` is **not** a first-two-minute verdict: PLAN's band is 4m00s-9m00s and a 2m
+  window cannot contain a death in it. The ceiling also asks for 20 deaths and got 17. Neither is read
+  as a pass or a fail here.
+
+### The decision
+**No balance change.** Seven of every ten careless runs are still flying after two minutes, and the
+ones that die die to ordinary body contact, not to a first-minute spike or a single unfair kind. A
+person is still the only one who can say whether 28% is too many for a new player - the bot has no
+evening to compare it with - so the item stays on the human list right where it was. It now has a
+number to argue against instead of a hunch: 17/60 before 2m, middle 1m32s.
+
+### Verification
+- No `src/` file changed. `node --test`: **2667/2667 green** (the suite was already green and nothing
+  moved).
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards).
+
+### Released
+Nothing. A measurement that says "do not touch the balance" is not a version.
+
+### Next
+1. **The human half of the first-two-minutes question**, with the 17/60 baseline above.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. A new feature or screen is the only other autonomous work left. The audit and the decisions are done;
+   everything else on the list wants a person or the owner's hardware.
