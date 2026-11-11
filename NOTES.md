@@ -20018,3 +20018,44 @@ Nothing after 1.9.33; the synergy and the fixed-shape rank object are in that re
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 196 - a ninth rule: DROUGHT, and what a shard buys
+
+### What was on the shelf
+The challenge sheet's last economy rule is BY HAND, about how far the net reaches. It had nothing about
+what the loot is worth once it arrives. **DROUGHT** is that rule: each shard buys `xpMul` 0.6 of its
+experience, while the score on pickup is untouched, so a run's build arrives slower.
+
+### What landed
+- `BALANCE.challenges.drought = { xpMul: 0.6, measured: ... }`.
+- `game/challenges.js` `shardXpOf(world)` - 1 plainly, the row's share under the rule - and a `SENTENCES`
+  entry built from it: `shards buy 40% less experience`.
+- `game/pickups.js` multiplies only the **xp** line of a collection by it. The score line is not touched;
+  this is a rule about how fast the build arrives, not about what a pickup is worth.
+- The ninth row on the sheet, after BY HAND and before ONE CARD; cycle, title, pause, codex rules rack
+  and per-rule best all take it. The tool's default ladder and counts include it.
+
+### The quote
+`node tools/challenge-cost.js --challenges none,drought --seeds 24 --seconds 300 --dump`: **0.66x**
+plain's middle, plain winning **19 of 24** pairs (p = 0.007), deaths **15 against 14**, hulls **67
+against 68**. The 8-seed first flight was 0.67x; the 24-seed pair is the one written into the game and
+it reproduced under `--strict`. The cost is in the build: a third of the score is gone before the run
+meets a body it cannot answer.
+
+### Verification
+- `node tools/challenge-cost.js --challenges none,drought --seeds 24 --seconds 300 --strict`: reproduced,
+  exit 0.
+- `node --test`: **2681 -> 2683**, all green (the lever/sentence test, the cycle order).
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged reference (`74,748 / level 57 / 3,997
+  kills / 5,068 shards`).
+
+### Released
+**1.9.34.** DROUGHT: shards buy 40% less experience, and the run earns its build more slowly.
+
+### Next
+1. Play DROUGHT on a real screen: 0.66x in the score says it is a challenge; whether the slower build
+   reads as pressure or as a chore is a person's call.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.

@@ -476,6 +476,19 @@ export const BALANCE = {
       // is not written into the game as if it were the rule.
       gapMul: 0.3,
     },
+    drought: {
+      // Each shard buys this share of its experience; the score it pays is the same. A build arrives
+      // slower, which is the whole rule - one number, one gate, and a run that dies before it has
+      // spent its levels feels it hardest. The 8-seed first flight read 0.67x; 24 seeds read **0.66x**
+      // with plain winning 19 of the 24 pairs (p = 0.007), deaths 15 against 14 and hulls 67 against
+      // 68. The cost is in the build, not in the crowd: the score drops by a third before the run
+      // meets a body it cannot answer.
+      xpMul: 0.6,
+      measured: {
+        on: '2026-11-11', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
+        cost: 0.66, plainWon: 19, ruleWon: 5,
+      },
+    },
     byhand: {
       // The shard net reaches two fifths of the way it ships with. This is the one rule on the sheet
       // that takes away a *comfort* rather than a thing: loot still drops where the body fell and still

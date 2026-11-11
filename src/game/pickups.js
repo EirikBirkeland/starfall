@@ -1,6 +1,7 @@
 // Shards: what enemies drop, what the ship sucks in, what pays for levels.
 
 import { BALANCE } from './balance.js';
+import { shardXpOf } from './challenges.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { lerp, TAU } from '../core/math.js';
@@ -151,7 +152,7 @@ export function updateShards(world, dt) {
       // A large shard is worth `worth` of the ordinary ones and nothing else about it
       // differs, so one collection path pays for both.
       const worth = shard.worth;
-      world.xp += spec.xp * worth;
+      world.xp += spec.xp * worth * shardXpOf(world);
       world.shardsCollected++;
       world.score += spec.score * worth;
       // Which door it came in by - the well's, or the ship's own net (game/vacuum.js).

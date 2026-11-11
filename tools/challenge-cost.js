@@ -8,7 +8,7 @@
 //   node tools/challenge-cost.js --bot aware --picks wise  the careful build, which hardly dies
 //   node tools/challenge-cost.js --bot naive              the worst pair of hands there is
 //   node tools/challenge-cost.js --no-dash                the bot never presses the dash at all
-//   node tools/challenge-cost.js --challenges none,brittle  two of the eight rows
+//   node tools/challenge-cost.js --challenges none,brittle  two of the nine rows
 //   node tools/challenge-cost.js --speed 1.3              the swift crowd's multiplier, tried live
 //   node tools/challenge-cost.js --hold 1.75              the thick crowd's, tried live
 //   node tools/challenge-cost.js --gap 0.4                the pressure rule's wave gap, tried live
@@ -107,7 +107,7 @@ const DEFAULTS = {
   // nothing about a touch; `naive` is harsher still and dies in the first minute of a plain run.
   policy: 'human',
   picks: 'random',
-  challenges: 'none,brittle,grounded,merciless,swift,thick,pressure,byhand,thin',
+  challenges: 'none,brittle,grounded,merciless,swift,thick,pressure,byhand,drought,thin',
   // The shipped get-out habit (tools/headless/bot.js `DASH`), because NO DASH is a rule about a dash
   // and a ladder whose bot never pressed it in the first place would be measuring the two cards the
   // deck lost, not the jump.
@@ -128,7 +128,7 @@ const DEFAULTS = {
   dump: false,
 };
 
-/** The nine rows the ladder can print: `none` beside the eight rules. */
+/** The ten rows the ladder can print: `none` beside the nine rules. */
 const PLAIN = 'none';
 
 /**
@@ -406,10 +406,10 @@ function printTable(rows, plain, opts, title, note) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Six of the eight rules are judged and two
+ * The verdict. A rule that costs nothing is not a challenge. Seven of the nine rules are judged and two
  * is only judged on a hand that can judge it, and the difference is what the ladder can see.
  *
- *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD and BY HAND are judged**, the two rules about a
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD, BY HAND and DROUGHT are judged**, the two rules about a
  *     touch provided the plain batch actually lost hulls - which is what says the ladder can see a rule
  *     about losing one at all. An aware bot that finishes a run with three hull in a body that costs
  *     one is not an instrument for those two rules, and saying so beats failing a rule the instrument

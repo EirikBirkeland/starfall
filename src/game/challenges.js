@@ -1,7 +1,7 @@
 // The challenge modifiers: a harder set of rules for the next run (PLAN, After 1.0).
 //
 // A challenge is a *rule the whole run stands under*, chosen between runs and impossible to change
-// once it is flying. Eight ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
+// once it is flying. Nine ship: the ship stands on one hull; the dash is gone; a hit leaves barely a
 // moment after it; the crowd and its shots travel faster than they shipped; the arena holds more of the
 // crowd than it ships; the loot only comes to a ship that flies at it; and the rack deals one card
 // instead of three. Every one of them is a row in `BALANCE.challenges` and a question asked where the
@@ -50,7 +50,7 @@ const PERCENT = 100;
  * The order is the shape of the rule and not a ladder of severity: the three rules about your own ship
  * come first - what your hull is, then whether you can jump, then what a hit leaves you - then the two
  * about the crowd's size and speed, then the one about how soon it refills, then the one about the loot
- * the crowd leaves, and the one about the deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
+ * the crowd leaves, the one about what that loot buys, and the one about the deck last. It is worth saying plainly that it is *not* sorted by what each rule costs, because
  * `tools/challenge-cost.js` has measured all of them and the dearest of them on the hand this sheet is
  * flown on is BY HAND - 0.55x a careless run's middle score as of 2026-10-17, and dearer yet on a hand
  * that goes and gets its own loot - which is the seventh press, while the first is ONE HULL, at 0.61x with
@@ -59,7 +59,7 @@ const PERCENT = 100;
  *
  * `name` is the two or three words the glass prints and `says` is the sentence under it - what the
  * rule *does*, in the plain words the rest of the interface uses. `saysOf` is what a reader should
- * call, because five rules build their sentence out of their own number rather than writing it beside
+ * call, because six rules build their sentence out of their own number rather than writing it beside
  * it, and a sentence written by hand next to a number that can move is a sentence that goes stale.
  */
 export const CHALLENGES = [
@@ -70,6 +70,7 @@ export const CHALLENGES = [
   { id: 'thick', name: 'THICK CROWD', says: '' },
   { id: 'pressure', name: 'PRESSURE', says: '' },
   { id: 'byhand', name: 'BY HAND', says: '' },
+  { id: 'drought', name: 'DROUGHT', says: '' },
   { id: 'thin', name: 'ONE CARD', says: '' },
 ];
 
@@ -211,6 +212,17 @@ export function waveGapOf(world) {
 }
 
 /**
+ * What one shard's experience is multiplied by: 1 for every run that is not flying DROUGHT.
+ *
+ * Applied in game/pickups.js where a collected shard pays `xp` and nowhere else. The shard's score
+ * is untouched - this is a rule about how fast a build arrives, not about what a run is worth on the
+ * way; the slower levels are the cost, and the ladder measures whether they show up in the score.
+ */
+export function shardXpOf(world) {
+  return isFlying(world, 'drought') ? challengeRow('drought').xpMul : 1;
+}
+
+/**
  * What the shard net's reach is multiplied by: 1 for every run that is not flying BY HAND.
  *
  * Applied in game/upgrades.js `attractorReachOf`, which is the one question "how far off does a shard
@@ -265,7 +277,7 @@ export function shardReachMulOf(world) {
  * are the same ones, and a run can still be handed a second rank of a line it has already opened (which
  * is what the fresh-line promise has to stand down for; see `game/upgrades.js`).
  *
- * This is the one rule of the eight that takes away a *choice* rather than a thing, and that is why it is
+ * This is the one rule of the nine that takes away a *choice* rather than a thing, and that is why it is
  * the one the ladder cannot price on its careless hand: a hand that picks at random never used the choice
  * this rule removes. `tools/challenge-cost.js` prices it on a hand that picks on purpose - and checks
  * first that that hand's picks are worth something, which on the default policy they are not. The price
@@ -387,6 +399,7 @@ const SENTENCES = {
   thick: (world) => 'the arena holds ' + percentOf(crowdHoldOf(world) - 1) + ' more of the crowd',
   pressure: (world) => 'the crowd refills ' + percentOf(1 / waveGapOf(world) - 1) + ' faster',
   byhand: (world) => 'the shard pull reaches only ' + percentOf(shardReachMulOf(world)) + ' as far',
+  drought: (world) => 'shards buy ' + percentOf(1 - shardXpOf(world)) + ' less experience',
   thin: (world) => 'the rack deals ' + offerCountOf(world)
     + (offerCountOf(world) === 1 ? ' card, and you take it' : ' cards, and you take one'),
 };

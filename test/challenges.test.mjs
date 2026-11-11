@@ -30,7 +30,7 @@ import { ACTIONS, codeFor } from '../src/core/keymap.js';
 import {
   CHALLENGES, activeOf, cardIsUsable, cardWords, crowdHoldOf, crowdSpeedOf, cycleChallenge,
   dashIsAllowed, hitGraceOf, hullOverrideOf, hudWords, isChallenge, isFlying, nameOf, offerCountOf,
-  pauseWords, saysOf, setChallenge, shardReachMulOf, titleWords, waveGapOf,
+  pauseWords, saysOf, setChallenge, shardReachMulOf, shardXpOf, titleWords, waveGapOf,
 } from '../src/game/challenges.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -137,6 +137,14 @@ test('PRESSURE shortens the wave gap and says its own number', () => {
   } finally {
     BALANCE.challenges.pressure.gapMul = shipped;
   }
+});
+
+test('DROUGHT cuts what a shard buys and says its own number', () => {
+  const plain = worldUnder('');
+  const drought = worldUnder('drought');
+  assert.equal(shardXpOf(plain), 1, "a plain run gets the shard's whole experience");
+  assert.equal(shardXpOf(drought), BALANCE.challenges.drought.xpMul);
+  assert.equal(saysOf('drought'), 'shards buy 40% less experience');
 });
 
 test('the swift crowd says its own number, whatever it is', () => {
@@ -471,6 +479,8 @@ test('one key cycles the rule and the title says which one it landed on', () => 
   assert.equal(game.stats().challenge, 'pressure');
   press('KeyX');
   assert.equal(game.stats().challenge, 'byhand');
+  press('KeyX');
+  assert.equal(game.stats().challenge, 'drought');
   press('KeyX');
   assert.equal(game.stats().challenge, 'thin');
   press('KeyX');
