@@ -26,6 +26,8 @@ function clear() {
   world.flocks.length = 0;
   world.rings.clear();
   world.particles.clear();
+  world.nova.fronts.clear();
+  world.nova.wait = Infinity;
   world.spawnTimer = Infinity;
   world.player.invuln = Infinity;
   world.freeze = 0;          // a previous blast's hit-stop must not eat this test's first step
@@ -94,6 +96,27 @@ test('a mark that never fires is queued, not fired from the crowd walk', () => {
   step();
   assert.equal(body.stage, '', 'the pulse has already been paid');
   assert.ok(world.rings.count > 0, 'and paid once');
+});
+
+test('two ready marks are paid one step apart, and neither loses its place', () => {
+  clear();
+  const first = makeEnemy(world, 'pulsar', 300, 400);
+  const second = makeEnemy(world, 'pulsar', 300, 600);
+  world.enemies.push(first, second);
+  first.stage = 'ready';
+  second.stage = 'ready';
+  first.dirX = 400;
+  first.dirY = 450;
+  second.dirX = 800;
+  second.dirY = 450;
+  step();
+  assert.equal(first.stage, '', 'one pulse is paid a step');
+  assert.equal(second.stage, 'ready', 'the other waits its turn');
+  assert.equal(second.dirX, 800, 'and the waiting mark is not overwritten by a walk');
+  assert.equal(second.dirY, 450);
+  world.freeze = 0;   // the first blast's hit-stop is not a step of the game
+  step();
+  assert.equal(second.stage, '', 'the second is paid on the next step');
 });
 
 test('it arrives at its own minute, not before', () => {

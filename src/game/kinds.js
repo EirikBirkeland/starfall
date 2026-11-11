@@ -572,6 +572,14 @@ const READY = 'ready';
 
 function walksPulsing(enemy, step) {
   const spec = statsOf(enemy).pulse;
+  if (enemy.stage === READY) {
+    // Ready but not yet paid: updatePulses pays one pulse a step, so a second ready mark can stand
+    // here for one more step. It must not walk - holdTheBand would overwrite dirX/dirY with a
+    // direction and the blast would land on the ship's current line instead of the marked place.
+    glide(enemy, step, 0, 0, 0);
+    return;
+  }
+
   if (enemy.stage === MARKING) {
     glide(enemy, step, 0, 0, 0);
     enemy.timer -= step.dt;
@@ -882,7 +890,7 @@ export function isLunging(enemy) {
 
 /** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */
 export function isMarking(enemy) {
-  return enemy.stage === MARKING;
+  return enemy.stage === MARKING || enemy.stage === READY;
 }
 
 /** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */

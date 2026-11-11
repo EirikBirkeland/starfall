@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.39 — 2026-11-11
+Two PULSARs no longer overwrite each other's marks.
+- A second pulse that is waiting its turn now **holds its marked place** instead of walking and
+  replacing the coordinates with a direction. The warning circle also stays up until the blast is
+  actually paid, rather than blinking out for the waiting step.
+- Covered by a two-pulsar test in `test/pulsar.test.mjs`; the reference run is unchanged.
+
 ## 1.9.38 — 2026-11-11
 Two small tells for the newest content.
 - **FROSTBITE gets its own icon**: CHILL's snowflake with a crack through it and two chips leaving,

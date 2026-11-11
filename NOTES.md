@@ -20265,3 +20265,35 @@ Two small tells, both on content from the last two releases:
 ### Next
 1. Play FROSTBITE and a late PULSAR for feel - the two new things most worth a person's eyes.
 2. The first-two-minutes verdict and the owner's GPU plate read are still the human readings.
+
+## Session 202 - a second PULSAR kept its mark
+
+### The bug
+`updatePulses` pays **one** pulse a step. When two pulsars finished their wind-up on the same step, the
+second stayed in `stage === 'ready'` for a step - and `walksPulsing` walked it through `holdTheBand` on
+that step, which rewrote `dirX/dirY` from "the marked place" to "a unit direction toward the ship".
+The second blast then landed on the ship's current line, not on the circle the player had already
+walked out of.
+
+### The fix
+- A `ready` pulsar is now a **holding** stage: `glide(enemy, step, 0, 0, 0)` and return, so nothing
+  touches `dirX/dirY` until `updatePulses` pays the mark on the next step.
+- `isMarking` includes `ready`, so the dashed circle stays painted for the extra step instead of
+  blinking out before the blast.
+- `test/pulsar.test.mjs` gained a two-pulsar test: both ready, both paid one step apart, and the
+  waiting mark's coordinates are still its own after the first blast (with the first blast's hit-stop
+  cleared so the test is measuring the hold and not the freeze).
+
+### Verification
+- `node --test`: **2,699 -> 2,700 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged **73,953 / level 56 / 3,870 kills /
+  4,840 shards / hull 3** - the reference meets no pair of pulsars.
+
+### Released
+**1.9.39.** Two PULSARs no longer overwrite each other's marks.
+
+### Next
+1. The same "ready one per step" shape will be needed if another enemy ever queues a world-changing
+   event; the rule is now written down in `updatePulses` and `walksPulsing`.
+2. Play a late PULSAR crowd for feel; the two-body case is now correct but unplayed by a person.
+3. First-two-minutes verdict, owner's GPU plate read.
