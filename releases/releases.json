@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.28",
+    "date": "2026-11-11",
+    "released": "2026-11-11T09:53:43.000Z",
+    "summary": "a 360x640 phone can open the hangar; the shop fits and the awards stay in the codex",
+    "added": 18,
+    "removed": 1,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.27",
     "date": "2026-11-11",
     "released": "2026-11-11T09:38:18.262Z",
