@@ -13,13 +13,21 @@ import { STATE } from '../src/game/state.js';
 import { xpNeededFor, firstLevelXp, levelUp } from '../src/game/progress.js';
 import {
   LINES, gainOf, rankOf, takeOffer, describeRanks, lineOf, effectOf,
-  countOf, pierceOf, rateOf, isSynergy,
+  countOf, pierceOf, rateOf, isSynergy, newRanks,
 } from '../src/game/upgrades.js';
 import { fire, shotsPerSecond, shotsPerPull } from '../src/game/weapons.js';
 import { scriptedRun, stepTheWorld } from '../tools/headless/scripted.js';
 
 const PROGRESS = BALANCE.progression;
 const IDS = LINES.map((line) => line.id);
+
+test('the rank object is the table, in one fixed shape', () => {
+  // The literal in `newRanks` is a performance decision: a dynamic object with this many keys is a
+  // dictionary, and every per-step keyed read off it boxes. A line added to the table and forgotten
+  // here would silently be a line with no rank, so the two lists are held equal.
+  assert.deepEqual(Object.keys(newRanks()).sort(), IDS.slice().sort());
+  for (const id of IDS) assert.equal(newRanks()[id], 0);
+});
 
 /** Is this deal in the order the table prints it? */
 function inTableOrder(offer) {

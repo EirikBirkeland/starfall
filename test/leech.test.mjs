@@ -29,6 +29,7 @@ import { hitPlayer } from '../src/game/player.js';
 import { hurtByBody } from '../src/game/tally.js';
 import { effectOf, leechCostOf } from '../src/game/upgrades.js';
 import { feedLeech, hasLeech, updateLeech } from '../src/game/leech.js';
+import { ignite, isAlight } from '../src/game/burn.js';
 import { scriptedRun, enemyAt, stepTheWorld } from '../tools/headless/scripted.js';
 import { bootGame } from '../tools/headless/harness.js';
 import { playOneRun } from '../tools/headless/bot.js';
@@ -106,6 +107,23 @@ test('the first rank is PLAN sixty, and every rank after it is six fewer', () =>
   assert.ok(costs[LEECH.ranks] > 12,
     'and the last rank is not a fountain: one hull every ' + costs[LEECH.ranks] + ' bodies');
   assert.equal(effectOf('leech'), '+6 fewer kills per hull', 'and the card says which it is selling');
+});
+
+test('KINDLING feeds the leech twice for a body that dies alight', () => {
+  const field = leechRun(9, 3);
+  field.upgrades.burn = 3;
+  field.upgrades.kindling = 1;
+  const burning = body(field);
+  ignite(field, burning);
+  assert.equal(isAlight(field, burning), true, 'the body is alight');
+  feedLeech(field, burning);
+  assert.equal(field.leech.kills, BALANCE.upgrades.kindling.feeds,
+    'a burning body counts for ' + BALANCE.upgrades.kindling.feeds + ' kills');
+
+  const plain = body(field);
+  feedLeech(field, plain);
+  assert.equal(field.leech.kills, BALANCE.upgrades.kindling.feeds + 1,
+    'a body that is not alight still counts once');
 });
 
 test('rank 0 is nothing at all: no price, no hull, no holding', () => {

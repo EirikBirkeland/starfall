@@ -355,7 +355,7 @@ function drawCard(ctx, id, rect, index, age, hovered, tab, tabHot) {
   // pointed at is the brighter of the two, which is the whole hover story. A synergy
   // wears its two parents instead (see `drawSynergyEdges`).
   if (synergy) {
-    drawSynergyEdges(ctx, x, y, w, h, hovered);
+    drawSynergyEdges(ctx, x, y, w, h, id, hovered);
   } else {
     const edge = hovered ? PALETTE.playerLine : PALETTE.cardEdge;
     roundRect(ctx, x, y, w, h, 14);
@@ -400,36 +400,39 @@ function drawCard(ctx, id, rect, index, age, hovered, tab, tabHot) {
 }
 
 /**
- * A synergy's frame: its two parents, held apart. The flame is the outside edge - the wide faint
- * pass and the crisp one over it, exactly the two passes every other card makes, so the shape of a
- * card on the rack does not change - and the frost is an inner line just inside it, which is what
- * says *both of them* without a word. Neither is a new colour and neither is a new sprite: this is
- * the eighteenth card on a rack that ran out of hues four cards ago, and a synergy that is made of
- * two existing lines should be wearing their colours anyway.
+ * A synergy's frame: its two parents, held apart. The first parent is the outside edge - the wide
+ * faint pass and the crisp one over it, exactly the two passes every other card makes, so the shape
+ * of a card on the rack does not change - and the second is an inner line just inside it, which is
+ * what says *both of them* without a word. Neither is a new colour and neither is a new sprite:
+ * THERMAL SHOCK is fire outside and rime inside, and KINDLING is fire outside and the leech's mint
+ * inside. The card is made of two existing lines, so it wears their colours by construction.
  */
-function drawSynergyEdges(ctx, x, y, w, h, hovered) {
+function drawSynergyEdges(ctx, x, y, w, h, id, hovered) {
   const lift = hovered ? 1 : 0.78;
+  const needs = needsOf(id);
+  const outer = tintOf(lineOf(needs[0].line).icon);
+  const inner = tintOf(lineOf(needs[1].line).icon);
 
   roundRect(ctx, x, y, w, h, 14);
   ctx.lineWidth = hovered ? 7 : 5;
-  ctx.strokeStyle = withAlpha(PALETTE.burnFlame, 0.22 * lift);
+  ctx.strokeStyle = withAlpha(outer, 0.22 * lift);
   ctx.stroke();
   roundRect(ctx, x, y, w, h, 14);
   ctx.lineWidth = 1.6;
-  ctx.strokeStyle = withAlpha(PALETTE.burnFlame, lift);
+  ctx.strokeStyle = withAlpha(outer, lift);
   ctx.stroke();
 
-  // The frost, inset: a line of rime just inside the fire, with the same wide pass under it so it
+  // The second parent, inset: a line just inside the first, with the same wide pass under it so it
   // is light and not paint. 5 px is the smallest gap that reads as two separate edges at the
   // narrowest card the layout will make.
   const gap = SYNERGY_INSET;
   roundRect(ctx, x + gap, y + gap, w - gap * 2, h - gap * 2, 14 - gap);
   ctx.lineWidth = 4;
-  ctx.strokeStyle = withAlpha(PALETTE.chillFrost, 0.16 * lift);
+  ctx.strokeStyle = withAlpha(inner, 0.16 * lift);
   ctx.stroke();
   roundRect(ctx, x + gap, y + gap, w - gap * 2, h - gap * 2, 14 - gap);
   ctx.lineWidth = 1.2;
-  ctx.strokeStyle = withAlpha(PALETTE.chillShell, 0.9 * lift);
+  ctx.strokeStyle = withAlpha(inner, 0.9 * lift);
   ctx.stroke();
 }
 

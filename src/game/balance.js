@@ -4160,6 +4160,19 @@ export const BALANCE = {
       // every one of them would be a hiss (game/chill.js holds its own sound back the same way).
       broke: { count: 12, speed: 300, life: 0.55, sound: { freq: 1300, dur: 0.12, wave: 'square', vol: 0.03, slide: 220 } },
     },
+
+    // Kindling (game/leech.js): the second synergy, burn 3 + leech 3. A body that dies alight is a
+    // body that has already been paid for twice - the fire did the work, and the leech gets the meal.
+    // One rank, never dealt until both parents are deep enough, not a line to buy instead of them.
+    kindling: {
+      ranks: 1,
+      needs: [{ line: 'burn', rank: 3 }, { line: 'leech', rank: 3 }],
+      // How many kills one burning body is worth to the leech. Two, because the card is a payoff for
+      // a run that has spent six levels on fire and six on digestion; it does not change the leech's
+      // cost or its meter, only what a burning death puts in it.
+      feeds: 2,
+      weight: 4,
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

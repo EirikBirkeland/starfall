@@ -19932,3 +19932,49 @@ circle. The cross still reads as a cross, not as a drifter.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 194 - a second synergy, and the twentieth line exposed a boxed read
+
+### What was on the shelf
+The deck has one synergy (THERMAL SHOCK, burn 3 + chill 3) and PLAN's After-1.0 list asks for more.
+**KINDLING** is the next one: burn 3 + leech 3, where a body that dies alight counts **twice** toward
+the leech.
+
+### What landed
+- `BALANCE.upgrades.kindling`: one rank, `needs` burn 3 and leech 3, `feeds: 2`, weight 4.
+- `LINES` gained the card at the right-hand end; `feedLeech(world, enemy)` gains the optional corpse and
+  counts `feeds` when the run owns KINDLING and the body is alight (the old one-argument calls still
+  count one, which keeps the tools and tests honest); `killEnemy` passes the body.
+- The card wears both parents: `drawSynergyEdges` now reads `needsOf(id)` and uses the two parent tints
+  instead of a hard-coded fire/frost. THERMAL SHOCK is fire outside and rime inside; KINDLING is fire
+  outside and the leech's mint inside. New `iconKindling` is the burn flame with the leech diamond in it.
+- Tests: KINDLING needs, the second synergy in the LINES/synergy shape test, and the leech count with a
+  lit body (and a plain body still one). Suite 2677 -> 2681.
+
+### The performance trap
+Adding the **twentieth** `world.upgrades` key turned the rank object into a dictionary, and the
+per-step leech read off it boxed: `tools/alloc-probe.js --scene schedule` read the **empty arena at
+720 B a step** and every load +700, against a 48 B floor. Reverting the leech import did not move it;
+reverting `balance.js`/`upgrades.js` did. The fix is in `newRanks`: one **fixed-shape object literal**
+with every line key (held equal to LINES by a test) instead of a dynamic loop. The floor is back to
+**16 B**, and the schedule's wall reads **333 B** a step (was 349 - the literal is also a little
+cheaper). This is session 163's `dragOf` lesson in another object: a keyed read on a dictionary is a
+boxed number, and the empty arena is where it shows.
+
+### Verification
+- `node tools/alloc-probe.js --scene schedule`: floor 16 B, schedule 333 B, PASS.
+- `node --test`: **2681/2681 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: **74,748 / level 57 / 3,997 kills / 5,068 shards**,
+  unchanged from the mender release (the reference build does not take KINDLING).
+- `node tools/simulate.js --runs 4 --seconds 600`: clean.
+
+### Released
+**1.9.33.** KINDLING: burn and leech feed each other, and the rank object is fixed-shape again.
+
+### Next
+1. Price KINDLING with a build that actually takes burn 3 + leech 3; the reference build does not, so
+   the card's worth is still unmeasured in a run.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.

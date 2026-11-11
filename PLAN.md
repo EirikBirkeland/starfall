@@ -2068,6 +2068,14 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [x] A second synergy: **KINDLING**, burn 3 + leech 3. A body that dies alight counts **twice** toward
+      the leech; the card carries the burn/leech colours on its frame and a flame-plus-diamond icon. It
+      is dealt only when both parents are at rank 3, like THERMAL SHOCK. Adding the twentieth line made
+      `world.upgrades` a dictionary and the alloc probe found the floor at **720 B a step** (the per-step
+      leech read boxed); `newRanks` is now one fixed-shape literal, the floor is back to **16 B**, and the
+      schedule's wall reads **333 B** (was 349). The rank object is held to `LINES` by a test. Reference
+      run unchanged at 74,748 / 3,997 kills. Session 194, NOTES.
+
 - [x] A new support body: **MENDER**. A violet cross that stands off at 170-270 px and, every 2.6 s,
       patches the most wounded *other* body inside 120 px by 2 hull, never itself. It arrives at 8:20
       with weight 1 and cost 8, so it is a rare late-run problem rather than weather. `walksMending` in

@@ -147,7 +147,7 @@ export function killEnemy(world, enemy, byPlayer) {
     // comes through by: however the body came apart - a shot, a bolt, a drone, a nova front,
     // a fire, a corpse that was cold - it counts exactly once, and a body that came apart in a
     // blast nobody lit does not count at all.
-    feedLeech(world);
+    feedLeech(world, enemy);
   }
 
   // And whatever a corpse goes on to make - a tank leaves two hatchlings, a bomber

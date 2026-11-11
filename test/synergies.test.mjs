@@ -28,7 +28,9 @@ import {
 import { scriptedRun } from '../tools/headless/scripted.js';
 
 const SHOCK = 'thermalShock';
+const KINDLE = 'kindling';
 const NEEDS = BALANCE.upgrades[SHOCK].needs;
+const KNEEDS = BALANCE.upgrades[KINDLE].needs;
 const TABLE = BALANCE.cards.offer;
 
 /** A run stopped at a choice, its build set to `ranks` and nothing else in the way. */
@@ -53,14 +55,18 @@ function earnedBuild(extra) {
 test('a synergy is a card with needs, and a line is a card without them', () => {
   assert.ok(isSynergy(SHOCK), 'thermal shock is one');
   assert.deepEqual(needsOf(SHOCK), NEEDS, 'and what it needs is written down');
+  assert.ok(isSynergy(KINDLE), 'kindling is the second');
+  assert.deepEqual(needsOf(KINDLE), KNEEDS, 'and its pair is written down too');
   for (const line of LINES) {
-    if (line.id === SHOCK) continue;
-    assert.equal(isSynergy(line.id), false, line.id + ' is a line');
+    if (isSynergy(line.id)) continue;
     assert.equal(needsOf(line.id), undefined, line.id + ' is dealt out of the deck');
   }
-
-  assert.equal(maxRanksOf(SHOCK), 1, 'PLAN 3.5 gives it no ranks to grow into');
-  assert.equal(effectOf(SHOCK), lineOf(SHOCK).becomes, 'its card prints what it becomes');
+  const synergies = LINES.filter((line) => isSynergy(line.id)).map((line) => line.id);
+  assert.deepEqual(synergies, [SHOCK, KINDLE], 'table order puts synergies at the right-hand end');
+  for (const id of synergies) {
+    assert.equal(maxRanksOf(id), 1, id + ' has no ranks to grow into');
+    assert.equal(effectOf(id), lineOf(id).becomes, id + ' prints what it becomes');
+  }
 });
 
 test('the needs are PLAN 3.5  - burn 3 and chill 3', () => {
@@ -68,6 +74,13 @@ test('the needs are PLAN 3.5  - burn 3 and chill 3', () => {
   for (const need of NEEDS) byLine[need.line] = need.rank;
   assert.equal(byLine.burn, 3, 'burn three');
   assert.equal(byLine.chill, 3, 'chill three');
+});
+
+test('kindling needs burn 3 and leech 3', () => {
+  const byLine = {};
+  for (const need of KNEEDS) byLine[need.line] = need.rank;
+  assert.equal(byLine.burn, 3, 'burn three');
+  assert.equal(byLine.leech, 3, 'leech three');
 });
 
 test('it is never face up before the run has earned it', () => {

@@ -47,7 +47,8 @@
 
 import { BALANCE } from './balance.js';
 import { healPlayer } from './player.js';
-import { leechCostOf, rankOf } from './upgrades.js';
+import { leechCostOf, rankOf, hasSynergy } from './upgrades.js';
+import { isAlight } from './burn.js';
 
 /** One hull, which is all a charge is ever worth, and all a wound ever costs. */
 const ONE_HULL = 1;
@@ -77,11 +78,15 @@ export function hasLeech(world) {
  * `BALANCE.upgrades.leech.held` is, and what stops a run that never gets clipped from banking a
  * row of free hits.
  */
-export function feedLeech(world) {
+export function feedLeech(world, enemy) {
   if (leechCostOf(world) <= 0) return;
   const leech = world.leech;
   if (leech.held >= BALANCE.upgrades.leech.held) return;
-  leech.kills++;
+  // KINDLING: a body that dies alight is worth `feeds` kills to the leech. The second argument is
+  // optional, because the leech is also fed by tools and tests that have no corpse in hand; a caller
+  // with no body gets the plain one kill it always got.
+  const burning = enemy !== undefined && hasSynergy(world, 'kindling') && isAlight(world, enemy);
+  leech.kills += burning ? BALANCE.upgrades.kindling.feeds : 1;
 }
 
 /**

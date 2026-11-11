@@ -249,6 +249,14 @@ export const LINES = [
     flavour: 'A body that comes apart alight and frozen takes the room around it with it. The colder it was, the harder it goes.',
     icon: 'thermalShock',
   },
+  {
+    id: 'kindling',
+    name: 'KINDLING',
+    unit: SYNERGY_UNIT,
+    becomes: 'A BURNING KILL FEEDS TWICE',
+    flavour: 'A body that dies alight feeds the leech twice. The fire has already done the work; the leech gets the meal.',
+    icon: 'kindling',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -291,9 +299,15 @@ export function lineOf(id) {
 
 /** A fresh, empty set of ranks, for the world's first build. */
 export function newRanks() {
-  const ranks = {};
-  for (const line of LINES) ranks[line.id] = 0;
-  return ranks;
+  // A literal and not a loop over LINES: this object is read every step by the leech and the guns,
+  // and a dynamic build gives V8 a dictionary rather than a fixed shape once the deck is this wide.
+  // The test below holds the keys to the table, so a new line has to be added in both places.
+  return {
+    damage: 0, fireRate: 0, bulletSpeed: 0, split: 0, pierce: 0, ricochet: 0,
+    orbitals: 0, nova: 0, burn: 0, chill: 0, leech: 0, afterimage: 0,
+    overcharge: 0, magnetar: 0, mines: 0, tether: 0, turret: 0, attractor: 0,
+    thermalShock: 0, kindling: 0,
+  };
 }
 
 /** Put every line back to no ranks. Called with the rest of the run's resetting. */

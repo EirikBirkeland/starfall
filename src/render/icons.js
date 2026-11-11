@@ -107,6 +107,10 @@ const TINT = {
   // is what tells it apart (see `drawSynergyEdges`), not a hue, which is just as well: NOTES session
   // 47 counted the glow cache and there was no room left in it for a colour of its own.
   thermalShock: PALETTE.burnFlame,
+  // The twentieth card: the same flame as its burn parent, with the leech's pale mint diamond in
+  // it. Two synergies can share a tint because they cannot share a shape - this one is a meal, the
+  // other is a burst of two temperatures.
+  kindling: PALETTE.burnFlame,
 };
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
@@ -129,6 +133,7 @@ const ICONS = {
   burn: iconBurn,
   chill: iconChill,
   thermalShock: iconThermalShock,
+  kindling: iconKindling,
   leech: iconLeech,
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,
@@ -474,6 +479,25 @@ const LEECH_ROWS = [
   { at: 0.6, arm: 0.15, light: 0.8 },
   { at: 0.84, arm: 0.11, light: 0.34 },
 ];
+
+/**
+ * Kindling: the burn icon's flame with the leech's diamond sitting in it - the meal inside the
+ * fire. It is the second synergy and the first card whose two parents are both warm, so the
+ * drawing has to say what the pair does rather than show a temperature: a body (the diamond) is
+ * already in the flame, and the flame is what the leech is eating.
+ */
+function iconKindling(ctx, size, tint) {
+  flamePath(ctx, -size * 0.12, size * 0.36, size * 0.94, size * 0.52, -size * 0.08);
+  ctx.fillStyle = withAlpha(tint, 0.9);
+  ctx.fill();
+
+  polygon(ctx, size * 0.26, 0, size * 0.24, 4, Math.PI / 4);
+  ctx.fillStyle = withAlpha(PALETTE.shardLine, 0.85);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(PALETTE.shardLine, 0.95);
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+}
 
 function iconLeech(ctx, size, tint) {
   polygon(ctx, 0, 0, size * LEECH_PIP, 4, Math.PI / 4);
