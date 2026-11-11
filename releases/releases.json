@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.37",
+    "date": "2026-11-11",
+    "released": "2026-11-11T15:19:49.752Z",
+    "summary": "A third synergy: FROSTBITE, a cold death shatters",
+    "added": 115,
+    "removed": 3,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.36",
     "date": "2026-11-11",
     "released": "2026-11-11T14:39:56.456Z",
