@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.21",
+    "date": "2026-11-11",
+    "released": "2026-11-11T07:45:40.003Z",
+    "summary": "the phone pause is a plate: the held run no longer reads through it",
+    "added": 14,
+    "removed": 0,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.20",
     "date": "2026-11-11",
     "released": "2026-11-11T07:31:49.792Z",
