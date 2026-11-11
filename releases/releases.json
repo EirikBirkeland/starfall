@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.34",
+    "date": "2026-11-11",
+    "released": "2026-11-11T13:23:40.964Z",
+    "summary": "a ninth challenge rule: DROUGHT, shards buy 40% less experience",
+    "added": 48,
+    "removed": 11,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.33",
     "date": "2026-11-11",
     "released": "2026-11-11T12:40:51.461Z",
