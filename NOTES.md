@@ -19430,3 +19430,42 @@ asked the release script for the wrong version; the entry it adds, and the relea
 3. The title's thumb rail has been seen in the static pass and fits; the only overlay left unphotographed
    is the volume readout over a phone run (measured at 680-770, above the XP bar, but not read as a
    picture).
+
+## Session 181 - the volume plate covered the thumb's own controls
+
+### What the audit saw
+The last unphotographed overlay: the mixer readout (`M`, `[ ]`, `- =`) during a live phone run. Its
+layout was correct for a keyboard (`y = H - 74 - height`), but on a thumb visit that strip is the
+floating stick and the DASH button: the plate landed at 680-770 and covered the left half of the DASH
+circle and the top of the stick ring. A player turning the music down mid-fight lost sight of the
+control they were about to press.
+
+The other two surfaces were checked and are fine: the phone title's first capture was **mid-arrival**
+(the mark was still sliding in; the settled title at 2.5 s shows the mark, all fourteen control rows,
+the standing lines, the hint and the six-chip rail), and the late thumb pause keeps its GIVE UP chip and
+its `TAP AGAIN TO GIVE UP` confirmation inside the opaque plate session 180 shipped.
+
+### What landed
+`panelLayout` in `render/volume.js` asks `thumbUsed()`: on a thumb the readout is lifted by two stick
+reaches plus the usual XP-bar lift, so it sits above the controls (phone: `y 512-602`, clear of the
+DASH top at 682 and of a bottom-left stick's ring). A keyboard keeps the strip above the XP bar. A test
+sets the thumb and a `390x844` view and refuses a plate that reaches the DASH button or the bottom
+control strip. Suite 2659 -> 2661.
+
+### Verification
+- Real phone screenshot: `MUSIC`/`SOUND`/`MUTED` at `y 512-602`, the stick and both buttons untouched
+  below it.
+- `node --test`: **2661/2661 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A frame overlay moved; the run did not.
+
+### Released
+**1.9.22.** The volume readout sits above the thumb's controls instead of on them.
+
+### Next
+1. **Whether the first two minutes are too harsh** - the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The real-browser audit has now photographed the title, hangar, codex, settings, controls, level cards,
+   pause, wreck, win, a thumb run, a boss warning and fight, the tutorial, awards and the volume plate at
+   `1280x720` and `390x844`. The next one should be a new screen or a new resolution, not another pass.

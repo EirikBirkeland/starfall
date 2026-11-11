@@ -38,6 +38,7 @@ import {
 import { AUDITION_NOTE, musicLedger } from '../src/audio/music.js';
 import { view } from '../src/render/canvas.js';
 import { panelIsUp, panelLayout } from '../src/render/volume.js';
+import { thumb, dashButton } from '../src/input/touch.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const UI = BALANCE.ui;
@@ -431,6 +432,24 @@ test('and over the death\'s card, where the music has stopped on purpose', () =>
 // ---------------------------------------------------------------------------
 // Where a voice is allowed to go, and what a slider key is not
 // ---------------------------------------------------------------------------
+
+test('a thumb volume plate is lifted above the stick and the DASH button', () => {
+  const wasW = view.W;
+  const wasH = view.H;
+  const wasThumb = thumb.used;
+  game.setViewport(390, 844);
+  thumb.used = true;
+  try {
+    const box = panelLayout();
+    const dash = dashButton(390, 844);
+    assert.ok(box.y + box.h < dash.y - dash.r,
+      'the plate is above the DASH button: ' + (box.y + box.h) + ' against ' + (dash.y - dash.r));
+    assert.ok(box.y + box.h < 844 - 200, 'and above the bottom strip the controls own');
+  } finally {
+    thumb.used = wasThumb;
+    game.setViewport(wasW, wasH);
+  }
+});
 
 test('the readout fits the plate it is drawn on', () => {
   // No pixels here, so the picture is measured as boxes: the plate is inside the window and

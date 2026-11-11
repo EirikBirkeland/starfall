@@ -26,6 +26,7 @@ import { VOLUME, effectsLevel, isMuted, musicLevel } from '../audio/engine.js';
 import { roundRect } from './shapes.js';
 import { haloText } from './hud.js';
 import { view } from './canvas.js';
+import { thumbUsed, stickReach } from '../input/touch.js';
 
 const PANEL = {
   hold: 1.7,        // s the panel stays fully up after the last press
@@ -98,7 +99,11 @@ export function panelLayout() {
   ];
   const height = PANEL.pad * 2 + PANEL.row * lines.length + PANEL.keys;
   const x = (view.W - PLATE_W) / 2;
-  const y = view.H - PANEL.lift - height;
+  // A thumb's controls own the bottom strip: the floating stick on the left, DASH and PAUSE on the
+  // right. The readout is lifted above both by two stick reaches, which is the height a stick put
+  // down at the bottom of the glass needs; a keyboard's panel keeps the strip above the XP bar.
+  const lift = thumbUsed() ? PANEL.lift + 2 * stickReach(view.W, view.H) + 20 : PANEL.lift;
+  const y = Math.max(8, view.H - lift - height);
   // How far the panel has to go before it is gone, and which row is the one that was just moved.
   // Both are computed here rather than in the painter so that a test can read them back: there are
   // no pixels in here, but there is a box, and a brightness is a number.
