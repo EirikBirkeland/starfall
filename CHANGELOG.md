@@ -1,5 +1,15 @@
 # Starfall — changelog
 
+## 1.9.33 — 2026-11-11
+A second synergy, and a performance trap the twentieth line exposed.
+- **KINDLING — burn 3 + leech 3.** A body that dies alight counts **twice** toward the leech. The card
+  is dealt only once both parents are at rank 3, like THERMAL SHOCK, and it wears its two parents on
+  its frame: fire outside, the leech's mint inside.
+- **The rank object is fixed-shape again.** Adding the twentieth line turned `world.upgrades` into a
+  dictionary, and the per-step leech read off it boxed: the alloc probe's empty arena jumped from 16 B
+  to **720 B a step**. `newRanks` is now one fixed-shape object literal, held equal to the line table by
+  a test; the floor is back to **16 B** and the schedule wall reads **333 B** (was 349).
+
 ## 1.9.32 — 2026-11-11
 The mender shows the ground it can patch.
 - **A faint mint floor ring at its 120 px support radius.** Before this, the mender's reach was only
