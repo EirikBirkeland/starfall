@@ -1,5 +1,14 @@
 # Starfall — changelog
 
+## 1.9.23 — 2026-11-11
+A phone on its side opens on a title instead of a blank screen.
+- **The landscape title is the flying title.** At 844x390 the fourteen-row control list, the standing
+  lines and six chips did not fit: the mark was above the glass and the launch hint below it, while the
+  thumb rail sat over the last control rows. A short-landscape rule now shows the mark, `TAP TO LAUNCH`
+  and TODAY/RULE/MUTE, and leaves the control list and the three shop chips for a turn of the phone -
+  landscape is for flying, where the sticks and buttons are in-run paint. The shops (and settings) still
+  want a portrait-height plate and are not offered there.
+
 ## 1.9.22 — 2026-11-11
 The volume readout no longer lands on a phone's own controls.
 - **On a thumb, the mixer plate sits above the stick and the DASH button.** Its keyboard position -
