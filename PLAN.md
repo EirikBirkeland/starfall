@@ -1819,10 +1819,23 @@ When every item above is ticked, go back to the first unchecked item of mileston
       crowd, 2,947 canvas operations a frame) and the plate is the only thing in here that can say what
       a real canvas asks of a real machine. Until that is read, `endless.growth.bodiesCeil` stays at 200
       and PLAN section 2's 600-enemy sentence stays printed and ungated.
-      **This one is the owner's to take, and it survived 1.0.0 for that reason**: there is no browser on
-      this box and no canvas here to time, so a headless session can only say so. Everything the tool side
-      can gate *is* gated (`tools/perf-probe.js` paints the arena into a recording painter and holds the
-      step and the operation count), and it passes; what nobody has ever read is what a real GPU says.
+      **This one was the owner's alone until session 166, and it survived 1.0.0 for that reason**: there
+      was no browser on this box and no canvas here to time, so a headless session could only say so.
+      Everything the tool side can gate *is* gated (`tools/perf-probe.js` paints the arena into a recording
+      painter and holds the step and the operation count), and it passes. Session 166 put a real Chromium
+      here (playwright-core, a dev dependency), and **session 167 read the browser half with it**:
+      `tools/plate-flight.js` drives the real frame loop one frame at a time with `performance.now` left
+      alone, so the plate's own `frameCosts` is a real reading. What it read, three loads, two reads each:
+      at **`bodies 200 / 200`** step **0.54 / 1.70 ms** avg/worst and draw **3.06 / 7.40 ms** (the dearest
+      read 0.84 / 3.90 and 4.20 / 13.50); at THICK CROWD's **`150 / 150`** step **0.49 / 0.90** and draw
+      **4.28 / 8.80** (a later read 0.34 / 3.00 and 2.61 / 11.70); at the brood's **42 bodies** step
+      **0.28 / 2.40** and draw **2.75 / 10.10** (a later read 0.17 / 0.90 and 2.59 / 9.00). So these loads
+      cost **2.6-4.3 ms of draw issue on average and 7-14 ms at their worst**, and none of that is a frame.
+      **But every one of those numbers was painted by SwiftShader**, and the wall column says so: the same
+      frames took **70-306 ms apiece in software**, which is not a laptop and not a GPU. **The ceiling stays
+      at 200 and this item stays open**: the remaining reading is the owner's own machine - by hand with
+      F3, or `tools/plate-flight.js --gpu` on a Chromium that will hand it the GPU. A `draw ms` worst near a
+      whole frame *there* is what would move `endless.growth.bodiesCeil`; this box's software raster is not.
       **One more stop for the same flight, added in session 122**: a scheduled run under THICK CROWD holds
       150 bodies instead of 100, a crowd the arena has never been timed at, between the 100 the plate's
       scheduled scene stops at and the 200 endless may reach. Read `step ms` and `draw ms` there too while

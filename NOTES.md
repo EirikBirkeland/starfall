@@ -18617,3 +18617,102 @@ than one of its own: a tab icon is not a reason for a version.
 **v1.9.16** (`releases/v1.9.16/`, tagged, listed in `releases.json`, notes page written): the title
 mark stops collapsing onto the control list, the hangar racks stand side by side at full scale, and both
 screens fit a portrait phone.
+
+## Session 167 - the browser half of the performance pass, read on a real canvas (with the software-raster caveat attached)
+
+### What was on the shelf
+One item, and it was the only unchecked `[ ]` left in `PLAN.md`: read the F3 plate at the three loads the
+performance pass is about - endless at the body wall, THICK CROWD at its wall, and the brood - and write
+down `step ms` and `draw ms`. Session 166 had put a real Chromium and `playwright-core` on the box, and
+its notes asked for exactly this flight, with the caveat written down beside the numbers.
+
+### What was built: `tools/plate-flight.js`
+The flight is now a tool rather than a session's throwaway script:
+
+```
+node tools/plate-flight.js --load endless
+node tools/plate-flight.js --load thick
+node tools/plate-flight.js --load brood
+node tools/plate-flight.js --load endless --gpu --shot .scratch/plate-endless.png
+```
+
+It opens the game in real Chromium, takes the frame loop away from the display and hands the game's own
+`frame()` one synthetic frame at a time. `performance.now` is untouched, so `src/main.js`'s own stopwatch
+and the plate's `frameCosts()` are real milliseconds, and the tool reads them from the same module the
+panel paints from. A full task is yielded between frames: running 300 frames synchronously piles up
+unpainted canvas work, and a first attempt at this crashed the renderer and then took half a minute to
+answer a screenshot. With the yield, the screenshot is instant and the main-thread numbers are honest.
+
+How each load is reached (the tool's header says all of this):
+
+- **endless** - a run launched from the title, won through `game/run.js` `winRun`, its card answered by
+  `continueRun`, and its clock put nine minutes past the hand-back so `bodyCeiling` is the 200 wall. The
+  director fills the crowd for real; the trigger is released so the measurement is the crowd, not the gun
+  clearing it. The wall needed 25.6 s of game time to stand.
+- **thick** - a run under `chooseChallenge('thick')` at the end of the schedule, where the ceiling is 150.
+  The director's own stand is about 120 bodies, not 150: the budget runs out first and snipers then cut the
+  crowd with their own beams. The last of the wall is planted from the game's own `makeEnemy` (the way
+  `tools/perf-probe.js` holds a scene), and the tool prints how many bodies it had to plant.
+- **brood** - a still run with the schedule suppressed and three clumps of fourteen swarmlings with their
+  packs on, planted exactly as `tools/perf-probe.js` plants them; one whole turn of the flock's clock is
+  played before the two-second window so the tells are on the glass for part of it.
+
+### The readings
+All at `1280x720`, seed `20261006`, SwiftShader, `frameCosts()` over its own two-second window:
+
+| load | plate | step ms avg / worst | draw ms avg / worst | planted | wall frame |
+|---|---|---|---|---|---|
+| endless | `200 / 200` | **0.54 / 1.70** | **3.06 / 7.40** | 4 | 180 ms |
+| endless (first script) | `200 / 200` | 0.84 / 3.90 | 4.20 / 13.50 | 0 | 221 ms |
+| THICK CROWD | `150 / 150` | **0.49 / 0.90** | **4.28 / 8.80** | 108 | 306 ms |
+| THICK CROWD (tool) | `150 / 150` | 0.34 / 3.00 | 2.61 / 11.70 | 111 | 206 ms |
+| brood | 42 bodies, 3 packs | **0.28 / 2.40** | **2.75 / 10.10** | 0 | 72 ms |
+| brood (tool) | 42 bodies, 3 packs | 0.17 / 0.90 | 2.59 / 9.00 | 0 | 70 ms |
+
+The plate read at `200 / 200` is in `.scratch/plate-endless-crowd.png`; the `150 / 150` plate is
+`.scratch/plate-thick-wall.png`; the brood plate is `.scratch/plate-brood.png`. The screenshots name the
+loads (`ENDLESS +9m`, `THICK CROWD`) and show the pool rows behind each number.
+
+### What this says, and what it does not
+- **On the main thread, the load is cheap.** Drawing 200 bodies and a whole HUD costs 3-4.2 ms of canvas
+  issue on average and 7-13.5 ms at the worst frame; the simulation at the same crowd costs 0.54-0.84 ms
+  on average and 1.7-3.9 ms at the worst. Two of those numbers have to share a 16.7 ms frame, and they do,
+  even with a software rasteriser competing for the same CPU. That is the same shape session 155 found
+  from the step side, and it says the tail is the collector and not the scene.
+- **`draw ms` at 200 bodies is not bigger than at 150.** The endless crowd is spread round the arena and
+  the camera culls what is off the glass; the THICK CROWD wall was planted round the ship, so nearly all
+  of its 150 bodies are drawn. Body count alone does not price a frame - bodies *on the glass* do - which
+  is the distinction `tools/perf-probe.js` has always made with its `onGlass` flag and this reading now
+  makes on a real canvas.
+- **THICK CROWD's 150 is a ceiling, not a standing crowd.** A still run's director stands about 120 and
+  the rest is budget, and snipers cut the crowd further: the first thick probe peaked at 121, fell to 54,
+  and needed 108-111 planted bodies over the three-second window to hold 150. So the addendum's sentence
+  ("holds 150 bodies instead of 100") is true of the wall the rule buys and not of the number a still run
+  happens to have on the glass at every moment.
+- **The wall column is the caveat, not a result.** The same frames took 70-306 ms apiece. Chromium here
+  has no GPU: it rasterises through SwiftShader on the CPU, and the compositor backpressure is what the
+  wall measures. None of that is a laptop's frame, and **`endless.growth.bodiesCeil` stays at 200**. The
+  remaining reading is the owner's machine - open the game and press F3, or run the tool with `--gpu` on a
+  Chromium that will hand it the GPU. A `draw ms` worst near a whole frame there is the number that would
+  move the ceiling; a software rasteriser at 70-300 ms a frame is not.
+
+### Verification
+- `node --check tools/plate-flight.js`, and the tool run against all three loads: each reached its wall,
+  exited 0, reported zero console errors and zero page errors. The screenshots were read back and the
+  plate's `bodies / ceiling` line matched the tool's report every time.
+- `node --test`: **2636 tests, all green** (no game source touched).
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354` score, level 57,
+  3,898 kills, 4,998 shards).
+
+### Next
+1. **The same three loads on the owner's GPU.** `tools/plate-flight.js --gpu` is the tool; by hand, the
+   game's F3 plate is the same reading. The number to look at is `draw ms` avg / worst at `bodies 200 /
+   200`; if the worst sits near a whole frame, the ceiling is doing real damage and the honest response is
+   a smaller `bodiesCeil`, not a slower game. Do not read anything into this box's wall column.
+2. Everything else carried over: `--loot` on the other four ladders, deciding which hand the challenge
+   sheet speaks for, NO DASH's missing hand, the ablate catalogue's `--scene brood` pass, the shot-speed
+   line, `tierBonus.telegraph` in PLAN, whether the first two minutes are too harsh, `--live --weapon
+   swarm`, and session 163's unattributed ~110 B a step.
+
+### Released
+Nothing this session. A tool and a reading are not a version; v1.9.16 is still the one to play.
