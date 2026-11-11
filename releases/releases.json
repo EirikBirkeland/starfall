@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.20",
+    "date": "2026-11-11",
+    "released": "2026-11-11T07:31:49.792Z",
+    "summary": "a tapped phone is taught its own hands from the first frame, and awards clear the hint and the HUD",
+    "added": 35,
+    "removed": 11,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.19",
     "date": "2026-11-11",
     "released": "2026-11-11T07:15:19.300Z",
