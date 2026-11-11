@@ -1,5 +1,18 @@
 # Starfall — changelog
 
+## 1.9.18 — 2026-11-11
+A phone can read the level-up cards now, and the banish chip no longer draws a missing glyph.
+- **A portrait phone lays the level-up rack two across and one under.** Three cards in a 390 px row
+  were 99 px each, so every card's effect line was cut to `+6 fewer kills p…` and the flavour paragraph
+  was cut too - the one screen where the run chooses its build was not saying what the cards do. Two
+  columns give each card 162 px, which fits the effect whole and the whole flavour paragraph. Desktop
+  and short windows keep the row they had; only a window narrower than 520 px and taller than 600 px
+  takes the grid.
+- **The banish mark is a word and an arrow the phone can draw.** The tab and chip used the keyboard's
+  Shift glyph (`⇧`), which the phone's fallback face does not have and drew as a tofu box. The tab now
+  reads `↑1`, and the chip spells `SHIFT BANISH ×1`, fitted to the chip so the word stays inside the
+  target a click is measured against.
+
 ## 1.9.17 — 2026-11-11
 A real-browser audit of the screens the stub DOM cannot see found the one card that did not fit.
 - **A late wreck or win no longer runs its bottom off the glass.** The ending card is the tallest thing in
