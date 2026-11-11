@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.41",
+    "date": "2026-11-11",
+    "released": "2026-11-11T19:19:47.697Z",
+    "summary": "A new award: TRILOGY, hold all three synergies in one run",
+    "added": 7,
+    "removed": 3,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.40",
     "date": "2026-11-11",
     "released": "2026-11-11T19:04:57.326Z",
