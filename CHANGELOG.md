@@ -1,5 +1,14 @@
 # Starfall — changelog
 
+## 1.9.28 — 2026-11-11
+A 360x640 phone can open the hangar.
+- **The small-phone shop fits.** At the 0.6 fit floor the hangar was taller than a 640 px screen: the
+  `HANGAR` title and the `CLOSE` chip were off the glass and the thirty-award rack made the shop taller
+  than the shop's own purpose. A short-phone rule now lays the shop at phone width, stacks the two shop
+  racks in one column, and hides the awards rack there; the awards are still in the codex, and a 390x844
+  phone still shows them in the hangar. `HANGAR`, the purse, five ships, four perks, both hints and
+  `CLOSE` fit at 360x640 with scale 0.671.
+
 ## 1.9.27 — 2026-11-11
 A new challenge rule: **PRESSURE**.
 - **The crowd refills 122% faster.** The wave director's gap between one wave and the next is
