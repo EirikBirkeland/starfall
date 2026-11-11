@@ -464,17 +464,17 @@ export const BALANCE = {
       },
     },
     pressure: {
-      // The wave director's beat: the gap between one wave and the next is multiplied by this. 0.45
-      // is 122% more waves over the same window and the same body wall - the arena does not hold
-      // more, it just stops being quiet as soon. The 8-seed first flight read 0.67x plain's middle;
-      // the 24-seed quote below reads 0.86x with plain winning 13 of the 24 pairs, so the score pair
-      // is a lean rather than a finding while the deaths (18 against 14) and hulls (87 against 68)
-      // say what the rule is for. It is the gentler of the two numbers the sweep could order, on a
-      // rule that is about pressure and not about a shortened life.
-      gapMul: 0.45,
+      // The wave director's beat: the gap between one wave and the next is multiplied by this. 0.3
+      // is 233% more waves over the same window and the same body wall - the arena does not hold
+      // more, it just stops being quiet as soon. The first quote was 0.45; 48 seeds read it at 0.96x
+      // and the ladder called it a flavour setting, so the gap was shortened. 0.3 reads 0.89x on 24
+      // seeds with plain winning 16 of them (p = 0.152), and the deaths (18 against 14) and hulls (75
+      // against 68) are what the rule is for. The pair is still a lean and the row says so; it is a
+      // challenge because it is paid for in the score column, not because the seeds are lopsided.
+      gapMul: 0.3,
       measured: {
         on: '2026-11-11', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
-        cost: 0.86, plainWon: 13, ruleWon: 11,
+        cost: 0.89, plainWon: 16, ruleWon: 8,
       },
     },
     byhand: {

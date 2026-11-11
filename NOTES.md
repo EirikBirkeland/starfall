@@ -19740,3 +19740,38 @@ rule, the hidden rack and the width. Suite 2669 -> 2671.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 189 - PRESSURE at 0.45 was a flavour setting, so the gap went to 0.3
+
+### What the 48-seed flight said
+`node tools/challenge-cost.js --challenges none,pressure --seeds 48 --seconds 300 --dump` on the 0.45
+rule: **0.96x** plain's middle, plain winning **23 of 48** pairs, deaths 33 against 31, hulls 171 against
+132. The ladder's verdict was **FAIL**: a rule scoring 0.96x is above the 0.95x bar and is "a flavour
+setting" in the score column, however many more hulls it takes. The 24-seed 0.86 was a lean that got
+smaller with more seeds, which is exactly what a lean does.
+
+### The tune
+The gap was shortened to **0.3** (`1 / 0.3 - 1 = 233%` more waves) and re-flown on the quote's own
+24 seeds: **0.89x** plain's middle, plain winning **16/24** (p = 0.152), deaths **18 against 14**, hulls
+**75 against 68**. That is paid for in the score column, so the rule is a challenge and not a setting;
+the pair is still a lean and the row says so. The `measured` row now carries 0.89 / 16 / 8 on the
+2026-11-11 24-seed flight, and the sentence builds itself from the row: `the crowd refills 233% faster`.
+
+### Verification
+- `node tools/challenge-cost.js --challenges none,pressure --seeds 24 --seconds 300 --strict`: the new
+  quote reproduced, exit 0.
+- `node --test`: **2672/2672 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards) - a plain run has no rule on it.
+
+### Released
+**1.9.29.** PRESSURE was tuned from a flavour setting to a challenge: the crowd now refills 233% faster,
+and it is paid for in the score column (0.89x).
+
+### Next
+1. A 48-seed flight at 0.3 would say whether the 16/24 pair is a finding or another lean; the rule is
+   optional content and the quote is written down for either answer.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still a
+   person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
