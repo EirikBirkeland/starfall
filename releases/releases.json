@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.27",
+    "date": "2026-11-11",
+    "released": "2026-11-11T09:38:18.262Z",
+    "summary": "a new challenge rule: PRESSURE, the crowd refills 122% faster",
+    "added": 79,
+    "removed": 15,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.26",
     "date": "2026-11-11",
     "released": "2026-11-11T08:54:16.571Z",
