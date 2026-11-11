@@ -492,10 +492,11 @@ test('every number the game quotes for a rule brings its window, its hand and it
     assert.ok(m.seconds >= 120, at + ' was measured on a window too short to see a rule');
     assert.ok(POLICIES[m.policy] !== undefined, at + ' names a hand that exists');
     assert.ok(PICKS[m.picks] !== undefined, at + ' names a way of answering the level-up');
-    // Whether the hand goes and gets its own loot is the third part of "which hand" (session 161), and
-    // it is only ever said when it is true - a quote that let anything else in here would be naming a
-    // hand the ladder cannot fly.
-    assert.ok(m.loot === undefined || m.loot === true, at + ' has a loot habit nobody can fly');
+    // Which hand is the third part of "which hand" (session 161), and session 174 decided it: the sheet
+    // speaks for the magnet-fed hand, and every row now says so (`loot: false`) instead of leaving the
+    // default to be inferred. A foraging quote would be a second row and a data-model change, not a
+    // quiet rewrite of this one - so a row that does not state the magnet-fed hand is a failure here.
+    assert.equal(m.loot, false, at + ' is not on the hand the sheet speaks for (loot must be false)');
     assert.ok(m.cost > 0 && m.cost < 1, at + ' does not cost anything (cost ' + m.cost + ')');
     assert.ok(Number.isInteger(m.plainWon) && m.plainWon >= 0, at + ' counts the seeds plain won');
     assert.ok(Number.isInteger(m.ruleWon) && m.ruleWon >= 0, at + ' counts the seeds the rule won');

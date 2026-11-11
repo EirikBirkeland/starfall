@@ -228,11 +228,16 @@ export function crowdHoldOf(world) {
  *
  * The row keeps the careless magnet-hand number anyway, for one reason: every other rule on the sheet was
  * priced on that hand, and a cost that can only be compared with its neighbours is worth more in the game
- * than a truer one on a hand nothing else was flown on. `tools/challenge-cost.js` now counts the loot
- * habit as part of what "that hand" means, so a `--loot` flight will report that it checked none of these
- * numbers rather than call them all stale, and a quote may be taken on a foraging hand and say so (its
- * `measured` row would carry `loot: true`). What still belongs to eyes on a screen is the one reading
- * nobody can fly: a person chooses which piles to chase, and sits somewhere between these three.
+ * than a truer one on a hand nothing else was flown on. **That is the sheet's decision, and every
+ * `measured` row now states it (`loot: false`)** so a later session cannot change the hand by silence.
+ * `tools/challenge-cost.js` counts the loot habit as part of what "that hand" means, so a `--loot` flight
+ * reports that it checked none of these numbers rather than calling them all stale. A quote taken on a
+ * foraging hand would be a second row (`loot: true`) and not a replacement: a 24-seed flight of the
+ * careless hand on it reads ONE HULL 0.09x, SWIFT 0.10x, BY HAND 0.07x, SHORT GRACE 0.99x and THICK
+ * 0.90x, so switching wholesale would re-price the instrument in both directions - and THICK would
+ * become the *cheapest* rule for the hand whose engine is the loot. What still belongs to eyes on a
+ * screen is the one reading nobody can fly: a person chooses which piles to chase, and sits somewhere
+ * between these three.
  */
 export function shardReachMulOf(world) {
   return isFlying(world, 'byhand') ? challengeRow('byhand').reachMul : 1;

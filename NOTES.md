@@ -19063,3 +19063,75 @@ the fanciest fix the evidence supports would be a comment.
 ### Released
 Nothing. The game traces byte for byte what it traced at 1.9.16; the note is for the next hunt, not for
 a player.
+
+## Session 174 - the challenge sheet speaks for the magnet-fed hand, and now every quote says so
+
+### What was on the shelf
+Session 161's carried decision: **which hand does the challenge sheet speak for?** The seven quotes in
+`BALANCE.challenges` were all taken on a hand that stands in the middle and lets the shard net bring the
+loot to it; `tools/challenge-cost.js --loot` can fly the hand that goes and gets it, and the notes said
+the answer was "an hour of `--loot` flights" away.
+
+### The flight
+`node tools/challenge-cost.js --loot --seeds 24 --seconds 300 --challenges
+none,brittle,merciless,swift,thick,byhand`, the careless hand (`human`, a die for the card, the get-out
+dash), same seeds for every row. The first 8-seed pass had already said the shape was not noise; the
+24-seed pass is the one quoted here.
+
+| rule | magnet-fed quote (24-32 seeds) | foraging hand, 24 seeds | what moved |
+|---|---|---|---|
+| plain | - | 1m57s, 8/24 died, 28,834, 115 hulls | the instrument's own floor |
+| ONE HULL | 0.61x | **0.09x** (24/24 died) | the run's engine is gone |
+| SHORT GRACE | 0.91x | **0.99x** (9 of 10 pairs) | the grace is not felt at all |
+| SWIFT CROWD | 0.57x | **0.10x** (21/24 died) | the walk is how it survives |
+| THICK CROWD | 0.60x | **0.90x** (11 of 24 pairs) | **cheaper** - more bodies are more loot |
+| BY HAND | 0.55x | **0.07x** (23/24 died) | the net is the engine |
+
+The last row is the one that decides it. The move is **not monotone**: a hand paid in loot loses almost
+everything to ONE HULL, SWIFT and BY HAND, stops feeling SHORT GRACE, and finds THICK CROWD *cheaper*
+than the sheet says - because an arena with half again as many bodies is half again as many shards to
+walk to, and a hand whose build is bought with loot gets stronger from the rule that makes the crowd
+bigger. Switching the sheet wholesale would therefore not be re-pricing the rules; it would be
+re-pricing the instrument, in both directions at once.
+
+### The decision, and what landed
+1. **The sheet speaks for the magnet-fed hand.** That is the hand every rule was designed and compared
+   on, the hand the game ships a net for, and the only one on which the seven costs can be read as one
+   set. The foraging hand is a second instrument, and its readings are for rules about the hand, not a
+   replacement set.
+2. **Every `measured` row now says `loot: false`** - six rows in `BALANCE.challenges` - so the hand is
+   written down rather than inferred from an absent field. A future foraging quote would be a second row
+   (`loot: true`) and a data-model change, not a quiet rewrite of these.
+3. **The shape test pins it**: `test/challenge-cost.test.mjs` now refuses a `measured` row that does not
+   carry `loot: false`, with the reason in the assertion. Suite stays 2644 (assertions changed, no new
+   test).
+4. **The prose carries the comparison**: `BALANCE.challenges`' header has the 24-seed table and the
+   non-monotone THICK finding; `game/challenges.js` `shardReachMulOf`'s last paragraph now states the
+   decision and that a foraging quote is a second row. The BY HAND row's own comment already carried its
+   0.07x and why the 0.55x ships.
+
+### What this does not do
+It does not re-quote a single challenge number, and it does not claim the foraging hand is wrong. It
+says which hand the sheet is *for*, and makes the next session choose a different row on purpose if it
+wants one. The `--loot` flight still reports `VERDICT: FAIL` on SHORT GRACE (1.00x against a 0.95x bar) -
+that is the foraging hand failing to feel a rule about a second hit, which is a fact about the hand and
+is why the magnet-fed quote stands.
+
+### Verification
+- `node --check` on `src/game/balance.js`, `src/game/challenges.js`, `test/challenge-cost.test.mjs`.
+- `node --test test/challenge-cost.test.mjs`: **23/23 green**, including the shape test.
+- `node --test`: **2644/2644 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). No game behaviour changed; the rows gained a field and the prose gained the
+  reason.
+
+### Next
+1. The carried list, now without the sheet's hand: **NO DASH's missing hand** (a policy that threads
+   rooms with the dash, not one that presses it ten times a quarter hour), and **whether the first two
+   minutes are too harsh** (needs a human).
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. A field and a sentence are not a version; the game traces byte for byte what it traced at
+1.9.16.

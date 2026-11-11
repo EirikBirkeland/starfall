@@ -399,13 +399,25 @@ export const BALANCE = {
   // over - and on the twenty-four-seed flight that filed these rows it read 0.70x with the plain run
   // winning 17 of 24 seeds, which is a lean and not a finding (p = 0.07). The rule is not dimmed to match
   // a number the ladder cannot stand behind; it is left alone because that number was never what it is for.
+  //
+  // **The sheet speaks for the magnet-fed hand, and every `measured` row says so (`loot: false`).** That is
+  // the hand every rule was designed and compared on: it stands in the middle and lets the shard net bring
+  // the loot to it. The other hand exists - `tools/headless/loot.js`, `challenge-cost.js --loot` - and a
+  // 24-seed flight of the careless hand on it reads this same sheet very differently: plain 1m57s and
+  // 28,834, ONE HULL **0.09x**, SWIFT **0.10x**, BY HAND **0.07x**, SHORT GRACE **0.99x** (9 of 10 pairs,
+  // i.e. the grace is not felt at all) and THICK **0.90x** - *cheaper* than the magnet-fed 0.60x, because
+  // more bodies are more loot and the foraging hand is paid in loot. So switching the sheet wholesale
+  // would not be re-pricing the rules; it would be re-pricing the instrument, in both directions. The
+  // magnet-fed hand stays the yardstick because every other number on the sheet was taken on it and because
+  // the game ships the net. A foraging quote is a second row to add when a rule is *about* the hand (BY
+  // HAND's prose already carries its 0.07x), not a replacement for this one.
   challenges: {
     brittle: {
       hull: 1,
       // One hit kills, so the whole game turns into a game of not being touched, and the runs that used to
       // last eight minutes are over in three. The plain run won every single seed the rule was asked on.
       measured: {
-        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.61, plainWon: 23, ruleWon: 0,
       },
     },
@@ -419,7 +431,7 @@ export const BALANCE = {
       // of every run and pays for it in stardust, and thirteen of the twenty-four seeds it was filed on
       // never got hit twice at all, so those thirteen scored exactly what plain scored.
       measured: {
-        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.91, plainWon: 11, ruleWon: 0,
       },
     },
@@ -429,7 +441,7 @@ export const BALANCE = {
       // of three settings (1.2 read 0.66x with 17 of 24 seeds, 1.6 read 0.41x with 22 of 24) and the one
       // that costs about what the card used to promise for the number it used to carry.
       measured: {
-        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.57, plainWon: 21, ruleWon: 3,
       },
     },
@@ -441,7 +453,7 @@ export const BALANCE = {
       // being over before a hull can be bought, and about three quarters of the bodies a frame can be
       // timed with.
       measured: {
-        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random',
+        on: '2026-10-17', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.6, plainWon: 19, ruleWon: 5,
       },
     },
@@ -477,7 +489,7 @@ export const BALANCE = {
       // build and the rule takes the engine, not a bonus. game/challenges.js `shardReachMulOf` has the whole
       // of it, including why the row still quotes the cheapest of the three.
       measured: {
-        on: '2026-10-17', seeds: 32, seconds: 300, policy: 'human', picks: 'random',
+        on: '2026-10-17', seeds: 32, seconds: 300, policy: 'human', picks: 'random', loot: false,
         cost: 0.55, plainWon: 29, ruleWon: 3,
       },
     },
@@ -489,7 +501,7 @@ export const BALANCE = {
       // thinning a careless chooser's rack takes away mostly the cards it was not going to answer with
       // anyway. Answered on purpose, eighteen of the same seeds say it costs what it costs.
       measured: {
-        on: '2026-10-17', seeds: 24, seconds: 480, policy: 'aware', picks: 'wise',
+        on: '2026-10-17', seeds: 24, seconds: 480, policy: 'aware', picks: 'wise', loot: false,
         cost: 0.41, plainWon: 18, ruleWon: 6,
       },
     },
