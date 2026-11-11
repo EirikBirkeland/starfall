@@ -20059,3 +20059,42 @@ meets a body it cannot answer.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 197 - CONCUSSION was tried and withdrawn: a control line the build takes and dies with
+
+### What was tried
+A new card line, **CONCUSSION** (5 ranks, +40% shot knockback per rank), read where a shot leaves
+(`game/weapons.js`) and paid where a body is shoved (`game/bullets.js`), with its own icon and a fix to
+the fixed-shape rank literal. The point was a control card - move the crowd instead of killing it - that
+costs no new system.
+
+### Why it was withdrawn
+The reference run is the canary: the aware bot with wise picks **died at 2m19s, score 5,638, level 13**
+(`build 1/0/0/0/1/2/0/1/1/1/1/1/1/0/0/0/1/0/1/0/0`). A new line is dealt as the "something new" card and
+the bot takes it as a shallow line; a control card that does not kill is a card that makes the reference
+build worse, and the player who takes it early is being sold a card that does not pay. That is the trap
+`line-ab` exists to price, and the canary found it before the release did.
+
+The line, its icon, its balance row, its rank key and its tests were all reverted to **v1.9.34**. The
+tree is byte for byte the release again: reference `10m00s / 74,748 / level 57 / 3,997 kills / 5,068
+shards`.
+
+### What a future control line would need
+Either a lever that pays the run as well as moving it (a shove that damages, a shove that feeds a line),
+or a bot taste that treats a control card as late rather than shallow - and a `line-ab` flight saying it
+is worth its slot. "It changes where the crowd stands" is not a payoff on its own; the test above is the
+whole argument.
+
+### Verification
+- `node --test`: **2,684/2,684 green** (the suite is back to the 1.9.34 tree plus this note).
+- `node tools/simulate.js --seed 20261006 --trace`: the release reference, restored.
+- `git status` clean after the revert.
+
+### Released
+Nothing. The experiment did not leave the tree.
+
+### Next
+1. A control line that pays, priced with `line-ab` before it is shipped.
+2. Play DROUGHT, KINDLING and the mender for feel; the human first-two-minutes verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
