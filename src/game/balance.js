@@ -1476,6 +1476,9 @@ export const BALANCE = {
         stand: { near: 220, far: 320 },
         drift: { speed: 34, rate: 0.9 },
         every: 3.4, warn: 0.9,
+        // The circle is the promise; this is the tiny voice that says one has been drawn. Short and low
+        // enough to sit under the blast that follows it.
+        markSound: { freq: 330, dur: 0.06, wave: 'triangle', vol: 0.035 },
         blast: {
           radius: 96, damage: 5, shove: 220,
           ring: { radius: 10, speed: 620, life: 0.3 },

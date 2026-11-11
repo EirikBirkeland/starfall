@@ -111,8 +111,8 @@ const TINT = {
   // it. Two synergies can share a tint because they cannot share a shape - this one is a meal, the
   // other is a burst of two temperatures.
   kindling: PALETTE.burnFlame,
-  // The third synergy is KINDLING's cold mirror: the same snowflake its CHILL parent wears, because
-  // the card is about the state the kill died in, not about a new thing to throw.
+  // The third synergy wears CHILL's cold, with a crack through it: the card is what a cold death does,
+  // and its shape (iconFrostbite) is the parent's snowflake coming apart.
   frostbite: PALETTE.chillFrost,
 };
 /**
@@ -137,7 +137,7 @@ const ICONS = {
   chill: iconChill,
   thermalShock: iconThermalShock,
   kindling: iconKindling,
-  frostbite: iconChill,
+  frostbite: iconFrostbite,
   leech: iconLeech,
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,
@@ -378,6 +378,26 @@ function iconBurn(ctx, size, tint) {
  * ice are the same shape, so a player who has seen one has read the other - and the ticks off
  * its faces are the cold going out, not a sparkle.
  */
+function iconFrostbite(ctx, size, tint) {
+  // The CHILL snowflake, with a crack through it and two chips leaving. The card is not another
+  // source of cold - it is what a cold body does when it comes apart - so the parent's shape is
+  // the right mark and the break is the card.
+  iconChill(ctx, size, tint);
+  ctx.strokeStyle = withAlpha(PALETTE.chillShell, 0.9);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.16, -size * 0.46);
+  ctx.lineTo(-size * 0.02, -size * 0.14);
+  ctx.lineTo(-size * 0.13, size * 0.03);
+  ctx.lineTo(size * 0.05, size * 0.40);
+  ctx.stroke();
+  ctx.fillStyle = withAlpha(PALETTE.chillShell, 0.8);
+  polygon(ctx, size * 0.34, -size * 0.30, size * 0.09, 3, -0.4);
+  ctx.fill();
+  polygon(ctx, size * 0.42, size * 0.15, size * 0.07, 3, 0.7);
+  ctx.fill();
+}
+
 function iconChill(ctx, size, tint) {
   polygon(ctx, 0, 0, size * 0.26, 4, Math.PI / 4);
   ctx.fillStyle = withAlpha(tint, 0.14);

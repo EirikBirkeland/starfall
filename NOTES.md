@@ -20238,3 +20238,30 @@ of cold and three of the gun.
 1. Play FROSTBITE for feel; it is the smallest of the three synergies.
 2. The first-two-minutes verdict and the owner's GPU plate read are still human readings.
 3. Do not start a dash-gated or leech-gated card without a harness that can actually use it.
+
+## Session 201 - a face for the break, and a voice for the mark
+
+Two small tells, both on content from the last two releases:
+
+- **FROSTBITE has its own icon now.** It was wearing CHILL's untouched snowflake (`iconChill`), which
+  said "cold" and not "cold comes apart". `iconFrostbite` draws the same snowflake with a jagged crack
+  through it and two chips leaving, so the third synergy has the parent's hue and the card's own
+  promise. A real 390x844 Chromium card shows the cracked hex, `A COLD KILL SHATTERS`, both parent
+  names, and the phone rack intact.
+- **PULSAR's mark has a voice.** The dashed floor circle was the only tell. `pulse.markSound` is a
+  60 ms triangle at 330 Hz and 0.035 volume, queued in `walksPulsing` at the one moment the mark is
+  fixed. It is deliberately under the blast that follows and shorter than a shot, so it reads as a
+  pencil scratch on the floor rather than another enemy note. The simulation is unchanged.
+
+### Verification
+- `node --test`: **2,698/2,698 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged **73,953 / level 56 / 3,870 kills /
+  4,840 shards / hull 3**.
+- Real Chromium 390x844: the FROSTBITE card is whole and the cracked icon is visible.
+
+### Released
+**1.9.38.** FROSTBITE gets a cracked icon; PULSAR's mark gets a tick.
+
+### Next
+1. Play FROSTBITE and a late PULSAR for feel - the two new things most worth a person's eyes.
+2. The first-two-minutes verdict and the owner's GPU plate read are still the human readings.

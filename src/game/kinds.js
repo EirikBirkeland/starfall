@@ -595,6 +595,8 @@ function walksPulsing(enemy, step) {
   // direction. It is the only state the mark needs and it costs no fields on every other body.
   enemy.dirX = step.ship.x;
   enemy.dirY = step.ship.y;
+  const sound = spec.markSound;
+  cueBeep(sound.freq, sound.dur, sound.wave, sound.vol);
 }
 
 /**

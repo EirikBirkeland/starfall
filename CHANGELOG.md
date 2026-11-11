@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.38 — 2026-11-11
+Two small tells for the newest content.
+- **FROSTBITE gets its own icon**: CHILL's snowflake with a crack through it and two chips leaving,
+  so the card shows the break it sells instead of borrowing the parent's untouched mark.
+- **PULSAR's mark now ticks**: a 60 ms low triangle when the dashed circle is fixed on the ground.
+  It sits under the blast that follows and does not change the simulation.
+
 ## 1.9.37 — 2026-11-11
 A third synergy: FROSTBITE.
 - **Chill 3 + Damage 3.** A body that dies cold now comes apart with the rank-five shatter: it
