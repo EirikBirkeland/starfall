@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.33",
+    "date": "2026-11-11",
+    "released": "2026-11-11T12:40:51.461Z",
+    "summary": "a second synergy, KINDLING, and the fixed-shape rank object that keeps the floor at 16 B",
+    "added": 124,
+    "removed": 26,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.32",
     "date": "2026-11-11",
     "released": "2026-11-11T11:57:48.955Z",
