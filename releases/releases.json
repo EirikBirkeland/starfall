@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.32",
+    "date": "2026-11-11",
+    "released": "2026-11-11T11:57:48.955Z",
+    "summary": "the mender shows the ground it can patch before it patches it",
+    "added": 20,
+    "removed": 0,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.31",
     "date": "2026-11-11",
     "released": "2026-11-11T11:27:51.928Z",
