@@ -284,6 +284,13 @@ export function readArgs(argv) {
  * The loads for `--parts`: one list at a time, then all three together. This is the file's
  * attribution - a byte cannot be asked "which system made you", but a load can be asked to leave one
  * list at home and say what the step is worth without it.
+ *
+ * The difference between "all three together" and the sum of the one-at-a-time rows is the
+ * interaction, and it is not a line. The one row that has ever been unexplained - 880 extra sparks
+ * and 60 shots costing ~113 B a step on top of a crowd - was split apart in NOTES session 173: it is
+ * entirely shots with bodies (the same load at 0 sparks still reads it, and 900 sparks with no shots
+ * add nothing), and it collapses when the hit note or the grid query is removed while no line inside
+ * either one moves it. That is a compilation shape, not a spender; do not chase it with another edit.
  */
 export function partLoads() {
   const cap = BALANCE.effects.particleCap;

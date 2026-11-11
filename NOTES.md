@@ -18988,3 +18988,78 @@ parent printed the same phrase.
 
 ### Released
 Nothing. A named hand is not a version, and no number the game ships with has moved.
+
+## Session 173 - the last unexplained byte row was bullets meeting a crowd, and no line in it is the spender
+
+### What was on the shelf
+Session 163's last unexplained row: 880 extra sparks and 60 shots cost **~110 B a step** on top of a
+crowd, and the next-list said "`--parts` plus `--trace-opt` will say". It was the one number in the
+byte table not attributed to anything, and the note guessed one boxed number every eighth step.
+
+### The split, first
+`node tools/alloc-probe.js --parts` on a quiet box: crowd alone **236 B**, 60 shots alone **17 B** (a
+ceiling - it never settled in 300,000 steps), 900 sparks alone **16 B = the floor**, all three **349 B**.
+Then three loads of the same crowd with one list at a time (`--bodies 100 --shots/--sparks ...`):
+
+| load | bytes a step |
+|---|---|
+| 100 bodies, 0 shots, 0 sparks | 236 |
+| 100 bodies, 60 shots, 0 sparks | **349** |
+| 100 bodies, 0 shots, 900 sparks | **236** |
+| 100 bodies, 60 shots, 900 sparks | 349 |
+
+So the 113 B is **bullets with a crowd in front of them**; the sparks add nothing at all. The guess in
+the note was wrong about which list it was.
+
+### Then the ablations, and the shape
+Every row below is the same schedule load, one edit in a copy (`tools/alloc-ablate.js`):
+
+| edit | bytes a step | against its own plain row |
+|---|---|---|
+| the shot asks the grid nothing (`found = 0`) | 251 | 328, so **-77** |
+| a hit writes no tally (`noteHit` call out) | **236** | 352, so **-116** (the crowd alone) |
+| the hit note no longer asks the gun its rate | 352 | 352 |
+| the hit note writes no row (`row.hits++` etc.) | 352 | 352 |
+| a hit chills nothing | 352 | 352 |
+| a hit ignites nothing | 352 | 352 |
+| a hit bursts nothing | 352 | 352 |
+| a hit makes no impact sound | 352 | 352 |
+| the `hits` list starts object-kind (`[null].slice(0, 0)`) | 352 | 352 |
+
+Taking the whole `noteHit` call out returns the load to the crowd's own number; taking any *line* out of
+`noteHit`, or out of the hit effects around it, moves nothing. That is the same verdict the shielder
+crowd earned in session 154: the line is load-bearing in the shape V8 compiled, not the line the bytes
+are spent on. The baseline itself moves between 328 and 352 on a rung, so even the two falls above are
+not a clean pair - which is why they are reported against their own plain row and not each other.
+
+### What V8 said
+`--trace-opt --trace-deopt` on the child (with `--expose-gc --max-semi-space-size=64`) names
+`updateBullets`: marked for Maglev and Turbofan, then a **`not a Smi`** deopt at bytecode offset 503,
+which maps to `bullet.hits.push(enemy)`, plus `wrong map` and a lazy "dependent prototype chain changed"
+deopt. The `hits` array starts as an empty Smi-elements array and the first body pushed is an object -
+a real deopt site, and the first allocation inside the hit loop. But changing `makeBullet`'s `hits` to an
+object-elements empty array (both `[null].slice(0, 0)` and `[null]`) does not move the bytes, so the
+deopt is not the 110 B either. It is a site worth knowing about; it is not this row.
+
+### What landed
+- **A note on `partLoads()` in `tools/alloc-probe.js`**: the interaction is bullets with bodies, it is
+a compilation shape, and the next session should not chase it with another edit.
+- Nothing in `src/`. There is no line to delete, and the row is inside the `--parts` allowance anyway;
+the fanciest fix the evidence supports would be a comment.
+
+### Verification
+- `node --check tools/alloc-probe.js`.
+- `node --test`: **2644/2644 green** (the same suite session 172 left; a comment changed).
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards).
+
+### Next
+1. The carried list, now without the byte row: **decide which hand the challenge sheet speaks for** (an
+   hour of `--loot` flights), NO DASH's missing hand, and whether the first two minutes are too harsh
+   (needs a human).
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. The game traces byte for byte what it traced at 1.9.16; the note is for the next hunt, not for
+a player.
