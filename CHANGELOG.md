@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.26 — 2026-11-11
+A phone on its side says where the shops went.
+- **The compact landscape title explains its three chips.** The HANGAR, CODEX and SETTINGS chips are
+  hidden in landscape because those panels need a portrait-height plate, but nothing said so. One line
+  now reads `HANGAR · CODEX · SETTINGS NEED PORTRAIT` under `TAP TO LAUNCH`, on the short-landscape title
+  and nowhere else.
+
 ## 1.9.25 — 2026-11-11
 The interface paints over the thumb's controls, so a landscape stick cannot hide the XP bar.
 - **A meter is a reading; a stick is a control.** On a landscape phone a floating stick put down near
