@@ -223,8 +223,8 @@ test('a spent ask is still painted, at zero, so the choice does not change shape
 
   assert.ok(words.some((word) => word === 'R   REROLL \u00d70'),
     'the reroll chip is still there, and says it is empty: ' + words.join('  |  '));
-  assert.ok(words.some((word) => word === '\u21e7   BANISH \u00d70'), 'and so is the banish chip');
-  assert.ok(!words.some((word) => word === '\u21e71'), 'while a card with no banish left has no tab on it');
+  assert.ok(words.some((word) => word === 'SHIFT   BANISH \u00d70'), 'and so is the banish chip, spelled rather than drawn');
+  assert.ok(!words.some((word) => word === '\u21911'), 'while a card with no banish left has no tab on it');
 
   press('Digit1');
   game.step(FRAME_MS);

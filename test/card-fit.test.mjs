@@ -33,7 +33,7 @@ const world = game.world;
 const ctx = game.context;
 const ELLIPSIS = '\u2026';
 const WIDE = [1280, 720];
-const SMALLS = [[560, 400], [420, 320]];
+const SMALLS = [[560, 400], [420, 320], [390, 844]];
 
 /** A font string for the tests that measure by hand. */
 const fontFor = (size) => '600 ' + size + 'px "Segoe UI", system-ui, sans-serif';
@@ -80,7 +80,15 @@ function complaint(word, rects) {
   const at = box(word);
   if (belongsToTheScreen(at.text)) return null;
   const centre = (at.left + at.right) / 2;
-  const home = rects.find((rect) => centre >= rect.x && centre <= rect.x + rect.w);
+  // A word belongs to a card by its middle, and a rack can be more than one row deep (a narrow,
+  // tall window lays it two across): the rows overlap in x, so the vertical span is what decides
+  // which of the candidates a word belongs to. A word that has run out of its card is assigned to
+  // the candidate whose middle is nearest, which is the card it started in.
+  const candidates = rects.filter((rect) => centre >= rect.x && centre <= rect.x + rect.w);
+  const home = candidates.find((rect) => at.y >= rect.y - 1 && at.y <= rect.y + rect.h)
+    || candidates.reduce((best, rect) => (best === undefined
+      || Math.abs(at.y - (rect.y + rect.h / 2)) < Math.abs(at.y - (best.y + best.h / 2)))
+      ? rect : best, undefined);
   if (home === undefined) return '"' + at.text + '" is painted outside the rack altogether';
   if (at.y < home.y - 1) return '"' + at.text + '" starts ' + (home.y - at.y).toFixed(1) + ' px above its card';
   if (at.y > home.y + home.h) {
@@ -193,6 +201,26 @@ test('a small window shrinks the type instead of overflowing the card', () => {
     for (const table of tables()) {
       assert.deepEqual(checked(table, W, H), [], W + 'x' + H + ' ' + table.join(', '));
     }
+  }
+});
+
+test('a narrow, tall window lays the rack two across and one under', () => {
+  const layout = cardLayout(3, 390, 844);
+  assert.equal(layout.cards[0].y, layout.cards[1].y, 'the first two share a row');
+  assert.ok(layout.cards[2].y > layout.cards[0].y + layout.cards[0].h, 'the third is under them');
+  assert.ok(layout.w >= 150, 'two columns give the effect line room: ' + layout.w.toFixed(0));
+  world.offer.length = 0;
+  for (const id of ['damage', 'split', 'nova']) world.offer.push(id);
+  const row = askLayout(390, 844);
+  assert.ok(row.reroll.y > layout.cards[2].y + layout.cards[2].h,
+    'the asks are under the lowest card, not under the first one');
+});
+
+test('on a phone the effect and the flavour are whole, not cut', () => {
+  for (const table of tables()) {
+    const cut = paint(table, 390, 844).map((word) => word.text)
+      .filter((text) => text.endsWith(ELLIPSIS));
+    assert.deepEqual(cut, [], table.join(', ') + ' had to be cut short: ' + cut.join(' | '));
   }
 });
 

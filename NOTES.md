@@ -19250,3 +19250,51 @@ first player-visible fix since 1.9.16, and the reason this session made a releas
 3. The `.scratch/browser-screens.mjs` audit is worth keeping: it is the cheap way to see the next screen
    the stub cannot. It is not committed (it is a throwaway), but the next real-browser session can start
    from it.
+
+## Session 177 - the phone's level-up rack was three 99 px cards, so the cards did not say what they did
+
+### What the audit saw
+The same real-browser audit as session 176, one screen further on: the level-up rack at `390x844`. Three
+cards in a row are `(390 - 40 - 2 x 26) / 3 = 99` px wide. The card painter scales its type to the card,
+so that is a name at 8 px, an effect at 8 px and a flavour paragraph that is cut with an ellipsis - and
+`fitOneLine` had to cut the effect itself: `+6 fewer kills per hull` was painted `+6 fewer kills p…`, and
+`Every eight seconds ...` ended `and o…`. The card that is the whole level-up choice was not saying what
+any of its cards do. The banish tab and chip were worse: they drew `\u21e7` (Shift), which the phone's
+fallback face does not have, and the phone showed a tofu box where the key should be.
+
+### What landed
+1. **A narrow, tall window lays the rack two across and one under.** `cardLayout` now chooses two columns
+   when `W < 520` and `H >= 600`; 390x844 gives `162x220` cards at y 235 and 481, with the third centred
+   under the first two and the asks under the lowest card. The height calculation accounts for the rows
+   and their gaps, so a taller count would still fit rather than walk off. `askRow` reads the lowest card
+   instead of the first, which is the only change the grid needed in the hit geometry: `cardAt`, the tab
+   layout and the ask chips all walk the same rectangles they did before.
+2. **The effect and the flavour are whole on a phone.** At 162 px the effect line fits at its own size
+   and every flavour paragraph on the rack fits without an ellipsis; the new test paints every table at
+   390x844 and refuses a single cut word.
+3. **The banish mark is drawn, not a font assumption.** The tab uses `\u2191` (an up arrow, present in the
+   fallback faces) + the card's number; the chip spells `SHIFT   BANISH ×N`, and `drawAskChip` fits its
+   label the way every other line on the rack is fitted, so the word stays inside the fixed chip that the
+   click is measured against. The exact words moved in `test/level-up.test.mjs` with it.
+4. Tests: `390x844` joins the small-window bounds test; a new two-across/one-under geometry test; and the
+   no-cut test above. Suite 2649 -> 2652.
+
+### Verification
+- Real Chromium at `390x844` and `1280x720`: the phone rack is two cards at y 235-455 and one at 481-701,
+  the asks at 717, the XP bar at 795; every card's name, effect and flavour is legible, and the banish tab
+  reads `↑1` while the chip reads `SHIFT BANISH ×1`. The desktop rack is the same three 236x321 cards it
+  was (`cardLayout(3,1280,720)` unchanged).
+- `node --test`: **2652/2652 green**, including the new bounds and no-cut tests and the updated
+  `level-up` words.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A card layout is paint and hit geometry; the run does not move.
+
+### Released
+**1.9.18.** A phone can read what a level-up card does, and the banish chip is a word the phone can draw.
+
+### Next
+1. **Whether the first two minutes are too harsh** - still the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+3. Another `.scratch/browser-screens.mjs` pass can look at the in-run HUD on a phone, the thumb rail
+   over the pause, and the volume readout - the overlays the static-screen pass has not opened yet.

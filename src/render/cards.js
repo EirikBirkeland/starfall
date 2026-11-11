@@ -100,22 +100,41 @@ function easeOut(t) {
 
 let cached = null;
 
+/**
+ * A window narrower than this and taller than `NARROW_TALL` lays the rack two across and one under,
+ * rather than squeezing all three into a row. Three columns in a phone's 390 px is ~99 px a card,
+ * which is narrow enough that the *effect* line - `+6 fewer kills per hull` - has to be cut with an
+ * ellipsis at the smallest type the card allows. Two across is 162 px, which fits the effect whole
+ * and leaves the flavour a paragraph worth reading. A short window is not the same question: it has
+ * the width for three and not the height for two rows, so it keeps the row and shrinks the cards.
+ */
+const NARROW_AT = 520;
+const NARROW_TALL = 600;
+
 /** The card rectangles for `count` cards in a W x H window. Cached per size. */
 export function cardLayout(count, W, H) {
   const key = count + ':' + W + ':' + H;
   if (cached !== null && cached.key === key) return cached;
 
-  const w = Math.min(MAX_CARD_W, (W - SIDE_MARGIN * 2 - GAP * (count - 1)) / count);
+  const columns = W < NARROW_AT && H >= NARROW_TALL && count > 1 ? Math.min(2, count) : count;
+  const rows = Math.ceil(count / columns);
+  const w = Math.min(MAX_CARD_W, (W - SIDE_MARGIN * 2 - GAP * (columns - 1)) / columns);
   // The asks under the cards are part of the same screen, so they are asked for out of the
-  // same window: a short window shrinks the cards instead of running the row over them.
-  const h = Math.max(60, Math.min(w * CARD_RATIO, (H - HEADROOM - ASK_ROOM) * MAX_HEIGHT));
-  const span = w * count + GAP * (count - 1);
-  const x0 = (W - span) / 2;
-  const y0 = (H - h) / 2 + HEADROOM * 0.5;
+  // same window: a short window shrinks the cards instead of running the rows over them.
+  const h = Math.max(60, Math.min(w * CARD_RATIO,
+    (H - HEADROOM - ASK_ROOM - GAP * (rows - 1)) / rows,
+    (H - HEADROOM - ASK_ROOM) * MAX_HEIGHT));
+  const totalH = rows * h + GAP * (rows - 1);
+  const y0 = (H - totalH) / 2 + HEADROOM * 0.5;
 
   const cards = [];
   for (let i = 0; i < count; i++) {
-    cards.push({ x: x0 + i * (w + GAP), y: y0, w: w, h: h });
+    const row = Math.floor(i / columns);
+    const col = i - row * columns;
+    const inRow = row === rows - 1 ? count - row * columns : columns;
+    const rowSpan = w * inRow + GAP * (inRow - 1);
+    const rowX0 = (W - rowSpan) / 2;
+    cards.push({ x: rowX0 + col * (w + GAP), y: y0 + row * (h + GAP), w: w, h: h });
   }
   cached = { key: key, cards: cards, w: w, h: h };
   return cached;
@@ -184,7 +203,9 @@ function askRow(W, H, layout) {
   if (first === undefined) return { reroll: null, banish: null };
   const span = ASK_CHIP_W * 2 + ASK_GAP_X;
   const x0 = (W - span) / 2;
-  const y = Math.min(first.y + layout.h + ASK_GAP, H - ASK_H - 6);
+  // Under the lowest card, not under the first one: a narrow window puts the rack two rows deep.
+  const bottom = layout.cards.reduce((low, card) => Math.max(low, card.y + card.h), first.y + first.h);
+  const y = Math.min(bottom + ASK_GAP, H - ASK_H - 6);
   return {
     reroll: { x: x0, y: y, w: ASK_CHIP_W, h: ASK_H },
     banish: { x: x0 + ASK_CHIP_W + ASK_GAP_X, y: y, w: ASK_CHIP_W, h: ASK_H },
@@ -510,7 +531,10 @@ function drawBanishTab(ctx, tab, number, hot) {
   roundRect(ctx, tab.x, tab.y, tab.w, tab.h, 7);
   ctx.stroke();
 
-  haloText(ctx, '\u21e7' + number, cx, cy + 5, ink,
+  // An up arrow rather than the keyboard's own Shift glyph: U+21E7 is missing from the phone's
+  // fallback face and was drawn as a tofu box there (NOTES session 177). U+2191 is in every face
+  // the page falls back to, and the word that explains it is on the BANISH chip below.
+  haloText(ctx, '\u2191' + number, cx, cy + 5, ink,
     hot ? GLOW_KEY : 'rgba(111,143,176,0.35)');
 }
 
@@ -525,12 +549,21 @@ function drawAsks(ctx, row, age) {
   ctx.save();
   ctx.globalAlpha = ctx.globalAlpha * appear;
   drawAskChip(ctx, row.reroll, 'R   REROLL \u00d7' + world.rerollsLeft, world.rerollsLeft > 0);
-  drawAskChip(ctx, row.banish, '\u21e7   BANISH \u00d7' + world.banishesLeft, world.banishesLeft > 0);
+  drawAskChip(ctx, row.banish, 'SHIFT   BANISH \u00d7' + world.banishesLeft, world.banishesLeft > 0);
   ctx.restore();
 }
 
 function drawAskChip(ctx, rect, text, live) {
-  ctx.font = live ? FONT_KEY : FONT_ASK;
+  // Fitted, because the banish chip now spells SHIFT instead of drawing it: a word is clearer than
+  // a glyph the phone may not have, but it is also wider than the glyph was, and the chip is a fixed
+  // width that a click is measured against. Smaller type before an ellipsis, as everywhere else.
+  const label = fitOneLine(ctx, text, {
+    widest: rect.w - 12,
+    size: live ? 13 : 12,
+    minSize: 9,
+    fontFor: (size) => font(live ? 800 : 600, size),
+  });
+  ctx.font = font(live ? 800 : 600, label.size);
   ctx.fillStyle = PALETTE.cardFace;
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, ASK_H / 2);
   ctx.fill();
@@ -540,7 +573,7 @@ function drawAskChip(ctx, rect, text, live) {
   roundRect(ctx, rect.x, rect.y, rect.w, rect.h, ASK_H / 2);
   ctx.stroke();
 
-  haloText(ctx, text, rect.x + rect.w / 2, rect.y + ASK_H * 0.67,
+  haloText(ctx, label.text, rect.x + rect.w / 2, rect.y + ASK_H * 0.67,
     live ? PALETTE.playerLine : PALETTE.uiFaint,
     live ? GLOW_KEY : 'rgba(111,143,176,0.3)');
 }
