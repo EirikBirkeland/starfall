@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.18",
+    "date": "2026-11-11",
+    "released": "2026-11-11T06:54:51.223Z",
+    "summary": "a portrait phone's level-up cards are two across and readable, and the banish chip spells SHIFT",
+    "added": 77,
+    "removed": 16,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.17",
     "date": "2026-11-11",
     "released": "2026-11-11T06:33:13.002Z",
