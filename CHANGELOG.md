@@ -1,5 +1,13 @@
 # Starfall — changelog
 
+## 1.9.30 — 2026-11-11
+PRESSURE is a pace rule now, and the sheet says so.
+- **The score is a wash, so it carries no score quote.** At 0.3 a 48-seed flight reads 0.96x plain's
+  middle (plain 28 of 48) with deaths 34 against 31 and hulls 156 against 132; at 0.15 it is 0.94x with
+  a shorter life. A wave field pays its own shards, so the score barely moves however hard the director
+  presses. PRESSURE keeps `gapMul: 0.3` (233% more waves), is reported unjudged by
+  `tools/challenge-cost.js` beside NO DASH, and its cost is the deaths and hulls columns, not the score.
+
 ## 1.9.29 — 2026-11-11
 PRESSURE was tuned from a flavour setting into a challenge.
 - **The wave gap went from 0.45 to 0.3.** At 0.45 a 48-seed flight read 0.96x plain's middle - above
