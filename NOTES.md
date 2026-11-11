@@ -19135,3 +19135,52 @@ is why the magnet-fed quote stands.
 ### Released
 Nothing. A field and a sentence are not a version; the game traces byte for byte what it traced at
 1.9.16.
+
+## Session 175 - NO DASH stays unpriced on purpose; there is no hand here that lives on the jump
+
+### What was on the shelf
+The last design item on the carried list: **NO DASH's missing hand**. The rule has no `measured` row
+because every policy in `tools/headless/` presses the dash about ten times a quarter hour, and the notes
+had left two doors open - write a bolder hand for the harness, or leave the rule reported and not judged
+forever.
+
+### What the evidence says
+- **The ladder cannot price it, and knows it.** `test/challenge-cost.test.mjs` already holds a row of
+  1.40x plain under NO DASH and asserts that the verdict prints it and refuses to judge it:
+  `NO DASH is reported and not judged`, with no problem and one skipped line. That is the shape the rule
+  ships with, not a missing test.
+- **The dash habits were measured, and more dash lost runs.** Session 114 swept the press at 30, 45, 60,
+  90, 110 and 170 px on sixteen seeds. Pressing when a body is 170 px out lost 12 of 16 aware seeds
+  against 9 with no dash at all; 45 px - one reach, contact plus the dozen pixels a closing body covers
+  between two looks - left 1 of 16 dead and a score median of 42,893 against 12,914. The bot's habit is
+  not shyness; it is the best press the ladder could find.
+- **A bot that presses on cooldown is not a person.** A hand that lives on the jump threads rooms, spends
+  it on movement and on the approach, and chooses a line with it. That is a different *policy*, not a
+  threshold, and building one to price NO DASH would be inventing a player to justify a card - the
+  opposite of what every ladder in this folder is for. The rule is a floor under the game, not a knob.
+
+### The decision, and what landed
+**NO DASH stays unquoted.** The ladder keeps printing its reading and keeps refusing to judge it; the
+test keeps that true. The `grounded` row in `BALANCE.challenges` now says why in the place the number
+would have lived, with the session-114 numbers and the "inventing a player" sentence, so the next
+session does not open the same question from the top. No `measured` row, no new bot policy, no change to
+the rule.
+
+### Verification
+- `node --check src/game/balance.js`.
+- `node --test test/challenge-cost.test.mjs`: **23/23 green**, including "NO DASH is reported and never
+  judged, because no bot here lives on the jump".
+- `node --test`: **2644/2644 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A comment is not a game.
+
+### Next
+1. **Whether the first two minutes are too harsh** is now the only carried item that is not the owner's.
+   It needs a human: the tools can fly it, but "too harsh" is a judgement about a new player's first
+   evening, not a ratio.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. The game traces byte for byte what it traced at 1.9.16; the list of what a session can decide
+by itself is now empty.

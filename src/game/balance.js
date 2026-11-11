@@ -423,7 +423,13 @@ export const BALANCE = {
     },
     // No dash, and two hits kill: the game becomes one long careful drive, which reads cheaper than the
     // others because a bot that never dashes still flies the whole level - it just cannot survive being
-    // twice as dead as it already was. No quote, because this ladder cannot order it (see the note above).
+    // twice as dead as it already was. No quote, and that is a decision rather than a gap (session 175):
+    // the harness has no hand that lives on the jump. Every policy presses it about ten times a quarter
+    // hour, and the dash ladder found that pressing earlier loses runs (NOTES session 114: 45 px buys the
+    // only thing a dash buys, and 170 px loses 12 of 16 aware seeds). A bot built to price this rule would
+    // be inventing a player to justify a card. The ladder reports NO DASH's reading and refuses to judge it,
+    // and `test/challenge-cost.test.mjs` holds that shape; it stays unpriced until a person who threads
+    // rooms with the jump exists to fly it.
     grounded: { dash: false },
     merciless: {
       grace: 0.5,
