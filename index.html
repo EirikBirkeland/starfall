@@ -645,6 +645,17 @@
      death's - and the title's control list, which is twelve rows now because every key the game
      answers to gets a row of its own. Not one of these lines is one the player came here *not* to
      read, so the space comes out of the gaps and never out of the words. */
+  /* A phone on its side: 390 px of glass, a fourteen-row control list and six chips. The list and
+     the standing lines cannot fit, and the mark and the launch hint were being pushed off both ends;
+     the shops need a portrait-height plate as well. So landscape is the flying view: the mark, the
+     launch hint and TODAY/RULE/MUTE, with the control list and the three shop chips left for a turn
+     of the phone. Tap to launch; the sticks and buttons are in-run paint. */
+  @media (max-height: 520px) and (max-width: 1000px) {
+    #startScreen { padding: 12px 24px 80px; }
+    #startScreen .controls, #startScreen .standing, #startScreen .subtitle { display: none; }
+    .logo { height: 52px; }
+    #chipSettings, #chipHangar, #chipCodex { display: none; }
+  }
   @media (max-height: 620px) {
     .controls { margin-top: 10px; gap: 5px; }
     .standing { margin-top: 10px; gap: 6px; }

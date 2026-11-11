@@ -19469,3 +19469,49 @@ control strip. Suite 2659 -> 2661.
 3. The real-browser audit has now photographed the title, hangar, codex, settings, controls, level cards,
    pause, wreck, win, a thumb run, a boss warning and fight, the tutorial, awards and the volume plate at
    `1280x720` and `390x844`. The next one should be a new screen or a new resolution, not another pass.
+
+## Session 182 - a phone on its side had a blank title; it is the flying title now
+
+### What the audit saw
+Three windows the real-browser pass had never opened: **1024x600** (small laptop), **768x1024** (portrait
+tablet) and **844x390** (landscape phone). The first two are sound - title, hangar, codex, settings,
+controls, cards, pause, wreck and win all fit, with the hangar at 0.609 on the small laptop and the
+tablet at full scale. The landscape phone was not:
+
+- the settled title put the mark at y -90 to -34 and the launch hint at y 466, both off the glass,
+  while the fourteen-row control list ran y 2-389 and the thumb rail sat over its last rows;
+- the hangar fitted at the 0.6 floor with its title at y -114 and CLOSE at y 478, and settings/controls
+  clipped the same way. Those need a portrait-height plate.
+
+The first landscape screenshot looked blank because it was taken mid-arrival; settling it for 150 frames
+is what showed the real boxes. That is the second time an arrival frame has looked like a bug (the phone
+title in session 181 was the first) - a title audit has to wait for the arrivals.
+
+### What landed
+**A short-landscape title** (`@media (max-height: 520px) and (max-width: 1000px)`): the mark, the launch
+hint and TODAY/RULE/MUTE, with the fourteen control rows, the standing lines and the three shop chips
+(SETTINGS/HANGAR/CODEX) left out. Landscape is the flying view; the sticks and buttons are in-run paint,
+and a turn of the phone brings the shops back. The title now reads `STARFALL`, `TAP TO LAUNCH` and three
+chips at 844x390, with the rail clear at the bottom.
+
+`test/landscape-title.test.mjs` pins the media rule, the three hidden groups and the rail's strip.
+Suite 2661 -> 2663.
+
+### Verification
+- Real Chromium at 844x390: logoBox 122-174, hint 186-201, rail 332-376, controls display none; the
+  screenshot reads as the compact title.
+- `node --test`: **2663/2663 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). CSS only.
+
+### Released
+**1.9.23.** A phone on its side opens on its mark and a launch line, not on a blank screen and a control
+list under the chips.
+
+### Next
+1. **Whether the first two minutes are too harsh** - the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. Landscape in-run was not photographed: the title is fixed, the cards fit at 844x390, and the pause
+   fits at the 0.6 floor, but the HUD and thumb controls in landscape are the next picture to take if
+   anybody wants landscape to be more than a flying view.
