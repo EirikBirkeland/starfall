@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.22",
+    "date": "2026-11-11",
+    "released": "2026-11-11T08:00:20.351Z",
+    "summary": "the volume readout sits above a phone's thumb controls instead of on them",
+    "added": 25,
+    "removed": 1,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.21",
     "date": "2026-11-11",
     "released": "2026-11-11T07:45:40.003Z",
