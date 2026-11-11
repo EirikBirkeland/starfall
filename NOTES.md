@@ -19864,3 +19864,37 @@ a plain run still plays.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 192 - pricing the MENDER: a rare support body is content, not a difficulty lever
+
+### The flight
+A custom 16-seed batch (seeds 1-16, the aware bot with wise cards, clock started at `480`, 180 s flown so
+the 8:20 mender is in the window), once with the body and once with `BALANCE.kinds.mender.from = 9999`:
+
+| | middle score | middle kills | died |
+|---|---|---|---|
+| mender on | 996.5 | 56.5 | 15/16 |
+| mender off | 995 | 54 | 16/16 |
+
+No measurable cost, and that is the right shape for this body: it is weight 1, arrives at 8:20 and
+patches one body by 2 hull every 2.6 s. It is a thing to notice and kill, not weather. The 10m reference
+run (74,748 / 3,997 kills) is the same story - the mender's own score and the bodies it keeps alive pay
+the player back for the attention, rather than taking anything away.
+
+### Verification
+- No `src/` change after the release. `node --test`: **2,676/2,676 green**; the reference run above; the
+  mender's two heal tests are in the suite.
+- The earlier 16-seed arc could not price it at all: the careless hand dies long before 8:20, so the
+  `from=9999` control and the shipped run were byte for byte the same table. That is why this flight
+  starts at four minutes and why the result is printed as a table of two.
+
+### Released
+Nothing new. 1.9.31 remains the release with the MENDER.
+
+### Next
+1. Play the MENDER on a real screen: the cross and the pulse are only judgeable as a picture; the
+   browser audit can plant one, but it has not been looked at through a real fight.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
