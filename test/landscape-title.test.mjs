@@ -26,4 +26,8 @@ test('a phone on its side gets the flying title, not fourteen clipped rows', () 
     'the shops that need a portrait plate are not offered in landscape');
   assert.match(HTML, /#startScreen \{ padding: 12px 24px 80px; \}/,
     'the rail still has its strip at the bottom');
+  assert.match(HTML, /id="landscapeNote">HANGAR &#183; CODEX &#183; SETTINGS NEED PORTRAIT</,
+    'and the line says where the three shops went');
+  assert.match(HTML, /#landscapeNote \{ display: block; \}/, 'the line is shown in landscape');
+  assert.match(HTML, /\.landscape-note \{ display: none; \}/, 'and hidden everywhere else');
 });

@@ -354,6 +354,7 @@
      landed behind it. A chip is as tall as the thumb's own other control (input/touch.js's DASH_MIN,
      44 px) and is *paint*: nothing in the page has a click handler, because the press comes in through
      the glass like every click always did. That is the only way a tap and a click stay one press. */
+  .landscape-note { display: none; }
   .rail {
     position: absolute; left: 0; right: 0;
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
@@ -655,6 +656,7 @@
     #startScreen .controls, #startScreen .standing, #startScreen .subtitle { display: none; }
     .logo { height: 52px; }
     #chipSettings, #chipHangar, #chipCodex { display: none; }
+    #landscapeNote { display: block; }
   }
   @media (max-height: 620px) {
     .controls { margin-top: 10px; gap: 5px; }
@@ -731,6 +733,10 @@
        rule and the sound - a chip has its own word on it and needs no legend above it. -->
   <div class="hint"><span id="titleHintLaunch">PRESS SPACE OR CLICK TO LAUNCH</span><span
     id="titleHintKeys"> &#183; <span id="titleKeysToday">T</span> FOR TODAY&#39;S ARENA</span></div>
+  <!-- A phone on its side keeps the flying title and leaves the shops out (index.html, the short-landscape
+       rule); this is the one line that says where they went. Hidden on every other window, where the chips
+       are already on the rail. -->
+  <div class="hint landscape-note" id="landscapeNote">HANGAR &#183; CODEX &#183; SETTINGS NEED PORTRAIT</div>
   <!-- The thumb's rail (ui/chips.js). It is put up for a visit that arrived with a finger and never
        for any other, so a keyboard visit never sees it; and every word in here is one the page writes
        once, because a chip is the name of a key and not a readout. MUTE is the whole of what the key

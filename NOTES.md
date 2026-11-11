@@ -19586,3 +19586,34 @@ anyway. On a landscape phone the ring still shows around the bar; the bar and it
 3. The real-browser surface is fully read: five resolutions, every screen, a thumb run, a boss warning
    and fight, a late pause, the tutorial, awards and the volume plate. The next session should be a new
    feature or a new screen, not another paint audit.
+
+## Session 185 - the landscape title hid the shops and did not say where they went
+
+### What the audit saw
+The compact landscape title (session 182) keeps the mark, the launch hint and TODAY/RULE/MUTE, and hides
+the HANGAR, CODEX and SETTINGS chips because those three panels need a portrait-height plate. Nothing on
+the title said so: a player on their side saw three chips where the portrait phone had six and no reason
+for the difference.
+
+### What landed
+One line under `TAP TO LAUNCH`: **`HANGAR · CODEX · SETTINGS NEED PORTRAIT`**. It is a `landscape-note`
+hidden on every other window and shown only by the short-landscape rule; a test pins both halves. The
+landscape title now reads: mark, `TAP TO LAUNCH`, the note, and the three chips, with the rail clear below.
+Suite 2665 -> 2667 (the assertions join the existing landscape-title test).
+
+### Verification
+- Real Chromium at 844x390: logoBox 108-160, launch hint 172-187, note ~196-211, rail 332-376.
+- `node --test`: **2667/2667 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). CSS/HTML only.
+
+### Released
+**1.9.26.** A phone on its side says where the shops went, instead of leaving three chips unexplained.
+
+### Next
+1. **Whether the first two minutes are too harsh** - the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The landscape surface now reads end to end: compact title with the note, a flying run with the HUD
+   over the thumb's paint, and the taller level cards. The next session should be a new feature or a new
+   screen, not another paint audit.
