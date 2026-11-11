@@ -18834,3 +18834,45 @@ whether to design the ladder or delete the sentence.
 
 ### Released
 Nothing. A corrected sentence is not a version.
+
+## Session 170 - the shot-speed item was already closed in session 111; the next-lists had been carrying a ghost
+
+### What was on the shelf
+The shot-speed line, now the oldest item on the carried list: "four seeds cannot tell 0.98 from 1.02 and
+it needs ~20 - though session 111's `test/shot-speed.test.mjs` already explains why it reads 1.00x, so
+this may be a line to delete rather than to measure".
+
+### What was actually true
+- **Session 111's notes say the item is closed**, in as many words: the orphan `test/shot-speed.test.mjs`
+  was committed there, it is "complete, honest and passing", and the notes end the paragraph with "**That
+  closes the shot-speed item** - on the world, which is the only place the effect is measurable at all".
+- **The test is still in the tree and still green.** It proves the three real mechanisms: a shot's `life`
+  is a fuse in seconds, so a rank buys `speed x life` of reach; a faster shot falls behind a walking body
+  by exactly the walk it saves; and the honest negative - the crowd walks into the reach a plain shot
+  already had, which is why a bot run reads 1.00x. Twenty seeds would re-measure the bot, not the card.
+- **Nothing was owed.** The line is not stale in the game; the next-list was stale in the notes. It was
+  copied forward from session 111 to session 169 without anyone re-reading the session that closed it.
+
+### What landed
+- **A comment on `BALANCE.upgrades.bulletSpeed`**, next to the numbers it explains: the line a run batch
+  cannot price, why `line-ab` reads 1.00x, and the test that measures it on the world. The decision now
+  lives where the card is instead of only in a notes paragraph a later session has to find.
+- Nothing else. The card, its numbers and the test are unchanged; there was nothing to measure.
+
+### Verification
+- `node --check src/game/balance.js`.
+- `node --test test/shot-speed.test.mjs`: green.
+- `node --test`: **2638/2638 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A comment is not a game.
+
+### Next
+1. The carried list, now without the brood pass, the phantom tier ladder and the shot-speed ghost:
+   `--loot` on the other four ladders, deciding which hand the challenge sheet speaks for, NO DASH's
+   missing hand, whether the first two minutes are too harsh (needs a human), `--live --weapon swarm`,
+   and session 163's unattributed ~110 B a step.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. The game traces byte for byte what it traced at 1.9.16.

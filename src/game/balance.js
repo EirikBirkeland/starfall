@@ -2780,6 +2780,11 @@ export const BALANCE = {
   upgrades: {
     damage: { ranks: 5, step: 0.3 },
     fireRate: { ranks: 5, step: 0.22 },
+    // The one line a run batch cannot price. The bot aims where a body *is* and the crowd walks
+    // itself into the shot, so four seeds and twenty both read 1.00x on the pulse (tools/line-ab.js,
+    // NOTES 97/98/103). What the card buys is reach along a fuse that is in seconds and less lead for
+    // a hand that is not perfect, and test/shot-speed.test.mjs measures both on the world. Session 111
+    // closed the measurement item; a run-batch number here would be re-quoting the bot.
     bulletSpeed: { ranks: 5, step: 0.22 },
     split: {
       ranks: 5,
