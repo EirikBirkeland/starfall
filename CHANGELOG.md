@@ -1,5 +1,14 @@
 # Starfall — changelog
 
+## 1.9.35 — 2026-11-11
+KINDLING now fits a phone card.
+- **The card says `A BURNING KILL FEEDS 2`.** The old effect line ended `…TW…` in the two-across phone
+  rack, and the five-line flavour crowded the `BURN 3 + LEECH 3` parent row. The effect is shorter and
+  the flavour is one sentence (`A burning death feeds the leech twice.`), so the icon, effect, flavour
+  and both parent names are whole inside a 390x844 card.
+- A test paints the three-card phone offer with KINDLING in it and refuses a cut word or a word outside
+  its card.
+
 ## 1.9.34 — 2026-11-11
 A ninth challenge rule: **DROUGHT**.
 - **Shards buy 40% less experience.** The score a shard pays on pickup is untouched; the build simply
