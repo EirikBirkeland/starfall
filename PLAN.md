@@ -2070,10 +2070,11 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
 
 - [x] An eighth challenge rule: **PRESSURE**. The wave director's gap between one wave and the next is
       multiplied by `gapMul` at the one place it is drawn (`game/waves.js`), so the arena fills to the
-      same wall and just stops being quiet as soon. 0.45 ships: 122% more waves, 0.86x plain's middle
-      score on 24 seeds (plain won 13 of the 24 pairs - a lean, not a finding) with the cost showing in
-      the deaths (18 against 14) and the hulls (87 against 68). `tools/challenge-cost.js --gap` sweeps
-      it; the quote row carries the 24-seed flight. Session 187, NOTES.
+      same wall and just stops being quiet as soon. 0.3 ships: 233% more waves, 48 seeds reading 0.96x
+      plain's middle (plain won 28 of 48) with the cost in the deaths (34 against 31) and hulls (156
+      against 132). The score is a wash because a wave field pays its own shards, so the rule carries no
+      score quote and is reported unjudged by `tools/challenge-cost.js --gap`, like NO DASH. Session
+      187, tuned in 189 and 190, NOTES.
 
 - [x] Challenge modifiers: a harder set of rules for the next run, chosen between runs. Three of them,
       one at a time — **one hull** (the ship stands on a single hull, whatever the body and whatever the

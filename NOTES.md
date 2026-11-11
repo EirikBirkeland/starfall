@@ -19775,3 +19775,43 @@ and it is paid for in the score column (0.89x).
    person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 190 - PRESSURE's score is a wash at any gap, so it is a pace rule and the ladder says so
+
+### What the 48-seed flight at 0.3 said
+`node tools/challenge-cost.js --challenges none,pressure --seeds 48 --seconds 300 --dump`: **0.96x**
+plain's middle, plain winning **28 of 48**, deaths **34 against 31**, hulls **156 against 132**. The
+0.89x at 24 seeds was a lean that shrank again with more seeds. The hard end (0.15, 24 seeds) read
+0.94x with deaths 19 against 14 and the same hulls - the score barely moves because a wave field pays
+its own shards, and the rule's real cost is the hulls and deaths while the run is being pressed.
+
+### The decision
+**PRESSURE is a pace rule, not a scored challenge.** It keeps `gapMul: 0.3` (233% more waves, the deaths
+and hulls above), carries **no `measured` score quote**, and `tools/challenge-cost.js` reports it
+**unjudged** beside NO DASH: the score is a wash and the deaths/hulls columns are its cost. The generic
+"carries no number / never an instrument" line would be wrong - the ladder did fly it and does measure
+it - so the report has its own sentence saying why the number is absent by design. A future session that
+wants a scored pressure rule needs a lever that takes something away (loot, cards, hull), not a shorter
+beat.
+
+`test/challenge-cost`'s `quotesReport` no-quote test now sees the special line; the rule still answers
+the "every challenge has a row/name/sentence" shape. Suite 2672 -> 2673.
+
+### Verification
+- `node tools/challenge-cost.js --challenges none,pressure --seeds 24 --seconds 300 --strict`: exit 0;
+  the rule is reported, not judged, and its line explains the absent quote.
+- `node --test`: **2673/2673 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). A rule row changed; no plain run did.
+
+### Released
+**1.9.30.** PRESSURE is a pace rule now: 0.3 keeps the pressure, and the sheet no longer pretends its
+score is a challenge.
+
+### Next
+1. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still a
+   person's verdict.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The new rule is content a person should play: PRESSURE at 0.3 is 233% more waves and a middle death
+   34/48 against plain's 31/48; whether that is exciting or just busy is a feel call, not a bot's.

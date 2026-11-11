@@ -466,16 +466,15 @@ export const BALANCE = {
     pressure: {
       // The wave director's beat: the gap between one wave and the next is multiplied by this. 0.3
       // is 233% more waves over the same window and the same body wall - the arena does not hold
-      // more, it just stops being quiet as soon. The first quote was 0.45; 48 seeds read it at 0.96x
-      // and the ladder called it a flavour setting, so the gap was shortened. 0.3 reads 0.89x on 24
-      // seeds with plain winning 16 of them (p = 0.152), and the deaths (18 against 14) and hulls (75
-      // against 68) are what the rule is for. The pair is still a lean and the row says so; it is a
-      // challenge because it is paid for in the score column, not because the seeds are lopsided.
+      // more, it just stops being quiet as soon. 0.3 and not the 0.45 the first release carried: 48
+      // seeds at 0.45 read 0.96x and the ladder called it a flavour setting, so the gap was shortened.
+      // 0.3 reads 0.96x again on 48 seeds
+      // (plain 28 of 48), with deaths 34 against 31 and hulls 156 against 132 - the score is a wash
+      // because a wave field pays its own shards, and 0.15 is the same wash with a shorter life. So
+      // the rule carries no score quote: it is a pace rule, reported and not judged on the score,
+      // and judged by the deaths and hulls that are its whole cost. The 24-seed 0.89 was a lean and
+      // is not written into the game as if it were the rule.
       gapMul: 0.3,
-      measured: {
-        on: '2026-11-11', seeds: 24, seconds: 300, policy: 'human', picks: 'random', loot: false,
-        cost: 0.89, plainWon: 16, ruleWon: 8,
-      },
     },
     byhand: {
       // The shard net reaches two fifths of the way it ships with. This is the one rule on the sheet

@@ -406,17 +406,17 @@ function printTable(rows, plain, opts, title, note) {
 }
 
 /**
- * The verdict. A rule that costs nothing is not a challenge. Seven of the eight rules are judged and one
+ * The verdict. A rule that costs nothing is not a challenge. Six of the eight rules are judged and two
  * is only judged on a hand that can judge it, and the difference is what the ladder can see.
  *
- *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD, PRESSURE and BY HAND are judged**, the two rules about a
+ *   **ONE HULL, SHORT GRACE, SWIFT CROWD, THICK CROWD and BY HAND are judged**, the two rules about a
  *     touch provided the plain batch actually lost hulls - which is what says the ladder can see a rule
  *     about losing one at all. An aware bot that finishes a run with three hull in a body that costs
  *     one is not an instrument for those two rules, and saying so beats failing a rule the instrument
  *     cannot reach. The two crowd rules need no such proviso, nor does the loot: a crowd and a pile of
  *     shards are in front of every pair of eyes, careless or not.
  *
- *   **NO DASH is reported and never judged**, and the reason is in the columns rather than in a
+ *   **NO DASH and PRESSURE are reported and never judged**, and the reason is in the columns rather than in a
  *     paragraph: taking the jump away from a hand that presses it ten times a quarter-hour is a small
  *     thing, and taking the two cards that need it out of a careless deck can be worth more than the
  *     jump was. Whether that rule is hard is a question about a person who *lives* on the dash, and
@@ -447,6 +447,12 @@ export function verdictOf(rows, plain, deal) {
       skipped.push(nameOf(row.id) + ' is reported and not judged: it read ' + dec(ratio, 2)
         + 'x plain, which is the two cards the deck lost and the jump this hand barely spends, not a '
         + 'verdict about a person who uses it.');
+      continue;
+    }
+    if (row.id === 'pressure') {
+      skipped.push(nameOf(row.id) + ' is reported and not judged on the score: it read ' + dec(ratio, 2)
+        + 'x plain, and the score is a wash because a wave field pays its own shards - the rule is a '
+        + 'pace rule, and its cost is the deaths and hulls in those columns, not this one.');
       continue;
     }
     if (DEAL_RULES.indexOf(row.id) >= 0) {
@@ -713,9 +719,15 @@ export function quotesReport(tables, flown, quoteOf) {
     const m = quoted(id);
     const name = nameOf(id);
     if (m === null) {
-      lines.push(name + ' carries no number in the game, and that is the honest answer: this ladder has '
-        + 'never been an instrument that could measure it, so there is nothing here to check and nothing '
-        + 'here to believe either.');
+      if (id === 'pressure') {
+        lines.push('PRESSURE carries no number in the game by design: a wave field pays its own shards, so the '
+          + 'score is a wash however hard the director presses - the rule is a pace rule and its cost is '
+          + 'the deaths and hulls in the table above. `--gap` is the sweep door.');
+      } else {
+        lines.push(name + ' carries no number in the game, and that is the honest answer: this ladder has '
+          + 'never been an instrument that could measure it, so there is nothing here to check and nothing '
+          + 'here to believe either.');
+      }
       continue;
     }
     const quote = quotePair(m);
