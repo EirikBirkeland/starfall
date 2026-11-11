@@ -58,7 +58,7 @@ import { advanceVolumePanel, showVolumePanel } from './render/volume.js';
 import { noteFrame, panelIsUp as debugIsUp, togglePanel as toggleDebugPanel } from './render/debug.js';
 import { advanceToasts, clearToasts, pushAwardToast } from './render/toast.js';
 import { advanceLogo, dimLogo, measureLogo, setCalmMotion } from './render/logo.js';
-import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, paintHangarHints, paintCodexHints, turnCodexRack, fitHangar, fitOpenPanel } from './ui/screens.js';
+import { initScreens, hideScreens, showGameOver, showVictory, revealWinHint, showShip, showChallenge, showRack, showPerks, showCodex, showLog, showAwards, showRules, showStanding, showPause, showSettings, fitSettings, showKeys, fitKeys, openHangar, openCodex, openPause, openSettings, openKeys, closePanels, hangarIsOpen, codexIsOpen, pauseIsUp, settingsIsUp, keysIsUp, panelIsUp, paintKeyWords, paintLaunchHints, paintSettingsHints, paintHangarHints, paintCodexHints, turnCodexRack, fitHangar, fitOpenPanel, fitEndCards } from './ui/screens.js';
 import { initChips, showChips, chipAt, showGiveUpChip, giveUpChipAt, showPanelChips, panelChipAt, settingRowAt, shipRowAt, perkRowAt } from './ui/chips.js';
 
 const clock = createClock(BALANCE.sim.step, BALANCE.sim.maxFrameDt);
@@ -1258,6 +1258,8 @@ function onResize() {
   // ...and the one panel tall enough to run out of window asks whether it still fits - whichever of
   // the three it is (ui/screens.js `fitOpenPanel`).
   fitOpenPanel();
+  // ...and the two ending cards, which are not panels but are the same question on a taller body.
+  fitEndCards();
 }
 
 function describeRun() {

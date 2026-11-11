@@ -484,7 +484,9 @@ export function initScreens() {
   el = {
     start: document.getElementById('startScreen'),
     over: document.getElementById('overScreen'),
+    overBody: document.getElementById('overBody'),
     win: document.getElementById('winScreen'),
+    winBody: document.getElementById('winBody'),
     finalScore: document.getElementById('finalScore'),
     finalBest: document.getElementById('finalBest'),
     newBest: document.getElementById('newBest'),
@@ -817,6 +819,48 @@ function fitPanel(body, screen) {
     { w: screen.clientWidth, h: screen.clientHeight });
   // No transform at all when it fits, so the common case costs nothing and leaves nothing to undo.
   body.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(3) + ')';
+}
+
+/** How much of the glass an ending card leaves alone: the HUD is not part of the card. */
+const END_SIDE = 28;      // px each side, so a long stats line cannot run under the hull pips
+const END_TOP = 64;       // px of score and clock at the top left
+const END_BOTTOM = 84;    // px of XP bar and FPS at the bottom
+
+/**
+ * Fit one ending card to the glass the HUD leaves it.
+ *
+ * A late run's card is the tallest thing in the game: a full build, every hull written down, the
+ * day, the rule, the awards. Centred in a flex column it overflows both ends at 720 px and lands
+ * its hint on the XP bar; on a phone it is wide enough to run under the HUD rail as well. The card
+ * is one body (`#overBody` / `#winBody`, index.html), so it is shrunk as one picture - the type keeps
+ * its size relative to itself - and the HUD keeps its own strip. A card shown with a different
+ * shape later (the win's hint arriving on the guard) is measured again by the caller.
+ */
+/**
+ * Fit one ending card, exported for the test that has no browser to lay one out (see `fitEndCards`).
+ *
+ * The reserve is the CSS padding (index.html `#overScreen, #winScreen`), read rather than copied: a
+ * phone gets a taller top strip and this function cannot disagree with it. A page with no
+ * `getComputedStyle` (the harness) falls back to the desktop numbers, which is what a stub with no
+ * CSS has any right to.
+ */
+export function fitEndCard(screen, body) {
+  if (screen === null || body === null || body === undefined) return;
+  const style = typeof getComputedStyle === 'function' ? getComputedStyle(screen) : null;
+  const top = (style !== null && parseFloat(style.paddingTop)) || END_TOP;
+  const bottom = (style !== null && parseFloat(style.paddingBottom)) || END_BOTTOM;
+  const left = (style !== null && parseFloat(style.paddingLeft)) || END_SIDE;
+  const right = (style !== null && parseFloat(style.paddingRight)) || END_SIDE;
+  const scale = scaleToFit(
+    { w: body.offsetWidth, h: body.offsetHeight },
+    { w: screen.clientWidth - left - right, h: screen.clientHeight - top - bottom });
+  body.style.transform = scale === 1 ? '' : 'scale(' + scale.toFixed(3) + ')';
+}
+
+/** Fit both ending cards, up or not: a resize is the one moment either can change its answer. */
+export function fitEndCards() {
+  fitEndCard(el.over, el.overBody);
+  fitEndCard(el.win, el.winBody);
 }
 
 /** Take every panel away again, leaving the screen underneath exactly as it was. */
@@ -1448,6 +1492,9 @@ export function showGameOver(summary) {
   showAwards(summary.awardsOwned);  // ...and the awards the hangar keeps (game/awards.js)
   showRules(summary.challengeBests);  // ...and what the run just scored under its rule, if it had one
   el.over.classList.remove('hidden');
+  // ...and the card is measured now that it is on the glass, so a late run's card is scaled and
+  // not left with its hint on the XP bar (see `fitEndCard`).
+  fitEndCard(el.over, el.overBody);
   // The card itself makes the sound of landing (BALANCE.ui). The run stopped stepping before it
   // was written, so this is a screen's own event and the simulation has no idea it happened.
   uiTick('card');
@@ -1500,6 +1547,7 @@ export function showVictory(summary) {
   // the guard was asked to stop (game/run.js `victoryCardIsAnswerable`).
   el.winHint.classList.add('hidden');
   el.win.classList.remove('hidden');
+  fitEndCard(el.win, el.winBody);
   uiTick('card');      // the same knock the death's card gets: it is the same event, landing
 }
 
@@ -1509,4 +1557,6 @@ export function showVictory(summary) {
  */
 export function revealWinHint() {
   el.winHint.classList.remove('hidden');
+  // The invitation makes the card taller, so the fit is asked again on the frame it arrives.
+  fitEndCard(el.win, el.winBody);
 }

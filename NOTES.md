@@ -19184,3 +19184,69 @@ the rule.
 ### Released
 Nothing. The game traces byte for byte what it traced at 1.9.16; the list of what a session can decide
 by itself is now empty.
+
+## Session 176 - a real-browser audit of the screens session 166 did not cover found the ending cards falling off the glass
+
+### Why this session
+Every autonomous item on the carried list was closed, and the two left need a human or the owner's GPU.
+The one thing a session can still do by itself is look at the game: session 166 fixed the title and the
+hangar after opening them in real Chromium and found that the stub DOM's lack of a layout engine had been
+hiding real bugs. This session audited the rest - pause, settings, controls, codex, level cards, wreck,
+win - at `1280x720` and at a portrait phone (`390x844`, touch), with screenshots read back.
+
+### The audit, and the one bug it found
+`.scratch/browser-screens.mjs` opens each screen through the game's own keys/state, ticks twenty real
+frames, measures every visible screen's body and children against the viewport, and screenshots it.
+Title, hangar, codex, settings, controls, pause and the level cards all fit their glass (`codex` scales to
+0.874 on desktop, the phone codex is one narrow rack on purpose, the three cards sit at y 400-535 with the
+ask row at 552 on a 390-wide phone). **The wreck and win cards did not.**
+
+A late run's ending card is the tallest thing in the game: title, cause, score, best, rule, day, dust,
+awards, stats, eight hull rows, a full seventeen-line build and the hint. It was a bare flex column
+centred in `.screen`, with no body to fit, and the screenshots showed:
+
+- **desktop 1280x720**: the hull rack ran down to the build line and the build line onto the restart
+  hint, and the hint sat on top of the XP bar (`PRESS SPACE TO KEEP FLYING` was drawn through it);
+- **phone 390x844**: the title `GAME OVER` / `ARENA CLEARED` started under the top-left HUD's score and
+  clock, the long challenge/stats lines ran under the left HUD icon rail, and the hint crowded the XP bar.
+
+Every child was inside the viewport rectangle, which is why the old measurements and the stub tests could
+not see it: the boxes were legal, they just overlapped the HUD and each other at the bottom.
+
+### The fix
+1. **Both endings are one body**: `#overBody` / `#winBody` wrap the card in `index.html`, so it can be
+   scaled as one picture like the hangar, codex, pause and settings panels. `.end-body` is a centred flex
+   column with a max width of `min(86vw, 1080px)` and, under 640 px, `calc(100vw - 120px)`.
+2. **`fitEndCard` / `fitEndCards`** in `ui/screens.js`: the card is fitted to `screen.clientWidth` minus
+   the CSS left/right padding and `screen.clientHeight` minus the top/bottom padding, with the same
+   `scaleToFit` floor the panels use. The padding is the one place the HUD reserve is written -
+   `#overScreen, #winScreen { padding: 64px 24px 84px; }`, and `100px 24px 84px 96px` under 640 px, which
+   is the top score/clock strip and the left rail on a phone. Reading it from computed style means the
+   function cannot disagree with the CSS.
+3. **The fit is asked whenever the card changes shape**: when the wreck is painted, when the win is
+   painted, when the win's invitation arrives on the guard, and on every resize beside `fitOpenPanel`.
+4. The result: desktop cards scale to 0.885 / 0.872 and land at y 64-636, clear of the XP bar at 680; the
+   phone cards scale to 0.846 / 0.789, start at y 100 below the HUD and x 117 right of the rail, and end
+   at 760 above the XP bar. The screenshots were read back at both sizes; the title, score, hulls, build
+   and hint are all legible and no line is covered.
+
+### Verification
+- New `test/end-card-fit.test.mjs` (5 tests): the two bodies and the CSS reserve exist; a late card is
+  scaled by the tight axis; a card that fits is left with no transform; a phone card scales to its
+  narrower strip; a null body is a no-op (the harness).
+- `node --test`: **2644 -> 2649, all green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). This is a paint-and-fit change; the run is byte for byte what it was.
+- Real Chromium: zero console errors, zero page errors across eighteen screen/viewport captures.
+
+### Released
+**1.9.17.** A late wreck or win card now fits the glass it is shown on, on a desktop and on a phone - the
+first player-visible fix since 1.9.16, and the reason this session made a release rather than nothing.
+
+### Next
+1. **Whether the first two minutes are too harsh** - still the only carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+3. The `.scratch/browser-screens.mjs` audit is worth keeping: it is the cheap way to see the next screen
+   the stub cannot. It is not committed (it is a throwaway), but the next real-browser session can start
+   from it.

@@ -58,6 +58,27 @@
   .screen.aside { opacity: .1; }
   .screen.hidden { opacity: 0; visibility: hidden; }
 
+  /* The two ending cards are one card in two moods, and a late run's card is tall: a full build,
+     every hull written down, the day, the rule, the awards. They are scaled as one body by
+     `fitEndCards` (ui/screens.js), like the panels, so the hint never lands on the XP bar and a
+     long line never runs under the HUD rail. The max width is the HUD's own margin - 86vw on a
+     desktop and a narrower strip on a phone, where the rail is ~54 px of the glass. */
+  .end-body {
+    display: flex; flex-direction: column; align-items: center;
+    max-width: min(86vw, 1080px);
+    transform-origin: center center;
+  }
+  @media (max-width: 640px) {
+    .end-body { max-width: calc(100vw - 120px); }
+  }
+  /* The top left is the HUD's: score, best, clock and gun. The two ending cards leave it alone
+     rather than centring a title on top of it, and the bottom strip is the XP bar's. The fit in
+     ui/screens.js reads these paddings, so this is the one place the reserve is written. */
+  #overScreen, #winScreen { padding: 64px 24px 84px; }
+  @media (max-width: 640px) {
+    #overScreen, #winScreen { padding: 100px 24px 84px 96px; }
+  }
+
   /* The mark. STARFALL is drawn on the canvas (render/logo.js) and not typed, and this element is
      the space it belongs in: the column is flex-centred and the canvas cannot ask what flexbox did,
      so the mark measures this box for where to sit and bounds itself by it. The word is in here as a
@@ -882,6 +903,7 @@
  </div>
 </div>
 <div id="overScreen" class="screen hidden">
+ <div class="end-body" id="overBody">
   <h2 class="over-title">GAME OVER</h2>
   <div class="cause-line" id="finalCause"></div>
   <div class="score-label">FINAL SCORE</div>
@@ -905,9 +927,11 @@
   <div class="next-line" id="nextShip"></div>
   <div class="hint"><span id="overHintLaunch">PRESS SPACE OR CLICK TO RESTART</span><span
     id="overHintKeys"> &#183; <span id="overKeysSettings">O</span> SETTINGS</span></div>
+ </div>
 </div>
 
 <div id="winScreen" class="screen hidden">
+ <div class="end-body" id="winBody">
   <h2 class="win-title">ARENA CLEARED</h2>
   <p class="win-sub">THE RUN IS WON</p>
   <div class="score-label">SCORE</div>
@@ -933,6 +957,7 @@
        asked to stop. -->
   <div class="hint hidden" id="winHint"><span id="winHintLaunch">PRESS SPACE TO KEEP FLYING</span><span
     id="winHintKeys"> &#183; <span id="winKeysReroll">R</span> FOR A NEW RUN</span></div>
+ </div>
 </div>
 
 <script type="module" src="src/main.js"></script>
