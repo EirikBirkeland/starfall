@@ -1,5 +1,16 @@
 # Starfall — changelog
 
+## 1.9.19 — 2026-11-11
+The phone's first-run tutorial speaks the phone's language, and stops hiding behind the controls it names.
+- **A thumb is taught its own controls.** The three first-run prompts said `W A S D TO FLY`,
+  `MOUSE TO AIM · HOLD LEFT TO FIRE` and `SPACE TO DASH` to a hand with no keyboard and no mouse. A
+  thumb now reads `DRAG TO FLY`, `THE GUN AIMS AND FIRES ITSELF` (both assists ship on for a thumb)
+  and `TAP DASH`. Keyboard and mouse visitors see exactly the lines they always did.
+- **The hint sits above the controls on a phone.** The plate had always lived in the bottom strip,
+  which on a thumb visit is the floating stick, the DASH button and the PAUSE plate - so `TAP DASH`
+  was painted under the DASH button. A thumb's plate now sits at the top, under the score and the hull
+  pips; a keyboard keeps the bottom strip.
+
 ## 1.9.18 — 2026-11-11
 A phone can read the level-up cards now, and the banish chip no longer draws a missing glyph.
 - **A portrait phone lays the level-up rack two across and one under.** Three cards in a 390 px row
