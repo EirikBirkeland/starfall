@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.36",
+    "date": "2026-11-11",
+    "released": "2026-11-11T14:39:56.456Z",
+    "summary": "A new enemy: the PULSAR marks your ground and drops a blast on it",
+    "added": 252,
+    "removed": 6,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.35",
     "date": "2026-11-11",
     "released": "2026-11-11T14:02:00.412Z",
