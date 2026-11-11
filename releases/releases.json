@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.30",
+    "date": "2026-11-11",
+    "released": "2026-11-11T10:48:05.366Z",
+    "summary": "PRESSURE is a pace rule now: 0.3 keeps the pressure and the sheet drops the score quote",
+    "added": 26,
+    "removed": 15,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.29",
     "date": "2026-11-11",
     "released": "2026-11-11T10:18:27.855Z",
