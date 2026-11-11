@@ -1,5 +1,13 @@
 # Starfall — changelog
 
+## 1.9.29 — 2026-11-11
+PRESSURE was tuned from a flavour setting into a challenge.
+- **The wave gap went from 0.45 to 0.3.** At 0.45 a 48-seed flight read 0.96x plain's middle - above
+  the 0.95x bar the ladder calls a challenge - so the crowd now refills **233% faster** instead of
+  122%. On the quote's 24 seeds it reads **0.89x**, plain winning 16 of the 24 pairs (p = 0.152),
+  deaths 18 against 14 and hulls 75 against 68. It is paid for in the score column; the pair is still a
+  lean and the row says so.
+
 ## 1.9.28 — 2026-11-11
 A 360x640 phone can open the hangar.
 - **The small-phone shop fits.** At the 0.6 fit floor the hangar was taller than a 640 px screen: the
