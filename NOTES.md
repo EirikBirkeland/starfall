@@ -19554,3 +19554,35 @@ portrait-height plate.
    only reading that can move `endless.growth.bodiesCeil`.
 3. The real-browser surface is now photographed at 1280x720, 1024x600, 768x1024, 390x844 and 844x390.
    The next pass should be a new screen or a new feature, not another resolution.
+
+## Session 184 - the landscape XP bar was under the stick; the interface paints over the thumb now
+
+### What the audit saw
+The landscape run screenshot (session 183) showed the floating stick's ring drawn across the XP bar and
+its `LEVEL 1 · 0/97 XP` caption: the touch controls are painted after the HUD, and a thumb put down near
+the bottom of a 390 px screen reaches across the bottom strip. The bar was readable around the ring, but
+the meter is the thing that has to stay readable - the ring is a control, not a reading.
+
+### What landed
+`render/renderer.js` now draws the HUD **after** the thumb controls, so the score, the hull, the boss bar
+and the XP bar sit over the stick's paint. Nothing moves: the dash and pause plates already clear the XP
+bar (`test/touch-art.test.mjs` holds that), and on a portrait phone the stick ring is above the bar
+anyway. On a landscape phone the ring still shows around the bar; the bar and its caption are whole.
+
+### Verification
+- Real Chromium at 844x390: `LEVEL 1 · 0/97 XP` and the bar are drawn over the stick ring; the DASH and
+  pause plates are untouched.
+- `node --test`: **2666/2666 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards). Paint order only.
+
+### Released
+**1.9.25.** The interface paints over the thumb's controls, so a landscape stick cannot hide the XP bar.
+
+### Next
+1. **Whether the first two minutes are too harsh** - the one carried item that needs a person.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
+3. The real-browser surface is fully read: five resolutions, every screen, a thumb run, a boss warning
+   and fight, a late pause, the tutorial, awards and the volume plate. The next session should be a new
+   feature or a new screen, not another paint audit.
