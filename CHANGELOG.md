@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.32 — 2026-11-11
+The mender shows the ground it can patch.
+- **A faint mint floor ring at its 120 px support radius.** Before this, the mender's reach was only
+  visible for the 0.3 s the pulse ring lived, which is after the heal. The ring sits under the crowd
+  beside the shielder's dashed field - one thin solid ring in the shard colour, because a mender heals
+  one body and never itself. The pulse still appears inside it on the beat.
+
 ## 1.9.31 — 2026-11-11
 A new enemy: the **MENDER**.
 - **A violet cross that patches the crowd.** It arrives at 8:20, rare, and stands off at 170-270 px.
