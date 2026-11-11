@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.38",
+    "date": "2026-11-11",
+    "released": "2026-11-11T18:32:12.871Z",
+    "summary": "FROSTBITE gets a cracked icon, and PULSAR's mark gets a tick",
+    "added": 28,
+    "removed": 3,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.37",
     "date": "2026-11-11",
     "released": "2026-11-11T15:19:49.752Z",
