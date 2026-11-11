@@ -166,6 +166,7 @@ test('which bodies share a silhouette is a written-down list, not a drift', () =
     'drifter / sniper - colour',
     'drifter / darter - both',
     'weaver / sniper - both',
+    'tank / pulsar - colour',
     'drifter / shielder - colour',
     'tank / mender - colour',
   ]);

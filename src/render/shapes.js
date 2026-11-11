@@ -312,6 +312,11 @@ export const CROWD_SHAPES = {
   // in the way a body is - the long arm is the way it faces, the short ones are its width - which is
   // what makes it read as a sign rather than as another thing to shoot.
   mender: cross,
+
+  // The pulsar: a five-point star, the busiest angular body short of the bomber's six studs, because
+  // what it does is mark a place and the star is the mark. Red, the darter's hue, but 18 px against
+  // the darter's 11 and a star against a spear.
+  pulsar: studded(5, 1.45, 0.78),
 };
 
 /** One kind's silhouette, and a loud answer for a kind nothing draws. */

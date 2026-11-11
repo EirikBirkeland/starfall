@@ -11,6 +11,7 @@ import { updatePlayer } from './player.js';
 import { updateBullets, makeBullet } from './bullets.js';
 import { updateEnemyShots, makeEnemyShot } from './enemyshots.js';
 import { updateEnemies } from './enemies.js';
+import { updatePulses } from './kinds.js';
 import { updateOrbitals } from './orbitals.js';
 import { updateNova, makeFront } from './nova.js';
 import { updateArc, makeBolt } from './arc.js';
@@ -439,6 +440,10 @@ function stepRun(dt, input) {
   updateBullets(world, dt);
   if (!updateEnemyShots(world, dt)) return;   // a shot ended the run
   if (!updateEnemies(world, dt)) return;   // a contact ended the run
+  // A pulsar's mark pays out here, after the crowd has finished walking and after a contact that
+  // could have ended the run, but before the beams: the blast removes bodies, so it cannot run from
+  // inside the crowd loop.
+  if (!updatePulses(world)) return;
   // First of the things that hurt the crowd afterwards, so a beam pays out where the
   // bodies ended up rather than where the collision grid last saw them (game/beams.js).
   if (!updateBeams(world, dt)) return;   // a beam ended the run

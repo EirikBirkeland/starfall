@@ -256,7 +256,7 @@ test('the promise can fail - it is a guard and not a formality', () => {
 });
 
 test('the crowd shares colours, and says which pairs do', () => {
-  // Nine bodies cannot all be a step apart inside the warm half of the wheel, and they do not need
+  // Ten bodies cannot all be a step apart inside the warm half of the wheel, and they do not need
   // to be: silhouette, size and the way a body walks do most of the telling, and the audit prints
   // these pairs under their own heading instead of judging them (see tools/sights.js).
   //
@@ -286,6 +286,7 @@ test('the crowd shares colours, and says which pairs do', () => {
     'darter / swarmling',
     'drifter / mender',
     'spitter / bomber',
+    'weaver / pulsar',
   ]);
 });
 

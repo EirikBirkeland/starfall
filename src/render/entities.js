@@ -16,7 +16,7 @@ import { hitFlash } from './flash.js';
 import { onScreen } from './camera.js';
 import {
   aimProgress, beamHalfWidth, blastPressure, blastRadius, isAiming, isLocking, isLunging,
-  isSpitting, lungeReach,
+  isMarking, isSpitting, lungeReach,
 } from '../game/kinds.js';
 import {
   isBossBody, isBossPart, armedCount, bossTint, callAngle, callBody, callCount, callProgress,
@@ -708,6 +708,37 @@ export function drawLanceLocks(ctx, alpha) {
 export function drawBlastZones(ctx, list, alpha) {
   for (let i = 0; i < list.length; i++) {
     const enemy = list[i];
+    // A pulsar's mark is a zone at the place it recorded, not around itself. It is drawn from the
+    // same dashed grammar as a bomber's circle, because it is the same promise: the circle is where
+    // the blast lands.
+    const pulse = enemy.kind.stats.pulse;
+    if (pulse !== undefined && isMarking(enemy)) {
+      const radius = pulse.blast.radius;
+      const markX = enemy.dirX;
+      const markY = enemy.dirY;
+      if (!onScreen(markX, markY, radius + ZONE_ROOM)) continue;
+      const progress = enemy.stageTime > 0 ? 1 - enemy.timer / enemy.stageTime : 1;
+      const light = 0.45 + 0.55 * clamp(progress, 0, 1);
+      ctx.save();
+      const was = ctx.globalAlpha;
+      ctx.setLineDash(ZONE_DASH);
+      ctx.lineDashOffset = -world.time * (12 + progress * 40);
+      ctx.strokeStyle = PALETTE.blastZone;
+      ctx.lineWidth = ZONE_SOFT;
+      ctx.globalAlpha = was * light * ZONE_SOFT_SHARE;
+      ctx.beginPath();
+      ctx.arc(markX, markY, radius, 0, TAU);
+      ctx.stroke();
+      ctx.strokeStyle = PALETTE.blastFlash;
+      ctx.lineWidth = ZONE_THIN;
+      ctx.globalAlpha = was * light;
+      ctx.beginPath();
+      ctx.arc(markX, markY, radius, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
     const radius = blastRadius(enemy);
     if (radius === 0) continue;
     if (!onScreen(enemy.x, enemy.y, radius + ZONE_ROOM)) continue;

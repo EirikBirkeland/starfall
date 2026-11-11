@@ -20136,3 +20136,59 @@ does not take the card (`build .../0` for both synergies), so nothing moves.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 199 - a PULSAR: the ground is marked before it hurts
+
+### What it is
+A pink five-point star, 24 px, that keeps a stand-off band at 220-320 px. Every 3.4 s it marks the
+ground the ship is standing on for **0.9 s**, then drops the game's own blast there: radius 96, damage
+5, shove 220. The mark is fixed at the start of the wind-up; walking out of the dashed circle is the
+whole answer. The body stands still while it holds the mark and is hurt by its own blast if the ship
+leads it back over the star. From **9:20**, cost 8, weight 1 - a late, rare body, not weather.
+
+### The two bugs caught while building it
+- **A blast may not be fired from inside the crowd walk.** The first `walksPulsing` called `blast()`
+  directly and `test/swarm` died with `Cannot read properties of undefined (reading 'hub')`: the blast
+  removed bodies while `updateEnemies` was still reading the list. The mark now leaves a `ready`
+  stage and `updatePulses(world)` pays it in `world.js` **after** `updateEnemies`. It pays one pulse
+  per step, so a second ready pulse waits 16.7 ms rather than needing a list allocated every step.
+- **The mark needs no new fields on every body.** The first version added `aimX/aimY/pulseReady/
+  pulseX/pulseY` to `makeEnemy`; the alloc probe (and the plan's fixed-shape lesson) is exactly about
+  that. A pulsar is not moving while it marks, so the mark lives in the existing `dirX/dirY` pair
+  and the queue is `stage === 'ready'`. Enemy object shape is unchanged; floor stays **16 B**.
+
+### The warning
+`drawBlastZones` grows one branch: a marking pulsar draws the same dashed floor circle as a bomber,
+at `dirX/dirY` and `pulse.blast.radius`, with the dash speed and light following the wind-up. A real
+Chromium screenshot at 1280x720 shows the orange dashed circle around the ship and the pink star
+standing off to its right; the drifter beside it is a reminder of the size step.
+
+### Art debts paid, not skipped
+- `CROWD_SHAPES.pulsar = studded(5, 1.45, 0.78)`; measured **87%** coverage, bar 85%.
+- `crowd-art` gained `tank / pulsar - colour` (24 against 26 px, pink against amber).
+- `palette-read` gained `weaver / pulsar`; ten bodies now, and the list says so.
+- `try-body`: the crowd has **11** shared-outline pairs (was 10), **5** under a colour step (was 4)
+  in the flat reading, and **7 / 5** in the sniper reading; the counts are written down, not waived.
+- `SIGHTS` and `SIGHT_FORMS` gained the star; `waves` clocks the 9:20 arrival.
+
+### Price
+Reference (`--seed 20261006 --trace`): **`10m00s / 74,459 / level 57 / 3,938 kills / 5,070 shards /
+hull 2`**, against **74,748 / 3,997 / 5,068 / hull 3** before it. The blast's own kills are unpaid,
+which is where the 289 score went; the ship is alive at the cap. Content, not a difficulty lever.
+
+### Verification
+- `node --test`: **2,691/2,691 green** (five new tests in `test/pulsar.test.mjs`).
+- `node tools/alloc-probe.js --scene schedule`: **PASS**, floor **16 B**, dearest step **349 B** on
+  this tree (the 333 in the KINDLING note was a different tree; the rank object is still the floor).
+- `node tools/simulate.js --seed 20261006 --trace`: the reference above.
+- Real Chromium 1280x720: the mark renders as a dashed circle where the ship stands, the star stands
+  off, and no page error.
+
+### Released
+**1.9.36.** A new enemy: the PULSAR, a five-point star that marks your ground and drops a blast on it.
+
+### Next
+1. Play against a PULSAR late in a run: is 0.9 s enough to read, and is the stand-off band comfortable
+   with the dash?
+2. The first-two-minutes verdict and the owner's real-GPU plate read are still the two human readings.
+3. KINDLING, MENDER and DROUGHT still need a person's feel.

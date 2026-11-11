@@ -1465,6 +1465,28 @@ export const BALANCE = {
       death: { particles: 18, speed: 260, debris: 5, debrisSpeed: 180 },
       sound: { freq: 220, dur: 0.16 },
     },
+    pulsar: {
+      radius: 24, speed: 42, hull: 10, score: 60, drop: 6,
+      from: 560, cost: 8, weight: 1,
+      // A ranged area-denial body: it keeps its distance and every `every` seconds marks the ground
+      // the ship is standing on for `warn`, then drops a blast there. The mark is the promise and the
+      // blast the payment; the body itself never melees.
+      color: PALETTE.pink, fill: PALETTE.pinkFill, glow: 20,
+      pulse: {
+        stand: { near: 220, far: 320 },
+        drift: { speed: 34, rate: 0.9 },
+        every: 3.4, warn: 0.9,
+        blast: {
+          radius: 96, damage: 5, shove: 220,
+          ring: { radius: 10, speed: 620, life: 0.3 },
+          flash: { count: 14, speed: 320, life: 0.35 },
+          shake: 0, hitStop: 0.03,
+          sound: { freq: 120, dur: 0.25, wave: 'sawtooth', vol: 0.08, slide: 40 },
+        },
+      },
+      death: { particles: 20, speed: 280, debris: 6, debrisSpeed: 190 },
+      sound: { freq: 160, dur: 0.18 },
+    },
     swarmling: {
       radius: 7, speed: 190, hull: 1, score: 10, drop: 1,
       from: 540, cost: 1, weight: 1,

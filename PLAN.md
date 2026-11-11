@@ -2068,12 +2068,25 @@ Keep going with whatever makes the game better. Ideas: new enemies, a fourth bos
 (double speed, one hull, no dash), a second arena with obstacles, more ships, more synergies,
 a replay viewer driven by the seed and recorded input. Write new items here before starting them.
 
+- [x] A new area-denial body: **PULSAR**. A pink five-point star, 24 px, that holds a stand-off band at
+      220-320 px. Every 3.4 s it marks the ground the ship is standing on for 0.9 s, then drops the
+      game's own blast there (radius 96, damage 5, shove 220). The mark is fixed when the wind-up starts,
+      so walking out of the circle is the answer; the body stands still while it waits and can be hit by
+      its own blast if the ship leads the mark back over it. The warning is the same dashed floor
+      grammar as a bomber's death zone, in `drawBlastZones`. `updatePulses` pays the queued marks after
+      `updateEnemies`, because a blast removes bodies and may not run inside the crowd walk; the swarm
+      test caught the first version doing exactly that. From 9:20, cost 8, weight 1. Reference:
+      `74,459 / level 57 / 3,938 kills / 5,070 shards / hull 2` (was 74,748 / 3,997 / 5,068 / 3) - a
+      late, rare body that removes a little score from the blast's own kills, not a difficulty lever.
+      Five tests in `test/pulsar.test.mjs`; session 199, NOTES.
+
 - [x] A second synergy: **KINDLING**, burn 3 + leech 3. A body that dies alight counts **twice** toward
       the leech; the card carries the burn/leech colours on its frame and a flame-plus-diamond icon. It
       is dealt only when both parents are at rank 3, like THERMAL SHOCK. Adding the twentieth line made
       `world.upgrades` a dictionary and the alloc probe found the floor at **720 B a step** (the per-step
       leech read boxed); `newRanks` is now one fixed-shape literal, the floor is back to **16 B**, and the
-      schedule's wall reads **333 B** (was 349). The rank object is held to `LINES` by a test. Reference
+      schedule's wall reads **349 B** on the full ten-kind tree (the 333 reading was before the later kind
+      rows). The rank object is still held to `LINES` by a test, and the empty-arena floor is 16 B. Reference
       run unchanged at 74,748 / 3,997 kills. Session 194, NOTES.
 
 - [x] A ninth challenge rule: **DROUGHT**. Each shard buys `xpMul` 0.6 of its experience; the score

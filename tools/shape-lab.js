@@ -109,6 +109,7 @@ export const COVERS = {
   swarmling: 0.44,  // 45% - it wears the ship's dart; the 2.1r nose is what a point costs
   sniper: 0.83,     // 84% - the lens stood taller again, and no longer: same two corners
   mender: 0.96,     // 98% - the cross fills its hurtbox; the arms reach 1.18r
+  pulsar: 0.85,     // 87% - a five-stud star; it reaches 1.45r on its points
   drifter: 0.74,    // 75% - three faces bowed, corners exactly where they always were
   darter: 0.77,     // 78% - the head filled to a 0.9r cheek; the nose is 2.1r and stays there
   tank: 0.90,       // 91% - six faces bowed halfway out, corners exactly where they always were

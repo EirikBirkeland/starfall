@@ -31,6 +31,7 @@
 // note to the audio layer, not a number the simulation keeps.
 
 import { BALANCE } from './balance.js';
+import { STATE } from './state.js';
 import { PALETTE } from '../core/palette.js';
 import { logic } from '../core/rng.js';
 import { clamp, TAU, hypot } from '../core/math.js';
@@ -86,6 +87,10 @@ export const KINDS = {
   mender: {
     stats: BALANCE.kinds.mender,
     walk: walksMending,
+  },
+  pulsar: {
+    stats: BALANCE.kinds.pulsar,
+    walk: walksPulsing,
   },
   swarmling: {
     stats: BALANCE.kinds.swarmling,
@@ -552,6 +557,67 @@ function walksGuarding(enemy, step) {
 }
 
 /**
+ * The pulsar: a ranged area-denial body. It holds the same kind of stand-off band as a spitter, and on
+ * every beat it marks the ground the ship is standing on for `pulse.warn` seconds, then drops the
+ * blast there through the game's own `blast` door. The mark is fixed when the wind-up begins, which is
+ * the whole promise: where the circle was is where it lands, so the player walks out of it. The body
+ * itself stands still during the warning and is hurt by its own blast if the ship brings the mark back
+ * on top of it - that is a real answer, not a bug.
+ *
+ * During the mark, `dirX/dirY` hold the marked place (the body is not moving and has no use for a
+ * direction then). The `ready` stage is the queued pulse; `updatePulses` reads the pair and pays it.
+ */
+const MARKING = 'mark';
+const READY = 'ready';
+
+function walksPulsing(enemy, step) {
+  const spec = statsOf(enemy).pulse;
+  if (enemy.stage === MARKING) {
+    glide(enemy, step, 0, 0, 0);
+    enemy.timer -= step.dt;
+    if (enemy.timer > 0) return;
+    // The body has finished the promise. `dirX/dirY` still hold the marked place; updatePulses()
+    // pays it after the crowd has walked, and then clears the stage.
+    enemy.stage = READY;
+    enemy.timer = spec.every;
+    return;
+  }
+
+  const toShip = holdTheBand(enemy, step, spec.stand, spec.drift);
+  enemy.rot = Math.atan2(toShip.ny, toShip.nx);
+  enemy.timer -= step.dt;
+  if (enemy.timer > 0) return;
+
+  enemy.stage = MARKING;
+  enemy.timer = spec.warn;
+  enemy.stageTime = spec.warn;
+  // The body is facing the ship; during the mark this pair is the marked place rather than a
+  // direction. It is the only state the mark needs and it costs no fields on every other body.
+  enemy.dirX = step.ship.x;
+  enemy.dirY = step.ship.y;
+}
+
+/**
+ * The pulses that finished winding up. This runs after updateEnemies(), never inside it: a blast
+ * takes bodies out of world.enemies, and the crowd walk is reading that list all the way along. The
+ * mark is fixed at the start of the wind-up, so the blast lands at pulseX/pulseY, not on the body.
+ */
+export function updatePulses(world) {
+  // One pulse per step. A blast removes bodies, so the scan stops the moment one is paid; any other
+  // ready mark waits for the next step rather than needing a list that would allocate every step a
+  // pulse lands. One step of stagger is a sixteenth of a second and two pulsars never share a beat.
+  for (let i = 0; i < world.enemies.length; i++) {
+    const enemy = world.enemies[i];
+    if (enemy.stage !== READY) continue;
+    enemy.stage = '';
+    const spec = statsOf(enemy).pulse;
+    blast(world, enemy.dirX, enemy.dirY, spec.blast, false);
+    return world.state === STATE.PLAY;
+  }
+  return true;
+}
+
+/**
  * The mender: a stand-off support body. It holds the same kind of band a spitter or a shielder holds,
  * and on its own beat it patches the most wounded *other* body inside `mend.radius` by `mend.heal`.
  * It picks by the share of hull left rather than the absolute number, so a one-hull body at half
@@ -810,6 +876,11 @@ export function isAiming(enemy) {
 /** Is it mid-lunge - i.e. should it be dragging a blur behind it. */
 export function isLunging(enemy) {
   return enemy.stage === LUNGING;
+}
+
+/** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */
+export function isMarking(enemy) {
+  return enemy.stage === MARKING;
 }
 
 /** Is a spitter winding one up right now - i.e. should its mouth be lighting up. */
