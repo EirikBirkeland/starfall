@@ -1,5 +1,18 @@
 # Starfall — changelog
 
+## 1.9.20 — 2026-11-11
+A phone that tapped to launch is taught its own hands from the first frame, and the award plates stop
+landing on the lesson or the HUD.
+- **The first-run hint knows a tap is a finger.** The 1.9.19 thumb lines were chosen only after a thumb
+  had been claimed by a control, so a phone that tapped the title still read `W A S D TO FLY`. The hint
+  (and the debug readout) now ask the page's own fact as well, and a tapped launch reads `DRAG TO FLY` /
+  `TAP DASH` at once.
+- **An award stacks under a top hint.** When the thumb's hint moved to the top, the five-minute award
+  plate could land on it; the award stack now starts below the hint, with its falling animation included,
+  so even the arriving plate cannot cross it.
+- **The award strip cleared the HUD.** It sat at 84 px, over `GUN PULSE`; it now starts at 104 px, under
+  the boss bar and below the score, best, clock and gun lines.
+
 ## 1.9.19 — 2026-11-11
 The phone's first-run tutorial speaks the phone's language, and stops hiding behind the controls it names.
 - **A thumb is taught its own controls.** The three first-run prompts said `W A S D TO FLY`,
