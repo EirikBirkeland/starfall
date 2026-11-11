@@ -786,6 +786,26 @@ export function drawShieldFields(ctx, list, alpha) {
   }
   if (open) ctx.restore();
 
+  // The mender's support area, on the same floor paint: a faint mint circle at `mend.radius`, so a
+  // player can see which bodies are within a pulse before the 0.3 s ring ever appears. It is not a
+  // shielder's field - it heals one body and never the mender - so it is a plain thin ring and not
+  // the dashed, crawling fence.
+  const menderRadius = BALANCE.kinds.mender.mend.radius;
+  for (let i = 0; i < list.length; i++) {
+    const body = list[i];
+    if (body.type !== 'mender' || body.hp <= 0) continue;
+    if (!onScreen(body.x, body.y, menderRadius + FIELD_ROOM)) continue;
+    const x = paintX(body, alpha);
+    const y = paintY(body, alpha);
+    ctx.save();
+    ctx.strokeStyle = withAlpha(PALETTE.shard, 0.3);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, menderRadius, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   open = false;
   for (let i = 0; i < list.length; i++) {
     const body = list[i];

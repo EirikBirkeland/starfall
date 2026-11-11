@@ -19898,3 +19898,37 @@ Nothing new. 1.9.31 remains the release with the MENDER.
    a person's verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 193 - the mender's support area is visible before it pulses
+
+### What the canvas showed
+The mender's cross and its 0.3 s pulse read as a picture, but the **120 px support area** only appeared
+when a body happened to be healed and the ring went out. A player could not see which bodies were
+inside a mender's reach - the one decision the body asks for ("what is it keeping alive?") was invisible
+until after the heal.
+
+### What landed
+`drawShieldFields` now paints a faint **mint floor ring** at `BALANCE.kinds.mender.mend.radius` around
+every living mender on screen, under the crowd and beside the shielder's dashed field. It is deliberately
+not the shielder's fence: one thin solid ring in the shard colour, because a mender heals one body and
+never itself. The expanding pulse ring still appears inside it on the beat. No simulation change.
+
+Real Chromium: two menders at the top of the glass, each with a large faint mint circle; the left one
+has three wounded drifters inside it and a small pulse ring at its cross; the right one has an empty
+circle. The cross still reads as a cross, not as a drifter.
+
+### Verification
+- `node --test`: **2,676 -> 2,677**, all green.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged from the mender's release (`10m00s /
+  74,748 / level 57 / 3,997 kills / 5,068 shards`). Paint only.
+
+### Released
+**1.9.32.** A mender shows the ground it can patch before it patches it.
+
+### Next
+1. Play the mender in a real fight for feel; the area ring makes its decision visible, but only a person
+   can say whether the support body feels fair or annoying.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.
