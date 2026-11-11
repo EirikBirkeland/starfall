@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.23",
+    "date": "2026-11-11",
+    "released": "2026-11-11T08:14:20.095Z",
+    "summary": "a phone on its side gets the flying title instead of a clipped control list",
+    "added": 40,
+    "removed": 0,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.22",
     "date": "2026-11-11",
     "released": "2026-11-11T08:00:20.351Z",
