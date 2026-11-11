@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.40",
+    "date": "2026-11-11",
+    "released": "2026-11-11T19:04:57.326Z",
+    "summary": "PULSAR's mark shows a filling arc for its wind-up",
+    "added": 11,
+    "removed": 0,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.39",
     "date": "2026-11-11",
     "released": "2026-11-11T18:43:18.981Z",
