@@ -20098,3 +20098,41 @@ Nothing. The experiment did not leave the tree.
 2. Play DROUGHT, KINDLING and the mender for feel; the human first-two-minutes verdict.
 3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
    only reading that can move `endless.growth.bodiesCeil`.
+
+## Session 198 - KINDLING's card did not fit a phone
+
+### What the canvas showed
+The desktop KINDLING card was right, but at `390x844` the third, centred card is 147-162 px wide: the
+effect line ended **`A BURNING KILL FEEDS TW…`**, the five-line flavour crowded the `BURN 3 + LEECH 3`
+row, and the parent names sat on top of the last flavour line. The card's mechanics were legible; its
+sentence was not.
+
+### What landed
+- **Effect:** `A BURNING KILL FEEDS TWICE` -> **`A BURNING KILL FEEDS 2`**, which fits the two-across
+  card whole.
+- **Flavour:** `A body that dies alight feeds the leech twice. The fire has already done the work; the
+  leech gets the meal.` -> **`A burning death feeds the leech twice.`** - two lines, and the parent row
+  has its space back.
+- A test paints `['nova', 'burn', 'kindling']` at `390x844` and refuses a cut word or a word outside its
+  card; the existing phone no-cut test only saw tables the deck happened to slice, and KINDLING can be
+  dealt with two lines beside it. Suite 2684 -> 2685.
+
+Real phone screenshot: KINDLING's flame-plus-diamond icon, `A BURNING KILL FEEDS 2`, two flavour lines,
+and `BURN 3 + LEECH 3` all whole inside the card. Desktop copy changes with it, and the reference run
+does not take the card (`build .../0` for both synergies), so nothing moves.
+
+### Verification
+- `node --test`: **2,685/2,685 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged reference (`74,748 / level 57 / 3,997
+  kills / 5,068 shards`).
+- Real Chromium at 390x844: no cut, no overlap.
+
+### Released
+**1.9.35.** KINDLING says `A BURNING KILL FEEDS 2` and fits a phone card.
+
+### Next
+1. Play KINDLING for feel; the card now reads as well as it prices.
+2. **Whether the first two minutes are too harsh** - 17/60 careless runs before 2m, middle 1m32, still
+   a person's verdict.
+3. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. Still the
+   only reading that can move `endless.growth.bodiesCeil`.

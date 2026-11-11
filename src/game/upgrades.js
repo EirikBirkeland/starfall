@@ -253,8 +253,8 @@ export const LINES = [
     id: 'kindling',
     name: 'KINDLING',
     unit: SYNERGY_UNIT,
-    becomes: 'A BURNING KILL FEEDS TWICE',
-    flavour: 'A body that dies alight feeds the leech twice. The fire has already done the work; the leech gets the meal.',
+    becomes: 'A BURNING KILL FEEDS 2',
+    flavour: 'A burning death feeds the leech twice.',
     icon: 'kindling',
   },
 ];

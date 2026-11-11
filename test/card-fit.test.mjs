@@ -234,6 +234,17 @@ test('on a phone the effect and the flavour are whole, not cut', () => {
   }
 });
 
+test('a synergy card fits the phone rack with both parent rows', () => {
+  // KINDLING is the wide card: 21 characters of effect and two parent names under a flavour. At
+  // 390x844 it takes the third, centred place in a two-across rack; the effect and flavour must both
+  // fit whole, and the parent row must stay clear of them.
+  const ids = ['nova', 'burn', 'kindling'];
+  const words = paint(ids, 390, 844);
+  const cut = words.map((word) => word.text).filter((text) => text.endsWith(ELLIPSIS));
+  assert.deepEqual(cut, [], 'KINDLING had to be cut short: ' + cut.join(' | '));
+  assert.deepEqual(checked(ids, 390, 844), [], 'and every word is inside its card');
+});
+
 test('the cut-out line stays between the chips it sits under', () => {
   world.banished.length = 0;
   for (const id of ['turret', 'magnetar', 'afterimage', 'overcharge']) world.banished.push(id);
