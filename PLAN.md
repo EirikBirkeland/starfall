@@ -2080,6 +2080,15 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       late, rare body that removes a little score from the blast's own kills, not a difficulty lever.
       Five tests in `test/pulsar.test.mjs`; session 199, NOTES.
 
+- [x] A third synergy: **FROSTBITE**, chill 3 + damage 3. A body that dies cold is given the
+      rank-five shatter early: the cold death comes apart for its frost's weight, chills what it
+      catches and can chain, through `game/chill.js shatterAt`. The card reuses the shatter's own spec
+      and adds no damage number; it is an unlock, not a second blast. `line-ab` (8 seeds, 5m, parents
+      held at chill 3 + damage 3): **dealt 1.012x score / 1.032x damage, free 1.014x / 1.065x**;
+      three tests in `test/frostbite.test.mjs` and the parents in `test/synergies.test.mjs`. Two
+      earlier versions were measured and **withdrawn**: a dash-start nova (0 dashes in the bot, 0.977x
+      dealt) and a leech-fed cold kill (1.000x free, full hull, 0.969x dealt). Session 200, NOTES.
+
 - [x] A second synergy: **KINDLING**, burn 3 + leech 3. A body that dies alight counts **twice** toward
       the leech; the card carries the burn/leech colours on its frame and a flame-plus-diamond icon. It
       is dealt only when both parents are at rank 3, like THERMAL SHOCK. Adding the twentieth line made

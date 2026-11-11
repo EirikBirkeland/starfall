@@ -1,5 +1,16 @@
 # Starfall — changelog
 
+## 1.9.37 — 2026-11-11
+A third synergy: FROSTBITE.
+- **Chill 3 + Damage 3.** A body that dies cold now comes apart with the rank-five shatter: it
+  throws its frost outward, chills what it catches and can chain, using the cold line's own shatter
+  spec. It is an unlock, not a second damage number.
+- At 5 minutes on eight seeds with both parents held, it reads **1.012x score / 1.032x damage** when
+  dealt and **1.014x / 1.065x** at the free ceiling. The reference run takes it and stays alive at the
+  cap.
+- Three tests in `test/frostbite.test.mjs`; the card fits the phone rack and the rank object stays a
+  fixed literal.
+
 ## 1.9.36 — 2026-11-11
 A new enemy: the PULSAR.
 - **A pink five-point star that marks your ground.** It keeps its distance, and every 3.4 seconds it

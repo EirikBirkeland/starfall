@@ -70,7 +70,7 @@ import { dist2 } from '../core/math.js';
 import { damageEnemy } from './enemies.js';
 import { burst, ring, wreck } from './effects.js';
 import { cueBeep } from './cues.js';
-import { chillOf, gainOf, rankOf } from './upgrades.js';
+import { chillOf, gainOf, hasSynergy, rankOf } from './upgrades.js';
 
 /** How frost is counted here: a whole of it is a body that cannot walk. */
 const WHOLE = 1;
@@ -119,6 +119,10 @@ function shatterWeight(world, spec, frost) {
 
 /** PLAN's "at rank 5", as numbers - or null while the line has not been taken that far. */
 function shatterAt(world, spec) {
+  // FROSTBITE (chill 3 + damage 3): a cold kill shatters at the rank-five strength, which is the
+  // part of the cold line the third rank has not bought yet. The card is an unlock, not a second
+  // shatter: a run that already has rank five is handed the same gate it already had.
+  if (hasSynergy(world, 'frostbite')) return spec.shatter;
   return rankOf(world, CHILL_LINE) >= spec.shatter.at ? spec.shatter : null;
 }
 

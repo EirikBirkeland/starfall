@@ -245,6 +245,14 @@ test('a synergy card fits the phone rack with both parent rows', () => {
   assert.deepEqual(checked(ids, 390, 844), [], 'and every word is inside its card');
 });
 
+test('FROSTBITE fits the phone rack with its two parent names', () => {
+  const ids = ['nova', 'chill', 'frostbite'];
+  const words = paint(ids, 390, 844);
+  const cut = words.map((word) => word.text).filter((text) => text.endsWith(ELLIPSIS));
+  assert.deepEqual(cut, [], 'FROSTBITE had to be cut short: ' + cut.join(' | '));
+  assert.deepEqual(checked(ids, 390, 844), [], 'and every word is inside its card');
+});
+
 test('the cut-out line stays between the chips it sits under', () => {
   world.banished.length = 0;
   for (const id of ['turret', 'magnetar', 'afterimage', 'overcharge']) world.banished.push(id);

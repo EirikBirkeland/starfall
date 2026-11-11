@@ -4208,6 +4208,16 @@ export const BALANCE = {
       feeds: 2,
       weight: 4,
     },
+    // Frostbite (game/chill.js): the third synergy, chill 3 + damage 3. A body that dies cold comes
+    // apart with the rank-five shatter, which is the part of the cold line the third rank has not
+    // bought yet. It reuses the shatter's own spec, radius and chain, so the card adds no damage
+    // number of its own: it unlocks the shatter early, at the price of three levels of cold and three
+    // of the gun.
+    frostbite: {
+      ranks: 1,
+      needs: [{ line: 'chill', rank: 3 }, { line: 'damage', rank: 3 }],
+      weight: 4,
+    },
   },
 
   // The level-up choice (game/upgrades.js, render/cards.js).

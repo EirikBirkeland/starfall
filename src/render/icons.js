@@ -111,6 +111,9 @@ const TINT = {
   // it. Two synergies can share a tint because they cannot share a shape - this one is a meal, the
   // other is a burst of two temperatures.
   kindling: PALETTE.burnFlame,
+  // The third synergy is KINDLING's cold mirror: the same snowflake its CHILL parent wears, because
+  // the card is about the state the kill died in, not about a new thing to throw.
+  frostbite: PALETTE.chillFrost,
 };
 /**
  * The shapes, all pointing up, all cool: an impact for damage, a stack for the gun's
@@ -134,6 +137,7 @@ const ICONS = {
   chill: iconChill,
   thermalShock: iconThermalShock,
   kindling: iconKindling,
+  frostbite: iconChill,
   leech: iconLeech,
   overcharge: iconOvercharge,
   afterimage: iconAfterimage,

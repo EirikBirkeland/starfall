@@ -20192,3 +20192,49 @@ which is where the 289 score went; the ship is alive at the cap. Content, not a 
    with the dash?
 2. The first-two-minutes verdict and the owner's real-GPU plate read are still the two human readings.
 3. KINDLING, MENDER and DROUGHT still need a person's feel.
+
+## Session 200 - a third synergy, after two cards that did not pay
+
+### What was withdrawn
+- **AFTERGLOW** (afterimage 3 + nova 3, dash leaves a nova at the launch point): `tools/line-ab` with
+  `--dash` reported **0.0 dashes** on the escape-dash bot, and the free ceiling was **1.009x score /
+  1.000x damage**; dealt was **0.980x / 0.963x**. A second version (every afterimage detonates) read
+  **1.008x / 1.000x** free and **0.977x / 0.966x** dealt. Both were reverted; a card that needs a
+  dash this harness never takes cannot be priced, and a card that costs a level without moving damage
+  is not shipped.
+- **FROSTBITE as a leech card** (chill 3 + leech 3, a cold kill feeds twice): free **1.000x / 1.000x**,
+  hull stayed full, dealt **0.969x / 0.934x**. The cold state is real, but the leech has nothing to
+  spend on a bot that is already whole; reverted.
+
+### What shipped
+**FROSTBITE**, chill 3 + damage 3: a body that dies cold is given the rank-five shatter early. The
+code is one branch in `game/chill.js shatterAt` asking `hasSynergy(world, 'frostbite')`; the shatter
+itself is the existing spec, radius and chain, so the card adds no damage number and no new system.
+The card says **`A COLD KILL SHATTERS`** (`A body that dies cold comes apart at the seams.`), wears
+the snowflake of its CHILL parent, and sits third in the synergy row.
+
+### Price
+`node tools/line-ab.js --line frostbite --with chill=3 --with damage=3 --seeds 8 --seconds 300`:
+- out **34,191 / 16,532 damage**
+- dealt **34,586 (1.012x) / 17,068 (1.032x)**
+- free **34,660 (1.014x) / 17,613 (1.065x)**
+
+The reference run with the new card takes it: **`73,953 / level 56 / 3,870 kills / 4,840 shards / hull
+3`**, alive at the cap. It is a small positive card, not a new power spike; the price is three levels
+of cold and three of the gun.
+
+### Verification
+- `node --test`: **2,697/2,697 green** (three FROSTBITE tests, the parents in `synergies`, the card in
+  `card-fit`).
+- `node tools/simulate.js --seed 20261006 --trace`: the reference above.
+- `node tools/alloc-probe.js --scene schedule`: PASS, floor 16 B; the new rank is a fixed literal key,
+  so the object shape did not turn into a dictionary.
+- A real phone card is covered by the `card-fit` FROSTBITE case; no browser-specific text changed.
+
+### Released
+**1.9.37.** A third synergy: FROSTBITE, cold deaths shatter.
+
+### Next
+1. Play FROSTBITE for feel; it is the smallest of the three synergies.
+2. The first-two-minutes verdict and the owner's GPU plate read are still human readings.
+3. Do not start a dash-gated or leech-gated card without a harness that can actually use it.

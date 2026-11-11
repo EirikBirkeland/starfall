@@ -257,6 +257,14 @@ export const LINES = [
     flavour: 'A burning death feeds the leech twice.',
     icon: 'kindling',
   },
+  {
+    id: 'frostbite',
+    name: 'FROSTBITE',
+    unit: SYNERGY_UNIT,
+    becomes: 'A COLD KILL SHATTERS',
+    flavour: 'A body that dies cold comes apart at the seams.',
+    icon: 'frostbite',
+  },
 ];
 
 /** The line that hands out extra projectiles alongside the gun's own. */
@@ -306,7 +314,7 @@ export function newRanks() {
     damage: 0, fireRate: 0, bulletSpeed: 0, split: 0, pierce: 0, ricochet: 0,
     orbitals: 0, nova: 0, burn: 0, chill: 0, leech: 0, afterimage: 0,
     overcharge: 0, magnetar: 0, mines: 0, tether: 0, turret: 0, attractor: 0,
-    thermalShock: 0, kindling: 0,
+    thermalShock: 0, kindling: 0, frostbite: 0,
   };
 }
 
