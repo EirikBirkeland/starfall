@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.19",
+    "date": "2026-11-11",
+    "released": "2026-11-11T07:15:19.300Z",
+    "summary": "a phone's tutorial speaks the phone's hands, and its hint sits above the controls",
+    "added": 62,
+    "removed": 10,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.18",
     "date": "2026-11-11",
     "released": "2026-11-11T06:54:51.223Z",
