@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.25",
+    "date": "2026-11-11",
+    "released": "2026-11-11T08:40:56.127Z",
+    "summary": "the interface paints over the thumb's controls, so the landscape XP bar stays readable",
+    "added": 8,
+    "removed": 4,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.24",
     "date": "2026-11-11",
     "released": "2026-11-11T08:27:59.288Z",
