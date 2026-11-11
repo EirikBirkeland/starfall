@@ -1,5 +1,12 @@
 # Starfall — changelog
 
+## 1.9.22 — 2026-11-11
+The volume readout no longer lands on a phone's own controls.
+- **On a thumb, the mixer plate sits above the stick and the DASH button.** Its keyboard position -
+  the strip above the XP bar - is exactly where a thumb's floating stick and DASH button live, so
+  turning the music down mid-fight covered the control the player was about to press. It is now lifted
+  by two stick reaches on a thumb visit; a keyboard keeps the strip it had.
+
 ## 1.9.21 — 2026-11-11
 On a phone, the pause is a plate now instead of a window.
 - **The held run no longer reads through the pause.** The phone pause's translucent radial background
