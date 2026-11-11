@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.29",
+    "date": "2026-11-11",
+    "released": "2026-11-11T10:18:27.855Z",
+    "summary": "PRESSURE is a challenge now: the crowd refills 233% faster and it reads 0.89x",
+    "added": 9,
+    "removed": 9,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.28",
     "date": "2026-11-11",
     "released": "2026-11-11T09:53:43.000Z",
