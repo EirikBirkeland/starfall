@@ -2564,17 +2564,23 @@ a replay viewer driven by the seed and recorded input. Write new items here befo
       room off, and do it only to a ship that is not watching; and the flattest of the three is the
       one the ruler is known to read most kindly. The lever
       is therefore not a bigger arena and not more bodies: it is *how many things a beat gives you to
-      be out of at once*, and the second is that the bosses do not read `tierBonus.telegraph` at all,
-      which is the shortening the ladder already prices for the crowd at deep tiers (and NOTES 139
-      already found that shortening a tell by 20% moves a late death count by 0.6 - which was measured
-      on the crowd, and the fights were the part left unmeasured). Two candidate asks, in order of the
-      damage they do to what is already good: give the last phase of each fight one more thing to dodge
-      at the same time (a ring that comes with a spoke lock, a sweep that comes with a call), priced
-      with `tools/ladder.js --boss <name>` so the fight stays winnable; or read the tier's telegraph
-      scale into the bosses' own wind-ups, which is one line in `bosses.js` and changes the feel of
-      every fight from the first minute of a deep run. Either way the first two phases stay as they
-      are - they are tutorials, and a wide first fight is a fact about the game that the table above
-      says is currently true and should stay true.
+      be out of at once*. Two candidate asks, in order of the damage they do to what is already good:
+      give the last phase of each fight one more thing to dodge at the same time (a ring that comes
+      with a spoke lock, a sweep that comes with a call), priced with `tools/ladder.js --boss <name>`
+      so the fight stays winnable; or read a tier's telegraph scale into the bosses' own wind-ups.
+      Either way the first two phases stay as they are - they are tutorials, and a wide first fight is
+      a fact about the game that the table above says is currently true and should stay true.
+
+      **Correction, session 169: the second ask named a number this tree does not have, and it is
+      withdrawn.** There is no `tierBonus` anywhere in `src/`, `tools/` or `test/`, and no tier ladder of
+      telegraphs, so "the bosses do not read `tierBonus.telegraph`" was not a missing line in
+      `bosses.js` - it was a mechanism that was never built. Nor is there a shortening for them to miss:
+      the crowd's depth scaling is hull and speed (`enemies.hpScaleMax`, `enemies.speedScaleMax`), and
+      no telegraph is scaled by it. The "20% shorter tell" this paragraph used to cite is not in session
+      139's notes either - the only place it was ever written down is this sentence, repeated later in a
+      next-item list - so it cannot be re-read or re-checked. A tier ladder of tells is therefore a
+      mechanism to design from scratch if anybody wants it, not a one-line read, and it is not kept here
+      as a promise. The ask that was actually taken is the carried beat (`with`), below.
 
       Session 148 took the first of those two asks and found it wanted a mechanism and not a number: a
       phase can now write one beat as *carrying* another (`with` on a beat row), and the carried half is

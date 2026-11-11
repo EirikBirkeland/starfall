@@ -18787,3 +18787,50 @@ the two new pass tests.
 ### Released
 Nothing. The game traces byte for byte what it traced at 1.9.16; what changed is one tool's window and
 the rows it asks for.
+
+## Session 169 - the `tierBonus.telegraph` sentence was a lever this tree never had, and it is withdrawn
+
+### What was on the shelf
+The oldest carried item on every next-list since session 148: a sentence in PLAN's boss-pressure item
+offering a second way to make the last phase of a fight contest the room - "read the tier's telegraph
+scale into the bosses' own wind-ups, which is one line in `bosses.js`". Session 150 had already tried
+to do it and found `tierBonus` exists nowhere; the item stayed on the list because nobody decided
+whether to design the ladder or delete the sentence.
+
+### What was actually true
+- **`tierBonus` is not in this tree.** `grep -rn tierBonus src tools test` is empty. There is no tier
+  ladder of telegraphs, and there never was in this working copy.
+- **Nothing else shortens a tell at depth.** The crowd's depth scaling is hull and speed
+  (`enemies.hpScaleMax`, `enemies.speedScaleMax`, both reached inside the first three minutes); the
+  bosses' wind-ups are phase rows read as written, held to `bosses.telegraphMin`. So the sentence was not
+  describing a line the bosses forgot to read - it was describing a mechanism nobody built.
+- **The 20% claim has no other home.** The sentence said "NOTES 139 already found that shortening a tell
+  by 20% moves a late death count by 0.6". Session 139's entry is the arc's window and does not contain
+  it; `grep` finds the claim only in this PLAN sentence and in a later next-item list quoting it. It
+  cannot be re-read from the notes, so it cannot be checked or re-flown.
+
+### What landed
+- **PLAN's boss-pressure item now records the decision**: the second ask is withdrawn, with the two
+  findings above and the one-line reason (a tier ladder of tells is a mechanism to design from scratch,
+  not a missing read). The first ask - one more thing to dodge at once - stays, and is the one sessions
+  148 and 149 actually built (`with` on a beat row, the Warden's ring-and-spokes, the sun's marks). The
+  first two phases stay wide, as the item already said.
+- Nothing in `src/` was touched; there was nothing to build.
+
+### Verification
+- `grep -rn tierBonus src tools test` prints nothing.
+- `node --test`: **2638/2638 green** (the same suite session 168 left; no code changed).
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards).
+
+### Next
+1. The carried list, minus the brood pass and the phantom tier ladder: `--loot` on the other four
+   ladders, deciding which hand the challenge sheet speaks for, NO DASH's missing hand, the shot-speed
+   line (now the oldest item on the list, and session 111's test may mean it is a line to delete rather
+   than measure), whether the first two minutes are too harsh (needs a human), `--live --weapon swarm`,
+   and session 163's unattributed ~110 B a step.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. A corrected sentence is not a version.
