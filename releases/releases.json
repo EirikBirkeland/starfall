@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.17",
+    "date": "2026-11-11",
+    "released": "2026-11-11T06:33:13.002Z",
+    "summary": "late wreck and win cards fit the glass, on desktop and phone",
+    "added": 899,
+    "removed": 37,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.16",
     "date": "2026-11-09",
     "released": "2026-11-09T01:14:40.096Z",
