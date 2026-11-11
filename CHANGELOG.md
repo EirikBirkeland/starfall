@@ -1,5 +1,11 @@
 # Starfall — changelog
 
+## 1.9.41 — 2026-11-11
+A new award: TRILOGY.
+- **Hold all three synergies in one run** - THERMAL SHOCK, KINDLING and FROSTBITE - for 120 dust.
+  It reads the same synergy count as IN COMBINATION, so it adds an objective without adding state.
+- Priced in `BALANCE.awards.rows`; covered by the awards table and "every award can be earned" tests.
+
 ## 1.9.40 — 2026-11-11
 PULSAR's mark now shows its clock.
 - A solid orange arc fills clockwise inside the dashed circle over the 0.9-second wind-up, so the

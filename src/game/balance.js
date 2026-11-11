@@ -598,6 +598,7 @@ export const BALANCE = {
       'streaked':       { need: 250,    dust: 60 },
       // The build.
       'in-combination': { need: 1,      dust: 80 },
+      'trilogy':        { need: 3,      dust: 120 },
       'full-kit':       { need: 25,     dust: 60 },
       // And the mode that only a won run can enter, in seconds past the win.
       'past-the-end':   { need: 300,    dust: 100 },

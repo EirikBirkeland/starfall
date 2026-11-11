@@ -2,13 +2,13 @@
 // pays for doing it.
 //
 // The hangar sells and the codex remembers; an award is the third thing a save can do with a run,
-// which is to *credit* it. Thirty of them, each a sentence about one run ("bring down a thousand
+// which is to *credit* it. Thirty-one of them, each a sentence about one run ("bring down a thousand
 // bodies in one run"), each paying a little stardust once and only once per save. The table is
 // below, the price sheet is `BALANCE.awards`, and the ids are what the save stores
 // (`awards.won`, core/save.js) beside the purse, the ships and the codex.
 //
 // The whole table is read on the back of the hangar (ui/screens.js `showAwards`), which is the panel
-// stardust is spent from: the purse above, and the thirty ways it was earned under it, on one panel,
+// stardust is spent from: the purse above, and the thirty-one ways it was earned under it, on one panel,
 // so nobody has to die for it to find out what they are saving up for. Not the codex, whose racks
 // are what a save has *met* and whose tally would otherwise have started meaning two things.
 //
@@ -133,6 +133,8 @@ export const AWARDS = [
     (world, need) => world.tally.dashes >= need),
   // The build: the cards taken, and the one kind of card that is only dealt by accident.
   row('in-combination', 'IN COMBINATION', 'take a synergy off the table',
+    (world, need) => synergiesHeld(world) >= need),
+  row('trilogy', 'TRILOGY', 'hold all three synergies in one run',
     (world, need) => synergiesHeld(world) >= need),
   row('full-kit', 'FULL KIT', 'take twenty-five cards in one run',
     (world, need) => ranksTaken(world) >= need),

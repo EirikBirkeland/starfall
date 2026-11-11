@@ -20322,3 +20322,30 @@ round it, the pink star standing off to the right with its own shot in the air. 
 ### Next
 1. Play a PULSAR crowd: the arc is the tell to judge; 0.9 s should read as a beat, not a blink.
 2. First-two-minutes verdict and the owner's real-GPU plate read remain the human readings.
+
+## Session 204 - TRILOGY: the award for holding all three
+
+The game has three synergies now and a player can hold all of them in one run, but the awards table
+only knew "take a synergy" (IN COMBINATION). Added **TRILOGY** - *hold all three synergies in one
+run* - at 120 dust, beside IN COMBINATION and before FULL KIT. It reads the same `synergiesHeld`
+counter the existing row uses, so there is no new state, no new live event and no new rule for the
+tests to keep in step.
+
+- Table: `AWARDS` in `game/awards.js`; price `BALANCE.awards.rows.trilogy { need: 3, dust: 120 }`.
+- Case in `test/awards-rules.test.mjs` takes all three ranks; the existing table-vs-price test holds
+  the ids both ways.
+- The header says thirty-one awards, and the "every award can be earned" case list has the new row.
+
+### Verification
+- `node --test`: **2,702/2,702 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: unchanged **73,953 / level 56 / 3,870 kills /
+  4,840 shards / hull 3**.
+- `test/awards`, `test/awards-rules` pass; no interface change (the panel counts `AWARDS.length`).
+
+### Released
+**1.9.41.** TRILOGY: hold all three synergies in one run.
+
+### Next
+1. Play a run deep enough to hold THERMAL SHOCK + KINDLING + FROSTBITE; that is now an award worth
+   chasing and the natural end of a build.
+2. First-two-minutes verdict, owner's real-GPU plate read.

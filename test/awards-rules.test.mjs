@@ -6,7 +6,7 @@
 //   something the save would take, and the numbers the rules read are the numbers in the table -
 //   including the one row whose number is a copy of the boss schedule's length.
 //
-//   **Every award can be earned.** Each of the thirty gets a world state that earns it, and the
+//   **Every award can be earned.** Each of the thirty-one gets a world state that earns it, and the
 //   test asserts *that award* was paid for it. A rule that reads a field nobody ever writes, or a
 //   threshold no run can reach, is an award that will never be given and never be noticed missing.
 //
@@ -307,6 +307,7 @@ const CASES = [
   ['flawless', (f) => { f.won = true; f.tally.hullLost = 0; }],
   ['streaked', (f) => { f.tally.dashes = need('streaked'); }],
   ['in-combination', (f) => { f.upgrades.thermalShock = 1; }],
+  ['trilogy', (f) => { f.upgrades.thermalShock = 1; f.upgrades.kindling = 1; f.upgrades.frostbite = 1; }],
   ['full-kit', (f) => { f.upgrades.damage = need('full-kit'); }],
   ['past-the-end', (f) => {
     f.endless = true;
