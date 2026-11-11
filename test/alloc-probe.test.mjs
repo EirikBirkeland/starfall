@@ -178,7 +178,8 @@ test('a plateau on the way down is not a settle', () => {
 
 test('every flag is refused with a sentence before a number can be printed', () => {
   for (const args of [['--nonsense'], ['--scene', 'nowhere'], ['--kind', 'nowhere'],
-    ['--windows', '1'], ['--steps', '0'], ['--seconds', '-1']]) {
+    ['--windows', '1'], ['--steps', '0'], ['--seconds', '-1'],
+    ['--weapon', 'nowhere'], ['--weapon', 'swarm']]) {
     const out = probe(args);
     assert.notEqual(out.status, 0, args.join(' ') + ' should not be accepted');
     assert.match(out.stderr, /alloc-probe: /, args.join(' ') + ' printed no honest complaint');
@@ -379,6 +380,16 @@ test('the mean of a run plants a load, standing and not dying', () => {
     'a mean that rounds to nothing still plants one body, so the row is a crowd and not the empty arena');
 });
 
+test('a run can be watched on another gun, and the load says which one', () => {
+  assert.equal(readArgs(['--live']).weapon, undefined, 'the pulse is what every older reading meant');
+  assert.equal(readArgs(['--live', '--weapon', 'swarm']).weapon, 'swarm');
+  const armed = seenLoad({ mean: { bodies: 48, shots: 3, sparks: 40, weapon: 'swarm' } });
+  assert.equal(armed.weapon, 'swarm');
+  assert.match(armed.name, /swarm/, 'the row has to say which gun the run held those shots with');
+  assert.equal(seenLoad({ mean: { bodies: 48, shots: 3, sparks: 40 } }).name,
+    'what a real run was seen holding', 'a watch with no weapon named is the row it always was');
+});
+
 test('what a real run was seen holding is inside the budgets - and a painted frame is no window', () => {
   // Two halves of one measurement, one probe run: the crowd the game really fields, weighed in the same
   // currency as the planted walls, and the reason it has to be weighed that way.
@@ -430,6 +441,23 @@ test('what a real run was seen holding is inside the budgets - and a painted fra
   assert.ok(trial.floor > row.bytesPerStep * 10, 'the dearest frame window floors at '
     + bytes(trial.floor) + ' a step against the same load\'s ' + bytes(row.bytesPerStep)
     + ' - that is not an order of magnitude of harness, so the row is being unfair to it');
+});
+
+test('--live can watch the swarm, and the row is that run and not the pulse\'s', () => {
+  // The pipe, end to end: `--weapon` has to reach the child that watches the run, the mean has to
+  // carry it back, and the planted load has to say which gun the run held its shots with. A unit test
+  // of `readArgs` would pass even if the spec key were misspelt.
+  const seen = rowsAndRun(['--scene', 'schedule', '--live', '--weapon', 'swarm', '--seconds', '20',
+    ...QUICK]);
+  assert.equal(seen.live.seen.weapon, 'swarm', 'the watcher was told which gun to fly');
+  assert.equal(seen.live.load.weapon, 'swarm', 'the load carries the gun it was planted from');
+  assert.match(seen.live.load.name, /swarm/);
+  assert.ok(seen.live.seen.frames > 300, 'the run was flown, not skipped: '
+    + seen.live.seen.frames + ' frames');
+  const row = seen.rows.find((r) => r.id === 'seen');
+  assert.ok(row !== undefined, 'the swarm run printed a row: ' + seen.stdout);
+  assert.match(row.name, /swarm/, 'and the row in the table says which gun it was');
+  assert.ok(row.bodies >= 1, 'a swarm run still held a crowd to plant');
 });
 
 test('the empty arena is inside its own budget', () => {

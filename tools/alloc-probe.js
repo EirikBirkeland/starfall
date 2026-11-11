@@ -14,6 +14,9 @@
 //   node tools/alloc-probe.js --bodies 300 --sparks 900        a load of your own (measured, gated
 //                                                              against nothing)
 //   node tools/alloc-probe.js --live                           weigh what a real run was seen holding
+//   node tools/alloc-probe.js --live --weapon swarm            the gun that run flew (pulse by
+//                                                              default), because what a run holds is
+//                                                              the crowd plus the gun's own shots
 //   node tools/alloc-probe.js --seconds 30                     how long that run is flown (60 s)
 //   node tools/alloc-probe.js --steps 300 --windows 12         a longer window, more of them
 //   node tools/alloc-probe.js --quiet                          the verdict and nothing else
@@ -88,6 +91,7 @@ import { spawnSync } from 'node:child_process';
 import { PerformanceObserver, performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { BALANCE } from '../src/game/balance.js';
+import { WEAPONS } from '../src/game/weapons.js';
 import { stepWorld } from '../src/game/world.js';
 import { drainCues } from '../src/game/cues.js';
 import { bootGame } from './headless/harness.js';
@@ -227,7 +231,7 @@ export function bytes(n) {
 export function readArgs(argv) {
   const opts = {
     scene: null, kinds: false, parts: false, live: false, seconds: 60, quiet: false, child: null,
-    json: false,
+    json: false, weapon: undefined,
     steps: 300, windows: 12, kind: null, bodies: null, shots: null, sparks: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -238,6 +242,7 @@ export function readArgs(argv) {
     else if (key === '--kinds') opts.kinds = true;
     else if (key === '--parts') opts.parts = true;
     else if (key === '--live') opts.live = true;
+    else if (key === '--weapon') opts.weapon = next();
     else if (key === '--seconds') opts.seconds = Number(next());
     else if (key === '--steps') opts.steps = Number(next());
     else if (key === '--windows') opts.windows = Number(next());
@@ -259,6 +264,16 @@ export function readArgs(argv) {
   if (opts.kind !== null && !BALANCE.kinds[opts.kind]) {
     throw new Error('there is no kind called ' + opts.kind
       + '; there is ' + Object.keys(BALANCE.kinds).join(', '));
+  }
+  if (opts.weapon !== undefined) {
+    if (!WEAPONS.some((weapon) => weapon.id === opts.weapon)) {
+      throw new Error('there is no primary called ' + opts.weapon
+        + '; there is ' + WEAPONS.map((weapon) => weapon.id).join(', '));
+    }
+    if (!opts.live) {
+      throw new Error('--weapon is a --live lever: it says which gun the watched run flies, and no'
+        + ' planted load reaches for it');
+    }
   }
   return opts;
 }
@@ -575,8 +590,10 @@ export async function measureLoad(game, scene, opts, watch) {
  */
 export function seenLoad(seen) {
   const mean = seen.mean;
+  const weapon = typeof mean.weapon === 'string' ? mean.weapon : '';
   return {
-    id: 'seen', name: 'what a real run was seen holding', gated: false,
+    id: 'seen', name: 'what a real run was seen holding' + (weapon === '' ? '' : ' (' + weapon + ')'),
+    gated: false, weapon: weapon,
     onGlass: true, mortal: false, kind: null, flocks: 0, each: 0,
     bodies: Math.max(1, Math.round(mean.bodies)),
     shots: Math.max(0, Math.round(mean.shots)),
@@ -717,7 +734,8 @@ async function measureOneChild(spec) {
   const watch = watchCollector();
   let out;
   if (spec.live !== null) {
-    const seen = await watchRealRun(game, { seeds: [20261011], seconds: spec.live });
+    const seen = await watchRealRun(game, { seeds: [20261011], seconds: spec.live,
+      weapon: spec.weapon });
     out = { seen, load: seenLoad(seen) };
   } else {
     await openScene(game, 20261011);
@@ -854,7 +872,7 @@ async function main() {
   let live = null;
   if (opts.live) {
     live = spawnChild({ load: null, steps: opts.steps, windows: opts.windows,
-      live: opts.seconds, trial: false });
+      live: opts.seconds, weapon: opts.weapon, trial: false });
     const reading = measureChild(live.load, opts, { trial: true });
     live.trial = reading.trial;
     results.push({
@@ -957,7 +975,8 @@ async function main() {
       const lengths = trial.lengths.map((one) => int(one.frames) + ' frames: ' + int(one.clean)
         + ' clean, floors ' + bytes(one.floor)).join('; ');
       console.log('');
-      console.log('What a real run was seen holding: ' + dec(seen.mean.bodies, 1) + ' bodies, '
+      console.log('What a real run was seen holding' + (seen.weapon ? ' on the ' + seen.weapon : '')
+        + ': ' + dec(seen.mean.bodies, 1) + ' bodies, '
         + dec(seen.mean.shots, 1) + ' of its shots and ' + dec(seen.mean.sparks, 0)
         + ' sparks on average - ' + dec(seen.mean.enemyShots, 1) + ' of the arena\'s shots and '
         + dec(seen.mean.packs, 1) + ' clumps of the swarm beside them, over '

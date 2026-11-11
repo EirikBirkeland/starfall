@@ -18876,3 +18876,61 @@ this may be a line to delete rather than to measure".
 
 ### Released
 Nothing. The game traces byte for byte what it traced at 1.9.16.
+
+## Session 171 - `--live` can watch another gun now, so the byte ruler can weigh a swarm run's own load
+
+### What was on the shelf
+A carried item with no argument attached: `--live --weapon swarm`. `tools/perf-probe.js` `watchRealRun`
+already took a `weapon` and flew the run on it; `tools/alloc-probe.js` never passed one, so every `--live`
+reading the project has ever printed was a pulse run by construction. The question was whether the ruler
+could be asked what a swarm run holds - the gun whose shots are micro-missiles and live in
+`world.bullets` like every other shot - without changing how the load is planted.
+
+### What landed
+1. **`--weapon <id>` on `tools/alloc-probe.js`**, checked against the five primaries the game offers and
+   refused when given without `--live`: it names the gun the watched run flies, and no planted load
+   reaches for a gun. The default is no flag at all, which is the pulse every older reading meant.
+2. **The spec carries it through the child**: `spawnChild({ ..., weapon: opts.weapon })` ->
+   `watchRealRun(game, { ..., weapon: spec.weapon })`. The default is `undefined`, not `null`, on purpose:
+   `JSON.stringify` drops an `undefined` key, and a `null` that reached `playOneRun` was a real failure
+   on the first run of the tool - "no weapon is offered called null" - because the bot reads "the key is
+   there" as "set the gun".
+3. **The row says which gun it is.** `seenLoad` names the row `what a real run was seen holding (swarm)`
+   and carries `weapon` on the load; the human paragraph opens with "What a real run was seen holding on
+   the swarm". The `LIVE` JSON has the same fact in `seen.weapon` and `load.weapon`.
+4. **Tests**: the flag is refused with a sentence for an unknown primary and for `--weapon` without
+   `--live`; `readArgs` and `seenLoad` carry the name; and one end-to-end run (`--live --weapon swarm`,
+   20 s, a short window) checks that the watcher, the load and the table row all say `swarm`. Suite
+   2638 -> 2640.
+
+### The first reading
+`node tools/alloc-probe.js --live --weapon swarm --seconds 30` (the old pulse row is session 155's, on a
+different day and a different tree, so the two are not a controlled comparison):
+
+- **69 bodies, 1.5 of its shots and 49 sparks** on average over 30 s flown from 900 s in; the peak was
+  **100 bodies, 8 shots, 287 sparks**; the F3 plate inside that run read **0.070 ms a step on average and
+  1.613 ms at its worst**.
+- **The row**: `what a real run was seen holding (swarm)`, 69 bodies / 1 shot / 54 sparks planted,
+  **231 B a step and 3 B a body**, verdict PASS. The mean carried 1.5 shots and the planted load rounds
+  to 1; the missiles are bullets, so the count is the real one and not a zero.
+- **What it is not**: the mean is the crowd and the gun's own shots as the run was *seen* holding. The
+  planted load is planted, not flown, so the missiles in it do not hunt; this is a byte load and not a
+  measurement of the swarm's step behaviour. That is the same boundary session 155 drew for the pulse.
+
+### Verification
+- `node --check` on the tool and its test.
+- `node --test test/alloc-probe.test.mjs`: **22/22 green** (including the two new tests and the existing
+  pulse `--live` measurement).
+- `node --test`: **2640/2640 green**.
+- `node tools/simulate.js --seed 20261006 --trace`: identical fingerprint (`73,354`, level 57, 3,898
+  kills, 4,998 shards).
+
+### Next
+1. The carried list, now without `--live --weapon swarm`: `--loot` on the other four ladders, deciding
+   which hand the challenge sheet speaks for, NO DASH's missing hand, whether the first two minutes are
+   too harsh (needs a human), and session 163's unattributed ~110 B a step.
+2. The browser half on the owner's GPU: `tools/plate-flight.js --gpu` there, or F3 by hand. That is still
+   the only reading that can move `endless.growth.bodiesCeil`.
+
+### Released
+Nothing. The game traces byte for byte what it traced at 1.9.16; the tool learned a flag.
