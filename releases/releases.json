@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.39",
+    "date": "2026-11-11",
+    "released": "2026-11-11T18:43:18.981Z",
+    "summary": "Two PULSARs no longer overwrite each other's marks",
+    "added": 32,
+    "removed": 1,
+    "logBytes": 56370919
+  },
+  {
     "version": "1.9.38",
     "date": "2026-11-11",
     "released": "2026-11-11T18:32:12.871Z",
